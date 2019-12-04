@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>miniscope.qml</file>
+        <file>behaviorCam.qml</file>
+    </qresource>
+</RCC>
