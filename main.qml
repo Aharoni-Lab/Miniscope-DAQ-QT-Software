@@ -77,6 +77,7 @@ Window {
             TextArea {
                 id: taConfigDesc
                 text: backend.userConfigDisplay
+                wrapMode: Text.WrapAnywhere
                 anchors.fill: parent
                 font.pointSize: 12
                 background: Rectangle {
@@ -109,7 +110,7 @@ Window {
             }
 
             Layout.fillWidth: true
-
+            onClicked: backend.onRunClicked()
         }
 
         RowLayout {
@@ -157,9 +158,9 @@ Window {
                     border.width: 1
                     color: "#a8a7fd"
                 }
+                onClicked: Qt.quit()
             }
         }
-
 
     }
 }

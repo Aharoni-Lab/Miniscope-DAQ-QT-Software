@@ -8,6 +8,7 @@ class Miniscope : public QObject
     Q_OBJECT
 public:
     explicit Miniscope(QObject *parent = nullptr);
+    void createView();
 
 signals:
 

@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QJsonObject>
+#include <QJsonArray>
 
 
 class backEnd : public QObject
@@ -21,18 +22,37 @@ public:
     QString userConfigDisplay();
     void setUserConfigDisplay(const QString &input);
 
-    void parseUserConfigFile();
+    void loadUserConfigFile();
+    bool checkUserConfigForIssues();
+    void constructUserConfigGUI();
+    void parseUserConfig();
 
 signals:
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();
 
 public slots:
+    void onRunClicked();
 
 private:
     QString m_userConfigFileName;
     QString m_userConfigDisplay;
+    bool userConfigOK;
     QJsonObject m_userConfig;
+
+    // Break down of different types in user config file
+    // 'uc' stands for userConfig
+    QString researcherName;
+    QString dataDirectory;
+    QJsonArray dataStructureOrder;
+    QString experimentName;
+    QString animalName;
+
+    QJsonObject ucExperiment;
+    QJsonArray ucMiniscopes;
+    QJsonArray ucBehaviorCams;
+    QJsonObject ucBehaviorTracker;
+
 };
 
 #endif // BACKEND_H

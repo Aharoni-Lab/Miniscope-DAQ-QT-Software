@@ -1,6 +1,7 @@
 QT += quick widgets
 CONFIG += c++11
 
+
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
 # depend on your compiler). Refer to the documentation for the
@@ -15,6 +16,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
         backend.cpp \
         behaviorcam.cpp \
+        behaviortracker.cpp \
         main.cpp \
         miniscope.cpp
 
@@ -26,6 +28,17 @@ QML_IMPORT_PATH =
 # Additional import path used to resolve QML modules just for Qt Quick Designer
 QML_DESIGNER_IMPORT_PATH =
 
+INCLUDEPATH += C:\opencv-build\install\include
+
+
+LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_core412.dll.a
+LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_highgui412.dll.a
+LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgcodecs412.dll.a
+LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412.dll.a
+LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_features2d412.dll.a
+LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_calib3d412.dll.a
+LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412.dll.a
+
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
@@ -34,4 +47,5 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 HEADERS += \
     backend.h \
     behaviorcam.h \
+    behaviortracker.h \
     miniscope.h
