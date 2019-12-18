@@ -17,8 +17,11 @@ SOURCES += \
         backend.cpp \
         behaviorcam.cpp \
         behaviortracker.cpp \
+        datasaver.cpp \
         main.cpp \
-        miniscope.cpp
+        miniscope.cpp \
+        videodisplay.cpp \
+        videostreamocv.cpp
 
 RESOURCES += qml.qrc
 
@@ -38,6 +41,7 @@ LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412.dll.a
 LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_features2d412.dll.a
 LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_calib3d412.dll.a
 LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412.dll.a
+LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_videoio412.dll.a
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -48,4 +52,7 @@ HEADERS += \
     backend.h \
     behaviorcam.h \
     behaviortracker.h \
-    miniscope.h
+    datasaver.h \
+    miniscope.h \
+    videodisplay.h \
+    videostreamocv.h

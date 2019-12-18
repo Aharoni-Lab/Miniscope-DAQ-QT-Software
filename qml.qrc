@@ -3,5 +3,10 @@
         <file>main.qml</file>
         <file>miniscope.qml</file>
         <file>behaviorCam.qml</file>
+        <file>FpsItem.qml</file>
+        <file>VideoPropertyControl.qml</file>
+        <file>img/iconEWL.png</file>
+        <file>img/icon/ewl.ico</file>
+        <file>img/icon/led.ico</file>
     </qresource>
 </RCC>

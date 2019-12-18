@@ -121,7 +121,7 @@ void backEnd::constructUserConfigGUI()
 {
     if (ucMiniscopes.size() > 0) {
         // Construct Miniscope GUI(s)
-        Miniscope ms0;
+        ms0 = new Miniscope();
     }
     if (ucBehaviorCams.size() > 0) {
         // Construct camera GUI(s)

@@ -5,6 +5,8 @@
 #include <QJsonObject>
 #include <QJsonArray>
 
+#include <miniscope.h>
+
 
 class backEnd : public QObject
 {
@@ -52,6 +54,8 @@ private:
     QJsonArray ucMiniscopes;
     QJsonArray ucBehaviorCams;
     QJsonObject ucBehaviorTracker;
+
+    Miniscope *ms0;
 
 };
 
