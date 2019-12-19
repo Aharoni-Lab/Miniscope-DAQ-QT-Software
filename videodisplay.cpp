@@ -91,30 +91,9 @@ void VideoDisplayRenderer::paint()
         initializeOpenGLFunctions();
 
         m_program = new QOpenGLShaderProgram();
-        m_program->addCacheableShaderFromSourceCode(QOpenGLShader::Vertex,
-                                                    "attribute highp vec2 position;"
-                                                    "attribute highp vec2 texcoord;"
-                                                    "varying highp vec2 v_texcoord;"
-                                                    "void main() {"
-                                                    "   gl_Position = vec4(position, 0.0, 1.0);"
-                                                    "   v_texcoord = texcoord;"
-                                                    "}");
-        m_program->addCacheableShaderFromSourceCode(QOpenGLShader::Fragment,
-                                                    "uniform sampler2D texture;"
-                                                    "varying highp vec2 v_texcoord;"
-                                                    "uniform lowp float alpha;"
-                                                    "uniform lowp float beta;"
-                                                    "uniform lowp float showSaturation;"
-                                                    "void main() {"
-                                                    "   gl_FragColor = texture2D(texture, v_texcoord);"
-                                                    "   if (gl_FragColor.b == 1.0 && showSaturation == 1.0)"
-                                                    "       gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);"
-                                                    "   else"
-                                                    "       gl_FragColor.rgb = gl_FragColor.rgb * alpha - beta;"
-                                                    "   lowp float temp = gl_FragColor.r;"
-                                                    "   gl_FragColor.r = gl_FragColor.b;"
-                                                    "   gl_FragColor.b = temp;"
-                                                    "}");
+        m_program->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,":/shaders/imageBasic.vert");
+        m_program->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/imageSaturationScaling.frag");
+
 
         m_program->bindAttributeLocation("position", 0);
         m_program->bindAttributeLocation("texcoord", 1);

@@ -140,8 +140,8 @@ void Miniscope::configureMiniscopeControls() {
             }
 
         }
-        else
-            qDebug() << controlName[0] << " not found in qml file.";
+        else if (controlName[i] != "format")
+            qDebug() << controlName[i] << " not found in qml file.";
 
     }
 }

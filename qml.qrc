@@ -12,5 +12,7 @@
         <file>deviceConfigs/miniscopes.json</file>
         <file>img/MiniscopeLogo.png</file>
         <file>userConfigs/UserConfigExample.json</file>
+        <file>shaders/imageBasic.vert</file>
+        <file>shaders/imageSaturationScaling.frag</file>
     </qresource>
 </RCC>
