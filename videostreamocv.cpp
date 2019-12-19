@@ -8,9 +8,17 @@
 #include <QAtomicInt>
 #include <QCoreApplication>
 
-VideoStreamOCV::VideoStreamOCV(QObject *parent) : QObject(parent)
+VideoStreamOCV::VideoStreamOCV(QObject *parent) :
+    QObject(parent),
+    m_stopStreaming(false)
 {
 
+}
+
+VideoStreamOCV::~VideoStreamOCV() {
+    qDebug() << "Closing video stream";
+    if (cam->isOpened())
+        cam->release();
 }
 
 void VideoStreamOCV::setCameraID(int cameraID)  {
@@ -27,15 +35,20 @@ void VideoStreamOCV::setBufferParameters(cv::Mat *buf, int bufferSize, QSemaphor
 
 void VideoStreamOCV::startStream()
 {
+    int idx = 0;
     cv::Mat frame;
     cam = new cv::VideoCapture;
-    qDebug() << "Trying to open cam.";
+
+    m_stopStreaming = false;
     cam->open(m_cameraID);
-    qDebug() << "Cam Openned";
-    int idx = 0;
-    forever {
-        if (cam->isOpened()) {
+    if (cam->isOpened()) {
+        m_isStreaming = true;
+        forever {
             QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices
+            if (m_stopStreaming == true) {
+                m_isStreaming = false;
+                break;
+            }
             cam->grab();
             //            freeFrames->acquire();
             cam->retrieve(frame);
@@ -44,12 +57,16 @@ void VideoStreamOCV::startStream()
             idx++;
             usedFrames->release();
         }
+        cam->release();
+    }
+    else {
+        qDebug() << "Camera " << m_cameraID << " failed to open.";
     }
 }
 
 void VideoStreamOCV::stopSteam()
 {
-    int x = 1;
+    m_stopStreaming = true;
 }
 
 void VideoStreamOCV::setProperty(QString type, double value)

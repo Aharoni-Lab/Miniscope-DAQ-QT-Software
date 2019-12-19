@@ -1,0 +1,59 @@
+{
+    "researcherName": "Daniel Aharoni",
+    "dataDirectory": "C:\\Users\\DBAharoni\\Documents\\Data",
+    "dataStructureOrder": [
+        "researcherName",
+        "experimentName",
+        "animalName",
+        "date"
+    ],
+    "animalName": "testMouse",
+    "experimentName": "Linear Track Test",
+    "experiment": {
+        "type": "linearTrack",
+        "units": "cm",
+        "trackLength": 200
+    },
+    "behaviorTracking": {
+        "type": "HSV"
+    },
+    "devices": {
+        "miniscopes": [
+            {
+                "deviceName": "Miniscope 0",
+                "deviceType": "Miniscope_V4",
+                "imageRegistration": "Off",
+                "headOrientation": "Off",
+                "deviceID": 0,
+                "gain": 1,
+                "exposure": 50,
+                "ewl": 0,
+                "led": 0,
+                "led2": 20
+            }
+        ],
+        "cameras": [
+            {
+                "deviceName": "Behavior Camera 1",
+                "deviceType": "?",
+                "cameraCalibrationLocation": "",
+                "behavior_tracking": "On",
+                "behavior_tracker": "HSV",
+                "hsvThreshold": [
+                    0,
+                    100,
+                    0,
+                    255,
+                    0,
+                    255
+                ],
+                "kernelSize": 3,
+                "device_id": 1,
+                "gain": 1,
+                "exposure": 50,
+                "EWL": 50,
+                "LED": 10
+            }
+        ]
+    }
+}

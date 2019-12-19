@@ -12,7 +12,7 @@ VideoDisplay::VideoDisplay()
     : m_t(0)
     , m_renderer(nullptr)
 {
-    m_displayFrame2.load("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png");
+//    m_displayFrame2.load("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png");
     connect(this, &QQuickItem::windowChanged, this, &VideoDisplay::handleWindowChanged);
 }
 //! [7]
@@ -120,7 +120,7 @@ void VideoDisplayRenderer::paint()
         m_program->bindAttributeLocation("texcoord", 1);
         m_program->link();
 
-        m_texture = new QOpenGLTexture(QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/2.png"));
+        m_texture = new QOpenGLTexture(QImage(":/img/MiniscopeLogo.png"));
         m_texture->bind(0);
 
 

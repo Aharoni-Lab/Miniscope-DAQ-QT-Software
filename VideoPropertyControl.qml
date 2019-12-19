@@ -9,13 +9,13 @@ Item {
     y: 0
     width: slider.width + icon.width + textValue.width + 20
     state: "nothovered"
-    onStateChanged: console.log("State = ", state)
+//    onStateChanged: console.log("State = ", state)
     property color textColor: "blue"
     property var iconPath: "img/icon/ewl.ico"
-    property double sliderMin: 0.0
-    property double sliderMax: 100.0
-    property double sliderStepSize: 1.0
-    property double sliderStartValue: 0.0
+    property double min: 0.0
+    property double max: 100.0
+    property double stepSize: 1.0
+    property double startValue: 0.0
     objectName: "default"
 
     signal valueChangedSignal(double value)
@@ -56,10 +56,10 @@ Item {
         anchors.rightMargin: 10
         anchors.verticalCenter: parent.verticalCenter
         opacity: 0.75
-        stepSize: root.sliderStepSize
-        from: root.sliderMin
-        to: root.sliderMax
-        value: root.sliderStartValue
+        stepSize: root.stepSize
+        from: root.min
+        to: root.max
+        value: root.startValue
         onValueChanged: root.valueChangedSignal(slider.value)
     }
 
@@ -115,7 +115,7 @@ Item {
                 target: textValue
                 property: "x"
                 duration: 500
-                easing.type: Easing.InOutQuad
+                easing.type: Easing.OutQuad
             }
         },
         Transition {
@@ -126,7 +126,7 @@ Item {
                 target: textValue
                 property: "x"
                 duration: 200
-                easing.type: Easing.InOutQuad
+                easing.type: Easing.OutQuad
             }
         }
     ]

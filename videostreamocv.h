@@ -16,8 +16,10 @@ class VideoStreamOCV : public QObject
     Q_OBJECT
 public:
     explicit VideoStreamOCV(QObject *parent = nullptr);
+    ~VideoStreamOCV();
     void setCameraID(int cameraID);
     void setBufferParameters(cv::Mat *buf, int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS, QAtomicInt *acqFrameNum);
+
 
 signals:
 
@@ -28,13 +30,15 @@ public slots:
 
 private:
     int m_cameraID;
-    bool isStreaming;
+    cv::VideoCapture *cam;
+    bool m_isStreaming;
+    bool m_stopStreaming;
     cv::Mat *buffer;
     QSemaphore *freeFrames;
     QSemaphore *usedFrames;
     int frameBufferSize;
-    cv::VideoCapture *cam;
     QAtomicInt *m_acqFrameNum;
+
 
 };
 

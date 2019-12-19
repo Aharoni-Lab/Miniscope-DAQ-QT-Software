@@ -8,5 +8,9 @@
         <file>img/iconEWL.png</file>
         <file>img/icon/ewl.ico</file>
         <file>img/icon/led.ico</file>
+        <file>TopMenu.qml</file>
+        <file>deviceConfigs/miniscopes.json</file>
+        <file>img/MiniscopeLogo.png</file>
+        <file>userConfigs/UserConfigExample.json</file>
     </qresource>
 </RCC>

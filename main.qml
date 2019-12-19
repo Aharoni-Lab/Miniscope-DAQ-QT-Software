@@ -74,6 +74,7 @@ Window {
             Layout.preferredHeight: 80
             Layout.fillHeight: true
             Layout.rowSpan: 4
+
             TextArea {
                 id: taConfigDesc
                 text: backend.userConfigDisplay
@@ -94,7 +95,7 @@ Window {
             height: 40
             radius: 10
             text: "Run"
-            enabled: false
+            enabled: backend.userConfigOK
             Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             Layout.preferredHeight: 40
             font.family: "Arial"

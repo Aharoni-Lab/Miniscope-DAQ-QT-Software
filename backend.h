@@ -14,12 +14,14 @@ class backEnd : public QObject
 
     Q_PROPERTY(QString userConfigFileName READ userConfigFileName WRITE setUserConfigFileName NOTIFY userConfigFileNameChanged)
     Q_PROPERTY(QString userConfigDisplay READ userConfigDisplay WRITE setUserConfigDisplay NOTIFY userConfigDisplayChanged)
-
+    Q_PROPERTY(bool userConfigOK READ userConfigOK WRITE setUserConfigOK NOTIFY userConfigOKChanged)
 public:
     explicit backEnd(QObject *parent = nullptr);
 
     QString userConfigFileName();
     void setUserConfigFileName(const QString &input);
+    void setUserConfigOK(bool userConfigOK) {m_userConfigOK = userConfigOK;}
+    bool userConfigOK() {return m_userConfigOK;}
 
     QString userConfigDisplay();
     void setUserConfigDisplay(const QString &input);
@@ -32,6 +34,7 @@ public:
 signals:
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();
+    void userConfigOKChanged();
 
 public slots:
     void onRunClicked();
@@ -39,7 +42,7 @@ public slots:
 private:
     QString m_userConfigFileName;
     QString m_userConfigDisplay;
-    bool userConfigOK;
+    bool m_userConfigOK;
     QJsonObject m_userConfig;
 
     // Break down of different types in user config file
@@ -55,7 +58,7 @@ private:
     QJsonArray ucBehaviorCams;
     QJsonObject ucBehaviorTracker;
 
-    Miniscope *ms0;
+    QVector<Miniscope*> miniscope;
 
 };
 

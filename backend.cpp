@@ -9,11 +9,19 @@
 
 #include "miniscope.h"
 
+#define DEBUG
 
-backEnd::backEnd(QObject *parent) : QObject(parent)
+backEnd::backEnd(QObject *parent) :
+    QObject(parent),
+    m_userConfigOK(false)
 {
-    m_userConfigFileName = "";
-    userConfigOK = false;
+#ifdef DEBUG
+    m_userConfigFileName = ":/userConfigs/UserConfigExample.json";
+    loadUserConfigFile();
+    setUserConfigOK(true);
+#endif
+
+//    m_userConfigOK = false;
 
     // User Config default values
     researcherName = "";
@@ -67,26 +75,13 @@ void backEnd::loadUserConfigFile()
     file.close();
     QJsonDocument d = QJsonDocument::fromJson(jsonFile.toUtf8());
     m_userConfig = d.object();
-//    QJsonValue value = m_userConfig.value(QString("researcher"));
-//    QJsonObject item = value.toObject();
-//    qWarning() << tr("QJsonObject of description: ") << item;
-
-//    /* in case of string value get value and convert into string*/
-//    qWarning() << tr("QJsonObject[appName] of description: ") << item["description"];
-//    QJsonValue subobj = item["description"];
-//    qWarning() << subobj.toString();
-
-//    /* in case of array get array and convert into string*/
-//    qWarning() << tr("QJsonObject[appName] of value: ") << item["imp"];
-//    QJsonArray test = item["imp"].toArray();
-//    qWarning() << test[1].toString();
 }
 
 void backEnd::onRunClicked()
 {
-    qDebug() << "Run was clicked!";
-    userConfigOK = checkUserConfigForIssues();
-    if (userConfigOK) {
+//    qDebug() << "Run was clicked!";
+    m_userConfigOK = checkUserConfigForIssues();
+    if (m_userConfigOK) {
         parseUserConfig();
         constructUserConfigGUI();
     }
@@ -119,9 +114,9 @@ void backEnd::parseUserConfig()
 
 void backEnd::constructUserConfigGUI()
 {
-    if (ucMiniscopes.size() > 0) {
-        // Construct Miniscope GUI(s)
-        ms0 = new Miniscope();
+    int idx;
+    for (idx = 0; idx < ucMiniscopes.size(); idx++) {
+        miniscope.append(new Miniscope(this, ucMiniscopes[idx].toObject()));
     }
     if (ucBehaviorCams.size() > 0) {
         // Construct camera GUI(s)
