@@ -7,6 +7,7 @@
 #include <QDebug>
 #include <QAtomicInt>
 #include <QCoreApplication>
+#include <QMap>
 
 VideoStreamOCV::VideoStreamOCV(QObject *parent) :
     QObject(parent),
@@ -39,12 +40,14 @@ void VideoStreamOCV::startStream()
     cv::Mat frame;
     cam = new cv::VideoCapture;
 
+
     m_stopStreaming = false;
     cam->open(m_cameraID);
+//    cam->set(cv::CAP_PROP_CONTRAST, 65535);
     if (cam->isOpened()) {
         m_isStreaming = true;
         forever {
-            QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices
+
             if (m_stopStreaming == true) {
                 m_isStreaming = false;
                 break;
@@ -56,6 +59,10 @@ void VideoStreamOCV::startStream()
             m_acqFrameNum->operator++();
             idx++;
             usedFrames->release();
+
+            // Get any new events
+            QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices
+            sendCommands(); // Send last of each control property events that arrived on this processEvent() call then removes it from queue
         }
         cam->release();
     }
@@ -69,7 +76,22 @@ void VideoStreamOCV::stopSteam()
     m_stopStreaming = true;
 }
 
-void VideoStreamOCV::setProperty(QString type, double value)
+void VideoStreamOCV::setPropertyI2C(unsigned int preamble, unsigned int data)
 {
-    qDebug() << "IN SLOT!!!!! " << type << " is " << value;
+    // add newEvent to the queue for sending new settings to camera
+    // overwrites data of previous preamble event that has not been sent to camera yet
+    sendCommandQueue[preamble] = data;
+}
+
+void VideoStreamOCV::sendCommands()
+{
+    QList<unsigned int> keys = sendCommandQueue.keys();
+    qDebug() << "New Loop";
+    for (int i = 0; i < keys.size(); i++) {
+        qDebug() << "preamble: 0x" << QString::number(keys[i],16) << ". data: 0x" << QString::number(sendCommandQueue[keys[i]], 16);
+        cam->set(cv::CAP_PROP_SHARPNESS, keys[i]); // send preamble
+        cam->set(cv::CAP_PROP_CONTRAST, sendCommandQueue[keys[i]]); // send data
+        sendCommandQueue.remove(keys[i]);
+    }
+
 }

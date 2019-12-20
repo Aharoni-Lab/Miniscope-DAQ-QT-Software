@@ -10,6 +10,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 #include <QAtomicInt>
+#include <QMap>
 
 class VideoStreamOCV : public QObject
 {
@@ -26,9 +27,10 @@ signals:
 public slots:
     void startStream();
     void stopSteam();
-    void setProperty(QString type, double value);
+    void setPropertyI2C(unsigned int preample, unsigned int data);
 
 private:
+    void sendCommands();
     int m_cameraID;
     cv::VideoCapture *cam;
     bool m_isStreaming;
@@ -38,6 +40,7 @@ private:
     QSemaphore *usedFrames;
     int frameBufferSize;
     QAtomicInt *m_acqFrameNum;
+    QMap<unsigned int, unsigned int> sendCommandQueue;
 
 
 };

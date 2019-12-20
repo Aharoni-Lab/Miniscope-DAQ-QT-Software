@@ -9,13 +9,15 @@ Item {
     y: 0
     width: slider.width + icon.width + textValue.width + 20
     state: "nothovered"
-//    onStateChanged: console.log("State = ", state)
     property color textColor: "blue"
     property var iconPath: "img/icon/ewl.ico"
     property double min: 0.0
     property double max: 100.0
     property double stepSize: 1.0
     property double startValue: 0.0
+    property double displayValueScale: 1
+    property double displayValueOffset: 0
+    property double displayRotation: 0
     objectName: "default"
 
     signal valueChangedSignal(double value)
@@ -51,7 +53,9 @@ Item {
 
     Slider {
         id: slider
+        rotation: root.displayRotation
         hoverEnabled: false
+//        mirrored:
         anchors.right: textValue.left
         anchors.rightMargin: 10
         anchors.verticalCenter: parent.verticalCenter
@@ -66,7 +70,7 @@ Item {
     Text {
         id: textValue
         color: root.textColor
-        text: slider.value
+        text: (slider.value + root.displayValueOffset) * root.displayValueScale
         x: 10
         width:30
         anchors.verticalCenter: root.verticalCenter

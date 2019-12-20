@@ -5,37 +5,50 @@
         "width": 808,
         "height": 608,
         "controlSettings": {
-            "format": [
-                "startValue",
-                "min",
-                "max",
-                "stepSize"
-            ],
-            "gain": [
-                1,
-                1,
-                3.5,
-                0.1
-            ],
-            "exposure": [
-                100,
-                0,
-                100,
-                1
-            ],
-            "led0": [
-                0,
-                0,
-                100,
-                1
-            ],
-            "ewl": [
-                0,
-                -200,
-                200,
-                1
-            ]
-        }
+            "gain": {
+                "startValue": 1,
+                "min": 10,
+                "max": 35,
+                "stepSize": 1,
+                "displayValueScale": 0.1,
+                "displayValueOffset": 0
+            },
+            "exposure": {
+                "startValue": 255,
+                "min": 1,
+                "max": 255,
+                "stepSize": 1,
+                "displayValueScale": 0.39215686,
+                "displayValueOffset": 0
+            },
+            "led0": {
+                "startValue": 255,
+                "min": 0,
+                "max": 255,
+                "stepSize": 1,
+                "displayValueScale": -1,
+                "displayValueOffset": -255,
+                "displayRotation": 180
+            },
+            "ewl": {
+                "startValue": 127,
+                "min": 0,
+                "max": 255,
+                "stepSize": 1,
+                "displayValueScale": 1,
+                "displayValueOffset": -127,
+                "sendCommand": {
+                    "protocol": "I2C",
+                    "addressW": "0b11101110",
+                    "registerLength": "1",
+                    "registerL": "0x08",
+                    "dataLength": "2",
+                    "data0": "value",
+                    "data1": "0x02"
+                }
+            }
+        },
+        "initialize": ""
     },
     "Miniscope_V4_Dual_Color": {
         "sensor": "PYTHON480",
