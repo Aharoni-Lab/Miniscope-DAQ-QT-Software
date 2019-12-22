@@ -20,9 +20,9 @@ class VideoStreamOCV : public QObject
 public:
     explicit VideoStreamOCV(QObject *parent = nullptr);
     ~VideoStreamOCV();
-    void setCameraID(int cameraID);
+//    void setCameraID(int cameraID);
     void setBufferParameters(cv::Mat *buf, int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS, QAtomicInt *acqFrameNum);
-
+    int connect2Camera(int cameraID);
 
 signals:
 
@@ -42,6 +42,9 @@ private:
     QSemaphore *usedFrames;
     int frameBufferSize;
     QAtomicInt *m_acqFrameNum;
+
+    // Handles commands sent to video stream device
+    QVector<long> sendCommandQueueOrder;
     QMap<long, QVector<quint8>> sendCommandQueue;
 
 

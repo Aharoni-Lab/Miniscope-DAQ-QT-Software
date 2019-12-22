@@ -39,8 +39,11 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
 
     // Setup OpenCV camera stream
     miniscopeStream = new VideoStreamOCV;
-    miniscopeStream->setCameraID(m_ucMiniscope["deviceID"].toInt());
+    if (!miniscopeStream->connect2Camera(m_ucMiniscope["deviceID"].toInt()))
+        qDebug() << "Not able to connect and open " << m_ucMiniscope["deviceName"].toString();
+
     miniscopeStream->setBufferParameters(frameBuffer,FRAME_BUFFER_SIZE,freeFrames,usedFrames,m_acqFrameNum);
+
     // -----------------
 
     // Threading and connections for thread stuff
@@ -56,6 +59,8 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
 
     createView();
     connectSnS();
+
+    sendInitCommands();
 
     videoStreamThread->start();
 }
@@ -95,6 +100,42 @@ void Miniscope::connectSnS(){
 
 void Miniscope::parseUserConfigMiniscope() {
     // Currently not needed. If arrays get added into JSON config then this might
+}
+
+void Miniscope::sendInitCommands()
+{
+    // Sends out the commands in the miniscope json config file under Initialize
+    QVector<quint8> packet;
+    long preambleKey;
+    int tempValue;
+
+    QVector<QMap<QString,int>> sendCommands = parseSendCommand(m_cMiniscopes["initialize"].toArray());
+    QMap<QString,int> command;
+
+    for (int i = 0; i < sendCommands.length(); i++) {
+        // Loop through send commands
+        command = sendCommands[i];
+        packet.clear();
+        if (command["protocol"] == PROTOCOL_I2C) {
+            packet.append(command["addressW"]);
+            for (int j = 0; j < command["regLength"]; j++) {
+                packet.append(command["reg" + QString::number(j)]);
+            }
+            for (int j = 0; j < command["dataLength"]; j++) {
+                tempValue = command["data" + QString::number(j)];
+                packet.append(tempValue);
+            }
+//        qDebug() << packet;
+        preambleKey = 0;
+        for (int k = 0; k < (command["regLength"]+1); k++)
+            preambleKey |= (packet[k]&0xFF)<<(8*k);
+        emit setPropertyI2C(preambleKey, packet);
+        }
+        else {
+            qDebug() << command["protocol"] << " initialize protocol not yet supported";
+        }
+
+    }
 }
 
 void Miniscope::getMiniscopeConfig(QString deviceType) {
@@ -178,8 +219,11 @@ QVector<QMap<QString, int>> Miniscope::parseSendCommand(QJsonArray sendCommand)
 
         for (int j = 0; j < keys.size(); j++) {
                 // -1 = controlValue, -2 = error
+            if (jObj[keys[j]].isString())
                 commandStructure[keys[j]] = processString2Int(jObj[keys[j]].toString());
-            }
+            else if (jObj[keys[j]].isDouble())
+                commandStructure[keys[j]] = jObj[keys[j]].toInt();
+        }
         output.append(commandStructure);
     }
     return output;

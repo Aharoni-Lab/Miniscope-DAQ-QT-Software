@@ -23,8 +23,15 @@ VideoStreamOCV::~VideoStreamOCV() {
         cam->release();
 }
 
-void VideoStreamOCV::setCameraID(int cameraID)  {
+int VideoStreamOCV::connect2Camera(int cameraID) {
     m_cameraID = cameraID;
+    cam = new cv::VideoCapture;
+    cam->open(m_cameraID);
+    if (cam->isOpened())
+        return 1;
+    else
+        return 0;
+
 }
 
 void VideoStreamOCV::setBufferParameters(cv::Mat *buf, int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS, QAtomicInt *acqFrameNum){
@@ -39,12 +46,9 @@ void VideoStreamOCV::startStream()
 {
     int idx = 0;
     cv::Mat frame;
-    cam = new cv::VideoCapture;
-
 
     m_stopStreaming = false;
-    cam->open(m_cameraID);
-//    cam->set(cv::CAP_PROP_CONTRAST, 65535);
+
     if (cam->isOpened()) {
         m_isStreaming = true;
         forever {
@@ -63,7 +67,8 @@ void VideoStreamOCV::startStream()
 
             // Get any new events
             QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices
-            sendCommands(); // Send last of each control property events that arrived on this processEvent() call then removes it from queue
+            if (!sendCommandQueue.isEmpty())
+                sendCommands(); // Send last of each control property events that arrived on this processEvent() call then removes it from queue
         }
         cam->release();
     }
@@ -81,19 +86,22 @@ void VideoStreamOCV::setPropertyI2C(long preambleKey, QVector<quint8> packet)
 {
     // add newEvent to the queue for sending new settings to camera
     // overwrites data of previous preamble event that has not been sent to camera yet
-
+    if (!sendCommandQueue.contains(preambleKey))
+        sendCommandQueueOrder.append(preambleKey);
     sendCommandQueue[preambleKey] = packet;
 }
 
 void VideoStreamOCV::sendCommands()
 {
-    QList<long> keys = sendCommandQueue.keys();
+//    QList<long> keys = sendCommandQueue.keys();
+    long key;
     QVector<quint8> packet;
     quint64 tempPacket;
 //    qDebug() << "New Loop";
-    for (int i = 0; i < keys.size(); i++) {
-
-        packet = sendCommandQueue[keys[i]];
+//    qDebug() << "Queue length is " << sendCommandQueueOrder.length();
+    while (!sendCommandQueueOrder.isEmpty()) {
+        key = sendCommandQueueOrder.first();
+        packet = sendCommandQueue[key];
         qDebug() << packet;
         if (packet.length() < 6){
             tempPacket = (quint64)packet[0]; // address
@@ -102,7 +110,8 @@ void VideoStreamOCV::sendCommands()
                 tempPacket |= ((quint64)packet[j])<<(8*(j+1));
             qDebug() << "0x" << QString::number(tempPacket,16);
             cam->set(cv::CAP_PROP_GAMMA, tempPacket);
-            sendCommandQueue.remove(keys[i]);
+            sendCommandQueue.remove(key);
+            sendCommandQueueOrder.removeFirst();
         }
         else if (packet.length() == 6) {
             tempPacket = (quint64)packet[0] | 0x01; // address with bottom bit flipped to 1 to indicate a full 6 byte package
@@ -110,7 +119,8 @@ void VideoStreamOCV::sendCommands()
                 tempPacket |= ((quint64)packet[j])<<(8*(j));
             qDebug() << "0x" << QString::number(tempPacket,16);
             cam->set(cv::CAP_PROP_GAMMA, tempPacket);
-            sendCommandQueue.remove(keys[i]);
+            sendCommandQueue.remove(key);
+            sendCommandQueueOrder.removeFirst();
         }
         else {
             //TODO: Handle packets longer than 6 bytes

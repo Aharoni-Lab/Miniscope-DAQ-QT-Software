@@ -83,7 +83,27 @@
                 ]
             }
         },
-        "initialize": ""
+        "initialize": [
+        {
+            "protocol": "I2C",
+            "addressW": "0b11101110",
+            "regLength": "1",
+            "reg0": "0x08",
+            "dataLength": "2",
+            "data0": "0x01",
+            "data1": "0x02"
+        },
+        {
+            "protocol": "I2C",
+            "addressW": "0b11101010",
+            "regLength": "1",
+            "reg0": "0x08",
+            "dataLength": "3",
+            "data0": "0x03",
+            "data1": "0x02",
+            "data2": "0xFF"
+        }
+    ]
     },
     "Miniscope_V4_Dual_Color": {
         "sensor": "PYTHON480",

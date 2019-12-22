@@ -79,7 +79,7 @@ Window {
                 id: taConfigDesc
                 text: backend.userConfigDisplay
                 wrapMode: Text.WrapAnywhere
-                anchors.fill: parent
+//                anchors.fill: parent
                 font.pointSize: 12
                 background: Rectangle {
                     radius: rbSelectUserConfig.radius

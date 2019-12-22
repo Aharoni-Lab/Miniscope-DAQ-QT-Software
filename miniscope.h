@@ -35,6 +35,7 @@ public:
     void createView();
     void connectSnS();
     void parseUserConfigMiniscope();
+    void sendInitCommands();
     // Todo: thread safe buffer
 
 

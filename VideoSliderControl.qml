@@ -32,7 +32,7 @@ Item {
         opacity: 0.5
         anchors.right: icon.right
         anchors.rightMargin: 0
-        radius: 16
+//        radius: 16
     }
 
     MouseArea {
