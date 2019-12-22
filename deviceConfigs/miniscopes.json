@@ -6,12 +6,23 @@
         "height": 608,
         "controlSettings": {
             "gain": {
-                "startValue": 1,
-                "min": 10,
-                "max": 35,
-                "stepSize": 1,
-                "displayValueScale": 0.1,
-                "displayValueOffset": 0
+                "displaySpinBoxValues":["Low", "Medium", "High"],
+                "displayTextValues": ["1x","2x","3.5x"],
+                "outputValues":[255,256,257],
+                "startIdx": 0,
+                "sendCommand": [
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0b00000010",
+                        "regLength": "1",
+                        "reg0": "0x05",
+                        "dataLength": "4",
+                        "data0": "0x01",
+                        "data1": "0x02",
+                        "data2": "valueH",
+                        "data3": "valueL"
+                    }
+                ]
             },
             "exposure": {
                 "startValue": 255,
@@ -28,7 +39,20 @@
                 "stepSize": 1,
                 "displayValueScale": -1,
                 "displayValueOffset": -255,
-                "displayRotation": 180
+                "displayRotation": 180,
+                "sendCommand": [
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0b00000010",
+                        "regLength": "2",
+                        "reg0": "0x08",
+                        "reg2": "0x09",
+                        "dataLength": "3",
+                        "data0": "value0",
+                        "data1": "0x02",
+                        "data2": "0x03"
+                    }
+                ]
             },
             "ewl": {
                 "startValue": 127,
@@ -37,15 +61,27 @@
                 "stepSize": 1,
                 "displayValueScale": 1,
                 "displayValueOffset": -127,
-                "sendCommand": {
-                    "protocol": "I2C",
-                    "addressW": "0b11101110",
-                    "registerLength": "1",
-                    "registerL": "0x08",
-                    "dataLength": "2",
-                    "data0": "value",
-                    "data1": "0x02"
-                }
+                "sendCommand": [
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0b11101110",
+                        "regLength": "1",
+                        "reg0": "0x08",
+                        "dataLength": "2",
+                        "data0": "value0",
+                        "data1": "0x02"
+                    },
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0b11101110",
+                        "regLength": "1",
+                        "reg0": "0x08",
+                        "dataLength": "3",
+                        "data0": "value0",
+                        "data1": "0x02",
+                        "data2": "0xFF"
+                    }
+                ]
             }
         },
         "initialize": ""

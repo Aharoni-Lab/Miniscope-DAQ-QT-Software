@@ -9,15 +9,19 @@
 #include <QJsonObject>
 #include <QQuickView>
 #include <QMap>
+#include <QVector>
 
 #include "videostreamocv.h"
 #include "videodisplay.h"
 #include <opencv2/opencv.hpp>
 
-#define PROTOCOL_I2C        -2
-#define PROTOCOL_SPI        -3
-#define SEND_COMMAND_VALUE  -5
-#define SEND_COMMAND_ERROR  -10
+
+#define PROTOCOL_I2C            -2
+#define PROTOCOL_SPI            -3
+#define SEND_COMMAND_VALUE_H    -5
+#define SEND_COMMAND_VALUE_L    -6
+#define SEND_COMMAND_VALUE      -6
+#define SEND_COMMAND_ERROR      -10
 
 #define FRAME_BUFFER_SIZE   128
 
@@ -60,7 +64,7 @@ public:
 
 signals:
     // TODO: setup signals to configure camera in thread
-    void setPropertyI2C(unsigned int preample, unsigned int data);
+    void setPropertyI2C(long preambleKey, QVector<quint8> packet);
 
 public slots:
     void sendNewFrame();
@@ -70,7 +74,7 @@ public slots:
 private:
     void getMiniscopeConfig();
     void configureMiniscopeControls();
-    QMap<QString, unsigned int> parseSendCommand(QJsonObject sendCommand);
+    QVector<QMap<QString, int>> parseSendCommand(QJsonArray sendCommand);
     int processString2Int(QString s);
 
     NewQuickView *view;
@@ -90,8 +94,8 @@ private:
     QString m_deviceName;
     QString m_deviceType;
     QJsonObject m_cMiniscopes; // Consider renaming to not confuse with ucMiniscopes
-    QMap<QString,QMap<QString, unsigned int>> m_controlSendCommand;
-    QMap<QString, unsigned int> m_sendCommand;
+    QMap<QString,QVector<QMap<QString, int>>> m_controlSendCommand;
+    QMap<QString, int> m_sendCommand;
 
 };
 

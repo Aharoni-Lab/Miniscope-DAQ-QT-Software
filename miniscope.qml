@@ -52,7 +52,7 @@ Item {
         spacing: 0
         anchors.verticalCenter: parent.verticalCenter
 
-        VideoPropertyControl {
+        VideoSliderControl {
             id: led1
             objectName: "led0"
             max: 200
@@ -61,7 +61,7 @@ Item {
             textColor: "blue"
         }
 
-        VideoPropertyControl {
+        VideoSliderControl {
             id: ewl
             objectName: "ewl"
             max: 100
@@ -69,21 +69,18 @@ Item {
             iconPath: "img/icon/ewl.ico"
             textColor: "black"
         }
-        VideoPropertyControl {
-            id: gain
-            objectName: "gain"
-            max: 100
-            startValue: 10
-            iconPath: "img/icon/ewl.ico"
-            textColor: "black"
-        }
-        VideoPropertyControl {
+
+        VideoSliderControl {
             id: exposure
             objectName: "exposure"
             max: 100
             startValue: 10
             iconPath: "img/icon/ewl.ico"
             textColor: "black"
+        }
+        VideoSpinBoxControl{
+            id: gain
+            objectName: "gain"
         }
     }
 

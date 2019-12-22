@@ -11,6 +11,8 @@
 #include <opencv2/videoio.hpp>
 #include <QAtomicInt>
 #include <QMap>
+#include <QVector>
+
 
 class VideoStreamOCV : public QObject
 {
@@ -27,7 +29,7 @@ signals:
 public slots:
     void startStream();
     void stopSteam();
-    void setPropertyI2C(unsigned int preample, unsigned int data);
+    void setPropertyI2C(long preambleKey, QVector<quint8> packet);
 
 private:
     void sendCommands();
@@ -40,7 +42,7 @@ private:
     QSemaphore *usedFrames;
     int frameBufferSize;
     QAtomicInt *m_acqFrameNum;
-    QMap<unsigned int, unsigned int> sendCommandQueue;
+    QMap<long, QVector<quint8>> sendCommandQueue;
 
 
 };

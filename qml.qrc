@@ -4,7 +4,7 @@
         <file>miniscope.qml</file>
         <file>behaviorCam.qml</file>
         <file>FpsItem.qml</file>
-        <file>VideoPropertyControl.qml</file>
+        <file>VideoSliderControl.qml</file>
         <file>img/iconEWL.png</file>
         <file>img/icon/ewl.ico</file>
         <file>img/icon/led.ico</file>
@@ -14,5 +14,6 @@
         <file>userConfigs/UserConfigExample.json</file>
         <file>shaders/imageBasic.vert</file>
         <file>shaders/imageSaturationScaling.frag</file>
+        <file>VideoSpinBoxControl.qml</file>
     </qresource>
 </RCC>

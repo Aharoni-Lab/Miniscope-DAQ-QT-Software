@@ -1,23 +1,23 @@
 import QtQuick 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
+import QtQuick.Controls.Styles 1.4
 
 Item {
     id:root
     height:32
     x: 0
     y: 0
-    width: slider.width + icon.width + textValue.width + 20
+    width: spinBox.width + icon.width + textValue.width + 20
     state: "nothovered"
     property color textColor: "blue"
     property var iconPath: "img/icon/ewl.ico"
-    property double min: 0.0
-    property double max: 100.0
-    property double stepSize: 1.0
-    property double startValue: 0.0
-    property double displayValueScale: 1
-    property double displayValueOffset: 0
-    property double displayRotation: 0
+
+    property var displaySpinBoxValues: ["1", "2", "3"]
+    property var displayTextValues: ["1", "2", "3"]
+    property var outputValues: [1, 2, 3]
+    property int startIdx: 1
+
     objectName: "default"
 
     signal valueChangedSignal(double value)
@@ -26,7 +26,7 @@ Item {
         id: rectangle
         height: parent.height
         color: "#e8e8e8"
-        anchors.left: slider.left
+        anchors.left: spinBox.left
         anchors.leftMargin: 0
         opacity: 0.5
         anchors.right: icon.right
@@ -51,30 +51,55 @@ Item {
 
     }
 
-    Slider {
-        id: slider
-        rotation: root.displayRotation
+    SpinBox {
+        id: spinBox
+        width: 200
+        height: 32
+        font.family: "Arial"
+        font.pointSize: 12
+        font.bold: true
         hoverEnabled: false
-//        mirrored:
         anchors.right: textValue.left
         anchors.rightMargin: 10
         anchors.verticalCenter: parent.verticalCenter
         opacity: 0.75
-        stepSize: root.stepSize
-        from: root.min
-        to: root.max
-        value: root.startValue
-        onValueChanged: root.valueChangedSignal(slider.value)
+        background: Rectangle {
+            color: "#e8e8e8"
+            opacity: 0.75
+            }
+
+        from: 0
+        to: root.displayValues.length - 1
+        value: root.startIdx
+
+//        property var items: [1, 2, 3.5]  // ["Small", "Medium", "Large"]
+
+//        validator: RegExpValidator {
+//            regExp: new RegExp("(Small|Mediumeee|Large)", "i")
+//        }
+
+        textFromValue: function(value) {
+            return root.displaySpinBoxValues[value];
+        }
+
+//        valueFromText: function(text) {
+//            for (var i = 0; i < items.length; ++i) {
+//                if (items[i].toLowerCase().indexOf(text.toLowerCase()) === 0)
+//                    return i
+//            }
+//            return spinBox.value
+//        }
+        onValueChanged: root.valueChangedSignal(root.outputValues[value])
     }
 
     Text {
         id: textValue
         color: root.textColor
-        text: (slider.value + root.displayValueOffset) * root.displayValueScale
+        text: root.displayTextValues[spinBox.value]
         x: 10
         width:30
         anchors.verticalCenter: root.verticalCenter
-        horizontalAlignment: Text.AlignLeft
+        horizontalAlignment: Text.AlignCenter
         verticalAlignment: Text.AlignVCenter
         font.bold: true
         font.family: "Arial"

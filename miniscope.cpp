@@ -10,6 +10,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QQmlApplicationEngine>
+#include <QVector>
 
 #
 
@@ -91,7 +92,7 @@ void Miniscope::createView()
 void Miniscope::connectSnS(){
     QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double) ),
                          this, SLOT( handlePropCangedSignal(QString, double) ));
-    QObject::connect(this, SIGNAL( setPropertyI2C(unsigned int, unsigned int) ), miniscopeStream, SLOT( setPropertyI2C(unsigned int, unsigned int) ));
+    QObject::connect(this, SIGNAL( setPropertyI2C(long, QVector<quint8>) ), miniscopeStream, SLOT( setPropertyI2C(long, QVector<quint8>) ));
 }
 
 void Miniscope::parseUserConfigMiniscope() {
@@ -135,10 +136,25 @@ void Miniscope::configureMiniscopeControls() {
         if (controlItem) {
             for (int j = 0; j < keys.size(); j++) { // Set min, max, startValue, and stepSize in order found in 'format'
                 if (keys[j] == "sendCommand") {
-                    m_controlSendCommand[controlName[i]] = parseSendCommand(values["sendCommand"].toObject());
+                    m_controlSendCommand[controlName[i]] = parseSendCommand(values["sendCommand"].toArray());
                 }
                 else {
-                    controlItem->setProperty(keys[j].toLatin1().data(), values[keys[j]].toDouble());
+                    if (values[keys[j]].isArray()) {
+                        QJsonArray tempArray = values[keys[j]].toArray();
+                        QVariantList tempVect;
+                        for (int k = 0; k < tempArray.size(); k++) {
+                            if (tempArray[k].isDouble())
+                                tempVect.append(tempArray[k].toDouble());
+                            if (tempArray[k].isString())
+                                tempVect.append(tempArray[k].toString());
+                        }
+                        controlItem->setProperty(keys[j].toLatin1().data(), tempVect);
+                    }
+                    else if (values[keys[j]].isString()) {
+                        controlItem->setProperty(keys[j].toLatin1().data(), values[keys[j]].toString());
+                    }
+                    else
+                        controlItem->setProperty(keys[j].toLatin1().data(), values[keys[j]].toDouble());
                 }
             }
 
@@ -149,26 +165,25 @@ void Miniscope::configureMiniscopeControls() {
     }
 }
 
-QMap<QString, unsigned int> Miniscope::parseSendCommand(QJsonObject sendCommand)
+QVector<QMap<QString, int>> Miniscope::parseSendCommand(QJsonArray sendCommand)
 {
     // Creates a QMap for handing future I2C/SPI slider value send commands
-    QMap<QString, unsigned int> commandStructure;
-    QStringList keys = sendCommand.keys();
+    QVector<QMap<QString, int>> output;
+    QMap<QString, int> commandStructure;
+    QJsonObject jObj;
+    QStringList keys;
 
-    for (int i = 0; i < keys.size(); i++) {
-        // -1 = controlValue, -2 = error
-        commandStructure[keys[i]] = processString2Int(sendCommand[keys[i]].toString());
+    for (int i = 0; i < sendCommand.size(); i++) {
+        jObj = sendCommand[i].toObject();
+        keys = jObj.keys();
+
+        for (int j = 0; j < keys.size(); j++) {
+                // -1 = controlValue, -2 = error
+                commandStructure[keys[j]] = processString2Int(jObj[keys[j]].toString());
+            }
+        output.append(commandStructure);
     }
-    // Handle 1 byte length register
-    if (commandStructure["registerLength"] < 2)
-        commandStructure["registerH"] = 0;
-
-    // Handle data that is 1 or 2 bytes long
-    if (commandStructure["dataLength"] < 2)
-        commandStructure["data1"] = 0;
-    if (commandStructure["dataLength"] < 3)
-        commandStructure["data2"] = 0;
-    return commandStructure;
+    return output;
 }
 
 int Miniscope::processString2Int(QString s)
@@ -199,6 +214,10 @@ int Miniscope::processString2Int(QString s)
                 value = PROTOCOL_I2C;
             else if (s == "SPI")
                 value = PROTOCOL_SPI;
+            else if (s == "valueH")
+                value = SEND_COMMAND_VALUE_H;
+            else if (s == "valueL")
+                value = SEND_COMMAND_VALUE_L;
             else if (s == "value")
                 value = SEND_COMMAND_VALUE;
             else
@@ -236,46 +255,41 @@ void Miniscope::handlePropCangedSignal(QString type, double value)
 {
     // type is the objectName of the control
     // value is the control value that was just updated
-    unsigned int tempVal = value;
-    QMap<QString, unsigned int> sendCommand;
-    // preamble holds i2cADDR, register length (in bytes), register
-    unsigned int preamble;
-    // data holds data length (in bytes), and data
-    unsigned int data;
+    QVector<quint8> packet;
+    QMap<QString, int> sendCommand;
+    int tempValue;
+    long preambleKey; // Holds a value that represents the address and reg
 
     // TODO: Handle int values greater than 8 bits
-    sendCommand = m_controlSendCommand[type];
-
-
-    if (sendCommand["protocol"] == PROTOCOL_I2C) {
-//        qDebug() << sendCommand["addressW"] << " " << (sendCommand["registerLength"]) << " " << (sendCommand["registerH"]) << " " << (sendCommand["registerL"]);
-
-        preamble =  sendCommand["addressW"] |
-                    (sendCommand["registerLength"]<<8) |
-                    (sendCommand["registerH"]<<16) |
-                    (sendCommand["registerL"]<<24);
-
-        data =      sendCommand["dataLength"];
-        if (sendCommand["data0"] == SEND_COMMAND_VALUE)
-            data |= tempVal<<8;
-        else
-            data |= sendCommand["data0"]<<8;
-        if (sendCommand["data1"] == SEND_COMMAND_VALUE)
-            data |= tempVal<<16;
-        else
-            data |= sendCommand["data1"]<<16;
-        if (sendCommand["data2"] == SEND_COMMAND_VALUE)
-            data |= tempVal<<24;
-        else
-            data |= sendCommand["data2"]<<24;
-
-        //TODO: make sure int to double conversion for 32bit int works without floating point error
-//        qDebug() << "preamble: 0x" << QString::number(preamble,16) << ". data: 0x" << QString::number(data, 16);
-
-        emit setPropertyI2C(preamble, data);
-    }
-    else {
-        qDebug() << sendCommand["protocol"] << " protocol for " << type << " not yet supported";
+    for (int i = 0; i < m_controlSendCommand[type].length(); i++) {
+        sendCommand = m_controlSendCommand[type][i];
+        packet.clear();
+        if (sendCommand["protocol"] == PROTOCOL_I2C) {
+            packet.append(sendCommand["addressW"]);
+            for (int j = 0; j < sendCommand["regLength"]; j++) {
+                packet.append(sendCommand["reg" + QString::number(j)]);
+            }
+            for (int j = 0; j < sendCommand["dataLength"]; j++) {
+                tempValue = sendCommand["data" + QString::number(j)];
+                // TODO: Handle value1 through value3
+                if (tempValue == SEND_COMMAND_VALUE_H) {
+                    packet.append(((quint16)round(value))>>8);
+                }
+                else if (tempValue == SEND_COMMAND_VALUE_L) {
+                    packet.append((quint8)round(value));
+                }
+                else
+                    packet.append(tempValue);
+            }
+//        qDebug() << packet;
+        preambleKey = 0;
+        for (int k = 0; k < (sendCommand["regLength"]+1); k++)
+            preambleKey |= (packet[k]&0xFF)<<(8*k);
+        emit setPropertyI2C(preambleKey, packet);
+        }
+        else {
+            qDebug() << sendCommand["protocol"] << " protocol for " << type << " not yet supported";
+        }
     }
 
 }

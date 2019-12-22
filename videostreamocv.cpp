@@ -8,6 +8,7 @@
 #include <QAtomicInt>
 #include <QCoreApplication>
 #include <QMap>
+#include <QVector>
 
 VideoStreamOCV::VideoStreamOCV(QObject *parent) :
     QObject(parent),
@@ -76,22 +77,45 @@ void VideoStreamOCV::stopSteam()
     m_stopStreaming = true;
 }
 
-void VideoStreamOCV::setPropertyI2C(unsigned int preamble, unsigned int data)
+void VideoStreamOCV::setPropertyI2C(long preambleKey, QVector<quint8> packet)
 {
     // add newEvent to the queue for sending new settings to camera
     // overwrites data of previous preamble event that has not been sent to camera yet
-    sendCommandQueue[preamble] = data;
+
+    sendCommandQueue[preambleKey] = packet;
 }
 
 void VideoStreamOCV::sendCommands()
 {
-    QList<unsigned int> keys = sendCommandQueue.keys();
-    qDebug() << "New Loop";
+    QList<long> keys = sendCommandQueue.keys();
+    QVector<quint8> packet;
+    quint64 tempPacket;
+//    qDebug() << "New Loop";
     for (int i = 0; i < keys.size(); i++) {
-        qDebug() << "preamble: 0x" << QString::number(keys[i],16) << ". data: 0x" << QString::number(sendCommandQueue[keys[i]], 16);
-        cam->set(cv::CAP_PROP_SHARPNESS, keys[i]); // send preamble
-        cam->set(cv::CAP_PROP_CONTRAST, sendCommandQueue[keys[i]]); // send data
-        sendCommandQueue.remove(keys[i]);
+
+        packet = sendCommandQueue[keys[i]];
+        qDebug() << packet;
+        if (packet.length() < 6){
+            tempPacket = (quint64)packet[0]; // address
+            tempPacket |= (((quint64)packet.length())&0xFF)<<8; // data length
+            for (int j = 1; j < packet.length(); j++)
+                tempPacket |= ((quint64)packet[j])<<(8*(j+1));
+            qDebug() << "0x" << QString::number(tempPacket,16);
+            cam->set(cv::CAP_PROP_GAMMA, tempPacket);
+            sendCommandQueue.remove(keys[i]);
+        }
+        else if (packet.length() == 6) {
+            tempPacket = (quint64)packet[0] | 0x01; // address with bottom bit flipped to 1 to indicate a full 6 byte package
+            for (int j = 1; j < packet.length(); j++)
+                tempPacket |= ((quint64)packet[j])<<(8*(j));
+            qDebug() << "0x" << QString::number(tempPacket,16);
+            cam->set(cv::CAP_PROP_GAMMA, tempPacket);
+            sendCommandQueue.remove(keys[i]);
+        }
+        else {
+            //TODO: Handle packets longer than 6 bytes
+        }
+
     }
 
 }
