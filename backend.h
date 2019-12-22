@@ -5,7 +5,9 @@
 #include <QJsonObject>
 #include <QJsonArray>
 
-#include <miniscope.h>
+#include "miniscope.h"
+#include "behaviorcam.h"
+#include "controlpanel.h"
 
 
 class backEnd : public QObject
@@ -18,12 +20,13 @@ class backEnd : public QObject
 public:
     explicit backEnd(QObject *parent = nullptr);
 
-    QString userConfigFileName();
+    QString userConfigFileName() {return m_userConfigFileName;}
     void setUserConfigFileName(const QString &input);
-    void setUserConfigOK(bool userConfigOK) {m_userConfigOK = userConfigOK;}
-    bool userConfigOK() {return m_userConfigOK;}
 
-    QString userConfigDisplay();
+    bool userConfigOK() {return m_userConfigOK;}
+    void setUserConfigOK(bool userConfigOK) {m_userConfigOK = userConfigOK;}
+
+    QString userConfigDisplay(){ return m_userConfigDisplay; }
     void setUserConfigDisplay(const QString &input);
 
     void loadUserConfigFile();
@@ -59,6 +62,8 @@ private:
     QJsonObject ucBehaviorTracker;
 
     QVector<Miniscope*> miniscope;
+    QVector<BehaviorCam*> behavCam;
+    ControlPanel *controlPanel;
 
 };
 

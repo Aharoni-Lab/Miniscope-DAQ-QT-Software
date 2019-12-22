@@ -53,7 +53,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
 
         VideoSliderControl {
-            id: led1
+            id: led0
             objectName: "led0"
             max: 200
             startValue: 100
@@ -85,8 +85,8 @@ Item {
     }
 
     Connections{
-        target: led1
-        onValueChangedSignal: vidPropChangedSignal(led1.objectName,value)
+        target: led0
+        onValueChangedSignal: vidPropChangedSignal(led0.objectName,value)
     }
     Connections{
         target: ewl

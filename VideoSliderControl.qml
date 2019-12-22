@@ -65,13 +65,13 @@ Item {
         from: root.min
         to: root.max
         value: root.startValue
-        onValueChanged: root.valueChangedSignal(slider.value)
+        onValueChanged: root.valueChangedSignal(value * root.displayValueScale  - root.displayValueOffset)
     }
 
     Text {
         id: textValue
         color: root.textColor
-        text: ((slider.value + root.displayValueOffset) * root.displayValueScale).toFixed(decimalPrecision)
+        text: (slider.value).toFixed(decimalPrecision)
         x: 10
         width:30
         anchors.verticalCenter: root.verticalCenter

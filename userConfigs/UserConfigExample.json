@@ -20,16 +20,32 @@
     "devices": {
         "miniscopes": [
             {
-                "deviceName": "Miniscope 0",
+                "deviceName": "Miniscope 0!",
                 "deviceType": "Miniscope_V4",
                 "imageRegistration": "Off",
                 "headOrientation": "Off",
                 "deviceID": 0,
+                "windowScale": 0.5,
+                "windowX": 800,
+                "windowY": 100,
                 "gain": 1,
                 "exposure": 50,
-                "ewl": 0,
-                "led": 0,
-                "led2": 20
+                "ewl": 30,
+                "led0": 10
+            },
+            {
+                "deviceName": "Miniscope 1!",
+                "deviceType": "Miniscope_V4",
+                "imageRegistration": "Off",
+                "headOrientation": "Off",
+                "deviceID": 1,
+                "windowScale": 0.5,
+                "windowX": 800,
+                "windowY": 400,
+                "gain": 1,
+                "exposure": 50,
+                "ewl": 30,
+                "led0": 10
             }
         ],
         "cameras": [

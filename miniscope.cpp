@@ -1,4 +1,5 @@
 #include "miniscope.h"
+#include "newquickview.h"
 #include "videodisplay.h"
 
 #include <QQuickView>
@@ -27,7 +28,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     m_ucMiniscope = ucMiniscope; // hold user config for this Miniscope
     parseUserConfigMiniscope();
 
-    getMiniscopeConfig(); // holds specific Miniscope configuration
+    getMiniscopeConfig(m_ucMiniscope["deviceType"].toString()); // holds specific Miniscope configuration
 
 
     // Thread sade buffer stuff
@@ -38,7 +39,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
 
     // Setup OpenCV camera stream
     miniscopeStream = new VideoStreamOCV;
-    miniscopeStream->setCameraID(m_deviceID);
+    miniscopeStream->setCameraID(m_ucMiniscope["deviceID"].toInt());
     miniscopeStream->setBufferParameters(frameBuffer,FRAME_BUFFER_SIZE,freeFrames,usedFrames,m_acqFrameNum);
     // -----------------
 
@@ -68,9 +69,11 @@ void Miniscope::createView()
     const QUrl url(QStringLiteral("qrc:/miniscope.qml"));
     view = new NewQuickView(url);
 
-    view->setWidth(m_cMiniscopes["width"].toInt());
-    view->setHeight(m_cMiniscopes["height"].toInt());
-    view->setTitle(m_deviceName);
+    view->setWidth(m_cMiniscopes["width"].toInt() * m_ucMiniscope["windowScale"].toDouble(1));
+    view->setHeight(m_cMiniscopes["height"].toInt() * m_ucMiniscope["windowScale"].toDouble(1));
+    view->setTitle(m_ucMiniscope["deviceName"].toString("Miniscope " + QString::number(m_ucMiniscope["deviceID"].toInt())));
+    view->setX(m_ucMiniscope["windowX"].toInt(1));
+    view->setY(m_ucMiniscope["windowY"].toInt(1));
     view->show();
     // --------------------
 
@@ -82,11 +85,6 @@ void Miniscope::createView()
     QObject::connect(view, &NewQuickView::closing, miniscopeStream, &VideoStreamOCV::stopSteam);
     QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &Miniscope::sendNewFrame);
 
-        if (vidDisplay) {
-            qDebug() << "Found vid display: " << vidDisplay->displayFrame().height();
-//
-        }
-
 }
 
 void Miniscope::connectSnS(){
@@ -96,13 +94,10 @@ void Miniscope::connectSnS(){
 }
 
 void Miniscope::parseUserConfigMiniscope() {
-
-    m_deviceID = m_ucMiniscope["deviceID"].toInt();
-    m_deviceName = m_ucMiniscope["deviceName"].toString();
-    m_deviceType = m_ucMiniscope["deviceType"].toString();
+    // Currently not needed. If arrays get added into JSON config then this might
 }
 
-void Miniscope::getMiniscopeConfig() {
+void Miniscope::getMiniscopeConfig(QString deviceType) {
     QString jsonFile;
     QFile file;
     file.setFileName(":/deviceConfigs/miniscopes.json");
@@ -111,7 +106,7 @@ void Miniscope::getMiniscopeConfig() {
     file.close();
     QJsonDocument d = QJsonDocument::fromJson(jsonFile.toUtf8());
     QJsonObject jObj = d.object();
-    m_cMiniscopes = jObj[m_deviceType].toObject();
+    m_cMiniscopes = jObj[deviceType].toObject();
 
 }
 
@@ -132,6 +127,10 @@ void Miniscope::configureMiniscopeControls() {
         controlItem = rootObject->findChild<QQuickItem*>(controlName[i]);
 //        qDebug() << controlItem;
         values = controlSettings[controlName[i]].toObject();
+
+        if (m_ucMiniscope.contains(controlName[i])) // sets starting value if it is defined in user config
+            values["startValue"] = m_ucMiniscope[controlName[i]].toDouble();
+
         keys = values.keys();
         if (controlItem) {
             for (int j = 0; j < keys.size(); j++) { // Set min, max, startValue, and stepSize in order found in 'format'

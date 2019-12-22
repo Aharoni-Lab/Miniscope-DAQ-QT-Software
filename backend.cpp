@@ -8,6 +8,8 @@
 #include <QJsonArray>
 
 #include "miniscope.h"
+#include "behaviorcam.h"
+#include "controlpanel.h"
 
 #define DEBUG
 
@@ -36,11 +38,6 @@ backEnd::backEnd(QObject *parent) :
     ucBehaviorTracker["type"] = "None";
 }
 
-QString backEnd::userConfigFileName()
-{
-    return m_userConfigFileName;
-}
-
 void backEnd::setUserConfigFileName(const QString &input)
 {
     if (input != m_userConfigFileName) {
@@ -49,11 +46,6 @@ void backEnd::setUserConfigFileName(const QString &input)
     }
 
     loadUserConfigFile();
-}
-
-QString backEnd::userConfigDisplay()
-{
-    return m_userConfigDisplay;
 }
 
 void backEnd::setUserConfigDisplay(const QString &input)
@@ -85,6 +77,9 @@ void backEnd::onRunClicked()
         parseUserConfig();
         constructUserConfigGUI();
     }
+    else {
+        // TODO: throw out error
+    }
 
 }
 
@@ -98,14 +93,14 @@ void backEnd::parseUserConfig()
 {
     QJsonObject devices = m_userConfig["devices"].toObject();
 
+    // Main JSON header
     researcherName = m_userConfig["researcherName"].toString();
     dataDirectory= m_userConfig["dataDirectory"].toString();
     dataStructureOrder = m_userConfig["dataStructureOrder"].toArray();
     experimentName = m_userConfig["experimentName"].toString();
     animalName = m_userConfig["animalName"].toString();
 
-    qDebug() << researcherName << " " << dataDirectory << " " << experimentName << " " << animalName;
-
+    // JSON subsections
     ucExperiment = m_userConfig["experiment"].toObject();
     ucMiniscopes = devices["miniscopes"].toArray();
     ucBehaviorCams = devices["cameras"].toArray();
@@ -118,8 +113,9 @@ void backEnd::constructUserConfigGUI()
     for (idx = 0; idx < ucMiniscopes.size(); idx++) {
         miniscope.append(new Miniscope(this, ucMiniscopes[idx].toObject()));
     }
-    if (ucBehaviorCams.size() > 0) {
-        // Construct camera GUI(s)
+    for (idx = 0; idx < ucBehaviorCams.size(); idx++) {
+        // un comment below once behav cam class is written
+        //behavCam.append(new BehaviorCam(this, ucBehaviorCams[idx].toObject()));
     }
     if (!ucExperiment.isEmpty()){
         // Construct experiment interface
@@ -127,4 +123,6 @@ void backEnd::constructUserConfigGUI()
     if (!ucBehaviorTracker.isEmpty()) {
         // Setup behavior tracker
     }
+    // Load main control GUI
+    controlPanel = new ControlPanel();
 }

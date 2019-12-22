@@ -17,9 +17,11 @@ SOURCES += \
         backend.cpp \
         behaviorcam.cpp \
         behaviortracker.cpp \
+        controlpanel.cpp \
         datasaver.cpp \
         main.cpp \
         miniscope.cpp \
+        newquickview.cpp \
         videodisplay.cpp \
         videostreamocv.cpp
 
@@ -52,7 +54,9 @@ HEADERS += \
     backend.h \
     behaviorcam.h \
     behaviortracker.h \
+    controlpanel.h \
     datasaver.h \
     miniscope.h \
+    newquickview.h \
     videodisplay.h \
     videostreamocv.h

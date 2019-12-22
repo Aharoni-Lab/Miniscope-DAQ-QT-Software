@@ -13,6 +13,7 @@
 
 #include "videostreamocv.h"
 #include "videodisplay.h"
+#include "newquickview.h"
 #include <opencv2/opencv.hpp>
 
 
@@ -24,30 +25,6 @@
 #define SEND_COMMAND_ERROR      -10
 
 #define FRAME_BUFFER_SIZE   128
-
-class NewQuickView: public QQuickView {
-    // Class makes it so we can handle window closing events
-    // TODO: if recording don't release camera
-    Q_OBJECT
-public:
-    NewQuickView(QUrl url):
-        QQuickView(url) {}
-public:
-    bool event(QEvent *event) override
-    {
-        if (event->type() == QEvent::Close) {
-            // your code here
-            qDebug() << "CLOSEING!!";
-            emit closing();
-        }
-        return QQuickView::event(event);
-    }
-signals:
-    void closing();
-
-public slots:
-
-};
 
 
 class Miniscope : public QObject
@@ -72,7 +49,7 @@ public slots:
     void handlePropCangedSignal(QString type, double value);
 
 private:
-    void getMiniscopeConfig();
+    void getMiniscopeConfig(QString deviceType);
     void configureMiniscopeControls();
     QVector<QMap<QString, int>> parseSendCommand(QJsonArray sendCommand);
     int processString2Int(QString s);
@@ -89,10 +66,15 @@ private:
 //    QImage testImage;
     int m_previousDisplayFrameNum;
     QAtomicInt *m_acqFrameNum;
+
+    // User Config parameters
     QJsonObject m_ucMiniscope;
     int m_deviceID;
     QString m_deviceName;
     QString m_deviceType;
+    QMap<QString,double> m_ucParameters; // holds all number parameters
+
+
     QJsonObject m_cMiniscopes; // Consider renaming to not confuse with ucMiniscopes
     QMap<QString,QVector<QMap<QString, int>>> m_controlSendCommand;
     QMap<QString, int> m_sendCommand;

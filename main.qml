@@ -159,7 +159,7 @@ Window {
                     border.width: 1
                     color: "#a8a7fd"
                 }
-                onClicked: Qt.quit()
+//                onClicked: Qt.quit()
             }
         }
 

@@ -16,7 +16,7 @@ Item {
     property var displaySpinBoxValues: ["1", "2", "3"]
     property var displayTextValues: ["1", "2", "3"]
     property var outputValues: [1, 2, 3]
-    property int startIdx: 1
+    property int startValue: 0
 
     objectName: "default"
 
@@ -70,25 +70,12 @@ Item {
 
         from: 0
         to: root.displayValues.length - 1
-        value: root.startIdx
-
-//        property var items: [1, 2, 3.5]  // ["Small", "Medium", "Large"]
-
-//        validator: RegExpValidator {
-//            regExp: new RegExp("(Small|Mediumeee|Large)", "i")
-//        }
+        value: root.startValue
 
         textFromValue: function(value) {
             return root.displaySpinBoxValues[value];
         }
 
-//        valueFromText: function(text) {
-//            for (var i = 0; i < items.length; ++i) {
-//                if (items[i].toLowerCase().indexOf(text.toLowerCase()) === 0)
-//                    return i
-//            }
-//            return spinBox.value
-//        }
         onValueChanged: root.valueChangedSignal(root.outputValues[value])
     }
 
