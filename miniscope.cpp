@@ -31,7 +31,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     getMiniscopeConfig(m_ucMiniscope["deviceType"].toString()); // holds specific Miniscope configuration
 
 
-    // Thread sade buffer stuff
+    // Thread safe buffer stuff
     freeFrames = new QSemaphore;
     usedFrames = new QSemaphore;
     freeFrames->release(FRAME_BUFFER_SIZE);

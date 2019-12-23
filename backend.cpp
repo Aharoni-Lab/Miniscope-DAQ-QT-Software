@@ -10,6 +10,7 @@
 #include "miniscope.h"
 #include "behaviorcam.h"
 #include "controlpanel.h"
+#include "datasaver.h"
 
 #define DEBUG
 
@@ -36,6 +37,8 @@ backEnd::backEnd(QObject *parent) :
     ucMiniscopes = {"None"};
     ucBehaviorCams = {"None"};
     ucBehaviorTracker["type"] = "None";
+
+    dataSaver = new DataSaver();
 }
 
 void backEnd::setUserConfigFileName(const QString &input)
@@ -74,6 +77,8 @@ void backEnd::onRunClicked()
 //    qDebug() << "Run was clicked!";
     m_userConfigOK = checkUserConfigForIssues();
     if (m_userConfigOK) {
+        dataSaver->setUserConfig(m_userConfig);
+        dataSaver->startRecording();
         parseUserConfig();
         constructUserConfigGUI();
     }

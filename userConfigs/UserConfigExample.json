@@ -1,11 +1,12 @@
 {
     "researcherName": "Daniel Aharoni",
-    "dataDirectory": "C:\\Users\\DBAharoni\\Documents\\Data",
-    "dataStructureOrder": [
+    "dataDirectory": "C:/Users/DBAharoni/Documents/Data",
+    "directoryStructure": [
         "researcherName",
         "experimentName",
         "animalName",
-        "date"
+        "date",
+        "time"
     ],
     "animalName": "testMouse",
     "experimentName": "Linear Track Test",

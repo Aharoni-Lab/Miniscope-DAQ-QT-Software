@@ -12,8 +12,6 @@ Item {
 
     signal vidPropChangedSignal(string type, double value)
 
-
-
     VideoDisplay {
         id: videoDisplay
         //            Layout.fillHeight: true

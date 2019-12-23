@@ -8,6 +8,7 @@
 #include "miniscope.h"
 #include "behaviorcam.h"
 #include "controlpanel.h"
+#include "datasaver.h"
 
 
 class backEnd : public QObject
@@ -64,6 +65,7 @@ private:
     QVector<Miniscope*> miniscope;
     QVector<BehaviorCam*> behavCam;
     ControlPanel *controlPanel;
+    DataSaver *dataSaver;
 
 };
 
