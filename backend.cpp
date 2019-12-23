@@ -78,7 +78,6 @@ void backEnd::onRunClicked()
     m_userConfigOK = checkUserConfigForIssues();
     if (m_userConfigOK) {
         dataSaver->setUserConfig(m_userConfig);
-        dataSaver->startRecording();
         parseUserConfig();
         constructUserConfigGUI();
     }
