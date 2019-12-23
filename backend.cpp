@@ -6,6 +6,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QThread>
 
 #include "miniscope.h"
 #include "behaviorcam.h"
@@ -77,14 +78,46 @@ void backEnd::onRunClicked()
 //    qDebug() << "Run was clicked!";
     m_userConfigOK = checkUserConfigForIssues();
     if (m_userConfigOK) {
-        dataSaver->setUserConfig(m_userConfig);
         parseUserConfig();
+
         constructUserConfigGUI();
+
+        setupDataSaver(); // must happen after devices have been made
     }
     else {
         // TODO: throw out error
     }
 
+}
+
+void backEnd::onRecordClicked()
+{
+    //TODO: tell dataSaver to start recording
+
+    // TODO: start experiment running
+}
+
+void backEnd::setupDataSaver()
+{
+    dataSaver->setUserConfig(m_userConfig);
+    dataSaver->setRecord(false);
+
+    for (int i = 0; i < miniscope.length(); i++) {
+        dataSaver->setFrameBufferParameters(miniscope[i]->getDeviceName(),
+                                            miniscope[i]->getFrameBufferPointer(),
+                                            miniscope[i]->getTimeStampBufferPointer(),
+                                            miniscope[i]->getFreeFramesPointer(),
+                                            miniscope[i]->getUsedFramesPointer());
+    }
+    // TODO: setup buffer and thread safe connections for cameras
+
+    dataSaverThread = new QThread;
+    dataSaver->moveToThread(dataSaverThread);
+
+    QObject::connect(dataSaverThread, SIGNAL (started()), dataSaver, SLOT (startRunning()));
+    // TODO: setup start connections
+
+    dataSaverThread->start();
 }
 
 bool backEnd::checkUserConfigForIssues()

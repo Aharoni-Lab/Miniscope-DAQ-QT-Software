@@ -9,6 +9,7 @@
 #include <QCoreApplication>
 #include <QMap>
 #include <QVector>
+#include <QDateTime>
 
 VideoStreamOCV::VideoStreamOCV(QObject *parent) :
     QObject(parent),
@@ -34,8 +35,9 @@ int VideoStreamOCV::connect2Camera(int cameraID) {
 
 }
 
-void VideoStreamOCV::setBufferParameters(cv::Mat *buf, int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS, QAtomicInt *acqFrameNum){
-    buffer = buf;
+void VideoStreamOCV::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS, QAtomicInt *acqFrameNum){
+    frameBuffer = frameBuf;
+    timeStampBuffer = tsBuf;
     frameBufferSize = bufferSize;
     freeFrames = freeFramesS;
     usedFrames = usedFramesS;
@@ -57,13 +59,16 @@ void VideoStreamOCV::startStream()
                 m_isStreaming = false;
                 break;
             }
-            cam->grab();
-            //            freeFrames->acquire();
-            cam->retrieve(frame);
-            buffer[idx%frameBufferSize] = frame;
-            m_acqFrameNum->operator++();
-            idx++;
-            usedFrames->release();
+            if(freeFrames->tryAcquire(1,30)) {
+                cam->grab();
+                timeStampBuffer[idx%frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
+                cam->retrieve(frame);
+                frameBuffer[idx%frameBufferSize] = frame;
+                m_acqFrameNum->operator++();
+                idx++;
+                usedFrames->release();
+                qDebug() << "freeFrames: " << freeFrames->available();
+            }
 
             // Get any new events
             QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices

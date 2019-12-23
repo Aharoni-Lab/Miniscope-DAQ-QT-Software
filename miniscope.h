@@ -36,6 +36,11 @@ public:
     void connectSnS();
     void parseUserConfigMiniscope();
     void sendInitCommands();
+    cv::Mat* getFrameBufferPointer(){return frameBuffer;}
+    qint64* getTimeStampBufferPointer(){return timeStampBuffer;}
+    QSemaphore* getFreeFramesPointer(){return freeFrames;}
+    QSemaphore* getUsedFramesPointer(){return usedFrames;}
+    QString getDeviceName(){return m_deviceName;}
     // Todo: thread safe buffer
 
 
@@ -59,6 +64,7 @@ private:
     VideoStreamOCV *miniscopeStream;
     QThread *videoStreamThread;
     cv::Mat frameBuffer[FRAME_BUFFER_SIZE];
+    qint64 timeStampBuffer[FRAME_BUFFER_SIZE];
     QSemaphore *freeFrames;
     QSemaphore *usedFrames;
     QObject *rootObject;

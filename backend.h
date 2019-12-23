@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QThread>
 
 #include "miniscope.h"
 #include "behaviorcam.h"
@@ -42,8 +43,13 @@ signals:
 
 public slots:
     void onRunClicked();
+    void onRecordClicked();
+//    void onStopClicked();
 
 private:
+    void connectSnS();
+    void setupDataSaver();
+
     QString m_userConfigFileName;
     QString m_userConfigDisplay;
     bool m_userConfigOK;
@@ -65,7 +71,9 @@ private:
     QVector<Miniscope*> miniscope;
     QVector<BehaviorCam*> behavCam;
     ControlPanel *controlPanel;
+
     DataSaver *dataSaver;
+    QThread *dataSaverThread;
 
 };
 

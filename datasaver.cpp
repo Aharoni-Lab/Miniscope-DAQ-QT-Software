@@ -1,5 +1,11 @@
 #include "datasaver.h"
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/videoio.hpp>
+
 #include <QObject>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -7,8 +13,12 @@
 #include <QDir>
 #include <QDebug>
 
-DataSaver::DataSaver(QObject *parent) : QObject(parent)
+DataSaver::DataSaver(QObject *parent) :
+    QObject(parent),
+    m_recording(false),
+    m_running(false)
 {
+
 }
 
 void DataSaver::setupFilePaths()
@@ -55,8 +65,46 @@ void DataSaver::setupFilePaths()
     QDir().mkdir(baseDirectory + "/experiment");
 }
 
+void DataSaver::setFrameBufferParameters(QString name,
+                                         cv::Mat *frameBuf,
+                                         qint64 *tsBuffer,
+                                         QSemaphore *freeFrames,
+                                         QSemaphore *usedFrames)
+{
+    frameBuffer[name] = frameBuf;
+    timeStampBuffer[name] = tsBuffer;
+    freeCount[name] = freeFrames;
+    usedCount[name] = usedFrames;
+
+    frameCount[name] = 0;
+}
+
+void DataSaver::startRunning()
+{
+    m_running = true;
+    int i;
+    QStringList names;
+    while(m_running) {
+        // for video streams
+        names = frameBuffer.keys();
+        for (i = 0; i < frameBuffer.size(); i++) {
+            while (usedCount[names[i]]->tryAcquire()) {
+                // grad info from buffer in a threadsafe way
+                if (m_recording) {
+                    // save frame to file
+                }
+
+                frameCount[names[i]]++;
+                freeCount[names[i]]->release(1);
+            }
+        }
+    }
+}
+
 void DataSaver::startRecording()
 {
     recordStartDateTime = QDateTime::currentDateTime();
     setupFilePaths();
+    m_recording = true;
 }
+

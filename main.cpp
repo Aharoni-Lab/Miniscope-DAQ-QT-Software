@@ -4,6 +4,7 @@
 
 #include "backend.h"
 
+// TODO: have exit button close everything
 int main(int argc, char *argv[])
 {
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);

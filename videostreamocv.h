@@ -21,7 +21,7 @@ public:
     explicit VideoStreamOCV(QObject *parent = nullptr);
     ~VideoStreamOCV();
 //    void setCameraID(int cameraID);
-    void setBufferParameters(cv::Mat *buf, int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS, QAtomicInt *acqFrameNum);
+    void setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS, QAtomicInt *acqFrameNum);
     int connect2Camera(int cameraID);
 
 signals:
@@ -37,7 +37,8 @@ private:
     cv::VideoCapture *cam;
     bool m_isStreaming;
     bool m_stopStreaming;
-    cv::Mat *buffer;
+    cv::Mat *frameBuffer;
+    qint64 *timeStampBuffer;
     QSemaphore *freeFrames;
     QSemaphore *usedFrames;
     int frameBufferSize;

@@ -42,7 +42,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     if (!miniscopeStream->connect2Camera(m_ucMiniscope["deviceID"].toInt()))
         qDebug() << "Not able to connect and open " << m_ucMiniscope["deviceName"].toString();
 
-    miniscopeStream->setBufferParameters(frameBuffer,FRAME_BUFFER_SIZE,freeFrames,usedFrames,m_acqFrameNum);
+    miniscopeStream->setBufferParameters(frameBuffer, timeStampBuffer, FRAME_BUFFER_SIZE,freeFrames,usedFrames,m_acqFrameNum);
 
     // -----------------
 
@@ -76,12 +76,13 @@ void Miniscope::createView()
 
     view->setWidth(m_cMiniscopes["width"].toInt() * m_ucMiniscope["windowScale"].toDouble(1));
     view->setHeight(m_cMiniscopes["height"].toInt() * m_ucMiniscope["windowScale"].toDouble(1));
-    view->setTitle(m_ucMiniscope["deviceName"].toString("Miniscope " + QString::number(m_ucMiniscope["deviceID"].toInt())));
+
+    view->setTitle(m_deviceName);
     view->setX(m_ucMiniscope["windowX"].toInt(1));
     view->setY(m_ucMiniscope["windowY"].toInt(1));
+
     view->show();
     // --------------------
-
 
     rootObject = view->rootObject();
     configureMiniscopeControls();
@@ -100,6 +101,7 @@ void Miniscope::connectSnS(){
 
 void Miniscope::parseUserConfigMiniscope() {
     // Currently not needed. If arrays get added into JSON config then this might
+    m_deviceName = m_ucMiniscope["deviceName"].toString("Miniscope " + QString::number(m_ucMiniscope["deviceID"].toInt()));
 }
 
 void Miniscope::sendInitCommands()
