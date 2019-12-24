@@ -21,7 +21,7 @@
     "devices": {
         "miniscopes": [
             {
-                "deviceName": "Miniscope 0!",
+                "deviceName": "Miniscope 0",
                 "deviceType": "Miniscope_V4",
                 "imageRegistration": "Off",
                 "headOrientation": "Off",

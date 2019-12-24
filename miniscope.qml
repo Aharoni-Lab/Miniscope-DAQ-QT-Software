@@ -10,7 +10,7 @@ Item {
     width: parent.width
     height: parent.height
 
-    signal vidPropChangedSignal(string type, double value)
+    signal vidPropChangedSignal(string name, double displayValue, double i2cValue)
 
     VideoDisplay {
         id: videoDisplay
@@ -84,15 +84,15 @@ Item {
 
     Connections{
         target: led0
-        onValueChangedSignal: vidPropChangedSignal(led0.objectName,value)
+        onValueChangedSignal: vidPropChangedSignal(led0.objectName, displayValue, i2cValue)
     }
     Connections{
         target: ewl
-        onValueChangedSignal: vidPropChangedSignal(ewl.objectName,value)
+        onValueChangedSignal: vidPropChangedSignal(ewl.objectName, displayValue, i2cValue)
     }
     Connections{
         target: gain
-        onValueChangedSignal: vidPropChangedSignal(gain.objectName,value)
+        onValueChangedSignal: vidPropChangedSignal(gain.objectName, displayValue, i2cValue)
     }
 
 

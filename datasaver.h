@@ -6,6 +6,7 @@
 #include <QMap>
 #include <QDateTime>
 #include <QSemaphore>
+#include <QJsonDocument>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -29,12 +30,18 @@ signals:
 public slots:
     void startRunning();
     void startRecording();
+    void devicePropertyChanged(QString deviceName, QString propName, double propValue);
 
 private:
+    QJsonDocument constructBaseDirectoryMetaData();
+    QJsonDocument constructMiniscopeMetaData(int deviceIndex);
+    void saveJson(QJsonDocument document, QString fileName);
     QJsonObject m_userConfig;
     QString baseDirectory;
     QDateTime recordStartDateTime;
     QMap<QString,QString> deviceDirectory;
+
+    QMap<QString, QMap<QString, double>> deviceProperties;
 
     QMap<QString, cv::Mat*> frameBuffer;
     QMap<QString, quint32> frameCount;

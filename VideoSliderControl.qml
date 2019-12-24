@@ -21,7 +21,7 @@ Item {
     property int decimalPrecision: 0
     objectName: "default"
 
-    signal valueChangedSignal(double value)
+    signal valueChangedSignal(double displayValue, double i2cValue)
 
     Rectangle {
         id: rectangle
@@ -65,7 +65,7 @@ Item {
         from: root.min
         to: root.max
         value: root.startValue
-        onValueChanged: root.valueChangedSignal(value * root.displayValueScale  - root.displayValueOffset)
+        onValueChanged: root.valueChangedSignal(value, value * root.displayValueScale  - root.displayValueOffset)
     }
 
     Text {

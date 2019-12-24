@@ -7,7 +7,7 @@
         "controlSettings": {
             "gain": {
                 "displaySpinBoxValues":["Low", "Medium", "High"],
-                "displayTextValues": ["1x","2x","3.5x"],
+                "displayTextValues": [1, 2, 3.5],
                 "outputValues":[225,228,36],
                 "startValue": 0,
                 "sendCommand": [

@@ -7,6 +7,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QThread>
+#include <QObject>
 
 #include "miniscope.h"
 #include "behaviorcam.h"
@@ -97,10 +98,17 @@ void backEnd::onRecordClicked()
     // TODO: start experiment running
 }
 
+void backEnd::connectSnS()
+{
+
+//    QObject::connect(
+}
+
 void backEnd::setupDataSaver()
 {
     dataSaver->setUserConfig(m_userConfig);
     dataSaver->setRecord(false);
+    dataSaver->startRecording();
 
     for (int i = 0; i < miniscope.length(); i++) {
         dataSaver->setFrameBufferParameters(miniscope[i]->getDeviceName(),
@@ -149,6 +157,11 @@ void backEnd::constructUserConfigGUI()
     int idx;
     for (idx = 0; idx < ucMiniscopes.size(); idx++) {
         miniscope.append(new Miniscope(this, ucMiniscopes[idx].toObject()));
+        QObject::connect(miniscope.last(),
+                         SIGNAL (onPropertyChanged(QString, QString, double)),
+                         dataSaver,
+                         SLOT (devicePropertyChanged(QString, QString, double)));
+        miniscope.last()->createView();
     }
     for (idx = 0; idx < ucBehaviorCams.size(); idx++) {
         // un comment below once behav cam class is written

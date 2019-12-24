@@ -14,13 +14,13 @@ Item {
     property var iconPath: "img/icon/ewl.ico"
 
     property var displaySpinBoxValues: ["1", "2", "3"]
-    property var displayTextValues: ["1", "2", "3"]
+    property var displayTextValues: [1,2,3]
     property var outputValues: [1, 2, 3]
     property int startValue: 0
 
     objectName: "default"
 
-    signal valueChangedSignal(double value)
+    signal valueChangedSignal(double displayValue, double i2cValue)
 
     Rectangle {
         id: rectangle
@@ -76,7 +76,7 @@ Item {
             return root.displaySpinBoxValues[value];
         }
 
-        onValueChanged: root.valueChangedSignal(root.outputValues[value])
+        onValueChanged: root.valueChangedSignal(root.displayTextValues[value], root.outputValues[value])
     }
 
     Text {

@@ -57,7 +57,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     QObject::connect(videoStreamThread, SIGNAL (finished()), videoStreamThread, SLOT (deleteLater()));
     // ----------------------------------------------
 
-    createView();
+//    createView();
     connectSnS();
 
     sendInitCommands();
@@ -88,14 +88,16 @@ void Miniscope::createView()
     configureMiniscopeControls();
     vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
 
+    QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double) ),
+                         this, SLOT( handlePropCangedSignal(QString, double, double) ));
+
     QObject::connect(view, &NewQuickView::closing, miniscopeStream, &VideoStreamOCV::stopSteam);
     QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &Miniscope::sendNewFrame);
 
 }
 
 void Miniscope::connectSnS(){
-    QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double) ),
-                         this, SLOT( handlePropCangedSignal(QString, double) ));
+
     QObject::connect(this, SIGNAL( setPropertyI2C(long, QVector<quint8>) ), miniscopeStream, SLOT( setPropertyI2C(long, QVector<quint8>) ));
 }
 
@@ -195,8 +197,12 @@ void Miniscope::configureMiniscopeControls() {
                     else if (values[keys[j]].isString()) {
                         controlItem->setProperty(keys[j].toLatin1().data(), values[keys[j]].toString());
                     }
-                    else
+                    else {
                         controlItem->setProperty(keys[j].toLatin1().data(), values[keys[j]].toDouble());
+                        if (keys[j] == "startValue")
+                            // sends signal on initial setup of controls
+                            emit onPropertyChanged(m_deviceName, controlName[i], values["startValue"].toDouble());
+                    }
                 }
             }
 
@@ -296,7 +302,7 @@ void Miniscope::sendNewFrame(){
 }
 
 
-void Miniscope::handlePropCangedSignal(QString type, double value)
+void Miniscope::handlePropCangedSignal(QString type, double displayValue, double i2cValue)
 {
     // type is the objectName of the control
     // value is the control value that was just updated
@@ -304,6 +310,10 @@ void Miniscope::handlePropCangedSignal(QString type, double value)
     QMap<QString, int> sendCommand;
     int tempValue;
     long preambleKey; // Holds a value that represents the address and reg
+
+    // TODO: maybe add a check to make sure property successfully updates before signallng it has changed
+//    qDebug() << "Sending updated prop signal to backend";
+    emit onPropertyChanged(m_deviceName, type, displayValue);
 
     // TODO: Handle int values greater than 8 bits
     for (int i = 0; i < m_controlSendCommand[type].length(); i++) {
@@ -318,19 +328,19 @@ void Miniscope::handlePropCangedSignal(QString type, double value)
                 tempValue = sendCommand["data" + QString::number(j)];
                 // TODO: Handle value1 through value3
                 if (tempValue == SEND_COMMAND_VALUE_H) {
-                    packet.append(((quint16)round(value))>>8);
+                    packet.append(((quint16)round(i2cValue))>>8);
                 }
                 else if (tempValue == SEND_COMMAND_VALUE_L) {
-                    packet.append((quint8)round(value));
+                    packet.append((quint8)round(i2cValue));
                 }
                 else
                     packet.append(tempValue);
             }
 //        qDebug() << packet;
-        preambleKey = 0;
-        for (int k = 0; k < (sendCommand["regLength"]+1); k++)
-            preambleKey |= (packet[k]&0xFF)<<(8*k);
-        emit setPropertyI2C(preambleKey, packet);
+            preambleKey = 0;
+            for (int k = 0; k < (sendCommand["regLength"]+1); k++)
+                preambleKey |= (packet[k]&0xFF)<<(8*k);
+            emit setPropertyI2C(preambleKey, packet);
         }
         else {
             qDebug() << sendCommand["protocol"] << " protocol for " << type << " not yet supported";

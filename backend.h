@@ -5,6 +5,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QThread>
+#include <QString>
 
 #include "miniscope.h"
 #include "behaviorcam.h"

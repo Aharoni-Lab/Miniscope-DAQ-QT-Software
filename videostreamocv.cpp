@@ -67,7 +67,7 @@ void VideoStreamOCV::startStream()
                 m_acqFrameNum->operator++();
                 idx++;
                 usedFrames->release();
-                qDebug() << "freeFrames: " << freeFrames->available();
+//                qDebug() << "freeFrames: " << freeFrames->available();
             }
 
             // Get any new events
