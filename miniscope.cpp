@@ -318,40 +318,50 @@ void Miniscope::handlePropCangedSignal(QString type, double displayValue, double
     int tempValue;
     long preambleKey; // Holds a value that represents the address and reg
 
-    // TODO: maybe add a check to make sure property successfully updates before signallng it has changed
-//    qDebug() << "Sending updated prop signal to backend";
-    emit onPropertyChanged(m_deviceName, type, displayValue);
+    // Handle props that only affect the user display here
+    if (type == "alpha"){
+        vidDisplay->setAlpha(displayValue);
+    }
+    else if (type == "beta") {
+        vidDisplay->setBeta(displayValue);
+    }
+    else {
+        // Here handles prop changes that need to be sent over to the Miniscope
 
-    // TODO: Handle int values greater than 8 bits
-    for (int i = 0; i < m_controlSendCommand[type].length(); i++) {
-        sendCommand = m_controlSendCommand[type][i];
-        packet.clear();
-        if (sendCommand["protocol"] == PROTOCOL_I2C) {
-            packet.append(sendCommand["addressW"]);
-            for (int j = 0; j < sendCommand["regLength"]; j++) {
-                packet.append(sendCommand["reg" + QString::number(j)]);
-            }
-            for (int j = 0; j < sendCommand["dataLength"]; j++) {
-                tempValue = sendCommand["data" + QString::number(j)];
-                // TODO: Handle value1 through value3
-                if (tempValue == SEND_COMMAND_VALUE_H) {
-                    packet.append(((quint16)round(i2cValue))>>8);
+        // TODO: maybe add a check to make sure property successfully updates before signallng it has changed
+    //    qDebug() << "Sending updated prop signal to backend";
+        emit onPropertyChanged(m_deviceName, type, displayValue);
+
+        // TODO: Handle int values greater than 8 bits
+        for (int i = 0; i < m_controlSendCommand[type].length(); i++) {
+            sendCommand = m_controlSendCommand[type][i];
+            packet.clear();
+            if (sendCommand["protocol"] == PROTOCOL_I2C) {
+                packet.append(sendCommand["addressW"]);
+                for (int j = 0; j < sendCommand["regLength"]; j++) {
+                    packet.append(sendCommand["reg" + QString::number(j)]);
                 }
-                else if (tempValue == SEND_COMMAND_VALUE_L) {
-                    packet.append((quint8)round(i2cValue));
+                for (int j = 0; j < sendCommand["dataLength"]; j++) {
+                    tempValue = sendCommand["data" + QString::number(j)];
+                    // TODO: Handle value1 through value3
+                    if (tempValue == SEND_COMMAND_VALUE_H) {
+                        packet.append(((quint16)round(i2cValue))>>8);
+                    }
+                    else if (tempValue == SEND_COMMAND_VALUE_L) {
+                        packet.append((quint8)round(i2cValue));
+                    }
+                    else
+                        packet.append(tempValue);
                 }
-                else
-                    packet.append(tempValue);
+    //        qDebug() << packet;
+                preambleKey = 0;
+                for (int k = 0; k < (sendCommand["regLength"]+1); k++)
+                    preambleKey |= (packet[k]&0xFF)<<(8*k);
+                emit setPropertyI2C(preambleKey, packet);
             }
-//        qDebug() << packet;
-            preambleKey = 0;
-            for (int k = 0; k < (sendCommand["regLength"]+1); k++)
-                preambleKey |= (packet[k]&0xFF)<<(8*k);
-            emit setPropertyI2C(preambleKey, packet);
-        }
-        else {
-            qDebug() << sendCommand["protocol"] << " protocol for " << type << " not yet supported";
+            else {
+                qDebug() << sendCommand["protocol"] << " protocol for " << type << " not yet supported";
+            }
         }
     }
-
 }

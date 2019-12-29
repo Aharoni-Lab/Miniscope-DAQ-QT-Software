@@ -125,8 +125,9 @@ void DataSaver::startRunning()
 
                     }
                     bufPosition = frameCount[names[i]] % bufferSize[names[i]];
-                    *csvStream[names[i]] << frameCount[names[i]] << "\t" <<
-                                            timeStampBuffer[names[i]][bufPosition] << endl;
+                    *csvStream[names[i]] << savedFrameCount[names[i]] << "\t"
+                                         << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << "\t"
+                                         << usedCount[names[i]]->available() << endl;
 
                     // TODO: Increment video file if reach max frame number per file
                     videoWriter[names[i]]->write(frameBuffer[names[i]][bufPosition]);

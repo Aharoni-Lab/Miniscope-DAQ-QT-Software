@@ -9,11 +9,12 @@
 
 //! [7]
 VideoDisplay::VideoDisplay()
-    : m_t(0)
-    , m_renderer(nullptr)
+    : m_t(0),
+      m_renderer(nullptr)
 {
 //    m_displayFrame2.load("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png");
     connect(this, &QQuickItem::windowChanged, this, &VideoDisplay::handleWindowChanged);
+
 }
 //! [7]
 
@@ -134,11 +135,10 @@ void VideoDisplayRenderer::paint()
         1, 0
 
     };
-
     m_program->setAttributeArray(0, GL_FLOAT, position, 2);
     m_program->setAttributeArray(1, GL_FLOAT, texcoord, 2);
-    m_program->setUniformValue("alpha", (float) 1);
-    m_program->setUniformValue("beta", (float) 0);
+    m_program->setUniformValue("alpha", (float) m_alpha);
+    m_program->setUniformValue("beta", (float) m_beta);
     m_program->setUniformValue("showSaturation", (float) 1);
 
     glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());

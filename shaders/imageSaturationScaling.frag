@@ -8,7 +8,7 @@ void main() {
    if (gl_FragColor.b == 1.0 && showSaturation == 1.0)
        gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
    else
-       gl_FragColor.rgb = gl_FragColor.rgb * alpha - beta;
+       gl_FragColor.rgb = (gl_FragColor.rgb - beta)/(alpha - beta);
    lowp float temp = gl_FragColor.r;
    gl_FragColor.r = gl_FragColor.b;
    gl_FragColor.b = temp;

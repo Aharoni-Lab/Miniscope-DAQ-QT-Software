@@ -80,6 +80,27 @@ Item {
             id: gain
             objectName: "gain"
         }
+        ToolSeparator {
+            id: toolSeparator
+        }
+        VideoSliderControl{
+            id: alpha
+            objectName: "alpha"
+            startValue: 1
+            min: 0
+            max: 1
+            stepSize: .01
+        }
+        VideoSliderControl{
+            id: beta
+            objectName: "beta"
+            startValue: 0
+            min: 0
+            max: 1
+            stepSize: .01
+        }
+
+
     }
 
     Connections{
@@ -93,6 +114,14 @@ Item {
     Connections{
         target: gain
         onValueChangedSignal: vidPropChangedSignal(gain.objectName, displayValue, i2cValue)
+    }
+    Connections{
+        target: alpha
+        onValueChangedSignal: vidPropChangedSignal(alpha.objectName, displayValue, i2cValue)
+    }
+    Connections{
+        target: beta
+        onValueChangedSignal: vidPropChangedSignal(beta.objectName, displayValue, i2cValue)
     }
 
 

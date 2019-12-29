@@ -15,13 +15,15 @@ class VideoDisplayRenderer : public QObject, protected QOpenGLFunctions
 {
     Q_OBJECT
 public:
-    VideoDisplayRenderer() : m_t(0), m_program(0), m_texture(0), m_displayFrame(0), m_newFrame(false) { }
+    VideoDisplayRenderer() : m_t(0), m_alpha(1), m_beta(0), m_program(0), m_texture(0), m_displayFrame(0), m_newFrame(false) { }
     ~VideoDisplayRenderer();
 
     void setT(qreal t) { m_t = t; }
     void setDisplayFrame(QImage frame) { m_displayFrame = frame; m_newFrame = true;}
     void setViewportSize(const QSize &size) { m_viewportSize = size; }
     void setWindow(QQuickWindow *window) { m_window = window; }
+    void setAlpha(double a) {m_alpha = a;}
+    void setBeta(double b) {m_beta = b;}
 
 signals:
     void requestNewFrame();
@@ -37,6 +39,11 @@ private:
     QOpenGLTexture *m_texture;
     QQuickWindow *m_window;
     bool m_newFrame;
+
+    double m_alpha;
+    double m_beta;
+
+
 };
 //! [1]
 
@@ -55,6 +62,8 @@ public:
 //    QImage displayFrame() {return m_displayFrame;}
     void setT(qreal t);
     void setDisplayFrame(QImage frame);
+    void setAlpha(double a) {m_renderer->setAlpha(a);}
+    void setBeta(double b) {m_renderer->setBeta(b);}
 
 signals:
     void tChanged();
