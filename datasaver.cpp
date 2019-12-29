@@ -15,6 +15,8 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QCoreApplication>
+#include <QFile>
+#include <QTextStream>
 
 DataSaver::DataSaver(QObject *parent) :
     QObject(parent),
@@ -78,11 +80,13 @@ void DataSaver::setupFilePaths()
 void DataSaver::setFrameBufferParameters(QString name,
                                          cv::Mat *frameBuf,
                                          qint64 *tsBuffer,
+                                         int bufSize,
                                          QSemaphore *freeFrames,
                                          QSemaphore *usedFrames)
 {
     frameBuffer[name] = frameBuf;
     timeStampBuffer[name] = tsBuffer;
+    bufferSize[name] = bufSize;
     freeCount[name] = freeFrames;
     usedCount[name] = usedFrames;
 
@@ -93,6 +97,7 @@ void DataSaver::startRunning()
 {
     m_running = true;
     int i;
+    int bufPosition;
     QStringList names;
     while(m_running) {
         // for video streams
@@ -102,6 +107,12 @@ void DataSaver::startRunning()
                 // grad info from buffer in a threadsafe way
                 if (m_recording) {
                     // save frame to file
+                    bufPosition = frameCount[names[i]] % bufferSize[names[i]];
+                    *csvStream[names[i]] << frameCount[names[i]] << "\t" <<
+                                            timeStampBuffer[names[i]][bufPosition] << endl;
+
+                    // TODO: Increment video file if reach max frame number per file
+                    videoWriter[names[i]]->write(frameBuffer[names[i]][bufPosition]);
                 }
 
                 frameCount[names[i]]++;
@@ -130,7 +141,34 @@ void DataSaver::startRecording()
     }
 
     // TODO: Create data files
+    QString tempStr;
+    QStringList keys = frameBuffer.keys();
+    for (int i = 0; i < keys.length(); i++) {
+        // loop through devices that make frames and setup csv file and videoWriter
+        csvFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/timeStamps.csv");
+        csvFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
+        csvStream[keys[i]] = new QTextStream(csvFile[keys[i]]);
+        // TODO: Remember to close files on exit or stop recording signal
+
+        tempStr = deviceDirectory[keys[i]] + "/0.avi";
+        videoWriter[keys[i]] = new cv::VideoWriter(tempStr.toUtf8().constData(),
+                cv::VideoWriter::fourcc('M','J','P','G'), 60, cv::Size(640,480)); // color should be set to false?
+        // TODO: Correctly enter size of videoWriter
+//         TODO: Release videoWriters at exit
+
+
+    }
     m_recording = true;
+}
+
+void DataSaver::stopRecording()
+{
+    m_recording = false;
+    QStringList keys = videoWriter.keys();
+    for (int i = 0; i < keys.length(); i++) {
+        videoWriter[keys[i]]->release();
+        csvFile[keys[i]]->close();
+    }
 }
 
 void DataSaver::devicePropertyChanged(QString deviceName, QString propName, double propValue)

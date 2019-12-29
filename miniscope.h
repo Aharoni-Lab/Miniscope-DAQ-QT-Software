@@ -38,6 +38,7 @@ public:
     void sendInitCommands();
     cv::Mat* getFrameBufferPointer(){return frameBuffer;}
     qint64* getTimeStampBufferPointer(){return timeStampBuffer;}
+    int getBufferSize() {return FRAME_BUFFER_SIZE;}
     QSemaphore* getFreeFramesPointer(){return freeFrames;}
     QSemaphore* getUsedFramesPointer(){return usedFrames;}
     QString getDeviceName(){return m_deviceName;}

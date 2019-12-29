@@ -25,7 +25,7 @@ void ControlPanel::createView()
     view = new NewQuickView(url);
 
     qDebug() << "Screen size is " << width << " x " << height;
-    view->setWidth(200);
+    view->setWidth(400);
     view->setHeight(height*0.9);
     view->setTitle("Control Panel");
     view->setX(1);
@@ -35,25 +35,35 @@ void ControlPanel::createView()
     rootObject = view->rootObject();
     messageTextArea = rootObject->findChild<QQuickItem*>("messageTextArea");
 
-    messageTextArea->setProperty("text", messageTextArea->property("text").toString() + "ansosandioas\n");
-//    // --------------------
-
-
-//    rootObject = view->rootObject();
-//    configureMiniscopeControls();
-//    vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
-
-//    QObject::connect(view, &NewQuickView::closing, miniscopeStream, &VideoStreamOCV::stopSteam);
-//    QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &Miniscope::sendNewFrame);
+    connectSnS();
 }
 
 void ControlPanel::connectSnS()
 {
 
+    QObject::connect(rootObject->findChild<QQuickItem*>("bRecord"),
+                     SIGNAL(activated()),
+                     this,
+                     SLOT(onRecordActivated()));
+    QObject::connect(rootObject->findChild<QQuickItem*>("bStop"),
+                     SIGNAL(activated()),
+                     this,
+                     SLOT(onStopActivated()));
 
 }
 
 void ControlPanel::receiveMessage(QString msg)
 {
     // Add msg to textbox in controlPanel.qml
+    messageTextArea->setProperty("text", messageTextArea->property("text").toString() + msg + "\n");
+}
+
+void ControlPanel::onRecordActivated()
+{
+    recordStart();
+}
+
+void ControlPanel::onStopActivated()
+{
+    recordStop();
 }

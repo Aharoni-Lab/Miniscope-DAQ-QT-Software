@@ -16,9 +16,12 @@ public:
 
 public slots:
     void receiveMessage(QString msg);
+    void onRecordActivated();
+    void onStopActivated();
 
 signals:
-//    void newMessage(QString msg);
+    void recordStart();
+    void recordStop();
 
 private:
     NewQuickView *view;

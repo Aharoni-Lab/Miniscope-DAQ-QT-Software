@@ -24,6 +24,7 @@ Item {
 
         DelayButton {
             id: bRecord
+            objectName: "bRecord"
             text: qsTr("Record")
             delay:1000
             Layout.row: 0
@@ -33,6 +34,7 @@ Item {
         }
         DelayButton {
             id: bStop
+            objectName: "bStop"
             text: qsTr("Stop")
             delay:1000
             Layout.row: 0

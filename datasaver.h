@@ -7,6 +7,8 @@
 #include <QDateTime>
 #include <QSemaphore>
 #include <QJsonDocument>
+#include <QFile>
+#include <QTextStream>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -23,13 +25,14 @@ public:
     void setUserConfig(QJsonObject userConfig) { m_userConfig = userConfig; }
     void setupFilePaths();
     void setRecord(bool input) {m_recording = input;}
-    void setFrameBufferParameters(QString name, cv::Mat* frameBuf, qint64 *tsBuffer, QSemaphore* freeFrames, QSemaphore* usedFrames);
+    void setFrameBufferParameters(QString name, cv::Mat* frameBuf, qint64 *tsBuffer, int bufSize, QSemaphore* freeFrames, QSemaphore* usedFrames);
 
 signals:
 
 public slots:
     void startRunning();
     void startRecording();
+    void stopRecording();
     void devicePropertyChanged(QString deviceName, QString propName, double propValue);
 
 private:
@@ -43,11 +46,16 @@ private:
 
     QMap<QString, QMap<QString, double>> deviceProperties;
 
+    // Probably shoud turn all of this into a single struct
     QMap<QString, cv::Mat*> frameBuffer;
+    QMap<QString, int> bufferSize;
     QMap<QString, quint32> frameCount;
     QMap<QString, qint64*> timeStampBuffer;
     QMap<QString, QSemaphore*> freeCount;
     QMap<QString, QSemaphore*> usedCount;
+    QMap<QString, cv::VideoWriter*> videoWriter;
+    QMap<QString, QFile*> csvFile;
+    QMap<QString, QTextStream*> csvStream;
 
     bool m_recording;
     bool m_running;

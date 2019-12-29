@@ -101,19 +101,22 @@ void backEnd::onRecordClicked()
 void backEnd::connectSnS()
 {
 
-//    QObject::connect(
+    QObject::connect(controlPanel, SIGNAL( recordStart()), dataSaver, SLOT (startRecording()));
+    QObject::connect(controlPanel, SIGNAL( recordStop()), dataSaver, SLOT (stopRecording()));
+
 }
 
 void backEnd::setupDataSaver()
 {
     dataSaver->setUserConfig(m_userConfig);
     dataSaver->setRecord(false);
-    dataSaver->startRecording();
+//    dataSaver->startRecording();
 
     for (int i = 0; i < miniscope.length(); i++) {
         dataSaver->setFrameBufferParameters(miniscope[i]->getDeviceName(),
                                             miniscope[i]->getFrameBufferPointer(),
                                             miniscope[i]->getTimeStampBufferPointer(),
+                                            miniscope[i]->getBufferSize(),
                                             miniscope[i]->getFreeFramesPointer(),
                                             miniscope[i]->getUsedFramesPointer());
     }
@@ -175,4 +178,6 @@ void backEnd::constructUserConfigGUI()
     }
     // Load main control GUI
     controlPanel = new ControlPanel();
+
+    connectSnS();
 }
