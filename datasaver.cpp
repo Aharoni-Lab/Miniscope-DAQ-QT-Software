@@ -98,6 +98,9 @@ void DataSaver::startRunning()
     m_running = true;
     int i;
     int bufPosition;
+    int fileNum;
+    bool isColor;
+    QString tempStr;
     QStringList names;
     while(m_running) {
         // for video streams
@@ -107,12 +110,27 @@ void DataSaver::startRunning()
                 // grad info from buffer in a threadsafe way
                 if (m_recording) {
                     // save frame to file
+                    if ((savedFrameCount[names[i]] % framesPerFile[names[i]]) == 0) {
+                        // Create first as well as new video files
+                        fileNum = (int) (savedFrameCount[names[i]] / framesPerFile[names[i]]);
+                        tempStr = deviceDirectory[names[i]] + "/" + QString::number(fileNum) + ".avi";
+                        videoWriter[names[i]]->release(); // release full file
+                        if (frameBuffer[names[i]][0].channels() == 1)
+                            isColor = false;
+                        else
+                            isColor = true;
+                        videoWriter[names[i]]->open(tempStr.toUtf8().constData(),
+                                cv::VideoWriter::fourcc('M','J','P','G'), 60,
+                                cv::Size(frameBuffer[names[i]][0].cols, frameBuffer[names[i]][0].rows), isColor); // color should be set to false?
+
+                    }
                     bufPosition = frameCount[names[i]] % bufferSize[names[i]];
                     *csvStream[names[i]] << frameCount[names[i]] << "\t" <<
                                             timeStampBuffer[names[i]][bufPosition] << endl;
 
                     // TODO: Increment video file if reach max frame number per file
                     videoWriter[names[i]]->write(frameBuffer[names[i]][bufPosition]);
+                    savedFrameCount[names[i]]++;
                 }
 
                 frameCount[names[i]]++;
@@ -138,6 +156,9 @@ void DataSaver::startRecording()
         deviceName = m_userConfig["devices"].toObject()["miniscopes"].toArray()[i].toObject()["deviceName"].toString();
         jDoc = constructMiniscopeMetaData(i);
         saveJson(jDoc, deviceDirectory[deviceName] + "/metaData.json");
+
+        // Get user config frames per file
+        framesPerFile[deviceName] = m_userConfig["devices"].toObject()["miniscopes"].toArray()[i].toObject()["framesPerFile"].toInt(1000);
     }
 
     // TODO: Create data files
@@ -150,11 +171,11 @@ void DataSaver::startRecording()
         csvStream[keys[i]] = new QTextStream(csvFile[keys[i]]);
         // TODO: Remember to close files on exit or stop recording signal
 
-        tempStr = deviceDirectory[keys[i]] + "/0.avi";
-        videoWriter[keys[i]] = new cv::VideoWriter(tempStr.toUtf8().constData(),
-                cv::VideoWriter::fourcc('M','J','P','G'), 60, cv::Size(640,480)); // color should be set to false?
+        videoWriter[keys[i]] = new cv::VideoWriter();
         // TODO: Correctly enter size of videoWriter
 //         TODO: Release videoWriters at exit
+
+        savedFrameCount[keys[i]] = 0;
 
 
     }
@@ -223,7 +244,9 @@ QJsonDocument DataSaver::constructMiniscopeMetaData(int idx)
 
     metaData["deviceName"] = deviceName;
     metaData["deviceType"] = miniscope["deviceType"].toString();
+    metaData["deviceID"] = miniscope["deviceID"].toInt();
     metaData["deviceDirectory"] = deviceDirectory[deviceName];
+    metaData["framesPerFile"] = miniscope["framesPerFile"].toInt(1000);
 
     // loop through device properties at the start of recording
     QStringList keys = deviceProperties[deviceName].keys();

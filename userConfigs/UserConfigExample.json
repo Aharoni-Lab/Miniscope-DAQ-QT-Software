@@ -26,6 +26,7 @@
                 "imageRegistration": "Off",
                 "headOrientation": "Off",
                 "deviceID": 0,
+                "compression": "Not implemented yet",
                 "framesPerFile": 1000,
                 "windowScale": 0.5,
                 "windowX": 800,

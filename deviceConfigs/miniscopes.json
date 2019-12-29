@@ -4,6 +4,7 @@
         "frameRate": 20,
         "width": 808,
         "height": 608,
+        "isColor": false,
         "controlSettings": {
             "gain": {
                 "displaySpinBoxValues":["Low", "Medium", "High"],

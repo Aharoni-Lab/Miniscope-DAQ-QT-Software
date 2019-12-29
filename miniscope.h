@@ -66,6 +66,7 @@ private:
     VideoStreamOCV *miniscopeStream;
     QThread *videoStreamThread;
     cv::Mat frameBuffer[FRAME_BUFFER_SIZE];
+    cv::Mat tempFrame;
     qint64 timeStampBuffer[FRAME_BUFFER_SIZE];
     QSemaphore *freeFrames;
     QSemaphore *usedFrames;

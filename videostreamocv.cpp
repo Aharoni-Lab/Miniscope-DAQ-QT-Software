@@ -63,7 +63,8 @@ void VideoStreamOCV::startStream()
                 cam->grab();
                 timeStampBuffer[idx%frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
                 cam->retrieve(frame);
-                frameBuffer[idx%frameBufferSize] = frame;
+                cv::cvtColor(frame, frameBuffer[idx%frameBufferSize], cv::COLOR_BGR2GRAY);
+//                frameBuffer[idx%frameBufferSize] = frame;
                 m_acqFrameNum->operator++();
                 idx++;
                 usedFrames->release();

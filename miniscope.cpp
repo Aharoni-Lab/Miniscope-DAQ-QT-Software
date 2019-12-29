@@ -293,11 +293,18 @@ void Miniscope::sendNewFrame(){
 
     if (f > m_previousDisplayFrameNum) {
         m_previousDisplayFrameNum = f;
-        QImage tempFrame;
+        QImage tempFrame2;
 //        qDebug() << "Send frame = " << f;
         f = (f - 1)%FRAME_BUFFER_SIZE;
-        tempFrame = QImage(frameBuffer[f].data, frameBuffer[f].cols, frameBuffer[f].rows, frameBuffer[f].step, QImage::Format_RGB888);
-        vidDisplay->setDisplayFrame(tempFrame);
+
+        // TODO: Think about where color to gray and vise versa should take place.
+        if (frameBuffer[f].channels() == 1) {
+            cv::cvtColor(frameBuffer[f], tempFrame, cv::COLOR_GRAY2BGR);
+            tempFrame2 = QImage(tempFrame.data, tempFrame.cols, tempFrame.rows, tempFrame.step, QImage::Format_RGB888);
+        }
+        else
+            tempFrame2 = QImage(frameBuffer[f].data, frameBuffer[f].cols, frameBuffer[f].rows, frameBuffer[f].step, QImage::Format_RGB888);
+        vidDisplay->setDisplayFrame(tempFrame2);
     }
 }
 

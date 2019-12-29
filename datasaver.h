@@ -48,7 +48,9 @@ private:
 
     // Probably shoud turn all of this into a single struct
     QMap<QString, cv::Mat*> frameBuffer;
+    QMap<QString, int> framesPerFile;
     QMap<QString, int> bufferSize;
+    QMap<QString, quint32> savedFrameCount;
     QMap<QString, quint32> frameCount;
     QMap<QString, qint64*> timeStampBuffer;
     QMap<QString, QSemaphore*> freeCount;
