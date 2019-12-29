@@ -10,6 +10,7 @@
     ],
     "animalName": "testMouse",
     "experimentName": "Linear Track Test",
+    "recordLengthinSeconds": 30,
     "experiment": {
         "type": "linearTrack",
         "units": "cm",
@@ -28,7 +29,7 @@
                 "deviceID": 0,
                 "compression": "Not implemented yet",
                 "framesPerFile": 1000,
-                "windowScale": 0.5,
+                "windowScale": 0.75,
                 "windowX": 800,
                 "windowY": 100,
                 "gain": 1,

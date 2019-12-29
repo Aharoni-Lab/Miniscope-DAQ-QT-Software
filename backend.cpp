@@ -177,7 +177,7 @@ void backEnd::constructUserConfigGUI()
         // Setup behavior tracker
     }
     // Load main control GUI
-    controlPanel = new ControlPanel();
+    controlPanel = new ControlPanel(this, m_userConfig);
 
     connectSnS();
 }

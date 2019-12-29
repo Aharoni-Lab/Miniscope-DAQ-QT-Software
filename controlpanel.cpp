@@ -8,9 +8,20 @@
 #include <QGuiApplication>
 #include <QScreen>
 #include <QQuickItem>
+#include <QJsonObject>
+#include <QString>
+#include <QTimer>
+#include <QTime>
 
-ControlPanel::ControlPanel(QObject *parent) : QObject(parent)
+ControlPanel::ControlPanel(QObject *parent, QJsonObject userConfig) :
+    QObject(parent),
+    currentRecordTime(0)
 {
+    m_userConfig = userConfig;
+
+    recordTimer = new QTimer(this);
+    QObject::connect(recordTimer, &QTimer::timeout, this, &ControlPanel::recordTimerTick);
+
     createView();
 }
 
@@ -35,6 +46,13 @@ void ControlPanel::createView()
     rootObject = view->rootObject();
     messageTextArea = rootObject->findChild<QQuickItem*>("messageTextArea");
 
+    recordTimeText = rootObject->findChild<QQuickItem*>("recordTimeText");
+
+    m_ucRecordLengthinSeconds = m_userConfig["recordLengthinSeconds"].toInt(0);
+    rootObject->setProperty("currentRecordTime", 0);
+    rootObject->setProperty("ucRecordLength", m_ucRecordLengthinSeconds);
+//    recordTimeText->setProperty("text", "----/" + QString::number(m_ucRecordLengthinSeconds) + " s");
+
     connectSnS();
 }
 
@@ -55,15 +73,34 @@ void ControlPanel::connectSnS()
 void ControlPanel::receiveMessage(QString msg)
 {
     // Add msg to textbox in controlPanel.qml
-    messageTextArea->setProperty("text", messageTextArea->property("text").toString() + msg + "\n");
+    QTime time;
+    messageTextArea->setProperty("text", messageTextArea->property("text").toString() + time.currentTime().toString("HH:mm:ss") + ": " + msg + "\n");
 }
 
 void ControlPanel::onRecordActivated()
 {
     recordStart();
+    currentRecordTime = 0;
+    recordTimer->start(1000);
+    receiveMessage("Recording Started.");
 }
 
 void ControlPanel::onStopActivated()
 {
     recordStop();
+    if (recordTimer->isActive())
+        recordTimer->stop();
+
+}
+
+void ControlPanel::recordTimerTick()
+{
+    currentRecordTime++;
+    rootObject->setProperty("currentRecordTime", currentRecordTime);
+    if (currentRecordTime >= m_ucRecordLengthinSeconds) {
+        recordTimer->stop();
+        recordStop();
+        receiveMessage("Recording Stopped.");
+    }
+
 }
