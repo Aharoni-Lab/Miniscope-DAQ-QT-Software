@@ -41,6 +41,7 @@ public:
     int getBufferSize() {return FRAME_BUFFER_SIZE;}
     QSemaphore* getFreeFramesPointer(){return freeFrames;}
     QSemaphore* getUsedFramesPointer(){return usedFrames;}
+    QAtomicInt* getAcqFrameNumPointer(){return m_acqFrameNum;}
     QString getDeviceName(){return m_deviceName;}
     // Todo: thread safe buffer
 
@@ -51,11 +52,13 @@ signals:
     void setPropertyI2C(long preambleKey, QVector<quint8> packet);
     void onPropertyChanged(QString devieName, QString propName, double propValue);
     void sendMessage(QString msg);
+    void takeScreenShot(QString type);
 
 public slots:
     void sendNewFrame();
     void testSlot(QString, double);
     void handlePropCangedSignal(QString type, double displayValue, double i2cValue);
+    void handleTakeScreenShotSignal();
 
 private:
     void getMiniscopeConfig(QString deviceType);

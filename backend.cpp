@@ -105,13 +105,21 @@ void backEnd::connectSnS()
     QObject::connect(controlPanel, SIGNAL( recordStart()), dataSaver, SLOT (startRecording()));
     QObject::connect(controlPanel, SIGNAL( recordStop()), dataSaver, SLOT (stopRecording()));
 
-    // Connect send and receive message to textbox in controlPanel
+    QObject::connect(dataSaver, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+
     for (int i = 0; i < miniscope.length(); i++) {
+        // Connect send and receive message to textbox in controlPanel
         QObject::connect(miniscope[i], SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+
+        // For triggering screenshots
+        QObject::connect(miniscope[i], SIGNAL(takeScreenShot(QString)), dataSaver, SLOT( takeScreenShot(QString)));
     }
     for (int i = 0; i < behavCam.length(); i++) {
         QObject::connect(behavCam[i], SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
     }
+
+
+
 
 }
 
@@ -127,7 +135,8 @@ void backEnd::setupDataSaver()
                                             miniscope[i]->getTimeStampBufferPointer(),
                                             miniscope[i]->getBufferSize(),
                                             miniscope[i]->getFreeFramesPointer(),
-                                            miniscope[i]->getUsedFramesPointer());
+                                            miniscope[i]->getUsedFramesPointer(),
+                                            miniscope[i]->getAcqFrameNumPointer());
     }
     // TODO: setup buffer and thread safe connections for cameras
 

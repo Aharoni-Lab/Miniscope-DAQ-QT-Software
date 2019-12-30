@@ -21,7 +21,8 @@
 DataSaver::DataSaver(QObject *parent) :
     QObject(parent),
     m_recording(false),
-    m_running(false)
+    m_running(false),
+    baseDirectory("")
 {
 
 }
@@ -29,23 +30,7 @@ DataSaver::DataSaver(QObject *parent) :
 void DataSaver::setupFilePaths()
 {
     QString tempString, tempString2;
-    QJsonArray directoryStructure = m_userConfig["directoryStructure"].toArray();
-
-    // Construct and make base directory
-    baseDirectory = m_userConfig["dataDirectory"].toString();
-    for (int i = 0; i < directoryStructure.size(); i++) {
-        tempString = directoryStructure[i].toString();
-        if (tempString == "date")
-            baseDirectory += "/" + recordStartDateTime.date().toString("yyyy_MM_dd");
-        else if (tempString == "time")
-            baseDirectory += "/" + recordStartDateTime.time().toString("HH_mm_ss");
-        else if (tempString == "researcherName")
-            baseDirectory += "/" + m_userConfig["researcherName"].toString().replace(" ", "_");
-        else if (tempString == "experimentName")
-            baseDirectory += "/" + m_userConfig["experimentName"].toString().replace(" ", "_");
-        else if (tempString == "animalName")
-            baseDirectory += "/" + m_userConfig["animalName"].toString().replace(" ", "_");
-    }
+    setupBaseDirectory();
 
     if (!QDir(baseDirectory).exists()) {
         if(!QDir().mkpath(baseDirectory))
@@ -82,7 +67,8 @@ void DataSaver::setFrameBufferParameters(QString name,
                                          qint64 *tsBuffer,
                                          int bufSize,
                                          QSemaphore *freeFrames,
-                                         QSemaphore *usedFrames)
+                                         QSemaphore *usedFrames,
+                                         QAtomicInt *acqFrame)
 {
     frameBuffer[name] = frameBuf;
     timeStampBuffer[name] = tsBuffer;
@@ -90,7 +76,32 @@ void DataSaver::setFrameBufferParameters(QString name,
     freeCount[name] = freeFrames;
     usedCount[name] = usedFrames;
 
+    acqFrameNum[name] = acqFrame;
     frameCount[name] = 0;
+}
+
+void DataSaver::setupBaseDirectory()
+{
+//    if (baseDirectory.isEmpty()) {
+        QString tempString, tempString2;
+        QJsonArray directoryStructure = m_userConfig["directoryStructure"].toArray();
+
+        // Construct and make base directory
+        baseDirectory = m_userConfig["dataDirectory"].toString();
+        for (int i = 0; i < directoryStructure.size(); i++) {
+            tempString = directoryStructure[i].toString();
+            if (tempString == "date")
+                baseDirectory += "/" + recordStartDateTime.date().toString("yyyy_MM_dd");
+            else if (tempString == "time")
+                baseDirectory += "/" + recordStartDateTime.time().toString("HH_mm_ss");
+            else if (tempString == "researcherName")
+                baseDirectory += "/" + m_userConfig["researcherName"].toString().replace(" ", "_");
+            else if (tempString == "experimentName")
+                baseDirectory += "/" + m_userConfig["experimentName"].toString().replace(" ", "_");
+            else if (tempString == "animalName")
+                baseDirectory += "/" + m_userConfig["animalName"].toString().replace(" ", "_");
+        }
+//    }
 }
 
 void DataSaver::startRunning()
@@ -198,6 +209,33 @@ void DataSaver::devicePropertyChanged(QString deviceName, QString propName, doub
     deviceProperties[deviceName][propName] = propValue;
     qDebug() << deviceName << propName << propValue;
     // TODO: signal change to filing keeping track of changes during recording
+}
+
+void DataSaver::takeScreenShot(QString type)
+{
+    QDateTime dtTemp = QDateTime().currentDateTime();
+
+    QString filename = type + "_" + dtTemp.toString("yyyy_MM_dd_HH_mm_ss") + ".png";
+
+    if (baseDirectory.isEmpty())
+        setupBaseDirectory();
+    QString fullFilePath = baseDirectory;
+    fullFilePath.replace("//","/");
+    fullFilePath.replace("//","/");
+    if (fullFilePath.right(1) == "/")
+        fullFilePath.chop(1);
+    fullFilePath += "/imageCaptures";
+    if (!QDir(fullFilePath).exists()){
+
+        qDebug() << QDir().mkpath(fullFilePath);
+    }
+
+    fullFilePath += "/" + filename;
+    int idx = (*acqFrameNum[type] -1) % bufferSize[type];
+//    qDebug() << "Index = " << idx;
+    sendMessage("Taking screenshot of " + type + ".");
+
+    cv::imwrite(fullFilePath.toUtf8().constData(), frameBuffer[type][idx] );
 }
 
 QJsonDocument DataSaver::constructBaseDirectoryMetaData()

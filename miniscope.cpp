@@ -88,6 +88,8 @@ void Miniscope::createView()
     configureMiniscopeControls();
     vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
 
+    QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
+                         this, SLOT( handleTakeScreenShotSignal() ));
     QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double) ),
                          this, SLOT( handlePropCangedSignal(QString, double, double) ));
 
@@ -99,6 +101,7 @@ void Miniscope::createView()
 void Miniscope::connectSnS(){
 
     QObject::connect(this, SIGNAL( setPropertyI2C(long, QVector<quint8>) ), miniscopeStream, SLOT( setPropertyI2C(long, QVector<quint8>) ));
+
 }
 
 void Miniscope::parseUserConfigMiniscope() {
@@ -368,4 +371,10 @@ void Miniscope::handlePropCangedSignal(QString type, double displayValue, double
             }
         }
     }
+}
+
+void Miniscope::handleTakeScreenShotSignal()
+{
+    // Is called when signal from qml GUI is triggered
+    takeScreenShot(m_deviceName);
 }

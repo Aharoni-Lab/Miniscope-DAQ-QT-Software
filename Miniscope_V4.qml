@@ -12,6 +12,7 @@ Item {
     state: "controlsShown"
     focus: true
     signal vidPropChangedSignal(string name, double displayValue, double i2cValue)
+    signal takeScreenShotSignal()
 
     Keys.onPressed: {
         if (event.key === Qt.Key_H) {
@@ -21,7 +22,8 @@ Item {
                 root.state = "controlsShown";
         }
         if (event.key === Qt.Key_Space) {
-
+            // Take screenshot of window
+            takeScreenShotSignal();
         }
     }
 

@@ -9,6 +9,7 @@
 #include <QJsonDocument>
 #include <QFile>
 #include <QTextStream>
+#include <QAtomicInt>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -25,15 +26,18 @@ public:
     void setUserConfig(QJsonObject userConfig) { m_userConfig = userConfig; }
     void setupFilePaths();
     void setRecord(bool input) {m_recording = input;}
-    void setFrameBufferParameters(QString name, cv::Mat* frameBuf, qint64 *tsBuffer, int bufSize, QSemaphore* freeFrames, QSemaphore* usedFrames);
+    void setFrameBufferParameters(QString name, cv::Mat* frameBuf, qint64 *tsBuffer, int bufSize, QSemaphore* freeFrames, QSemaphore* usedFrames, QAtomicInt* acqFrame);
+    void setupBaseDirectory();
 
 signals:
+    void sendMessage(QString msg);
 
 public slots:
     void startRunning();
     void startRecording();
     void stopRecording();
     void devicePropertyChanged(QString deviceName, QString propName, double propValue);
+    void takeScreenShot(QString type);
 
 private:
     QJsonDocument constructBaseDirectoryMetaData();
@@ -50,6 +54,7 @@ private:
     QMap<QString, cv::Mat*> frameBuffer;
     QMap<QString, int> framesPerFile;
     QMap<QString, int> bufferSize;
+    QMap<QString, QAtomicInt*> acqFrameNum;
     QMap<QString, quint32> savedFrameCount;
     QMap<QString, quint32> frameCount;
     QMap<QString, qint64*> timeStampBuffer;
