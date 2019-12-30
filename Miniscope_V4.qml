@@ -19,6 +19,18 @@ Item {
         Layout.minimumHeight: 480
         Layout.minimumWidth: 640
         objectName: "vD"
+
+        property var sumAcqFPS: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+        property var idx: 0
+        onAcqFPSChanged: {
+
+            sumAcqFPS[idx] = videoDisplay.acqFPS;
+//            print(sumAcqFPS[idx]);
+            idx++;
+            if (idx >= 20)
+                idx = 0;
+        }
+
         SequentialAnimation on t {
             NumberAnimation { to: 1; duration: 2500; easing.type: Easing.InQuad }
             NumberAnimation { to: 0; duration: 2500; easing.type: Easing.OutQuad }
@@ -41,9 +53,26 @@ Item {
             Text{
                 id: acqFPS
                 objectName: "acqFPS"
+                property double aveFPS: 0
                 Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-                text: "Acquisition FPS: " + videoDisplay.acqFPS.toString()
+                text: "--"
                 Layout.row: 1
+                Timer{
+                    interval: 100
+                    repeat: true
+                    running: true
+                    onTriggered: {
+                        acqFPS.aveFPS = 0;
+                        for (var i = 0; i < 20; i++) {
+
+                            acqFPS.aveFPS += videoDisplay.sumAcqFPS[i];
+                        }
+                        acqFPS.aveFPS = acqFPS.aveFPS/20;
+                        acqFPS.text = "Inst. FPS: " + videoDisplay.acqFPS.toFixed(1) + " | Ave. FPS: " + acqFPS.aveFPS.toFixed(1);
+
+                    }
+                }
+
 
             }
 
