@@ -143,12 +143,13 @@ Item {
             objectName: "exposure"
             max: 100
             startValue: 10
-            iconPath: "img/icon/ewl.ico"
+            iconPath: "img/icon/exposure.ico"
             textColor: "black"
         }
         VideoSpinBoxControl{
             id: gain
             objectName: "gain"
+            iconPath: "img/icon/gain.ico"
         }
         ToolSeparator {
             id: toolSeparator
@@ -156,18 +157,22 @@ Item {
         VideoSliderControl{
             id: alpha
             objectName: "alpha"
+            iconPath: "img/icon/alpha.ico"
             startValue: 1
             min: 0
             max: 1
             stepSize: .01
+            decimalPrecision: 2
         }
         VideoSliderControl{
             id: beta
             objectName: "beta"
+            iconPath: "img/icon/beta.ico"
             startValue: 0
             min: 0
             max: 1
             stepSize: .01
+            decimalPrecision: 2
         }
 
 

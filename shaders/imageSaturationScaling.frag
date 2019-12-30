@@ -5,7 +5,7 @@ uniform lowp float beta;
 uniform lowp float showSaturation;
 void main() {
    gl_FragColor = texture2D(texture, v_texcoord);
-   if (gl_FragColor.b == 1.0 && showSaturation == 1.0)
+   if (gl_FragColor.b >= .99 && showSaturation == 1.0)
        gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
    else
        gl_FragColor.rgb = (gl_FragColor.rgb - beta)/(alpha - beta);

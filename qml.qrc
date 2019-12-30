@@ -16,5 +16,9 @@
         <file>shaders/imageSaturationScaling.frag</file>
         <file>VideoSpinBoxControl.qml</file>
         <file>ControlPanel.qml</file>
+        <file>img/icon/exposure.ico</file>
+        <file>img/icon/gain.ico</file>
+        <file>img/icon/alpha.ico</file>
+        <file>img/icon/beta.ico</file>
     </qresource>
 </RCC>
