@@ -9,8 +9,21 @@ Item {
     objectName: "root"
     width: parent.width
     height: parent.height
-
+    state: "controlsShown"
+    focus: true
     signal vidPropChangedSignal(string name, double displayValue, double i2cValue)
+
+    Keys.onPressed: {
+        if (event.key === Qt.Key_H) {
+            if (root.state == "controlsShown")
+                root.state = "controlsHidden";
+            else
+                root.state = "controlsShown";
+        }
+        if (event.key === Qt.Key_Space) {
+
+        }
+    }
 
     VideoDisplay {
         id: videoDisplay
@@ -46,16 +59,26 @@ Item {
 
         GridLayout {
             id: gridLayout
+            height: 32
+            columnSpacing: 0
+            rowSpacing: 0
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 0
+            anchors.right: parent.right
+            anchors.rightMargin: 0
+            anchors.left: parent.left
+            anchors.leftMargin: 0
             columns: 4
             rows: 2
-            anchors.fill: parent
 
             Text{
                 id: acqFPS
                 objectName: "acqFPS"
                 property double aveFPS: 0
-                Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignBottom
                 text: "--"
+                font.pointSize: 10
+                font.family: "Arial"
                 Layout.row: 1
                 Timer{
                     interval: 100
@@ -67,8 +90,8 @@ Item {
 
                             acqFPS.aveFPS += videoDisplay.sumAcqFPS[i];
                         }
-                        acqFPS.aveFPS = acqFPS.aveFPS/20;
-                        acqFPS.text = "Inst. FPS: " + videoDisplay.acqFPS.toFixed(1) + " | Ave. FPS: " + acqFPS.aveFPS.toFixed(1);
+                        acqFPS.aveFPS = 20000.0/(acqFPS.aveFPS);
+                        acqFPS.text = "Inst. FPS: " + (1000.0/videoDisplay.acqFPS).toFixed(1) + " | Ave. FPS: " + acqFPS.aveFPS.toFixed(1);
 
                     }
                 }
@@ -88,7 +111,7 @@ Item {
     }
 
     ColumnLayout {
-        id: rowLayout
+        id: controlColumn
         objectName: "controlColumn"
         width: parent.width
         height: 100
@@ -168,6 +191,48 @@ Item {
         target: beta
         onValueChangedSignal: vidPropChangedSignal(beta.objectName, displayValue, i2cValue)
     }
+
+    states: [
+        State{
+            name: "controlsShown"
+
+            PropertyChanges {
+                target: controlColumn
+                x: 0
+            }
+        },
+        State{
+            name: "controlsHidden"
+            PropertyChanges {
+                target: controlColumn
+                x: -100
+            }
+        }
+    ]
+    transitions: [
+        Transition {
+            from: "controlsShown"
+            to: "controlsHidden"
+            NumberAnimation {
+                target: controlColumn
+                property: "x"
+                duration: 500
+                easing.type: Easing.OutQuad
+            }
+        },
+        Transition{
+            from: "controlsHidden"
+            to: "controlsShown"
+            NumberAnimation {
+                target: controlColumn
+                property: "x"
+                duration: 500
+                easing.type: Easing.OutQuad
+            }
+
+        }
+
+    ]
 
 
 }
