@@ -50,6 +50,7 @@ signals:
     // TODO: setup signals to configure camera in thread
     void setPropertyI2C(long preambleKey, QVector<quint8> packet);
     void onPropertyChanged(QString devieName, QString propName, double propValue);
+    void sendMessage(QString msg);
 
 public slots:
     void sendNewFrame();

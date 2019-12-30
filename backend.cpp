@@ -101,8 +101,17 @@ void backEnd::onRecordClicked()
 void backEnd::connectSnS()
 {
 
+    // Start and stop recording signals
     QObject::connect(controlPanel, SIGNAL( recordStart()), dataSaver, SLOT (startRecording()));
     QObject::connect(controlPanel, SIGNAL( recordStop()), dataSaver, SLOT (stopRecording()));
+
+    // Connect send and receive message to textbox in controlPanel
+    for (int i = 0; i < miniscope.length(); i++) {
+        QObject::connect(miniscope[i], SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+    }
+    for (int i = 0; i < behavCam.length(); i++) {
+        QObject::connect(behavCam[i], SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+    }
 
 }
 

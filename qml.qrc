@@ -1,7 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file>main.qml</file>
-        <file>miniscope.qml</file>
+        <file>Miniscope_V4.qml</file>
         <file>behaviorCam.qml</file>
         <file>FpsItem.qml</file>
         <file>VideoSliderControl.qml</file>

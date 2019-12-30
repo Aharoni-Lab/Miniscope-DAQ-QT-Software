@@ -19,12 +19,12 @@ Item {
         Layout.minimumHeight: 480
         Layout.minimumWidth: 640
         objectName: "vD"
-//        SequentialAnimation on t {
-//            NumberAnimation { to: 1; duration: 2500; easing.type: Easing.InQuad }
-//            NumberAnimation { to: 0; duration: 2500; easing.type: Easing.OutQuad }
-//            loops: Animation.Infinite
-//            running: true
-        //        }
+        SequentialAnimation on t {
+            NumberAnimation { to: 1; duration: 2500; easing.type: Easing.InQuad }
+            NumberAnimation { to: 0; duration: 2500; easing.type: Easing.OutQuad }
+            loops: Animation.Infinite
+            running: true
+                }
     }
     TopMenu{
         id: topMenu
@@ -32,14 +32,30 @@ Item {
         anchors.topMargin: 0
         anchors.horizontalCenter: parent.horizontalCenter
 
-        FpsItem {
-            id: fpsItem
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 0
-//            x: 189
-            //            y: 262
+        GridLayout {
+            id: gridLayout
+            columns: 4
+            rows: 2
+            anchors.fill: parent
+
+            Text{
+                id: acqFPS
+                objectName: "acqFPS"
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                text: "Acquisition FPS: " + videoDisplay.acqFPS.toString()
+                Layout.row: 1
+
+            }
+
         }
+
+
+//        FpsItem {
+//            id: fpsItem
+//            anchors.horizontalCenter: parent.horizontalCenter
+//            anchors.bottom: parent.bottom
+//            anchors.bottomMargin: 0
+//        }
     }
 
     ColumnLayout {

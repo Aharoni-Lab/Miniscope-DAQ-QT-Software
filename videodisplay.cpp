@@ -10,6 +10,7 @@
 //! [7]
 VideoDisplay::VideoDisplay()
     : m_t(0),
+      m_acqFPS(0),
       m_renderer(nullptr)
 {
 //    m_displayFrame2.load("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png");

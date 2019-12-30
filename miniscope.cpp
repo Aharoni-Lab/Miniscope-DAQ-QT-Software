@@ -71,7 +71,7 @@ void Miniscope::createView()
 
     // Setup Miniscope window
     // TODO: Check deviceType and log correct qml file
-    const QUrl url(QStringLiteral("qrc:/miniscope.qml"));
+    const QUrl url("qrc:/" + m_deviceType + ".qml");
     view = new NewQuickView(url);
 
     view->setWidth(m_cMiniscopes["width"].toInt() * m_ucMiniscope["windowScale"].toDouble(1));
@@ -145,6 +145,7 @@ void Miniscope::sendInitCommands()
 void Miniscope::getMiniscopeConfig(QString deviceType) {
     QString jsonFile;
     QFile file;
+    m_deviceType = deviceType;
     file.setFileName(":/deviceConfigs/miniscopes.json");
     file.open(QIODevice::ReadOnly | QIODevice::Text);
     jsonFile = file.readAll();
@@ -305,6 +306,8 @@ void Miniscope::sendNewFrame(){
         else
             tempFrame2 = QImage(frameBuffer[f].data, frameBuffer[f].cols, frameBuffer[f].rows, frameBuffer[f].step, QImage::Format_RGB888);
         vidDisplay->setDisplayFrame(tempFrame2);
+        if (f > 0) // This is just a quick cheat so I don't have to wrap around for (f-1)
+            vidDisplay->setAcqFPS(1000/(timeStampBuffer[f] - timeStampBuffer[f-1]));
     }
 }
 
@@ -318,6 +321,7 @@ void Miniscope::handlePropCangedSignal(QString type, double displayValue, double
     int tempValue;
     long preambleKey; // Holds a value that represents the address and reg
 
+    sendMessage(m_deviceName + " " + type + " changed to " + QString::number(displayValue) + ".");
     // Handle props that only affect the user display here
     if (type == "alpha"){
         vidDisplay->setAlpha(displayValue);

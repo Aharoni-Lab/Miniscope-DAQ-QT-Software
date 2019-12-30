@@ -60,6 +60,7 @@ void VideoStreamOCV::startStream()
                 break;
             }
             if(freeFrames->tryAcquire(1,30)) {
+                // TODO: Check if grab or retrieve failed and then try to reconnect to video stream
                 cam->grab();
                 timeStampBuffer[idx%frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
                 cam->retrieve(frame);
@@ -68,7 +69,6 @@ void VideoStreamOCV::startStream()
                 m_acqFrameNum->operator++();
                 idx++;
                 usedFrames->release();
-//                qDebug() << "freeFrames: " << freeFrames->available();
             }
 
             // Get any new events
