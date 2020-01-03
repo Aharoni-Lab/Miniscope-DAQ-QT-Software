@@ -84,7 +84,7 @@
                 ]
             }
         },
-        "initialize": [
+        "initialize2": [
         {
             "protocol": "I2C",
             "addressW": "0b11101110",

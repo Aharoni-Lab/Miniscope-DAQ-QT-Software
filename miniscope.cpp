@@ -87,6 +87,7 @@ void Miniscope::createView()
     rootObject = view->rootObject();
     configureMiniscopeControls();
     vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
+    vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
 
     QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
                          this, SLOT( handleTakeScreenShotSignal() ));
@@ -309,6 +310,8 @@ void Miniscope::sendNewFrame(){
         else
             tempFrame2 = QImage(frameBuffer[f].data, frameBuffer[f].cols, frameBuffer[f].rows, frameBuffer[f].step, QImage::Format_RGB888);
         vidDisplay->setDisplayFrame(tempFrame2);
+
+        vidDisplay->setBufferUsed(usedFrames->available());
         if (f > 0) // This is just a quick cheat so I don't have to wrap around for (f-1)
             vidDisplay->setAcqFPS(timeStampBuffer[f] - timeStampBuffer[f-1]); // TODO: consider changing name as this is now interframeinterval
     }

@@ -28,6 +28,8 @@ int VideoStreamOCV::connect2Camera(int cameraID) {
     m_cameraID = cameraID;
     cam = new cv::VideoCapture;
     cam->open(m_cameraID);
+    qDebug() <<  "Camera capture backend is" << QString::fromStdString (cam->getBackendName());
+//    cam->set(cv::CAP_PROP_SETTINGS, 0);
     if (cam->isOpened())
         return 1;
     else
@@ -100,6 +102,7 @@ void VideoStreamOCV::setPropertyI2C(long preambleKey, QVector<quint8> packet)
 void VideoStreamOCV::sendCommands()
 {
 //    QList<long> keys = sendCommandQueue.keys();
+    bool success = false;
     long key;
     QVector<quint8> packet;
     quint64 tempPacket;
@@ -114,8 +117,11 @@ void VideoStreamOCV::sendCommands()
             tempPacket |= (((quint64)packet.length())&0xFF)<<8; // data length
             for (int j = 1; j < packet.length(); j++)
                 tempPacket |= ((quint64)packet[j])<<(8*(j+1));
-            qDebug() << "0x" << QString::number(tempPacket,16);
-            cam->set(cv::CAP_PROP_GAMMA, tempPacket);
+            qDebug() << "1-5: 0x" << QString::number(tempPacket,16);
+//            cam->set(cv::CAP_PROP_GAMMA, tempPacket);
+            success= cam->set(cv::CAP_PROP_CONTRAST, 0x01);
+            if (!success)
+                qDebug() << "Send setting failed";
             sendCommandQueue.remove(key);
             sendCommandQueueOrder.removeFirst();
         }
@@ -123,8 +129,10 @@ void VideoStreamOCV::sendCommands()
             tempPacket = (quint64)packet[0] | 0x01; // address with bottom bit flipped to 1 to indicate a full 6 byte package
             for (int j = 1; j < packet.length(); j++)
                 tempPacket |= ((quint64)packet[j])<<(8*(j));
-            qDebug() << "0x" << QString::number(tempPacket,16);
-            cam->set(cv::CAP_PROP_GAMMA, tempPacket);
+            qDebug() << "6: 0x" << QString::number(tempPacket,16);
+            success = cam->set(cv::CAP_PROP_CONTRAST, 0xff20);
+            if (!success)
+                qDebug() << "Send setting failed";
             sendCommandQueue.remove(key);
             sendCommandQueueOrder.removeFirst();
         }

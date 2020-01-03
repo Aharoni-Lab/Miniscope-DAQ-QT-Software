@@ -52,6 +52,8 @@ class VideoDisplay : public QQuickItem
 {
     Q_OBJECT
     Q_PROPERTY(double acqFPS READ acqFPS WRITE setAcqFPS NOTIFY acqFPSChanged)
+    Q_PROPERTY(int bufferUsed READ bufferUsed WRITE setBufferUsed NOTIFY bufferUsedChanged)
+    Q_PROPERTY(int maxBuffer READ maxBuffer WRITE setMaxBuffer NOTIFY maxBufferChanged)
     Q_PROPERTY(qreal t READ t WRITE setT NOTIFY tChanged)
     Q_PROPERTY(QImage displayFrame READ displayFrame WRITE setDisplayFrame NOTIFY displayFrameChanged)
 
@@ -60,10 +62,16 @@ public:
 
     qreal t() const { return m_t; }
     double acqFPS() const { return m_acqFPS; }
+    int maxBuffer() const {return m_maxBuffer; }
+    int bufferUsed() const { return m_bufferUsed; }
+
     QImage displayFrame() { return m_displayFrame2; }
 //    QImage displayFrame() {return m_displayFrame;}
     void setT(qreal t);
     void setAcqFPS(double acqFPS) { m_acqFPS = acqFPS; acqFPSChanged();}
+    void setBufferUsed(int bufUsed) { m_bufferUsed = bufUsed; }
+    void setMaxBuffer(int maxBuf) { m_maxBuffer = maxBuf; }
+
     void setDisplayFrame(QImage frame);
     void setAlpha(double a) {m_renderer->setAlpha(a);}
     void setBeta(double b) {m_renderer->setBeta(b);}
@@ -71,6 +79,9 @@ public:
 signals:
     void tChanged();
     void acqFPSChanged();
+    void maxBufferChanged();
+    void bufferUsedChanged();
+
     void displayFrameChanged();
 
 public slots:
@@ -83,6 +94,8 @@ private slots:
 private:
     qreal m_t;
     double m_acqFPS;
+    int m_bufferUsed;
+    int m_maxBuffer;
     QImage m_displayFrame2;
     VideoDisplayRenderer *m_renderer;
 };

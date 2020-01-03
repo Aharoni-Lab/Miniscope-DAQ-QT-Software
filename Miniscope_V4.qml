@@ -70,7 +70,7 @@ Item {
             anchors.rightMargin: 0
             anchors.left: parent.left
             anchors.leftMargin: 0
-            columns: 4
+            columns: 3
             rows: 2
 
             Text{
@@ -81,6 +81,7 @@ Item {
                 text: "--"
                 font.pointSize: 10
                 font.family: "Arial"
+                Layout.column: 1
                 Layout.row: 1
                 Timer{
                     interval: 100
@@ -94,6 +95,26 @@ Item {
                         }
                         acqFPS.aveFPS = 20000.0/(acqFPS.aveFPS);
                         acqFPS.text = "Inst. FPS: " + (1000.0/videoDisplay.acqFPS).toFixed(1) + " | Ave. FPS: " + acqFPS.aveFPS.toFixed(1);
+
+                    }
+                }
+            }
+
+            Text{
+                id: bufferCount
+                objectName: "bufferCount"
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignBottom
+                text: "--"
+                font.pointSize: 10
+                font.family: "Arial"
+                Layout.column: 2
+                Layout.row: 1
+                Timer{
+                    interval: 100
+                    repeat: true
+                    running: true
+                    onTriggered: {
+                        bufferCount.text = "Buffer Used: " + videoDisplay.bufferUsed + "/" + videoDisplay.maxBuffer;
 
                     }
                 }
