@@ -104,6 +104,7 @@ void backEnd::connectSnS()
     // Start and stop recording signals
     QObject::connect(controlPanel, SIGNAL( recordStart()), dataSaver, SLOT (startRecording()));
     QObject::connect(controlPanel, SIGNAL( recordStop()), dataSaver, SLOT (stopRecording()));
+    QObject::connect((controlPanel), SIGNAL( sendNote(QString) ), dataSaver, SLOT ( takeNote(QString) ));
 
     QObject::connect(dataSaver, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
 

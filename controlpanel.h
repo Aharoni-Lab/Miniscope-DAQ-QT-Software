@@ -22,10 +22,12 @@ public slots:
     void onRecordActivated();
     void onStopActivated();
     void recordTimerTick();
+    void handleNoteSumbit(QString note);
 
 signals:
     void recordStart();
     void recordStop();
+    void sendNote(QString note);
 
 private:
     NewQuickView *view;

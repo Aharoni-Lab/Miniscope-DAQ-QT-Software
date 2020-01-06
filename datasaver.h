@@ -38,6 +38,7 @@ public slots:
     void stopRecording();
     void devicePropertyChanged(QString deviceName, QString propName, double propValue);
     void takeScreenShot(QString type);
+    void takeNote(QString note);
 
 private:
     QJsonDocument constructBaseDirectoryMetaData();
@@ -63,6 +64,9 @@ private:
     QMap<QString, cv::VideoWriter*> videoWriter;
     QMap<QString, QFile*> csvFile;
     QMap<QString, QTextStream*> csvStream;
+
+    QFile* noteFile;
+    QTextStream* noteStream;
 
     bool m_recording;
     bool m_running;

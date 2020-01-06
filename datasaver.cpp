@@ -191,6 +191,12 @@ void DataSaver::startRecording()
 
 
     }
+
+    // Creates note csv file
+    noteFile = new QFile(baseDirectory + "/notes.csv");
+    noteFile->open(QFile::WriteOnly | QFile::Truncate);
+    noteStream = new QTextStream(noteFile);
+
     m_recording = true;
 }
 
@@ -202,6 +208,7 @@ void DataSaver::stopRecording()
         videoWriter[keys[i]]->release();
         csvFile[keys[i]]->close();
     }
+    noteFile->close();
 }
 
 void DataSaver::devicePropertyChanged(QString deviceName, QString propName, double propValue)
@@ -236,6 +243,15 @@ void DataSaver::takeScreenShot(QString type)
     sendMessage("Taking screenshot of " + type + ".");
 
     cv::imwrite(fullFilePath.toUtf8().constData(), frameBuffer[type][idx] );
+}
+
+void DataSaver::takeNote(QString note)
+{
+    // Writes note to file submitted through control panel
+    // Only write notes when recording
+    if (m_recording) {
+        *noteStream << QDateTime().currentMSecsSinceEpoch() - recordStartDateTime.toMSecsSinceEpoch() << "\t" << note << endl;
+    }
 }
 
 QJsonDocument DataSaver::constructBaseDirectoryMetaData()

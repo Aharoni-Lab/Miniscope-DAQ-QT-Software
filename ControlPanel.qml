@@ -11,6 +11,8 @@ Item {
     property double currentRecordTime: 0
     property double ucRecordLength: 1
 
+    signal submitNoteSignal(string note)
+
     Rectangle {
         id: rectangle
         color: "#cacaca"
@@ -24,14 +26,30 @@ Item {
         columns: 2
 
         TextField {
-            id: textField1
-            text: qsTr("Enter Notes")
+            id: textNote
+            objectName: "textNote"
+            text: qsTr("Enter Note")
+            font.pointSize: 10
+            font.family: "Arial"
             Layout.fillWidth: true
+            onFocusChanged:{
+                      if(focus)
+                          selectAll()
+                 }
         }
         Button {
             id: bNoteSubmit
+            objectName: "bNoteSubmit"
             text: qsTr("Submit Note")
+            enabled: false
+            checkable: false
             Layout.fillWidth: true
+            onClicked: {
+
+                root.submitNoteSignal(textNote.text);
+                textNote.text = "Enter Note";
+            }
+
         }
         Switch {
             id: element
@@ -76,13 +94,19 @@ Item {
 //            Layout.column: 0
             Layout.rowSpan: 1
             Layout.columnSpan: 1
-//            onActivated:
+            onActivated: {
+
+                bNoteSubmit.enabled = true;
+                bStop.enabled = true;
+                bRecord.enabled = false;
+            }
         }
 
         DelayButton {
             id: bStop
             objectName: "bStop"
             text: qsTr("Stop")
+            enabled: false
 //            autoExclusive: true
             font.pointSize: 12
             font.family: "Arial"
@@ -94,6 +118,12 @@ Item {
 //            Layout.column: 1
             Layout.rowSpan: 1
             Layout.columnSpan: 1
+            onActivated: {
+
+                bNoteSubmit.enabled = false;
+                bStop.enabled = false;
+                bRecord.enabled = true;
+            }
 
         }
 

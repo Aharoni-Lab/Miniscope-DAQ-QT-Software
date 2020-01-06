@@ -132,9 +132,16 @@ void VideoStreamOCV::sendCommands()
             for (int j = 1; j < packet.length(); j++)
                 tempPacket |= ((quint64)packet[j])<<(8*(j));
             qDebug() << "6: 0x" << QString::number(tempPacket,16);
+
             success = cam->set(cv::CAP_PROP_CONTRAST, 0xff20);
             if (!success)
                 qDebug() << "Send setting failed";
+
+//            success = cam->set(cv::CAP_PROP_CONTRAST, (tempPacket & 0x00000000FFFF));
+//            success = cam->set(cv::CAP_PROP_GAMMA, (tempPacket & 0x0000FFFF0000)>>16);
+//            success = cam->set(cv::CAP_PROP_SHARPNESS, (tempPacket & 0xFFFF00000000)>>32);
+
+
             sendCommandQueue.remove(key);
             sendCommandQueueOrder.removeFirst();
         }

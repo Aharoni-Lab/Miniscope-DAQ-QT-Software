@@ -67,6 +67,11 @@ void ControlPanel::connectSnS()
                      SIGNAL(activated()),
                      this,
                      SLOT(onStopActivated()));
+    QObject::connect(rootObject,
+                     SIGNAL(submitNoteSignal(QString)),
+                     this,
+                     SLOT(handleNoteSumbit(QString)));
+
 
 }
 
@@ -103,4 +108,12 @@ void ControlPanel::recordTimerTick()
         receiveMessage("Recording Stopped.");
     }
 
+}
+
+void ControlPanel::handleNoteSumbit(QString note)
+{
+    // Takes note submission from control panel GUI and sends it as a signal to be handled by backend
+
+    sendNote(note);
+    receiveMessage("Note logged.");
 }
