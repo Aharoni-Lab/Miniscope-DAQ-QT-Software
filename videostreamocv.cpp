@@ -63,9 +63,11 @@ void VideoStreamOCV::startStream()
             }
             if(freeFrames->tryAcquire(1,30)) {
                 // TODO: Check if grab or retrieve failed and then try to reconnect to video stream
-                cam->grab();
+                if (!cam->grab())
+                    qDebug() << "Cam grab failed";
                 timeStampBuffer[idx%frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
-                cam->retrieve(frame);
+                if (!cam->retrieve(frame))
+                    qDebug() << "Cam retrieve failed";
                 cv::cvtColor(frame, frameBuffer[idx%frameBufferSize], cv::COLOR_BGR2GRAY);
 //                frameBuffer[idx%frameBufferSize] = frame;
                 m_acqFrameNum->operator++();

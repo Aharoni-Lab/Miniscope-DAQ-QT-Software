@@ -115,6 +115,8 @@ Item {
                     running: true
                     onTriggered: {
                         bufferCount.text = "Buffer Used: " + videoDisplay.bufferUsed + "/" + videoDisplay.maxBuffer;
+                        bufferCount.color.g = 1 - videoDisplay.bufferUsed/videoDisplay.maxBuffer;
+                        bufferCount.color.r = videoDisplay.bufferUsed/videoDisplay.maxBuffer;
 
                     }
                 }
