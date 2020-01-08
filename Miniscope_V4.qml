@@ -204,8 +204,8 @@ Item {
     BNODisplay {
         id: bno
         objectName: "bno"
-        x: parent.width - 32
-        y: parent.height - 32
+        x: parent.width - 120
+        y: parent.height - 70
     }
 
     Connections{

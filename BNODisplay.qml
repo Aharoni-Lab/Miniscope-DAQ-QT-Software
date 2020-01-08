@@ -4,7 +4,7 @@ import QtQuick.Layouts 1.12
 
 Item {
     id: root
-    height:32
+    height:50
     property double heading: 0
     property double roll: 0
     property double pitch: 0
@@ -12,16 +12,16 @@ Item {
     Image {
         id: bno
         height: root.height
-        sourceSize.height: 32
-        sourceSize.width: 32
+//        sourceSize.height: 32
+//        sourceSize.width: 32
 
         anchors.left: textValue.right
         anchors.leftMargin: 10
         anchors.verticalCenter: parent.verticalCenter
-        width:32
+//        height:32
 
         fillMode: Image.PreserveAspectFit
-        source: "img/icon/ewl.ico"
+        source: "img/Miniscope_Logo_BNO.png"
         transform: Matrix4x4 {
             property real a: Math.PI / 180
 
@@ -35,9 +35,14 @@ Item {
 
 
 
-            matrix: Qt.matrix4x4(c2*c3, c2*s3, -s2, 0,
-                                 s1*s2*c3 - c1*s3,  s1*s2*s3 + c1*c3, s1*c2, 0,
-                                 c1*s2*c3 + s1*s3,  c1*s2*s3 - s1*c3, c1*c2, 0,
+//            matrix: Qt.matrix4x4(c2*c3, c2*s3, -s2, 0,
+//                                 s1*s2*c3 - c1*s3,  s1*s2*s3 + c1*c3, s1*c2, 0,
+//                                 c1*s2*c3 + s1*s3,  c1*s2*s3 - s1*c3, c1*c2, 0,
+//                                 0,           0,            0, 1)
+
+            matrix: Qt.matrix4x4(c1*c3, -c1*s3*c2 + s1*s2, c1*s3*s2 + s1*c2, 0,
+                                 s3,    c3*c2, -c3*s2, 0,
+                                 -s1*c3,  s1*s3*c2 + c1*s2, -s1*s3*s2 + c1*c2, 0,
                                  0,           0,            0, 1)
         }
 //        transform: [

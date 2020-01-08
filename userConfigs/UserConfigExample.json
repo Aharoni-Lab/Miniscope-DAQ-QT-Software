@@ -26,7 +26,7 @@
                 "deviceType": "Miniscope_V4_BNO",
                 "imageRegistration": "Off",
                 "streamHeadOrientation": true,
-                "deviceID": 2,
+                "deviceID": 1,
                 "compression": "Not implemented yet",
                 "framesPerFile": 1000,
                 "windowScale": 0.75,

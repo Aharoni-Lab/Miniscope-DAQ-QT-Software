@@ -14,7 +14,8 @@
 VideoStreamOCV::VideoStreamOCV(QObject *parent) :
     QObject(parent),
     m_stopStreaming(false),
-    m_streamHeadOrientationState(false)
+    m_streamHeadOrientationState(false),
+    m_isColor(false)
 {
 
 }
@@ -83,7 +84,8 @@ void VideoStreamOCV::startStream()
                         qDebug() << "Reconnect to camera" << m_cameraID;
                     }
                     else {
-                        cv::cvtColor(frame, frameBuffer[idx%frameBufferSize], cv::COLOR_BGR2GRAY);
+                        if (!m_isColor)
+                            cv::cvtColor(frame, frameBuffer[idx%frameBufferSize], cv::COLOR_BGR2GRAY);
         //                frameBuffer[idx%frameBufferSize] = frame;
                         if (m_streamHeadOrientationState) {
                             heading = static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION))/16.0;

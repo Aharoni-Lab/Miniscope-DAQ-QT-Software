@@ -15,7 +15,15 @@ class VideoDisplayRenderer : public QObject, protected QOpenGLFunctions
 {
     Q_OBJECT
 public:
-    VideoDisplayRenderer() : m_t(0), m_alpha(1), m_beta(0), m_program(0), m_texture(0), m_displayFrame(0), m_newFrame(false) { }
+    VideoDisplayRenderer() :
+        m_t(0),
+        m_displayFrame(0),
+        m_program(0),
+        m_texture(0),
+        m_newFrame(false),
+        m_alpha(1),
+        m_beta(0)
+    { }
     ~VideoDisplayRenderer();
 
     void setT(qreal t) { m_t = t; }

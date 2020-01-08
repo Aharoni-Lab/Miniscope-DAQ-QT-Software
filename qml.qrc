@@ -21,5 +21,6 @@
         <file>img/icon/alpha.ico</file>
         <file>img/icon/beta.ico</file>
         <file>BNODisplay.qml</file>
+        <file>img/Miniscope_Logo_BNO.png</file>
     </qresource>
 </RCC>

@@ -35,6 +35,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     // Checks to make sure user config and miniscope device type are supporting BNO streaming
     m_streamHeadOrientationState = m_ucMiniscope["streamHeadOrientation"].toBool(false) && m_cMiniscopes["headOrientation"].toBool(false);
 
+
     // Thread safe buffer stuff
     freeFrames = new QSemaphore;
     usedFrames = new QSemaphore;
@@ -45,6 +46,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     miniscopeStream = new VideoStreamOCV;
 
     miniscopeStream->setStreamHeadOrientation(m_streamHeadOrientationState);
+    miniscopeStream->setIsColor(m_cMiniscopes["isColor"].toBool(false));
 
     if (!miniscopeStream->connect2Camera(m_ucMiniscope["deviceID"].toInt()))
         qDebug() << "Not able to connect and open " << m_ucMiniscope["deviceName"].toString();

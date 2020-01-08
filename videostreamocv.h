@@ -24,6 +24,7 @@ public:
     void setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf, int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS, QAtomicInt *acqFrameNum);
     int connect2Camera(int cameraID);
     void setStreamHeadOrientation(bool streamState) { m_streamHeadOrientationState = streamState; }
+    void setIsColor(bool isColor) { m_isColor = isColor; }
 
 signals:
 
@@ -39,6 +40,7 @@ private:
     bool m_isStreaming;
     bool m_stopStreaming;
     bool m_streamHeadOrientationState;
+    bool m_isColor;
     cv::Mat *frameBuffer;
     qint64 *timeStampBuffer;
     float *bnoBuffer;
