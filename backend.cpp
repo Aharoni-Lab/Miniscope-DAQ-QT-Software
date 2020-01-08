@@ -134,10 +134,13 @@ void backEnd::setupDataSaver()
         dataSaver->setFrameBufferParameters(miniscope[i]->getDeviceName(),
                                             miniscope[i]->getFrameBufferPointer(),
                                             miniscope[i]->getTimeStampBufferPointer(),
+                                            miniscope[i]->getBNOBufferPointer(),
                                             miniscope[i]->getBufferSize(),
                                             miniscope[i]->getFreeFramesPointer(),
                                             miniscope[i]->getUsedFramesPointer(),
                                             miniscope[i]->getAcqFrameNumPointer());
+
+        dataSaver->setHeadOrientationStreamingState(miniscope[i]->getDeviceName(), miniscope[i]->getHeadOrienataionStreamState());
     }
     // TODO: setup buffer and thread safe connections for cameras
 

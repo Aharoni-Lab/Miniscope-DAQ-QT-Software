@@ -65,6 +65,7 @@ void DataSaver::setupFilePaths()
 void DataSaver::setFrameBufferParameters(QString name,
                                          cv::Mat *frameBuf,
                                          qint64 *tsBuffer,
+                                         float *bnoBuf,
                                          int bufSize,
                                          QSemaphore *freeFrames,
                                          QSemaphore *usedFrames,
@@ -72,6 +73,7 @@ void DataSaver::setFrameBufferParameters(QString name,
 {
     frameBuffer[name] = frameBuf;
     timeStampBuffer[name] = tsBuffer;
+    bnoBuffer[name] = bnoBuf;
     bufferSize[name] = bufSize;
     freeCount[name] = freeFrames;
     usedCount[name] = usedFrames;
@@ -140,6 +142,14 @@ void DataSaver::startRunning()
                                          << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << "\t"
                                          << usedCount[names[i]]->available() << endl;
 
+                    if (streamHeadOrientationState[names[i]]) {
+                        *headOriStream[names[i]] << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << "\t"
+                                                 << bnoBuffer[names[i]][bufPosition*3 + 0] << "\t"
+                                                 << bnoBuffer[names[i]][bufPosition*3 + 1] << "\t"
+                                                 << bnoBuffer[names[i]][bufPosition*3 + 2] << endl;
+
+                    }
+
                     // TODO: Increment video file if reach max frame number per file
                     videoWriter[names[i]]->write(frameBuffer[names[i]][bufPosition]);
                     savedFrameCount[names[i]]++;
@@ -181,6 +191,12 @@ void DataSaver::startRecording()
         csvFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/timeStamps.csv");
         csvFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
         csvStream[keys[i]] = new QTextStream(csvFile[keys[i]]);
+
+        if (streamHeadOrientationState[keys[i]]) {
+            headOriFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/headOrientation.csv");
+            headOriFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
+            headOriStream[keys[i]] = new QTextStream(headOriFile[keys[i]]);
+        }
         // TODO: Remember to close files on exit or stop recording signal
 
         videoWriter[keys[i]] = new cv::VideoWriter();
@@ -207,6 +223,9 @@ void DataSaver::stopRecording()
     for (int i = 0; i < keys.length(); i++) {
         videoWriter[keys[i]]->release();
         csvFile[keys[i]]->close();
+
+        if (headOriFile[keys[i]]->isOpen())
+            headOriFile[keys[i]]->close();
     }
     noteFile->close();
 }

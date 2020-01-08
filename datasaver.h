@@ -26,7 +26,8 @@ public:
     void setUserConfig(QJsonObject userConfig) { m_userConfig = userConfig; }
     void setupFilePaths();
     void setRecord(bool input) {m_recording = input;}
-    void setFrameBufferParameters(QString name, cv::Mat* frameBuf, qint64 *tsBuffer, int bufSize, QSemaphore* freeFrames, QSemaphore* usedFrames, QAtomicInt* acqFrame);
+    void setFrameBufferParameters(QString name, cv::Mat* frameBuf, qint64 *tsBuffer, float *bnoBuf, int bufSize, QSemaphore* freeFrames, QSemaphore* usedFrames, QAtomicInt* acqFrame);
+    void setHeadOrientationStreamingState(QString name, bool streamState) {streamHeadOrientationState[name] = streamState; }
     void setupBaseDirectory();
 
 signals:
@@ -58,12 +59,18 @@ private:
     QMap<QString, QAtomicInt*> acqFrameNum;
     QMap<QString, quint32> savedFrameCount;
     QMap<QString, quint32> frameCount;
+    QMap<QString, float*> bnoBuffer;
+    QMap<QString, bool> streamHeadOrientationState;
     QMap<QString, qint64*> timeStampBuffer;
     QMap<QString, QSemaphore*> freeCount;
     QMap<QString, QSemaphore*> usedCount;
     QMap<QString, cv::VideoWriter*> videoWriter;
+
     QMap<QString, QFile*> csvFile;
     QMap<QString, QTextStream*> csvStream;
+
+    QMap<QString, QFile*> headOriFile;
+    QMap<QString, QTextStream*> headOriStream;
 
     QFile* noteFile;
     QTextStream* noteStream;

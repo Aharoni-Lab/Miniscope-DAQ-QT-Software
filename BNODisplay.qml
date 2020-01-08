@@ -8,6 +8,7 @@ Item {
     property double heading: 0
     property double roll: 0
     property double pitch: 0
+
     Image {
         id: bno
         height: root.height

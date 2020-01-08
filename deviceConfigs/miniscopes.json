@@ -1,9 +1,10 @@
 {
-    "Miniscope_V4": {
+    "Miniscope_V4_BNO": {
         "sensor": "PYTHON480",
         "frameRate": 20,
         "width": 808,
         "height": 608,
+        "headOrientation": true,
         "isColor": false,
         "controlSettings": {
             "gain": {
@@ -112,46 +113,118 @@
         }
     ]
     },
-    "Miniscope_V4_Dual_Color": {
+    "Miniscope_V4": {
         "sensor": "PYTHON480",
         "frameRate": 20,
         "width": 808,
         "height": 608,
-        "settingFormat": [
-            "default",
-            "min",
-            "max",
-            "stepsize"
-        ],
-        "gain": [
-            1,
-            1,
-            3.5,
-            0.1
-        ],
-        "exposure": [
-            100,
-            0,
-            100,
-            1
-        ],
-        "led": [
-            0,
-            0,
-            100,
-            1
-        ],
-        "led2": [
-            0,
-            0,
-            100,
-            1
-        ],
-        "ewl": [
-            0,
-            -200,
-            200,
-            1
-        ]
+        "headOrientation": false,
+        "isColor": false,
+        "controlSettings": {
+            "gain": {
+                "displaySpinBoxValues":["Low", "Medium", "High"],
+                "displayTextValues": [1, 2, 3.5],
+                "outputValues":[225,228,36],
+                "startValue": 0,
+                "sendCommand": [
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0b00100000",
+                        "regLength": "1",
+                        "reg0": "0x05",
+                        "dataLength": "4",
+                        "data0": "0x00",
+                        "data1": "0xCC",
+                        "data2": "valueH",
+                        "data3": "valueL"
+                    }
+                ]
+            },
+            "exposure": {
+                "startValue": 100,
+                "min": 1,
+                "max": 100,
+                "stepSize": 1,
+                "displayValueScale": 2.55,
+                "displayValueOffset": 0
+            },
+            "led0": {
+                "startValue": 0,
+                "min": 0,
+                "max": 100,
+                "stepSize": 1,
+                "displayValueScale": -2.55,
+                "displayValueOffset": -255,
+                "sendCommand": [
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0b00100000",
+                        "regLength": "1",
+                        "reg0": "0x01",
+                        "dataLength": "1",
+                        "data0": "value"
+                    },
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0b01011000",
+                        "regLength": "1",
+                        "reg0": "0x00",
+                        "dataLength": "2",
+                        "data0": 114,
+                        "data1": "value"
+                    }
+                ]
+            },
+            "ewl": {
+                "startValue": 0,
+                "min": -127,
+                "max": 127,
+                "stepSize": 1,
+                "displayValueScale": 1,
+                "displayValueOffset": -127,
+                "sendCommand": [
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0b11101110",
+                        "regLength": "1",
+                        "reg0": "0x08",
+                        "dataLength": "2",
+                        "data0": "value",
+                        "data1": "0x02"
+                    },
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0b11101110",
+                        "regLength": "1",
+                        "reg0": "0x08",
+                        "dataLength": "3",
+                        "data0": "value",
+                        "data1": "0x02",
+                        "data2": "0xFF"
+                    }
+                ]
+            }
+        },
+        "initialize2": [
+        {
+            "protocol": "I2C",
+            "addressW": "0b11101110",
+            "regLength": "1",
+            "reg0": "0x08",
+            "dataLength": "2",
+            "data0": "0x01",
+            "data1": "0x02"
+        },
+        {
+            "protocol": "I2C",
+            "addressW": "0b11101010",
+            "regLength": "1",
+            "reg0": "0x08",
+            "dataLength": "3",
+            "data0": "0x03",
+            "data1": "0x02",
+            "data2": "0xFF"
+        }
+    ]
     }
 }

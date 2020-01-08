@@ -23,9 +23,9 @@
         "miniscopes": [
             {
                 "deviceName": "Miniscope 2",
-                "deviceType": "Miniscope_V4",
+                "deviceType": "Miniscope_V4_BNO",
                 "imageRegistration": "Off",
-                "headOrientation": "Off",
+                "streamHeadOrientation": true,
                 "deviceID": 2,
                 "compression": "Not implemented yet",
                 "framesPerFile": 1000,

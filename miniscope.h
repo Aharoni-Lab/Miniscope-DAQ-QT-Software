@@ -45,6 +45,7 @@ public:
     QSemaphore* getUsedFramesPointer(){return usedFrames;}
     QAtomicInt* getAcqFrameNumPointer(){return m_acqFrameNum;}
     QString getDeviceName(){return m_deviceName;}
+    bool getHeadOrienataionStreamState() { return m_streamHeadOrientationState;}
     // Todo: thread safe buffer
 
 
@@ -96,6 +97,8 @@ private:
     QJsonObject m_cMiniscopes; // Consider renaming to not confuse with ucMiniscopes
     QMap<QString,QVector<QMap<QString, int>>> m_controlSendCommand;
     QMap<QString, int> m_sendCommand;
+
+    bool m_streamHeadOrientationState;
 
 };
 

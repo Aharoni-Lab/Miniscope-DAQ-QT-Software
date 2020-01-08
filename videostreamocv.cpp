@@ -13,7 +13,8 @@
 
 VideoStreamOCV::VideoStreamOCV(QObject *parent) :
     QObject(parent),
-    m_stopStreaming(false)
+    m_stopStreaming(false),
+    m_streamHeadOrientationState(false)
 {
 
 }
@@ -65,20 +66,6 @@ void VideoStreamOCV::startStream()
                 break;
             }
             if(freeFrames->tryAcquire(1,30)) {
-                // TODO: Check if grab or retrieve failed and then try to reconnect to video stream
-
-//                if (cam->read(frame)){
-//                    qDebug() << frame.cols << "|" << frame.rows;
-//                    timeStampBuffer[idx%frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
-//                    cv::cvtColor(frame, frameBuffer[idx%frameBufferSize], cv::COLOR_BGR2GRAY);
-//    //                frameBuffer[idx%frameBufferSize] = frame;
-//                    m_acqFrameNum->operator++();
-//                    idx++;
-//                    usedFrames->release();
-//                }
-//                else
-//                    qDebug() << "Cam" << m_cameraID << "read failed";
-
                 if (!cam->grab())
                     qDebug() << "Cam grab failed";
                 else {
@@ -98,16 +85,14 @@ void VideoStreamOCV::startStream()
                     else {
                         cv::cvtColor(frame, frameBuffer[idx%frameBufferSize], cv::COLOR_BGR2GRAY);
         //                frameBuffer[idx%frameBufferSize] = frame;
-                        heading = static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION))/16.0;
-                        roll = static_cast<qint16>(cam->get(cv::CAP_PROP_HUE))/16.0;
-                        pitch = static_cast<qint16>(cam->get(cv::CAP_PROP_GAIN))/16.0;
-                        bnoBuffer[(idx%frameBufferSize)*3 + 0] = heading;
-                        bnoBuffer[(idx%frameBufferSize)*3 + 1] = roll;
-                        bnoBuffer[(idx%frameBufferSize)*3 + 2] = pitch;
-//                        qDebug() << "BNO:" << QString{"%1"}.arg(heading, 6, 'f', 2, '0') <<
-//                                    QString{"%1"}.arg(roll, 6, 'f', 2, '0')  <<
-//                                    QString{"%1"}.arg(pitch, 6, 'f', 2, '0') ;
-
+                        if (m_streamHeadOrientationState) {
+                            heading = static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION))/16.0;
+                            roll = static_cast<qint16>(cam->get(cv::CAP_PROP_HUE))/16.0;
+                            pitch = static_cast<qint16>(cam->get(cv::CAP_PROP_GAIN))/16.0;
+                            bnoBuffer[(idx%frameBufferSize)*3 + 0] = heading;
+                            bnoBuffer[(idx%frameBufferSize)*3 + 1] = roll;
+                            bnoBuffer[(idx%frameBufferSize)*3 + 2] = pitch;
+                        }
                         m_acqFrameNum->operator++();
                         idx++;
                         usedFrames->release();

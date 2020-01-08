@@ -22,7 +22,8 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     rootObject(0),
     vidDisplay(0),
     m_previousDisplayFrameNum(0),
-    m_acqFrameNum(new QAtomicInt(0))
+    m_acqFrameNum(new QAtomicInt(0)),
+    m_streamHeadOrientationState(false)
 
 {
 
@@ -31,6 +32,8 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
 
     getMiniscopeConfig(m_ucMiniscope["deviceType"].toString()); // holds specific Miniscope configuration
 
+    // Checks to make sure user config and miniscope device type are supporting BNO streaming
+    m_streamHeadOrientationState = m_ucMiniscope["streamHeadOrientation"].toBool(false) && m_cMiniscopes["headOrientation"].toBool(false);
 
     // Thread safe buffer stuff
     freeFrames = new QSemaphore;
@@ -40,6 +43,9 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
 
     // Setup OpenCV camera stream
     miniscopeStream = new VideoStreamOCV;
+
+    miniscopeStream->setStreamHeadOrientation(m_streamHeadOrientationState);
+
     if (!miniscopeStream->connect2Camera(m_ucMiniscope["deviceID"].toInt()))
         qDebug() << "Not able to connect and open " << m_ucMiniscope["deviceName"].toString();
 
@@ -90,7 +96,8 @@ void Miniscope::createView()
     vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
     vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
 
-    bnoDisplay = rootObject->findChild<QQuickItem*>("bno");
+    if (m_streamHeadOrientationState)
+        bnoDisplay = rootObject->findChild<QQuickItem*>("bno");
 
     QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
                          this, SLOT( handleTakeScreenShotSignal() ));
@@ -318,10 +325,12 @@ void Miniscope::sendNewFrame(){
         if (f > 0) // This is just a quick cheat so I don't have to wrap around for (f-1)
             vidDisplay->setAcqFPS(timeStampBuffer[f] - timeStampBuffer[f-1]); // TODO: consider changing name as this is now interframeinterval
 
-        bnoDisplay->setProperty("heading", bnoBuffer[f*3+0]);
-        bnoDisplay->setProperty("roll", bnoBuffer[f*3+1]);
-        bnoDisplay->setProperty("pitch", bnoBuffer[f*3+2]);
-        qDebug() << bnoBuffer[f*3+0] << bnoBuffer[f*3+1] << bnoBuffer[f*3+2];
+        if (m_streamHeadOrientationState) {
+            bnoDisplay->setProperty("heading", bnoBuffer[f*3+0]);
+            bnoDisplay->setProperty("roll", bnoBuffer[f*3+1]);
+            bnoDisplay->setProperty("pitch", bnoBuffer[f*3+2]);
+        }
+//        qDebug() << bnoBuffer[f*3+0] << bnoBuffer[f*3+1] << bnoBuffer[f*3+2];
     }
 }
 
