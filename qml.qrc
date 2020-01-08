@@ -20,5 +20,6 @@
         <file>img/icon/gain.ico</file>
         <file>img/icon/alpha.ico</file>
         <file>img/icon/beta.ico</file>
+        <file>BNODisplay.qml</file>
     </qresource>
 </RCC>

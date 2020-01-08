@@ -32,7 +32,7 @@ void VideoDisplay::setT(qreal t)
 void VideoDisplay::setDisplayFrame(QImage frame) {
     m_displayFrame2 = frame.copy();
     if (m_renderer)
-        m_renderer->setDisplayFrame(m_displayFrame2);
+        m_renderer->setDisplayFrame(m_displayFrame2.copy());
 }
 //void VideoDisplayRenderer::setDisplayFrame(QImage frame) {
 //    m_displayFrame = frame;

@@ -10,6 +10,7 @@
 #include <QQuickView>
 #include <QMap>
 #include <QVector>
+#include <QQuickItem>
 
 #include "videostreamocv.h"
 #include "videodisplay.h"
@@ -38,6 +39,7 @@ public:
     void sendInitCommands();
     cv::Mat* getFrameBufferPointer(){return frameBuffer;}
     qint64* getTimeStampBufferPointer(){return timeStampBuffer;}
+    float* getBNOBufferPointer() { return bnoBuffer; }
     int getBufferSize() {return FRAME_BUFFER_SIZE;}
     QSemaphore* getFreeFramesPointer(){return freeFrames;}
     QSemaphore* getUsedFramesPointer(){return usedFrames;}
@@ -72,10 +74,12 @@ private:
     cv::Mat frameBuffer[FRAME_BUFFER_SIZE];
     cv::Mat tempFrame;
     qint64 timeStampBuffer[FRAME_BUFFER_SIZE];
+    float bnoBuffer[FRAME_BUFFER_SIZE*3];
     QSemaphore *freeFrames;
     QSemaphore *usedFrames;
     QObject *rootObject;
     VideoDisplay *vidDisplay;
+    QQuickItem *bnoDisplay;
     QTimer *timer;
 //    QImage testImage;
     int m_previousDisplayFrameNum;

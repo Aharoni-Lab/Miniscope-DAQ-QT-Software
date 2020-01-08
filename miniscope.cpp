@@ -3,6 +3,7 @@
 #include "videodisplay.h"
 
 #include <QQuickView>
+#include <QQuickItem>
 #include <QSemaphore>
 #include <QObject>
 #include <QTimer>
@@ -42,7 +43,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     if (!miniscopeStream->connect2Camera(m_ucMiniscope["deviceID"].toInt()))
         qDebug() << "Not able to connect and open " << m_ucMiniscope["deviceName"].toString();
 
-    miniscopeStream->setBufferParameters(frameBuffer, timeStampBuffer, FRAME_BUFFER_SIZE,freeFrames,usedFrames,m_acqFrameNum);
+    miniscopeStream->setBufferParameters(frameBuffer, timeStampBuffer, bnoBuffer, FRAME_BUFFER_SIZE,freeFrames,usedFrames,m_acqFrameNum);
 
     // -----------------
 
@@ -88,6 +89,8 @@ void Miniscope::createView()
     configureMiniscopeControls();
     vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
     vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
+
+    bnoDisplay = rootObject->findChild<QQuickItem*>("bno");
 
     QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
                          this, SLOT( handleTakeScreenShotSignal() ));
@@ -314,6 +317,11 @@ void Miniscope::sendNewFrame(){
         vidDisplay->setBufferUsed(usedFrames->available());
         if (f > 0) // This is just a quick cheat so I don't have to wrap around for (f-1)
             vidDisplay->setAcqFPS(timeStampBuffer[f] - timeStampBuffer[f-1]); // TODO: consider changing name as this is now interframeinterval
+
+        bnoDisplay->setProperty("heading", bnoBuffer[f*3+0]);
+        bnoDisplay->setProperty("roll", bnoBuffer[f*3+1]);
+        bnoDisplay->setProperty("pitch", bnoBuffer[f*3+2]);
+        qDebug() << bnoBuffer[f*3+0] << bnoBuffer[f*3+1] << bnoBuffer[f*3+2];
     }
 }
 

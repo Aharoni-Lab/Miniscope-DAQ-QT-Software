@@ -45,6 +45,16 @@ LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_calib3d412.dll.a
 LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412.dll.a
 LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_videoio412.dll.a
 
+#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_core412d.dll.a
+#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_highgui412d.dll.a
+#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgcodecs412d.dll.a
+#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412d.dll.a
+#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_features2d412d.dll.a
+#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_calib3d412d.dll.a
+#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412d.dll.a
+#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_videoio412d.dll.a
+
+
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin

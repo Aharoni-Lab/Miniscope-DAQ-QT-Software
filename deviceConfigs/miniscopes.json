@@ -14,7 +14,7 @@
                 "sendCommand": [
                     {
                         "protocol": "I2C",
-                        "addressW": "0b00000010",
+                        "addressW": "0b00100000",
                         "regLength": "1",
                         "reg0": "0x05",
                         "dataLength": "4",
@@ -43,14 +43,20 @@
                 "sendCommand": [
                     {
                         "protocol": "I2C",
-                        "addressW": "0b00000010",
-                        "regLength": "2",
-                        "reg0": "0x08",
-                        "reg1": "0x09",
-                        "dataLength": "3",
-                        "data0": "value",
-                        "data1": "0x02",
-                        "data2": "0x03"
+                        "addressW": "0b00100000",
+                        "regLength": "1",
+                        "reg0": "0x01",
+                        "dataLength": "1",
+                        "data0": "value"
+                    },
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0b01011000",
+                        "regLength": "1",
+                        "reg0": "0x00",
+                        "dataLength": "2",
+                        "data0": 114,
+                        "data1": "value"
                     }
                 ]
             },

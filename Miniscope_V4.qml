@@ -146,8 +146,8 @@ Item {
         VideoSliderControl {
             id: led0
             objectName: "led0"
-            max: 200
-            startValue: 100
+            max: 100
+            startValue: 0
             iconPath: "img/icon/led.ico"
             textColor: "blue"
         }
@@ -199,6 +199,13 @@ Item {
         }
 
 
+    }
+
+    BNODisplay {
+        id: bno
+        objectName: "bno"
+        x: parent.width - 32
+        y: parent.height - 32
     }
 
     Connections{
@@ -266,6 +273,8 @@ Item {
 
 
 }
+
+
 
 
 

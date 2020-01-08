@@ -37,18 +37,21 @@ int VideoStreamOCV::connect2Camera(int cameraID) {
 
 }
 
-void VideoStreamOCV::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS, QAtomicInt *acqFrameNum){
+void VideoStreamOCV::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf, int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS, QAtomicInt *acqFrameNum){
     frameBuffer = frameBuf;
     timeStampBuffer = tsBuf;
     frameBufferSize = bufferSize;
+    bnoBuffer = bnoBuf;
     freeFrames = freeFramesS;
     usedFrames = usedFramesS;
     m_acqFrameNum = acqFrameNum;
+
 }
 
 void VideoStreamOCV::startStream()
 {
     int idx = 0;
+    float heading, pitch, roll;
     cv::Mat frame;
 
     m_stopStreaming = false;
@@ -63,16 +66,56 @@ void VideoStreamOCV::startStream()
             }
             if(freeFrames->tryAcquire(1,30)) {
                 // TODO: Check if grab or retrieve failed and then try to reconnect to video stream
+
+//                if (cam->read(frame)){
+//                    qDebug() << frame.cols << "|" << frame.rows;
+//                    timeStampBuffer[idx%frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
+//                    cv::cvtColor(frame, frameBuffer[idx%frameBufferSize], cv::COLOR_BGR2GRAY);
+//    //                frameBuffer[idx%frameBufferSize] = frame;
+//                    m_acqFrameNum->operator++();
+//                    idx++;
+//                    usedFrames->release();
+//                }
+//                else
+//                    qDebug() << "Cam" << m_cameraID << "read failed";
+
                 if (!cam->grab())
                     qDebug() << "Cam grab failed";
-                timeStampBuffer[idx%frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
-                if (!cam->retrieve(frame))
-                    qDebug() << "Cam retrieve failed";
-                cv::cvtColor(frame, frameBuffer[idx%frameBufferSize], cv::COLOR_BGR2GRAY);
-//                frameBuffer[idx%frameBufferSize] = frame;
-                m_acqFrameNum->operator++();
-                idx++;
-                usedFrames->release();
+                else {
+                    timeStampBuffer[idx%frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
+                    if (!cam->retrieve(frame)) {
+                        qDebug() << "Cam retrieve failed";
+                        qDebug() << "State of cam" << m_cameraID << "is" << cam->isOpened();
+//                        qDebug() << frame.cols << "|" << frame.rows;
+                        if (cam->isOpened()) {
+                            qDebug() << "Releasing cam" << m_cameraID;
+                            cam->release();
+                            qDebug() << "Released cam" << m_cameraID;
+                        }
+                        cam->open(m_cameraID);
+                        qDebug() << "Reconnect to camera" << m_cameraID;
+                    }
+                    else {
+                        cv::cvtColor(frame, frameBuffer[idx%frameBufferSize], cv::COLOR_BGR2GRAY);
+        //                frameBuffer[idx%frameBufferSize] = frame;
+                        heading = static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION))/16.0;
+                        roll = static_cast<qint16>(cam->get(cv::CAP_PROP_HUE))/16.0;
+                        pitch = static_cast<qint16>(cam->get(cv::CAP_PROP_GAIN))/16.0;
+                        bnoBuffer[(idx%frameBufferSize)*3 + 0] = heading;
+                        bnoBuffer[(idx%frameBufferSize)*3 + 1] = roll;
+                        bnoBuffer[(idx%frameBufferSize)*3 + 2] = pitch;
+//                        qDebug() << "BNO:" << QString{"%1"}.arg(heading, 6, 'f', 2, '0') <<
+//                                    QString{"%1"}.arg(roll, 6, 'f', 2, '0')  <<
+//                                    QString{"%1"}.arg(pitch, 6, 'f', 2, '0') ;
+
+                        m_acqFrameNum->operator++();
+                        idx++;
+                        usedFrames->release();
+
+
+
+                    }
+                }
             }
 
             // Get any new events
@@ -121,7 +164,9 @@ void VideoStreamOCV::sendCommands()
                 tempPacket |= ((quint64)packet[j])<<(8*(j+1));
             qDebug() << "1-5: 0x" << QString::number(tempPacket,16);
 //            cam->set(cv::CAP_PROP_GAMMA, tempPacket);
-            success= cam->set(cv::CAP_PROP_CONTRAST, 0x01);
+            success = cam->set(cv::CAP_PROP_CONTRAST, (tempPacket & 0x00000000FFFF));
+            success = cam->set(cv::CAP_PROP_GAMMA, (tempPacket & 0x0000FFFF0000)>>16);
+            success = cam->set(cv::CAP_PROP_SHARPNESS, (tempPacket & 0xFFFF00000000)>>32);
             if (!success)
                 qDebug() << "Send setting failed";
             sendCommandQueue.remove(key);
@@ -133,13 +178,15 @@ void VideoStreamOCV::sendCommands()
                 tempPacket |= ((quint64)packet[j])<<(8*(j));
             qDebug() << "6: 0x" << QString::number(tempPacket,16);
 
-            success = cam->set(cv::CAP_PROP_CONTRAST, 0xff20);
+//            success = cam->set(cv::CAP_PROP_GAIN, 0x1122ff20);
+
+
+            success = cam->set(cv::CAP_PROP_CONTRAST, (tempPacket & 0x00000000FFFF));
+            success = cam->set(cv::CAP_PROP_GAMMA, (tempPacket & 0x0000FFFF0000)>>16);
+            success = cam->set(cv::CAP_PROP_SHARPNESS, (tempPacket & 0xFFFF00000000)>>32);
+
             if (!success)
                 qDebug() << "Send setting failed";
-
-//            success = cam->set(cv::CAP_PROP_CONTRAST, (tempPacket & 0x00000000FFFF));
-//            success = cam->set(cv::CAP_PROP_GAMMA, (tempPacket & 0x0000FFFF0000)>>16);
-//            success = cam->set(cv::CAP_PROP_SHARPNESS, (tempPacket & 0xFFFF00000000)>>32);
 
 
             sendCommandQueue.remove(key);
