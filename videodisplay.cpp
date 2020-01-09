@@ -30,7 +30,7 @@ void VideoDisplay::setT(qreal t)
         window()->update();
 }
 void VideoDisplay::setDisplayFrame(QImage frame) {
-    m_displayFrame2 = frame.copy();
+    m_displayFrame2 = frame;
     if (m_renderer)
         m_renderer->setDisplayFrame(m_displayFrame2.copy());
 }
@@ -167,7 +167,7 @@ void VideoDisplayRenderer::paint()
         m_newFrame = false;
         m_texture->destroy();
         m_texture->create();
-        m_texture->setData(m_displayFrame);
+        m_texture->setData(m_displayFrame.copy());
     }
 }
 //! [5]

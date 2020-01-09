@@ -32,17 +32,7 @@
                 "outputValues":[10000,6667,5000, 4000, 3300],
                 "startValue": 1,
                 "sendCommand": [
-                    {
-                        "protocol": "I2C",
-                        "addressW": "0b00100000",
-                        "regLength": "1",
-                        "reg0": "0x05",
-                        "dataLength": "4",
-                        "data0": "0x00",
-                        "data1": "0xC8",
-                        "data2": "valueH",
-                        "data3": "valueL"
-                    },
+
                     {
                         "protocol": "I2C",
                         "addressW": "0b00100000",
