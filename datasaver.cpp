@@ -20,9 +20,9 @@
 
 DataSaver::DataSaver(QObject *parent) :
     QObject(parent),
+    baseDirectory(""),
     m_recording(false),
-    m_running(false),
-    baseDirectory("")
+    m_running(false)
 {
 
 }

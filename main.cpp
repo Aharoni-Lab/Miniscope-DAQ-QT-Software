@@ -1,6 +1,9 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QDebug>
+
+#include <QThreadPool>
 
 #include "backend.h"
 
@@ -21,6 +24,7 @@ int main(int argc, char *argv[])
             QCoreApplication::exit(-1);
     }, Qt::QueuedConnection);
 
+//    qDebug() << "Max Thread:" << QThreadPool().maxThreadCount();
 
     backEnd backend;
     engine.rootContext()->setContextProperty("backend", &backend);

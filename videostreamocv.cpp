@@ -30,6 +30,7 @@ int VideoStreamOCV::connect2Camera(int cameraID) {
     m_cameraID = cameraID;
     cam = new cv::VideoCapture;
     cam->open(m_cameraID);
+//    cam->set(cv::CAP_PROP_CONVERT_RGB,0);
     qDebug() <<  "Camera capture backend is" << QString::fromStdString (cam->getBackendName());
 //    cam->set(cv::CAP_PROP_SETTINGS, 0);
     if (cam->isOpened())
@@ -66,7 +67,7 @@ void VideoStreamOCV::startStream()
                 m_isStreaming = false;
                 break;
             }
-            if(freeFrames->tryAcquire(1,30)) {
+            if(freeFrames->tryAcquire(1,20)) {
                 if (!cam->grab())
                     qDebug() << "Cam grab failed";
                 else {
@@ -84,8 +85,12 @@ void VideoStreamOCV::startStream()
                         qDebug() << "Reconnect to camera" << m_cameraID;
                     }
                     else {
-                        if (!m_isColor)
+                        if (!m_isColor) {
+//                            cv::extractChannel(frame,frameBuffer[idx%frameBufferSize],0);
                             cv::cvtColor(frame, frameBuffer[idx%frameBufferSize], cv::COLOR_BGR2GRAY);
+                        }
+//                        qDebug() << "Frame Number:" << *m_acqFrameNum - cam->get(cv::CAP_PROP_CONTRAST);
+
         //                frameBuffer[idx%frameBufferSize] = frame;
                         if (m_streamHeadOrientationState) {
                             heading = static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION))/16.0;

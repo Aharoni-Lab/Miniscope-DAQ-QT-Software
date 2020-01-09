@@ -366,9 +366,14 @@ void Miniscope::handlePropCangedSignal(QString type, double displayValue, double
             sendCommand = m_controlSendCommand[type][i];
             packet.clear();
             if (sendCommand["protocol"] == PROTOCOL_I2C) {
+                preambleKey = 0;
+
                 packet.append(sendCommand["addressW"]);
+                preambleKey = (preambleKey<<8) | packet.last();
+
                 for (int j = 0; j < sendCommand["regLength"]; j++) {
                     packet.append(sendCommand["reg" + QString::number(j)]);
+                    preambleKey = (preambleKey<<8) | packet.last();
                 }
                 for (int j = 0; j < sendCommand["dataLength"]; j++) {
                     tempValue = sendCommand["data" + QString::number(j)];
@@ -379,13 +384,15 @@ void Miniscope::handlePropCangedSignal(QString type, double displayValue, double
                     else if (tempValue == SEND_COMMAND_VALUE_L) {
                         packet.append((quint8)round(i2cValue));
                     }
-                    else
+                    else {
                         packet.append(tempValue);
+                        preambleKey = (preambleKey<<8) | packet.last();
+                    }
                 }
     //        qDebug() << packet;
-                preambleKey = 0;
-                for (int k = 0; k < (sendCommand["regLength"]+1); k++)
-                    preambleKey |= (packet[k]&0xFF)<<(8*k);
+
+//                for (int k = 0; k < (sendCommand["regLength"]+1); k++)
+//                    preambleKey |= (packet[k]&0xFF)<<(8*k);
                 emit setPropertyI2C(preambleKey, packet);
             }
             else {
