@@ -56,28 +56,59 @@ Item {
             text: qsTr("Triggerable")
         }
 
-        ScrollView {
-            id: view
+        Flickable {
+            id: flick1
+            flickableDirection: Flickable.VerticalFlick
             Layout.fillWidth: true
             Layout.fillHeight: true
+//            anchors.fill: parent
+
 //            Layout.row:5
 //            Layout.column: 0
+            clip: true
             Layout.columnSpan: 2
+            TextArea.flickable: TextArea {
+                 id: messageTextArea
+                 objectName: "messageTextArea"
+                 textFormat: TextEdit.RichText
+                 text: "Messages:\n"
+ //                wrapMode: Text.WrapAnywhere
+                 anchors.fill: parent
+                 font.pointSize: 12
+                 readOnly: true
+                 background: Rectangle {
+ //                    radius: rbSelectUserConfig.radius
+                     anchors.fill: parent
+ //                    border.width: 1
+                     color: "#ebebeb"
+                 }
+                 function log_color(msg, color){
+                     return "<span style='color: " + color +  ";' >" + msg + "</span>";
+                 }
+                 function logMessage(time, msg){
 
-            TextArea {
-                id: messageTextArea
-                objectName: "messageTextArea"
-                text: "Messages:\n"
-                wrapMode: Text.WrapAnywhere
-                anchors.fill: parent
-                font.pointSize: 12
-                readOnly: true
-                background: Rectangle {
-//                    radius: rbSelectUserConfig.radius
-                    anchors.fill: parent
-//                    border.width: 1
-                    color: "#ebebeb"
-                }
+                     var color = "lime";
+                     if(msg.toLowerCase().indexOf('error') >= 0){
+                         color = "red";
+                     } else if (msg.toLowerCase().indexOf('warning') >= 0){
+                         color = "yellow";
+                     }
+
+                     var _time = log_color(time, "0xFFFFFF")
+                     var _msg = log_color(msg, color);
+                     messageTextArea.append(_time + ": " + _msg);
+
+                     // scroll to bottom
+                     flick1.contentY = (messageTextArea.height - flick1.height);
+                 }
+             }
+            contentWidth: messageTextArea.width
+            contentHeight: messageTextArea.height
+            onMovementEnded: print (flick1.contentY)
+
+
+            ScrollBar.vertical: ScrollBar {
+                width: 20
             }
         }
 

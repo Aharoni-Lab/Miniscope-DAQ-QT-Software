@@ -12,6 +12,7 @@
 #include <QString>
 #include <QTimer>
 #include <QTime>
+#include <QMetaObject>
 
 ControlPanel::ControlPanel(QObject *parent, QJsonObject userConfig) :
     QObject(parent),
@@ -79,7 +80,10 @@ void ControlPanel::receiveMessage(QString msg)
 {
     // Add msg to textbox in controlPanel.qml
     QTime time;
-    messageTextArea->setProperty("text", messageTextArea->property("text").toString() + time.currentTime().toString("HH:mm:ss") + ": " + msg + "\n");
+    QMetaObject::invokeMethod(messageTextArea, "logMessage",
+        Q_ARG(QVariant, time.currentTime().toString("HH:mm:ss")),
+        Q_ARG(QVariant, msg));
+//    messageTextArea->setProperty("text", messageTextArea->property("text").toString() + time.currentTime().toString("HH:mm:ss") + ": " + msg + "\n");
 }
 
 void ControlPanel::onRecordActivated()
