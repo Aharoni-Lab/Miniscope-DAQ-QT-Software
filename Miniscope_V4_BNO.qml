@@ -125,14 +125,6 @@ Item {
             }
 
         }
-
-
-//        FpsItem {
-//            id: fpsItem
-//            anchors.horizontalCenter: parent.horizontalCenter
-//            anchors.bottom: parent.bottom
-//            anchors.bottomMargin: 0
-//        }
     }
 
     ColumnLayout {

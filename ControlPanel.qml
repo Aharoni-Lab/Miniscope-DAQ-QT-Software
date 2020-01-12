@@ -61,10 +61,6 @@ Item {
             flickableDirection: Flickable.VerticalFlick
             Layout.fillWidth: true
             Layout.fillHeight: true
-//            anchors.fill: parent
-
-//            Layout.row:5
-//            Layout.column: 0
             clip: true
             Layout.columnSpan: 2
             TextArea.flickable: TextArea {
@@ -87,11 +83,11 @@ Item {
                  }
                  function logMessage(time, msg){
 
-                     var color = "lime";
+                     var color = "darkgreen";
                      if(msg.toLowerCase().indexOf('error') >= 0){
                          color = "red";
                      } else if (msg.toLowerCase().indexOf('warning') >= 0){
-                         color = "yellow";
+                         color = "goldenrod";
                      }
 
                      var _time = log_color(time, "0xFFFFFF")
@@ -104,8 +100,6 @@ Item {
              }
             contentWidth: messageTextArea.width
             contentHeight: messageTextArea.height
-            onMovementEnded: print (flick1.contentY)
-
 
             ScrollBar.vertical: ScrollBar {
                 width: 20

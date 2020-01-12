@@ -83,7 +83,6 @@ void ControlPanel::receiveMessage(QString msg)
     QMetaObject::invokeMethod(messageTextArea, "logMessage",
         Q_ARG(QVariant, time.currentTime().toString("HH:mm:ss")),
         Q_ARG(QVariant, msg));
-//    messageTextArea->setProperty("text", messageTextArea->property("text").toString() + time.currentTime().toString("HH:mm:ss") + ": " + msg + "\n");
 }
 
 void ControlPanel::onRecordActivated()

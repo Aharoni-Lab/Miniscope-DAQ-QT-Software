@@ -13,6 +13,7 @@
 
 VideoStreamOCV::VideoStreamOCV(QObject *parent) :
     QObject(parent),
+    m_deviceName(""),
     m_stopStreaming(false),
     m_streamHeadOrientationState(false),
     m_isColor(false)
@@ -30,17 +31,15 @@ int VideoStreamOCV::connect2Camera(int cameraID) {
     m_cameraID = cameraID;
     cam = new cv::VideoCapture;
     cam->open(m_cameraID);
-//    cam->set(cv::CAP_PROP_CONVERT_RGB,0);
-    qDebug() <<  "Camera capture backend is" << QString::fromStdString (cam->getBackendName());
-//    cam->set(cv::CAP_PROP_SETTINGS, 0);
-    if (cam->isOpened())
-        return 1;
-    else
-        return 0;
+//    qDebug() <<  "Camera capture backend is" << QString::fromStdString (cam->getBackendName());
+    return cam->isOpened();
+
 
 }
 
-void VideoStreamOCV::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf, int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS, QAtomicInt *acqFrameNum){
+void VideoStreamOCV::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf,
+                                         int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS,
+                                         QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber){
     frameBuffer = frameBuf;
     timeStampBuffer = tsBuf;
     frameBufferSize = bufferSize;
@@ -48,6 +47,7 @@ void VideoStreamOCV::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float
     freeFrames = freeFramesS;
     usedFrames = usedFramesS;
     m_acqFrameNum = acqFrameNum;
+    daqFrameNum = daqFrameNumber;
 
 }
 
@@ -68,21 +68,23 @@ void VideoStreamOCV::startStream()
                 break;
             }
             if(freeFrames->tryAcquire(1,20)) {
-                if (!cam->grab())
-                    qDebug() << "Cam grab failed";
+                if (!cam->grab()) {
+                    sendMessage("Warning: " + m_deviceName + " grab frame failed.");
+                }
                 else {
                     timeStampBuffer[idx%frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
                     if (!cam->retrieve(frame)) {
-                        qDebug() << "Cam retrieve failed";
-                        qDebug() << "State of cam" << m_cameraID << "is" << cam->isOpened();
-//                        qDebug() << frame.cols << "|" << frame.rows;
+                        sendMessage("Warning: " + m_deviceName + " retrieve frame failed. Attempting to reconnect.");
                         if (cam->isOpened()) {
                             qDebug() << "Releasing cam" << m_cameraID;
                             cam->release();
                             qDebug() << "Released cam" << m_cameraID;
                         }
-                        cam->open(m_cameraID);
-                        qDebug() << "Reconnect to camera" << m_cameraID;
+                        if (cam->open(m_cameraID)) {
+                            // TODO: add some timeout here
+                            sendMessage("Warning: " + m_deviceName + " reconnected.");
+                            qDebug() << "Reconnect to camera" << m_cameraID;
+                        }
                     }
                     else {
                         if (!m_isColor) {
@@ -100,7 +102,10 @@ void VideoStreamOCV::startStream()
                             bnoBuffer[(idx%frameBufferSize)*3 + 1] = roll;
                             bnoBuffer[(idx%frameBufferSize)*3 + 2] = pitch;
                         }
+                        *daqFrameNum += cam->get(cv::CAP_PROP_CONTRAST);
+
                         m_acqFrameNum->operator++();
+//                        qDebug() << *m_acqFrameNum << *daqFrameNum;
                         idx++;
                         usedFrames->release();
 
@@ -118,6 +123,7 @@ void VideoStreamOCV::startStream()
         cam->release();
     }
     else {
+        sendMessage("Error: Could not connect to video stream " + QString::number(m_cameraID));
         qDebug() << "Camera " << m_cameraID << " failed to open.";
     }
 }

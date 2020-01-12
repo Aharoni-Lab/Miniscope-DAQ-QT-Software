@@ -36,22 +36,6 @@
                 "exposure": 50,
                 "ewl": 30,
                 "led0": 10
-            },
-            {
-                "deviceName": "Miniscope 1",
-                "deviceType": "Miniscope_V4",
-                "imageRegistration": "Off",
-                "streamHeadOrientation": false,
-                "deviceID": 1,
-                "compression": "Not implemented yet",
-                "framesPerFile": 1000,
-                "windowScale": 0.75,
-                "windowX": 800,
-                "windowY": 100,
-                "gain": 1,
-                "exposure": 50,
-                "ewl": 30,
-                "led0": 10
             }
         ],
         "cameras": [

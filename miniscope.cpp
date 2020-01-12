@@ -14,7 +14,6 @@
 #include <QQmlApplicationEngine>
 #include <QVector>
 
-#
 
 Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     QObject(parent),
@@ -23,9 +22,12 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     vidDisplay(0),
     m_previousDisplayFrameNum(0),
     m_acqFrameNum(new QAtomicInt(0)),
+    m_daqFrameNum(new QAtomicInt(0)),
     m_streamHeadOrientationState(false)
 
 {
+
+//    *m_daqFrameNum = 0;
 
     m_ucMiniscope = ucMiniscope; // hold user config for this Miniscope
     parseUserConfigMiniscope();
@@ -44,6 +46,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
 
     // Setup OpenCV camera stream
     miniscopeStream = new VideoStreamOCV;
+    miniscopeStream->setDeviceName(m_deviceName);
 
     miniscopeStream->setStreamHeadOrientation(m_streamHeadOrientationState);
     miniscopeStream->setIsColor(m_cMiniscopes["isColor"].toBool(false));
@@ -51,7 +54,15 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     if (!miniscopeStream->connect2Camera(m_ucMiniscope["deviceID"].toInt()))
         qDebug() << "Not able to connect and open " << m_ucMiniscope["deviceName"].toString();
 
-    miniscopeStream->setBufferParameters(frameBuffer, timeStampBuffer, bnoBuffer, FRAME_BUFFER_SIZE,freeFrames,usedFrames,m_acqFrameNum);
+    miniscopeStream->setBufferParameters(frameBuffer,
+                                         timeStampBuffer,
+                                         bnoBuffer,
+                                         FRAME_BUFFER_SIZE,
+                                         freeFrames,
+                                         usedFrames,
+                                         m_acqFrameNum,
+                                         m_daqFrameNum);
+
 
     // -----------------
 
@@ -64,6 +75,9 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
 //    QObject::connect(miniscopeStream, SIGNAL (finished()), videoStreamThread, SLOT (quit()));
 //    QObject::connect(miniscopeStream, SIGNAL (finished()), miniscopeStream, SLOT (deleteLater()));
     QObject::connect(videoStreamThread, SIGNAL (finished()), videoStreamThread, SLOT (deleteLater()));
+
+    // Pass send message signal through
+    QObject::connect(miniscopeStream, &VideoStreamOCV::sendMessage, this, &Miniscope::sendMessage);
     // ----------------------------------------------
 
 //    createView();

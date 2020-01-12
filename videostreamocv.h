@@ -21,12 +21,16 @@ public:
     explicit VideoStreamOCV(QObject *parent = nullptr);
     ~VideoStreamOCV();
 //    void setCameraID(int cameraID);
-    void setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf, int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS, QAtomicInt *acqFrameNum);
+    void setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf,
+                             int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS,
+                             QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber);
     int connect2Camera(int cameraID);
     void setStreamHeadOrientation(bool streamState) { m_streamHeadOrientationState = streamState; }
     void setIsColor(bool isColor) { m_isColor = isColor; }
+    void setDeviceName(QString name) { m_deviceName = name; }
 
 signals:
+    void sendMessage(QString msg);
 
 public slots:
     void startStream();
@@ -36,6 +40,7 @@ public slots:
 private:
     void sendCommands();
     int m_cameraID;
+    QString m_deviceName;
     cv::VideoCapture *cam;
     bool m_isStreaming;
     bool m_stopStreaming;
@@ -48,6 +53,7 @@ private:
     QSemaphore *usedFrames;
     int frameBufferSize;
     QAtomicInt *m_acqFrameNum;
+    QAtomicInt *daqFrameNum;
 
     // Handles commands sent to video stream device
     QVector<long> sendCommandQueueOrder;

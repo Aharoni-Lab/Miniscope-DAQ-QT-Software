@@ -44,6 +44,7 @@ public:
     QSemaphore* getFreeFramesPointer(){return freeFrames;}
     QSemaphore* getUsedFramesPointer(){return usedFrames;}
     QAtomicInt* getAcqFrameNumPointer(){return m_acqFrameNum;}
+    QAtomicInt* getDAQFrameNumPointer() { return m_daqFrameNum; }
     QString getDeviceName(){return m_deviceName;}
     bool getHeadOrienataionStreamState() { return m_streamHeadOrientationState;}
     // Todo: thread safe buffer
@@ -85,6 +86,9 @@ private:
 //    QImage testImage;
     int m_previousDisplayFrameNum;
     QAtomicInt *m_acqFrameNum;
+    QAtomicInt *m_daqFrameNum;
+
+//    QAtomicInt *m_DAQTimeStamp;
 
     // User Config parameters
     QJsonObject m_ucMiniscope;
