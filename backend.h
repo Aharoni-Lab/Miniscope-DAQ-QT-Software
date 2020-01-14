@@ -11,6 +11,7 @@
 #include "behaviorcam.h"
 #include "controlpanel.h"
 #include "datasaver.h"
+#include "behaviortracker.h"
 
 
 class backEnd : public QObject
@@ -36,6 +37,8 @@ public:
     bool checkUserConfigForIssues();
     void constructUserConfigGUI();
     void parseUserConfig();
+
+    void setupBehaviorTracker();
 
 signals:
     void userConfigFileNameChanged();
@@ -75,6 +78,8 @@ private:
 
     DataSaver *dataSaver;
     QThread *dataSaverThread;
+
+    BehaviorTracker *behavTracker;
 
 };
 

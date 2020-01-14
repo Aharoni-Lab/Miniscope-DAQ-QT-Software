@@ -132,6 +132,7 @@ void DataSaver::startRunning()
                             isColor = false;
                         else
                             isColor = true;
+                        // TODO: Add compression options here
                         videoWriter[names[i]]->open(tempStr.toUtf8().constData(),
                                 cv::VideoWriter::fourcc('M','J','P','G'), 60,
                                 cv::Size(frameBuffer[names[i]][0].cols, frameBuffer[names[i]][0].rows), isColor); // color should be set to false?
@@ -223,6 +224,7 @@ void DataSaver::startRecording()
     noteFile->open(QFile::WriteOnly | QFile::Truncate);
     noteStream = new QTextStream(noteFile);
 
+    // TODO: Save camera calibration file to data directory for each behavioral camera
     m_recording = true;
 }
 

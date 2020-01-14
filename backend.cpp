@@ -13,6 +13,7 @@
 #include "behaviorcam.h"
 #include "controlpanel.h"
 #include "datasaver.h"
+#include "behaviortracker.h"
 
 #define DEBUG
 
@@ -184,6 +185,17 @@ void backEnd::parseUserConfig()
     ucBehaviorTracker = m_userConfig["behaviorTracking"].toObject();
 }
 
+void backEnd::setupBehaviorTracker()
+{
+    behavTracker = new BehaviorTracker(this, m_userConfig);
+    for (int i = 0; i < behavCam.length(); i++) {
+        behavTracker->setBehaviorCamBufferParameters(behavCam[i]->getDeviceName(),
+                                                     behavCam[i]->getFrameBufferPointer(),
+                                                     behavCam[i]->getBufferSize(),
+                                                     behavCam[i]->getAcqFrameNumPointer());
+    }
+}
+
 void backEnd::constructUserConfigGUI()
 {
     int idx;
@@ -207,7 +219,7 @@ void backEnd::constructUserConfigGUI()
         // Construct experiment interface
     }
     if (!ucBehaviorTracker.isEmpty()) {
-        // Setup behavior tracker
+        setupBehaviorTracker();
     }
     // Load main control GUI
     controlPanel = new ControlPanel(this, m_userConfig);
