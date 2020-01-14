@@ -27,8 +27,6 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
 
 {
 
-//    *m_daqFrameNum = 0;
-
     m_ucMiniscope = ucMiniscope; // hold user config for this Miniscope
     parseUserConfigMiniscope();
 

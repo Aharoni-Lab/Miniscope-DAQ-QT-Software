@@ -52,7 +52,7 @@ void DataSaver::setupFilePaths()
         QDir().mkdir(deviceDirectory[tempString]);
     }
     for (int i = 0; i < devices["cameras"].toArray().size(); i++) { // Cameras
-        tempString = devices["miniscopes"].toArray()[i].toObject()["deviceName"].toString();
+        tempString = devices["cameras"].toArray()[i].toObject()["deviceName"].toString();
         tempString2 = tempString;
         tempString2.replace(" ", "_");
         deviceDirectory[tempString] = baseDirectory + "/" + tempString2;
@@ -142,7 +142,7 @@ void DataSaver::startRunning()
                                          << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << "\t"
                                          << usedCount[names[i]]->available() << endl;
 
-                    if (streamHeadOrientationState[names[i]]) {
+                    if (streamHeadOrientationState[names[i]] == true && bnoBuffer[names[i]] != nullptr) {
                         *headOriStream[names[i]] << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << "\t"
                                                  << bnoBuffer[names[i]][bufPosition*3 + 0] << "\t"
                                                  << bnoBuffer[names[i]][bufPosition*3 + 1] << "\t"
@@ -174,6 +174,7 @@ void DataSaver::startRecording()
     saveJson(jDoc, baseDirectory + "/metaData.json");
 
     QString deviceName;
+    // For Miniscopes
     for (int i = 0; i < m_userConfig["devices"].toObject()["miniscopes"].toArray().size(); i++) {
         deviceName = m_userConfig["devices"].toObject()["miniscopes"].toArray()[i].toObject()["deviceName"].toString();
         jDoc = constructMiniscopeMetaData(i);
@@ -181,6 +182,15 @@ void DataSaver::startRecording()
 
         // Get user config frames per file
         framesPerFile[deviceName] = m_userConfig["devices"].toObject()["miniscopes"].toArray()[i].toObject()["framesPerFile"].toInt(1000);
+    }
+    // For Cameras
+    for (int i = 0; i < m_userConfig["devices"].toObject()["cameras"].toArray().size(); i++) {
+        deviceName = m_userConfig["devices"].toObject()["cameras"].toArray()[i].toObject()["deviceName"].toString();
+        jDoc = constructMiniscopeMetaData(i);
+        saveJson(jDoc, deviceDirectory[deviceName] + "/metaData.json");
+
+        // Get user config frames per file
+        framesPerFile[deviceName] = m_userConfig["devices"].toObject()["cameras"].toArray()[i].toObject()["framesPerFile"].toInt(1000);
     }
 
     // TODO: Create data files
@@ -192,7 +202,7 @@ void DataSaver::startRecording()
         csvFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
         csvStream[keys[i]] = new QTextStream(csvFile[keys[i]]);
 
-        if (streamHeadOrientationState[keys[i]]) {
+        if (streamHeadOrientationState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr) {
             headOriFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/headOrientation.csv");
             headOriFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
             headOriStream[keys[i]] = new QTextStream(headOriFile[keys[i]]);
@@ -224,8 +234,9 @@ void DataSaver::stopRecording()
         videoWriter[keys[i]]->release();
         csvFile[keys[i]]->close();
 
-        if (headOriFile[keys[i]]->isOpen())
-            headOriFile[keys[i]]->close();
+        if (streamHeadOrientationState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr)
+            if (headOriFile[keys[i]]->isOpen())
+                headOriFile[keys[i]]->close();
     }
     noteFile->close();
 }

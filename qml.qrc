@@ -23,5 +23,6 @@
         <file>BNODisplay.qml</file>
         <file>img/Miniscope_Logo_BNO.png</file>
         <file>Miniscope_V4_BNO.qml</file>
+        <file>deviceConfigs/behaviorCams.json</file>
     </qresource>
 </RCC>

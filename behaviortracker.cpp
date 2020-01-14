@@ -1,6 +1,8 @@
 #include "behaviortracker.h"
 
-BehaviorTracker::BehaviorTracker(QObject *parent) : QObject(parent)
+
+BehaviorTracker::BehaviorTracker(QObject *parent) :
+    QObject(parent)
 {
 
 }

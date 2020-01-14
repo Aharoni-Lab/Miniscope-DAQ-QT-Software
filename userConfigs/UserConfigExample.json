@@ -26,7 +26,7 @@
                 "deviceType": "Miniscope_V4_BNO",
                 "imageRegistration": "Off",
                 "streamHeadOrientation": true,
-                "deviceID": 2,
+                "deviceID": 1,
                 "compression": "Not implemented yet",
                 "framesPerFile": 1000,
                 "windowScale": 0.75,
@@ -40,25 +40,14 @@
         ],
         "cameras": [
             {
-                "deviceName": "Behavior Camera 1",
-                "deviceType": "?",
-                "cameraCalibrationLocation": "",
-                "behavior_tracking": "On",
-                "behavior_tracker": "HSV",
-                "hsvThreshold": [
-                    0,
-                    100,
-                    0,
-                    255,
-                    0,
-                    255
-                ],
-                "kernelSize": 3,
-                "device_id": 1,
-                "gain": 1,
-                "exposure": 50,
-                "EWL": 50,
-                "LED": 10
+                "deviceName": "BehavCam 1",
+                "deviceType": "WebCam",
+                "deviceID": 0,
+                "compression": "Not implemented yet",
+                "framesPerFile": 1000,
+                "windowScale": 0.75,
+                "windowX": 800,
+                "windowY": 600
             }
         ]
     }

@@ -87,8 +87,10 @@ void VideoStreamOCV::startStream()
                         }
                     }
                     else {
-                        if (!m_isColor) {
-//                            cv::extractChannel(frame,frameBuffer[idx%frameBufferSize],0);
+                        if (m_isColor) {
+                            frame.copyTo(frameBuffer[idx%frameBufferSize]);
+                        }
+                        else {
                             cv::cvtColor(frame, frameBuffer[idx%frameBufferSize], cv::COLOR_BGR2GRAY);
                         }
 //                        qDebug() << "Frame Number:" << *m_acqFrameNum - cam->get(cv::CAP_PROP_CONTRAST);
@@ -102,7 +104,8 @@ void VideoStreamOCV::startStream()
                             bnoBuffer[(idx%frameBufferSize)*3 + 1] = roll;
                             bnoBuffer[(idx%frameBufferSize)*3 + 2] = pitch;
                         }
-                        *daqFrameNum += cam->get(cv::CAP_PROP_CONTRAST);
+                        if (daqFrameNum)
+                            *daqFrameNum += cam->get(cv::CAP_PROP_CONTRAST);
 
                         m_acqFrameNum->operator++();
 //                        qDebug() << *m_acqFrameNum << *daqFrameNum;

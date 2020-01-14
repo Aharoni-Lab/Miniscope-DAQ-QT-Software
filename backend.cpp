@@ -118,10 +118,6 @@ void backEnd::connectSnS()
     for (int i = 0; i < behavCam.length(); i++) {
         QObject::connect(behavCam[i], SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
     }
-
-
-
-
 }
 
 void backEnd::setupDataSaver()
@@ -142,7 +138,18 @@ void backEnd::setupDataSaver()
 
         dataSaver->setHeadOrientationStreamingState(miniscope[i]->getDeviceName(), miniscope[i]->getHeadOrienataionStreamState());
     }
-    // TODO: setup buffer and thread safe connections for cameras
+    for (int i = 0; i < behavCam.length(); i++) {
+        dataSaver->setFrameBufferParameters(behavCam[i]->getDeviceName(),
+                                            behavCam[i]->getFrameBufferPointer(),
+                                            behavCam[i]->getTimeStampBufferPointer(),
+                                            nullptr,
+                                            behavCam[i]->getBufferSize(),
+                                            behavCam[i]->getFreeFramesPointer(),
+                                            behavCam[i]->getUsedFramesPointer(),
+                                            behavCam[i]->getAcqFrameNumPointer());
+
+        dataSaver->setHeadOrientationStreamingState(behavCam[i]->getDeviceName(), false);
+    }
 
     dataSaverThread = new QThread;
     dataSaver->moveToThread(dataSaverThread);
@@ -189,8 +196,12 @@ void backEnd::constructUserConfigGUI()
         miniscope.last()->createView();
     }
     for (idx = 0; idx < ucBehaviorCams.size(); idx++) {
-        // un comment below once behav cam class is written
-        //behavCam.append(new BehaviorCam(this, ucBehaviorCams[idx].toObject()));
+        behavCam.append(new BehaviorCam(this, ucBehaviorCams[idx].toObject()));
+        QObject::connect(behavCam.last(),
+                         SIGNAL (onPropertyChanged(QString, QString, double)),
+                         dataSaver,
+                         SLOT (devicePropertyChanged(QString, QString, double)));
+        behavCam.last()->createView();
     }
     if (!ucExperiment.isEmpty()){
         // Construct experiment interface

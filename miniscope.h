@@ -47,9 +47,6 @@ public:
     QAtomicInt* getDAQFrameNumPointer() { return m_daqFrameNum; }
     QString getDeviceName(){return m_deviceName;}
     bool getHeadOrienataionStreamState() { return m_streamHeadOrientationState;}
-    // Todo: thread safe buffer
-
-
 
 signals:
     // TODO: setup signals to configure camera in thread
@@ -95,7 +92,7 @@ private:
     int m_deviceID;
     QString m_deviceName;
     QString m_deviceType;
-    QMap<QString,double> m_ucParameters; // holds all number parameters
+//    QMap<QString,double> m_ucParameters; // holds all number parameters
 
 
     QJsonObject m_cMiniscopes; // Consider renaming to not confuse with ucMiniscopes
