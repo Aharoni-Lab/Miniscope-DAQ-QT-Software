@@ -118,6 +118,10 @@ void backEnd::connectSnS()
     }
     for (int i = 0; i < behavCam.length(); i++) {
         QObject::connect(behavCam[i], SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+        // For triggering screenshots
+        QObject::connect(behavCam[i], SIGNAL(takeScreenShot(QString)), dataSaver, SLOT( takeScreenShot(QString)));
+
+        QObject::connect(behavCam[i], SIGNAL(newFrameAvailable(int)), behavTracker, SLOT( handleNewFrameAvailable(int)));
     }
 }
 
@@ -182,12 +186,11 @@ void backEnd::parseUserConfig()
     ucExperiment = m_userConfig["experiment"].toObject();
     ucMiniscopes = devices["miniscopes"].toArray();
     ucBehaviorCams = devices["cameras"].toArray();
-    ucBehaviorTracker = m_userConfig["behaviorTracking"].toObject();
+    ucBehaviorTracker = m_userConfig["behaviorTracker"].toObject();
 }
 
 void backEnd::setupBehaviorTracker()
 {
-    behavTracker = new BehaviorTracker(this, m_userConfig);
     for (int i = 0; i < behavCam.length(); i++) {
         behavTracker->setBehaviorCamBufferParameters(behavCam[i]->getDeviceName(),
                                                      behavCam[i]->getFrameBufferPointer(),
@@ -219,6 +222,7 @@ void backEnd::constructUserConfigGUI()
         // Construct experiment interface
     }
     if (!ucBehaviorTracker.isEmpty()) {
+        behavTracker = new BehaviorTracker(this, m_userConfig);
         setupBehaviorTracker();
     }
     // Load main control GUI

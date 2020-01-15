@@ -31,6 +31,7 @@ public:
 
 signals:
     void sendMessage(QString msg);
+    void newFrameAvailable(int frameNum);
 
 public slots:
     void startStream();

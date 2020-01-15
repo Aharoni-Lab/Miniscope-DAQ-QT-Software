@@ -74,6 +74,9 @@ BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucBehavCam) :
 
     // Pass send message signal through
     QObject::connect(behavCamStream, &VideoStreamOCV::sendMessage, this, &BehaviorCam::sendMessage);
+
+    // Pass new Frame available through to parent
+    QObject::connect(behavCamStream, &VideoStreamOCV::newFrameAvailable, this, &BehaviorCam::newFrameAvailable);
     // ----------------------------------------------
 
     connectSnS();

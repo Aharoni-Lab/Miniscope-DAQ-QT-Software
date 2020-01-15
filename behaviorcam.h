@@ -45,6 +45,7 @@ signals:
     void onPropertyChanged(QString devieName, QString propName, double propValue);
     void sendMessage(QString msg);
     void takeScreenShot(QString type);
+    void newFrameAvailable(int frameNum);
 
 public slots:
     void sendNewFrame();

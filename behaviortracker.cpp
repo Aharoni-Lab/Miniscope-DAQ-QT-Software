@@ -1,6 +1,11 @@
 #include "behaviortracker.h"
 
+#include <opencv2/opencv.hpp>
+
 #include <QJsonObject>
+#include <QDebug>
+#include <QAtomicInt>
+#include <QObject>
 
 BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig) :
     QObject(parent)
@@ -11,6 +16,8 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig) :
 
 void BehaviorTracker::parseUserConfigTracker()
 {
+    QJsonObject jTracker = m_userConfig["behaviorTracker"].toObject();
+    m_trackerType = jTracker["type"].toString("None");
 
 }
 
@@ -30,4 +37,9 @@ void BehaviorTracker::cameraCalibration()
     // collect images in increments of a few seconds
     // display if calibration grid was detected
     // run calibration and save to file(s)
+}
+
+void BehaviorTracker::handleNewFrameAvailable(int frameNum)
+{
+    qDebug() << "Frame" << frameNum;
 }

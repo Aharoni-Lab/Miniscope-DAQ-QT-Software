@@ -16,8 +16,11 @@
         "units": "cm",
         "trackLength": 200
     },
-    "behaviorTracking": {
-        "type": "HSV"
+    "behaviorTracker": {
+        "type": "HSV",
+        "hue": [0, 1],
+        "saturation": [0, 1],
+        "value": [0, 1]
     },
     "devices": {
         "miniscopes": [

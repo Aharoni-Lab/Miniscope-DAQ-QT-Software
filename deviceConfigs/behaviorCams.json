@@ -4,6 +4,8 @@
         "frameRate": 30,
         "width": 640,
         "height": 480,
-        "isColor": true
+        "isColor": true,
+        "controlSettings": {
+        }
     }
 }

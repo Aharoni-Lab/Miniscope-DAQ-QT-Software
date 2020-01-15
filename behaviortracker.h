@@ -8,6 +8,7 @@
 #include <QAtomicInt>
 #include <QMap>
 #include <QString>
+#include <QDebug>
 
 class BehaviorTracker : public QObject
 {
@@ -20,10 +21,14 @@ public:
     void cameraCalibration();
 
 signals:
+    void sendMessage(QString msg);
 
 public slots:
+    void handleNewFrameAvailable(int frameNum);
+    void testSlot(QString msg) { qDebug() << msg; }
 
 private:
+    QString m_trackerType;
     // Info from behavior cameras
     QMap<QString, cv::Mat*> frameBuffer;
     QMap<QString, QAtomicInt*> m_acqFrameNum;
