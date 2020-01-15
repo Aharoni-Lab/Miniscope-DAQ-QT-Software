@@ -16,7 +16,12 @@ Item {
     property var displaySpinBoxValues: ["1", "2", "3"]
     property var displayTextValues: [1,2,3]
     property var outputValues: [1, 2, 3]
-    property int startValue: 0
+    property var startValue: "1"
+
+    onStartValueChanged: {
+//        print(startValue)
+        spinBox.value = displaySpinBoxValues.indexOf(startValue)
+    }
 
     objectName: "default"
 
@@ -70,7 +75,7 @@ Item {
 
         from: 0
         to: root.displayValues.length - 1
-        value: root.startValue
+        value: 0
 
         textFromValue: function(value) {
             return root.displaySpinBoxValues[value];

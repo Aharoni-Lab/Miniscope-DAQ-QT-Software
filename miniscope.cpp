@@ -106,6 +106,12 @@ void Miniscope::createView()
     // --------------------
 
     rootObject = view->rootObject();
+
+    QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
+                         this, SLOT( handleTakeScreenShotSignal() ));
+    QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double) ),
+                         this, SLOT( handlePropCangedSignal(QString, double, double) ));
+
     configureMiniscopeControls();
     vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
     vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
@@ -113,10 +119,7 @@ void Miniscope::createView()
     if (m_streamHeadOrientationState)
         bnoDisplay = rootObject->findChild<QQuickItem*>("bno");
 
-    QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
-                         this, SLOT( handleTakeScreenShotSignal() ));
-    QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double) ),
-                         this, SLOT( handlePropCangedSignal(QString, double, double) ));
+
 
     QObject::connect(view, &NewQuickView::closing, miniscopeStream, &VideoStreamOCV::stopSteam);
     QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &Miniscope::sendNewFrame);
@@ -202,8 +205,12 @@ void Miniscope::configureMiniscopeControls() {
 //        qDebug() << controlItem;
         values = controlSettings[controlName[i]].toObject();
 
-        if (m_ucMiniscope.contains(controlName[i])) // sets starting value if it is defined in user config
-            values["startValue"] = m_ucMiniscope[controlName[i]].toDouble();
+        if (m_ucMiniscope.contains(controlName[i])) {// sets starting value if it is defined in user config
+            if (m_ucMiniscope[controlName[i]].isDouble())
+                values["startValue"] = m_ucMiniscope[controlName[i]].toDouble();
+            if (m_ucMiniscope[controlName[i]].isString())
+                values["startValue"] = m_ucMiniscope[controlName[i]].toString();
+        }
 
         keys = values.keys();
         if (controlItem) {
@@ -225,6 +232,9 @@ void Miniscope::configureMiniscopeControls() {
                     }
                     else if (values[keys[j]].isString()) {
                         controlItem->setProperty(keys[j].toLatin1().data(), values[keys[j]].toString());
+//                        if (keys[j] == "startValue")
+                            // sends signal on initial setup of controls
+//                            emit onPropertyChanged(m_deviceName, controlName[i], values["startValue"].toString());
                     }
                     else {
                         controlItem->setProperty(keys[j].toLatin1().data(), values[keys[j]].toDouble());

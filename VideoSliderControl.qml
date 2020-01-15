@@ -21,6 +21,9 @@ Item {
     property int decimalPrecision: 0
     objectName: "default"
 
+//    onStartValueChanged: {
+//        slider.valueChanged()
+//    }
     signal valueChangedSignal(double displayValue, double i2cValue)
 
     Rectangle {
@@ -65,7 +68,12 @@ Item {
         from: root.min
         to: root.max
         value: root.startValue
+
         onValueChanged: root.valueChangedSignal(value, value * root.displayValueScale  - root.displayValueOffset)
+
+//        function valueChanged(){
+//            root.valueChangedSignal(value, value * root.displayValueScale  - root.displayValueOffset);
+//        }
     }
 
     Text {

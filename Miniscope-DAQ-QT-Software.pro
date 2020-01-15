@@ -71,5 +71,4 @@ HEADERS += \
     videodisplay.h \
     videostreamocv.h
 
-DISTFILES += \
-    behaviorTracker.qml
+DISTFILES +=

@@ -2,7 +2,7 @@
     "Miniscope_V4_BNO": {
         "sensor": "PYTHON480",
         "frameRate": 20,
-        "width": 808,
+        "width": 608,
         "height": 608,
         "headOrientation": true,
         "isColor": false,
@@ -11,7 +11,7 @@
                 "displaySpinBoxValues":["Low", "Medium", "High"],
                 "displayTextValues": [1, 2, 3.5],
                 "outputValues":[225,228,36],
-                "startValue": 0,
+                "startValue": "Low",
                 "sendCommand": [
                     {
                         "protocol": "I2C",
@@ -27,10 +27,10 @@
                 ]
             },
             "frameRate": {
-                "displaySpinBoxValues":["10FPS", "15FPS", "20FPS", "25", "30"],
+                "displaySpinBoxValues":["10FPS", "15FPS", "20FPS", "25FPS", "30FPS"],
                 "displayTextValues": [10, 15, 20, 25, 30],
                 "outputValues":[10000,6667,5000, 4000, 3300],
-                "startValue": 1,
+                "startValue": "20FPS",
                 "sendCommand": [
 
                     {
