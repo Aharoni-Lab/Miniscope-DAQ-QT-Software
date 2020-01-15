@@ -19,7 +19,8 @@
 
 backEnd::backEnd(QObject *parent) :
     QObject(parent),
-    m_userConfigOK(false)
+    m_userConfigOK(false),
+    behavTracker(nullptr)
 {
 #ifdef DEBUG
     m_userConfigFileName = ":/userConfigs/UserConfigExample.json";
@@ -121,7 +122,8 @@ void backEnd::connectSnS()
         // For triggering screenshots
         QObject::connect(behavCam[i], SIGNAL(takeScreenShot(QString)), dataSaver, SLOT( takeScreenShot(QString)));
 
-        QObject::connect(behavCam[i], SIGNAL(newFrameAvailable(int)), behavTracker, SLOT( handleNewFrameAvailable(int)));
+        if (behavTracker)
+            QObject::connect(behavCam[i], SIGNAL(newFrameAvailable(QString, int)), behavTracker, SLOT( handleNewFrameAvailable(QString, int)));
     }
 }
 

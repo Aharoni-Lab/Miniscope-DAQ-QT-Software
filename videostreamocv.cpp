@@ -111,7 +111,7 @@ void VideoStreamOCV::startStream()
 //                        qDebug() << *m_acqFrameNum << *daqFrameNum;
                         idx++;
                         usedFrames->release();
-                        emit newFrameAvailable(*m_acqFrameNum);
+                        emit newFrameAvailable(m_deviceName, *m_acqFrameNum);
                     }
                 }
             }

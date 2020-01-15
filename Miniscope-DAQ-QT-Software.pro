@@ -70,3 +70,6 @@ HEADERS += \
     newquickview.h \
     videodisplay.h \
     videostreamocv.h
+
+DISTFILES += \
+    behaviorTracker.qml

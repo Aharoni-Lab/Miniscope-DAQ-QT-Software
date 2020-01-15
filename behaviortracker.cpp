@@ -6,12 +6,18 @@
 #include <QDebug>
 #include <QAtomicInt>
 #include <QObject>
+#include <QGuiApplication>
+#include <QScreen>
+#include <QQuickItem>
 
 BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig) :
-    QObject(parent)
+    QObject(parent),
+    numberOfCameras(0)
 {
     m_userConfig = userConfig;
     parseUserConfigTracker();
+
+    createView();
 }
 
 void BehaviorTracker::parseUserConfigTracker()
@@ -26,6 +32,9 @@ void BehaviorTracker::setBehaviorCamBufferParameters(QString name, cv::Mat *fram
     frameBuffer[name] = frameBuf;
     bufferSize[name] = bufSize;
     m_acqFrameNum[name] = acqFrameNum;
+
+    currentFrameNumberProcessed[name] = 0;
+    numberOfCameras++;
 }
 
 void BehaviorTracker::cameraCalibration()
@@ -39,7 +48,35 @@ void BehaviorTracker::cameraCalibration()
     // run calibration and save to file(s)
 }
 
-void BehaviorTracker::handleNewFrameAvailable(int frameNum)
+void BehaviorTracker::createView()
 {
-    qDebug() << "Frame" << frameNum;
+    QScreen *screen = QGuiApplication::primaryScreen();
+    QRect  screenGeometry = screen->geometry();
+    int height = screenGeometry.height();
+    int width = screenGeometry.width();
+
+    const QUrl url(QStringLiteral("qrc:/behaviorTracker.qml"));
+    view = new NewQuickView(url);
+
+    view->setWidth(400);
+    view->setHeight(200);
+    view->setTitle("Behavior Tracker");
+    view->setX(400);
+    view->setY(50);
+    view->show();
+
+    rootObject = view->rootObject();
+//    messageTextArea = rootObject->findChild<QQuickItem*>("messageTextArea");
+
+    connectSnS();
+}
+
+void BehaviorTracker::connectSnS()
+{
+
+}
+
+void BehaviorTracker::handleNewFrameAvailable(QString name, int frameNum)
+{
+
 }
