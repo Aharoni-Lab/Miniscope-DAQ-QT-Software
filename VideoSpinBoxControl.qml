@@ -74,7 +74,7 @@ Item {
             }
 
         from: 0
-        to: root.displayValues.length - 1
+        to: root.displaySpinBoxValues.length - 1
         value: 0
 
         textFromValue: function(value) {
