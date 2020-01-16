@@ -34,6 +34,57 @@ Window {
         visible: false
     }
 
+    Window {
+        id: helpDialog
+        width: 600
+        height: 200
+        visible: false
+        title: "Miniscope DAQ Help"
+        ColumnLayout {
+            anchors.fill: parent
+
+            TextArea {
+                text: "Miniscope DAQ Software version 4 <br/>" +
+                      "Developed by the <a href='https://aharoni-lab.github.io/'>Aharoni Lab</a>, UCLA <br/> " +
+                      "Overview of the UCLA Miniscope project: <a href='http://www.miniscope.org'>click here</a> <br/>" +
+                      "Miniscope Discussion Board: <a href='https://groups.google.com/d/forum/miniscope'>click here</a> <br/>" +
+                      "Miniscope Github Repositories: <a href='https://github.com/Aharoni-Lab'>click here</a> <br/>" +
+                      "Miniscope Twitter Link: <a href='https://twitter.com/MiniscopeTeam'>click here</a>"
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignHCenter
+                Layout.margins: 5
+                Layout.fillWidth: true
+                textFormat: Text.RichText
+                onLinkActivated: Qt.openUrlExternally(link)
+                font.pointSize: 12
+                font.family: "Arial"
+                wrapMode: Text.WordWrap
+                MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.NoButton // we don't want to eat clicks on the Text
+                        cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    }
+            }
+            Button {
+                text: "Close"
+                font.family: "Arial"
+                font.pointSize: 12
+                font.bold: true
+                font.weight: Font.Normal
+                background: Rectangle {
+                    id: closeRect
+                    border.width: 1
+                    color: "#a8a7fd"
+                }
+                Layout.margins: 5
+                Layout.fillWidth: true
+                onClicked: helpDialog.visible = false
+
+
+            }
+        }
+    }
+
     ColumnLayout {
         id: columnLayout
         anchors.rightMargin: 10
@@ -139,6 +190,9 @@ Window {
                     color: "#a8a7fd"
                     radius: rbSelectUserConfig.radius
                     border.width: 1
+                }
+                onClicked: {
+                    helpDialog.visible = true
                 }
             }
 
