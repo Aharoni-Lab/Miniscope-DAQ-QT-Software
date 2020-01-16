@@ -409,3 +409,8 @@ void BehaviorCam::handleTakeScreenShotSignal()
     // Is called when signal from qml GUI is triggered
     takeScreenShot(m_deviceName);
 }
+
+void BehaviorCam::close()
+{
+    view->close();
+}

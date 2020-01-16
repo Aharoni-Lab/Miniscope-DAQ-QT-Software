@@ -79,8 +79,7 @@ Window {
                 Layout.margins: 5
                 Layout.fillWidth: true
                 onClicked: helpDialog.visible = false
-
-
+                onHoveredChanged: hovered ? closeRect.color = "#f8a7fd" : closeRect.color = "#a8a7fd"
             }
         }
     }
@@ -109,11 +108,13 @@ Window {
             font.weight: Font.Normal
             radius: 10
             background: Rectangle {
+                id: configRect
                 radius: rbSelectUserConfig.radius
                 border.width: 1
                 color: "#a8a7fd"
             }
             onClicked: fileDialog.setVisible(1)
+            onHoveredChanged: hovered ? configRect.color = "#f8a7fd" : configRect.color = "#a8a7fd"
 
         }
 
@@ -156,6 +157,7 @@ Window {
             Layout.fillHeight: false
             font.weight: Font.Normal
             background: Rectangle {
+                id: runRect
                 color: "#a8a7fd"
                 radius: rbRun.radius
                 border.width: 1
@@ -163,6 +165,7 @@ Window {
 
             Layout.fillWidth: true
             onClicked: backend.onRunClicked()
+            onHoveredChanged: hovered ? runRect.color = "#f8a7fd" : runRect.color = "#a8a7fd"
         }
 
         RowLayout {
@@ -187,6 +190,7 @@ Window {
                 font.bold: true
                 font.weight: Font.Normal
                 background: Rectangle {
+                    id: helpRect
                     color: "#a8a7fd"
                     radius: rbSelectUserConfig.radius
                     border.width: 1
@@ -194,6 +198,7 @@ Window {
                 onClicked: {
                     helpDialog.visible = true
                 }
+                onHoveredChanged: hovered ? helpRect.color = "#f8a7fd" : helpRect.color = "#a8a7fd"
             }
 
             RoundButton {
@@ -209,10 +214,13 @@ Window {
                 font.bold: true
                 font.weight: Font.Normal
                 background: Rectangle {
+                    id: exitRect
                     radius: rbSelectUserConfig.radius
                     border.width: 1
                     color: "#a8a7fd"
                 }
+                onHoveredChanged: hovered ? exitRect.color = "#f8a7fd" : exitRect.color = "#a8a7fd"
+                onClicked: backend.exitClicked()
 //                onClicked: Qt.quit()
             }
         }

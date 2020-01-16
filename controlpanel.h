@@ -23,6 +23,7 @@ public slots:
     void onStopActivated();
     void recordTimerTick();
     void handleNoteSumbit(QString note);
+    void close();
 
 signals:
     void recordStart();

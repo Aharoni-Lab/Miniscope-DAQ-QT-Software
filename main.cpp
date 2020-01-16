@@ -2,6 +2,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QDebug>
+#include <QObject>
 
 #include <QThreadPool>
 
@@ -30,5 +31,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("backend", &backend);
 
     engine.load(url);
+
+    QObject::connect(&backend, &backEnd::closeAll, &engine, &QQmlApplicationEngine::quit);
     return app.exec();
 }

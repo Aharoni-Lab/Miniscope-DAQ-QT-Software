@@ -430,3 +430,8 @@ void Miniscope::handleTakeScreenShotSignal()
     // Is called when signal from qml GUI is triggered
     takeScreenShot(m_deviceName);
 }
+
+void Miniscope::close()
+{
+    view->close();
+}

@@ -100,6 +100,13 @@ void backEnd::onRecordClicked()
     // TODO: start experiment running
 }
 
+void backEnd::exitClicked()
+{
+    // TODO: Do other exit stuff such as stop recording???
+    emit closeAll();
+
+}
+
 void backEnd::connectSnS()
 {
 
@@ -107,6 +114,7 @@ void backEnd::connectSnS()
     QObject::connect(controlPanel, SIGNAL( recordStart()), dataSaver, SLOT (startRecording()));
     QObject::connect(controlPanel, SIGNAL( recordStop()), dataSaver, SLOT (stopRecording()));
     QObject::connect((controlPanel), SIGNAL( sendNote(QString) ), dataSaver, SLOT ( takeNote(QString) ));
+    QObject::connect(this, SIGNAL( closeAll()), controlPanel, SLOT (close()));
 
     QObject::connect(dataSaver, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
 
@@ -116,15 +124,22 @@ void backEnd::connectSnS()
 
         // For triggering screenshots
         QObject::connect(miniscope[i], SIGNAL(takeScreenShot(QString)), dataSaver, SLOT( takeScreenShot(QString)));
+        QObject::connect(this, SIGNAL( closeAll()), miniscope[i], SLOT (close()));
     }
     for (int i = 0; i < behavCam.length(); i++) {
         QObject::connect(behavCam[i], SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
         // For triggering screenshots
         QObject::connect(behavCam[i], SIGNAL(takeScreenShot(QString)), dataSaver, SLOT( takeScreenShot(QString)));
 
-        if (behavTracker)
+        QObject::connect(this, SIGNAL( closeAll()), behavCam[i], SLOT (close()));
+
+        if (behavTracker) {
             QObject::connect(behavCam[i], SIGNAL(newFrameAvailable(QString, int)), behavTracker, SLOT( handleNewFrameAvailable(QString, int)));
+
+        }
     }
+    if (behavTracker)
+        QObject::connect(this, SIGNAL( closeAll()), behavTracker, SLOT (close()));
 }
 
 void backEnd::setupDataSaver()

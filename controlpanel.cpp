@@ -120,3 +120,8 @@ void ControlPanel::handleNoteSumbit(QString note)
     sendNote(note);
     receiveMessage("Note logged.");
 }
+
+void ControlPanel::close()
+{
+    view->close();
+}

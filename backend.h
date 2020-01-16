@@ -44,10 +44,12 @@ signals:
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();
     void userConfigOKChanged();
+    void closeAll();
 
 public slots:
     void onRunClicked();
     void onRecordClicked();
+    void exitClicked();
 //    void onStopClicked();
 
 private:

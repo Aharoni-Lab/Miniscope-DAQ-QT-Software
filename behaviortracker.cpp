@@ -1,4 +1,5 @@
 #include "behaviortracker.h"
+#include "newquickview.h"
 
 #include <opencv2/opencv.hpp>
 
@@ -79,4 +80,9 @@ void BehaviorTracker::connectSnS()
 void BehaviorTracker::handleNewFrameAvailable(QString name, int frameNum)
 {
 
+}
+
+void BehaviorTracker::close()
+{
+    view->close();
 }

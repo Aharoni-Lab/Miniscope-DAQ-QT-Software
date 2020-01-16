@@ -60,6 +60,7 @@ public slots:
     void testSlot(QString, double);
     void handlePropCangedSignal(QString type, double displayValue, double i2cValue);
     void handleTakeScreenShotSignal();
+    void close();
 
 private:
     void getMiniscopeConfig(QString deviceType);

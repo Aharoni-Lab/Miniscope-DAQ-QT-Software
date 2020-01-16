@@ -31,6 +31,7 @@ signals:
 public slots:
     void handleNewFrameAvailable(QString name, int frameNum);
     void testSlot(QString msg) { qDebug() << msg; }
+    void close();
 
 private:
     QString m_trackerType;
