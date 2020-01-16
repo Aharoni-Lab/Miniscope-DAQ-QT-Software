@@ -60,6 +60,7 @@ class VideoDisplay : public QQuickItem
 {
     Q_OBJECT
     Q_PROPERTY(double acqFPS READ acqFPS WRITE setAcqFPS NOTIFY acqFPSChanged)
+    Q_PROPERTY(double droppedFrameCount READ droppedFrameCount WRITE setDroppedFrameCount NOTIFY droppedFrameCountChanged)
     Q_PROPERTY(int bufferUsed READ bufferUsed WRITE setBufferUsed NOTIFY bufferUsedChanged)
     Q_PROPERTY(int maxBuffer READ maxBuffer WRITE setMaxBuffer NOTIFY maxBufferChanged)
     Q_PROPERTY(qreal t READ t WRITE setT NOTIFY tChanged)
@@ -72,6 +73,7 @@ public:
     double acqFPS() const { return m_acqFPS; }
     int maxBuffer() const {return m_maxBuffer; }
     int bufferUsed() const { return m_bufferUsed; }
+    int droppedFrameCount() const {return m_droppedFrameCount; }
 
     QImage displayFrame() { return m_displayFrame2; }
 //    QImage displayFrame() {return m_displayFrame;}
@@ -80,6 +82,7 @@ public:
     void setBufferUsed(int bufUsed) { m_bufferUsed = bufUsed; }
     void setMaxBuffer(int maxBuf) { m_maxBuffer = maxBuf; }
 
+    void setDroppedFrameCount(int count) { m_droppedFrameCount = count; }
     void setDisplayFrame(QImage frame);
     void setAlpha(double a) {m_renderer->setAlpha(a);}
     void setBeta(double b) {m_renderer->setBeta(b);}
@@ -89,6 +92,7 @@ signals:
     void acqFPSChanged();
     void maxBufferChanged();
     void bufferUsedChanged();
+    void droppedFrameCountChanged();
 
     void displayFrameChanged();
 
@@ -104,6 +108,7 @@ private:
     double m_acqFPS;
     int m_bufferUsed;
     int m_maxBuffer;
+    int m_droppedFrameCount;
     QImage m_displayFrame2;
     VideoDisplayRenderer *m_renderer;
 };

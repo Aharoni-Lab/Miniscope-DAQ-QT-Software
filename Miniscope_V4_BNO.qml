@@ -73,6 +73,28 @@ Item {
             columns: 3
             rows: 2
 
+
+            Text{
+                id: droppedFrameCount
+                objectName: "droppedFrameCount"
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignBottom
+                text: "--"
+                font.pointSize: 10
+                font.family: "Arial"
+                Layout.column: 0
+                Layout.row: 1
+                Timer{
+                    interval: 100
+                    repeat: true
+                    running: true
+                    onTriggered: {
+                        droppedFrameCount.text = "Dropped Frames: " + videoDisplay.droppedFrameCount;
+                      }
+                }
+
+
+            }
+
             Text{
                 id: acqFPS
                 objectName: "acqFPS"
@@ -120,9 +142,8 @@ Item {
 
                     }
                 }
-
-
             }
+
 
         }
     }

@@ -54,6 +54,7 @@ void VideoStreamOCV::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float
 void VideoStreamOCV::startStream()
 {
     int idx = 0;
+    int daqFrameNumOffset = 0;
     float heading, pitch, roll;
     cv::Mat frame;
 
@@ -104,8 +105,12 @@ void VideoStreamOCV::startStream()
                             bnoBuffer[(idx%frameBufferSize)*3 + 1] = roll;
                             bnoBuffer[(idx%frameBufferSize)*3 + 2] = pitch;
                         }
-                        if (daqFrameNum)
-                            *daqFrameNum += cam->get(cv::CAP_PROP_CONTRAST);
+                        if (daqFrameNum != nullptr) {
+                            *daqFrameNum = cam->get(cv::CAP_PROP_CONTRAST) - daqFrameNumOffset;
+//                            qDebug() << cam->get(cv::CAP_PROP_CONTRAST);// *daqFrameNum;
+                            if (*m_acqFrameNum == 0) // Used to initially sync daqFrameNum with acqFrameNum
+                                daqFrameNumOffset = *daqFrameNum - 1;
+                        }
 
                         m_acqFrameNum->operator++();
 //                        qDebug() << *m_acqFrameNum << *daqFrameNum;
