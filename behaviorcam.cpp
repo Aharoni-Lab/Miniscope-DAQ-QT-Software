@@ -13,6 +13,7 @@
 #include <QJsonArray>
 #include <QQmlApplicationEngine>
 #include <QVector>
+#include <QVariant>
 
 BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucBehavCam) :
     QObject(parent),
@@ -228,7 +229,7 @@ void BehaviorCam::configureBehavCamControls() {
                         controlItem->setProperty(keys[j].toLatin1().data(), values[keys[j]].toDouble());
                         if (keys[j] == "startValue")
                             // sends signal on initial setup of controls
-                            emit onPropertyChanged(m_deviceName, controlName[i], values["startValue"].toDouble());
+                            emit onPropertyChanged(m_deviceName, controlName[i], values["startValue"].toVariant());
                     }
                 }
             }
@@ -361,7 +362,7 @@ void BehaviorCam::handlePropCangedSignal(QString type, double displayValue, doub
 
         // TODO: maybe add a check to make sure property successfully updates before signallng it has changed
     //    qDebug() << "Sending updated prop signal to backend";
-        emit onPropertyChanged(m_deviceName, type, displayValue);
+        emit onPropertyChanged(m_deviceName, type, QVariant(displayValue));
 
         // TODO: Handle int values greater than 8 bits
 //        for (int i = 0; i < m_controlSendCommand[type].length(); i++) {

@@ -11,6 +11,7 @@
 #include <QMap>
 #include <QVector>
 #include <QQuickItem>
+#include <QVariant>
 
 #include "videostreamocv.h"
 #include "videodisplay.h"
@@ -51,14 +52,14 @@ public:
 signals:
     // TODO: setup signals to configure camera in thread
     void setPropertyI2C(long preambleKey, QVector<quint8> packet);
-    void onPropertyChanged(QString devieName, QString propName, double propValue);
+    void onPropertyChanged(QString devieName, QString propName, QVariant propValue);
     void sendMessage(QString msg);
     void takeScreenShot(QString type);
 
 public slots:
     void sendNewFrame();
     void testSlot(QString, double);
-    void handlePropCangedSignal(QString type, double displayValue, double i2cValue);
+    void handlePropChangedSignal(QString type, double displayValue, double i2cValue);
     void handleTakeScreenShotSignal();
     void close();
 

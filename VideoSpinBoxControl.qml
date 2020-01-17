@@ -14,12 +14,11 @@ Item {
     property var iconPath: "img/icon/ewl.ico"
 
     property var displaySpinBoxValues: ["1", "2", "3"]
-    property var displayTextValues: [1,2,3]
+    property var displayTextValues: [1.0,2.0,3.0]
     property var outputValues: [1, 2, 3]
     property var startValue: "1"
 
     onStartValueChanged: {
-//        print(startValue)
         spinBox.value = displaySpinBoxValues.indexOf(startValue)
     }
 
@@ -75,7 +74,7 @@ Item {
 
         from: 0
         to: root.displaySpinBoxValues.length - 1
-        value: 0
+        value: 100
 
         textFromValue: function(value) {
             return root.displaySpinBoxValues[value];

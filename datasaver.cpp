@@ -17,6 +17,8 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <QTextStream>
+#include <QVariant>
+#include <QMetaType>
 
 DataSaver::DataSaver(QObject *parent) :
     QObject(parent),
@@ -244,7 +246,7 @@ void DataSaver::stopRecording()
     noteFile->close();
 }
 
-void DataSaver::devicePropertyChanged(QString deviceName, QString propName, double propValue)
+void DataSaver::devicePropertyChanged(QString deviceName, QString propName, QVariant propValue)
 {
     deviceProperties[deviceName][propName] = propValue;
     qDebug() << deviceName << propName << propValue;
@@ -339,7 +341,10 @@ QJsonDocument DataSaver::constructMiniscopeMetaData(int idx)
     // loop through device properties at the start of recording
     QStringList keys = deviceProperties[deviceName].keys();
     for (int i = 0; i < keys.length(); i++) {
-        metaData[keys[i]] = deviceProperties[deviceName][keys[i]];
+        if (deviceProperties[deviceName][keys[i]].userType() == QMetaType::QString)
+            metaData[keys[i]] = deviceProperties[deviceName][keys[i]].toString();
+        else
+            metaData[keys[i]] = deviceProperties[deviceName][keys[i]].toDouble();
     }
 
     jDoc.setObject(metaData);

@@ -10,6 +10,7 @@
 #include <QFile>
 #include <QTextStream>
 #include <QAtomicInt>
+#include <QVariant>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -37,7 +38,7 @@ public slots:
     void startRunning();
     void startRecording();
     void stopRecording();
-    void devicePropertyChanged(QString deviceName, QString propName, double propValue);
+    void devicePropertyChanged(QString deviceName, QString propName, QVariant propValue);
     void takeScreenShot(QString type);
     void takeNote(QString note);
 
@@ -50,7 +51,7 @@ private:
     QDateTime recordStartDateTime;
     QMap<QString,QString> deviceDirectory;
 
-    QMap<QString, QMap<QString, double>> deviceProperties;
+    QMap<QString, QMap<QString, QVariant>> deviceProperties;
 
     // Probably shoud turn all of this into a single struct
     QMap<QString, cv::Mat*> frameBuffer;

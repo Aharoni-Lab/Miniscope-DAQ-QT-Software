@@ -84,6 +84,9 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     sendInitCommands();
 
     videoStreamThread->start();
+
+    // Short sleep to make i2c initialize commands be sent before loading in user config controls
+    QThread::msleep(500);
 }
 
 void Miniscope::createView()
@@ -110,7 +113,7 @@ void Miniscope::createView()
     QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
                          this, SLOT( handleTakeScreenShotSignal() ));
     QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double) ),
-                         this, SLOT( handlePropCangedSignal(QString, double, double) ));
+                         this, SLOT( handlePropChangedSignal(QString, double, double) ));
 
     configureMiniscopeControls();
     vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
@@ -238,15 +241,15 @@ void Miniscope::configureMiniscopeControls() {
                     }
                     else if (values[keys[j]].isString()) {
                         controlItem->setProperty(keys[j].toLatin1().data(), values[keys[j]].toString());
-//                        if (keys[j] == "startValue")
+                        if (keys[j] == "startValue")
                             // sends signal on initial setup of controls
-//                            emit onPropertyChanged(m_deviceName, controlName[i], values["startValue"].toString());
+                            emit onPropertyChanged(m_deviceName, controlName[i], values["startValue"].toVariant());
                     }
                     else {
                         controlItem->setProperty(keys[j].toLatin1().data(), values[keys[j]].toDouble());
                         if (keys[j] == "startValue")
                             // sends signal on initial setup of controls
-                            emit onPropertyChanged(m_deviceName, controlName[i], values["startValue"].toDouble());
+                            emit onPropertyChanged(m_deviceName, controlName[i], values["startValue"].toVariant());
                     }
                 }
             }
@@ -370,7 +373,7 @@ void Miniscope::sendNewFrame(){
 }
 
 
-void Miniscope::handlePropCangedSignal(QString type, double displayValue, double i2cValue)
+void Miniscope::handlePropChangedSignal(QString type, double displayValue, double i2cValue)
 {
     // type is the objectName of the control
     // value is the control value that was just updated
@@ -392,7 +395,7 @@ void Miniscope::handlePropCangedSignal(QString type, double displayValue, double
 
         // TODO: maybe add a check to make sure property successfully updates before signallng it has changed
     //    qDebug() << "Sending updated prop signal to backend";
-        emit onPropertyChanged(m_deviceName, type, displayValue);
+        emit onPropertyChanged(m_deviceName, type, QVariant(displayValue));
 
         // TODO: Handle int values greater than 8 bits
         for (int i = 0; i < m_controlSendCommand[type].length(); i++) {

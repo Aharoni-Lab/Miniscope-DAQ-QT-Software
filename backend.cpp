@@ -8,6 +8,7 @@
 #include <QJsonArray>
 #include <QThread>
 #include <QObject>
+#include <QVariant>
 
 #include "miniscope.h"
 #include "behaviorcam.h"
@@ -222,17 +223,17 @@ void backEnd::constructUserConfigGUI()
     for (idx = 0; idx < ucMiniscopes.size(); idx++) {
         miniscope.append(new Miniscope(this, ucMiniscopes[idx].toObject()));
         QObject::connect(miniscope.last(),
-                         SIGNAL (onPropertyChanged(QString, QString, double)),
+                         SIGNAL (onPropertyChanged(QString, QString, QVariant)),
                          dataSaver,
-                         SLOT (devicePropertyChanged(QString, QString, double)));
+                         SLOT (devicePropertyChanged(QString, QString, QVariant)));
         miniscope.last()->createView();
     }
     for (idx = 0; idx < ucBehaviorCams.size(); idx++) {
         behavCam.append(new BehaviorCam(this, ucBehaviorCams[idx].toObject()));
         QObject::connect(behavCam.last(),
-                         SIGNAL (onPropertyChanged(QString, QString, double)),
+                         SIGNAL (onPropertyChanged(QString, QString, QVariant)),
                          dataSaver,
-                         SLOT (devicePropertyChanged(QString, QString, double)));
+                         SLOT (devicePropertyChanged(QString, QString, QVariant)));
         behavCam.last()->createView();
     }
     if (!ucExperiment.isEmpty()){

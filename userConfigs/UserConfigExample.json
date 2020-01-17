@@ -37,8 +37,8 @@
                 "windowX": 800,
                 "windowY": 100,
                 "gain": "Low",
-                "ewl": 30,
-                "led0": 10,
+                "ewl": 50,
+                "led0": 30,
                 "frameRate": "30FPS"
             }
         ],
