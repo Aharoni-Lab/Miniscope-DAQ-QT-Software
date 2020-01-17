@@ -152,18 +152,24 @@ void Miniscope::sendInitCommands()
         command = sendCommands[i];
         packet.clear();
         if (command["protocol"] == PROTOCOL_I2C) {
+            preambleKey = 0;
+
             packet.append(command["addressW"]);
+            preambleKey = (preambleKey<<8) | packet.last();
+
             for (int j = 0; j < command["regLength"]; j++) {
                 packet.append(command["reg" + QString::number(j)]);
+                preambleKey = (preambleKey<<8) | packet.last();
             }
             for (int j = 0; j < command["dataLength"]; j++) {
                 tempValue = command["data" + QString::number(j)];
                 packet.append(tempValue);
+                preambleKey = (preambleKey<<8) | packet.last();
             }
 //        qDebug() << packet;
-        preambleKey = 0;
-        for (int k = 0; k < (command["regLength"]+1); k++)
-            preambleKey |= (packet[k]&0xFF)<<(8*k);
+//        preambleKey = 0;
+//        for (int k = 0; k < (command["regLength"]+1); k++)
+//            preambleKey |= (packet[k]&0xFF)<<(8*k);
         emit setPropertyI2C(preambleKey, packet);
         }
         else {
@@ -351,9 +357,13 @@ void Miniscope::sendNewFrame(){
         vidDisplay->setDroppedFrameCount(*m_daqFrameNum - *m_acqFrameNum);
 
         if (m_streamHeadOrientationState) {
-            bnoDisplay->setProperty("heading", bnoBuffer[f*3+0]);
-            bnoDisplay->setProperty("roll", bnoBuffer[f*3+1]);
-            bnoDisplay->setProperty("pitch", bnoBuffer[f*3+2]);
+//            bnoDisplay->setProperty("heading", bnoBuffer[f*3+0]);
+//            bnoDisplay->setProperty("roll", bnoBuffer[f*3+1]);
+//            bnoDisplay->setProperty("pitch", bnoBuffer[f*3+2]);
+            bnoDisplay->setProperty("qw", bnoBuffer[f*4+0]);
+            bnoDisplay->setProperty("qx", bnoBuffer[f*4+1]);
+            bnoDisplay->setProperty("qy", bnoBuffer[f*4+2]);
+            bnoDisplay->setProperty("qz", bnoBuffer[f*4+3]);
         }
 //        qDebug() << bnoBuffer[f*3+0] << bnoBuffer[f*3+1] << bnoBuffer[f*3+2];
     }

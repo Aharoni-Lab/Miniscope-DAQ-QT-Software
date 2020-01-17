@@ -74,7 +74,8 @@ private:
     cv::Mat frameBuffer[FRAME_BUFFER_SIZE];
     cv::Mat tempFrame;
     qint64 timeStampBuffer[FRAME_BUFFER_SIZE];
-    float bnoBuffer[FRAME_BUFFER_SIZE*3];
+//    float bnoBuffer[FRAME_BUFFER_SIZE*3];
+    float bnoBuffer[FRAME_BUFFER_SIZE*4];
     QSemaphore *freeFrames;
     QSemaphore *usedFrames;
     QObject *rootObject;

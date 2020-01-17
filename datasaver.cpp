@@ -145,9 +145,10 @@ void DataSaver::startRunning()
 
                     if (streamHeadOrientationState[names[i]] == true && bnoBuffer[names[i]] != nullptr) {
                         *headOriStream[names[i]] << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << "\t"
-                                                 << bnoBuffer[names[i]][bufPosition*3 + 0] << "\t"
-                                                 << bnoBuffer[names[i]][bufPosition*3 + 1] << "\t"
-                                                 << bnoBuffer[names[i]][bufPosition*3 + 2] << endl;
+                                                 << bnoBuffer[names[i]][bufPosition*4 + 0] << "\t"
+                                                 << bnoBuffer[names[i]][bufPosition*4 + 1] << "\t"
+                                                 << bnoBuffer[names[i]][bufPosition*4 + 2] << "\t"
+                                                 << bnoBuffer[names[i]][bufPosition*4 + 3] << endl;
 
                     }
 

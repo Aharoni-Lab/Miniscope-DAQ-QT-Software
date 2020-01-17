@@ -89,39 +89,20 @@
                         "dataLength": "2",
                         "data0": "value",
                         "data1": "0x02"
-                    },
-                    {
-                        "protocol": "I2C",
-                        "addressW": "0b11101110",
-                        "regLength": "1",
-                        "reg0": "0x08",
-                        "dataLength": "3",
-                        "data0": "value",
-                        "data1": "0x02",
-                        "data2": "0xFF"
                     }
                 ]
             }
         },
         "initialize2": [
         {
+            "description": "Remap BNO axes, and sign",
             "protocol": "I2C",
-            "addressW": "0b11101110",
+            "addressW": "0b1010000",
             "regLength": "1",
-            "reg0": "0x08",
+            "reg0": "0x41",
             "dataLength": "2",
-            "data0": "0x01",
-            "data1": "0x02"
-        },
-        {
-            "protocol": "I2C",
-            "addressW": "0b11101010",
-            "regLength": "1",
-            "reg0": "0x08",
-            "dataLength": "3",
-            "data0": "0x03",
-            "data1": "0x02",
-            "data2": "0xFF"
+            "data0": "0b00001001",
+            "data1": "0b00000101"
         }
     ]
     },
