@@ -28,6 +28,7 @@ public:
     void createView();
     void connectSnS();
     void parseUserConfigBehavCam();
+    QString getCompressionType();
 //    void sendInitCommands();
     cv::Mat* getFrameBufferPointer(){return frameBuffer;}
     qint64* getTimeStampBufferPointer(){return timeStampBuffer;}
@@ -90,6 +91,7 @@ private:
 //    QMap<QString, int> m_sendCommand;
 
     bool m_streamHeadOrientationState;
+    QString m_compressionType;
 };
 
 #endif // BEHAVIORCAM_H

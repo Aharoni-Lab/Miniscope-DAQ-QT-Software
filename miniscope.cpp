@@ -139,6 +139,7 @@ void Miniscope::connectSnS(){
 void Miniscope::parseUserConfigMiniscope() {
     // Currently not needed. If arrays get added into JSON config then this might
     m_deviceName = m_ucMiniscope["deviceName"].toString("Miniscope " + QString::number(m_ucMiniscope["deviceID"].toInt()));
+    m_compressionType = m_ucMiniscope["compression"].toString("None");
 }
 
 void Miniscope::sendInitCommands()
@@ -181,6 +182,11 @@ void Miniscope::sendInitCommands()
         }
 
     }
+}
+
+QString Miniscope::getCompressionType()
+{
+    return m_compressionType;
 }
 
 void Miniscope::getMiniscopeConfig(QString deviceType) {

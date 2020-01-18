@@ -38,6 +38,7 @@ public:
     void connectSnS();
     void parseUserConfigMiniscope();
     void sendInitCommands();
+    QString getCompressionType();
     cv::Mat* getFrameBufferPointer(){return frameBuffer;}
     qint64* getTimeStampBufferPointer(){return timeStampBuffer;}
     float* getBNOBufferPointer() { return bnoBuffer; }
@@ -103,6 +104,7 @@ private:
     QMap<QString, int> m_sendCommand;
 
     bool m_streamHeadOrientationState;
+    QString m_compressionType;
 
 };
 

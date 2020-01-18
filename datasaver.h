@@ -41,6 +41,7 @@ public slots:
     void devicePropertyChanged(QString deviceName, QString propName, QVariant propValue);
     void takeScreenShot(QString type);
     void takeNote(QString note);
+    void setDataCompression(QString name, QString type);
 
 private:
     QJsonDocument constructBaseDirectoryMetaData();
@@ -66,6 +67,7 @@ private:
     QMap<QString, QSemaphore*> freeCount;
     QMap<QString, QSemaphore*> usedCount;
     QMap<QString, cv::VideoWriter*> videoWriter;
+    QMap<QString, int> dataCompressionFourCC;
 
     QMap<QString, QFile*> csvFile;
     QMap<QString, QTextStream*> csvStream;

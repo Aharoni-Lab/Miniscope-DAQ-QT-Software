@@ -132,6 +132,12 @@ void BehaviorCam::connectSnS(){
 void BehaviorCam::parseUserConfigBehavCam() {
     // Currently not needed. If arrays get added into JSON config then this might
     m_deviceName = m_ucBehavCam["deviceName"].toString("Behavior Cam " + QString::number(m_ucBehavCam["deviceID"].toInt()));
+    m_compressionType = m_ucBehavCam["compression"].toString("None");
+}
+
+QString BehaviorCam::getCompressionType()
+{
+    return m_compressionType;
 }
 
 //void BehaviorCam::sendInitCommands()

@@ -33,26 +33,27 @@ QML_IMPORT_PATH =
 # Additional import path used to resolve QML modules just for Qt Quick Designer
 QML_DESIGNER_IMPORT_PATH =
 
-INCLUDEPATH += C:\opencv-build\install\include
+#Below is for the opencv build I did
+#INCLUDEPATH += C:\opencv-build\install\include
 
 
-LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_core412.dll.a
-LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_highgui412.dll.a
-LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgcodecs412.dll.a
-LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412.dll.a
-LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_features2d412.dll.a
-LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_calib3d412.dll.a
-LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412.dll.a
-LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_videoio412.dll.a
+#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_core412.dll.a
+#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_highgui412.dll.a
+#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgcodecs412.dll.a
+#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412.dll.a
+#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_features2d412.dll.a
+#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_calib3d412.dll.a
+#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412.dll.a
+#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_videoio412.dll.a
 
-#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_core412d.dll.a
-#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_highgui412d.dll.a
-#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgcodecs412d.dll.a
-#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412d.dll.a
-#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_features2d412d.dll.a
-#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_calib3d412d.dll.a
-#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412d.dll.a
-#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_videoio412d.dll.a
+##LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_core412d.dll.a
+##LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_highgui412d.dll.a
+##LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgcodecs412d.dll.a
+##LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412d.dll.a
+##LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_features2d412d.dll.a
+##LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_calib3d412d.dll.a
+##LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412d.dll.a
+##LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_videoio412d.dll.a
 
 
 # Default rules for deployment.
@@ -72,3 +73,10 @@ HEADERS += \
     videostreamocv.h
 
 DISTFILES +=
+
+
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420d
+
+INCLUDEPATH += $$PWD/../../../../../../opencv-build420/install/include
+DEPENDPATH += $$PWD/../../../../../../opencv-build420/install/include

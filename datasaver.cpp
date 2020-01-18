@@ -136,7 +136,7 @@ void DataSaver::startRunning()
                             isColor = true;
                         // TODO: Add compression options here
                         videoWriter[names[i]]->open(tempStr.toUtf8().constData(),
-                                cv::VideoWriter::fourcc('M','J','P','G'), 60,
+                                dataCompressionFourCC[names[i]], 60,
                                 cv::Size(frameBuffer[names[i]][0].cols, frameBuffer[names[i]][0].rows), isColor); // color should be set to false?
 
                     }
@@ -287,6 +287,30 @@ void DataSaver::takeNote(QString note)
     if (m_recording) {
         *noteStream << QDateTime().currentMSecsSinceEpoch() - recordStartDateTime.toMSecsSinceEpoch() << "\t" << note << endl;
     }
+}
+
+void DataSaver::setDataCompression(QString name, QString type)
+{
+    if (type == "MJPG")
+        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('M','J','P','G');
+//    else if (type == "uncompressed" || type == "None")
+//        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('D','I','B',' ');
+    else if (type == "MJ2C")
+        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('M','J','2','C');
+    else if (type == "XVID")
+        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('X','V','I','D');
+    else if (type == "FFV1")
+        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('F','F','V','1');
+//    else if (type == "LAGS")
+//        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('L','A',G','S');
+    else
+        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('F','F','V','1');
+
+    qDebug() << name << type << dataCompressionFourCC[name];
+
+//    cv::VideoWriter test;
+//    test.open("hi.avi",-1,30,cv::Size(100,100));
+
 }
 
 QJsonDocument DataSaver::constructBaseDirectoryMetaData()

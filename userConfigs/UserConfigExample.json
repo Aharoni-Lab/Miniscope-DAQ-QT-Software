@@ -30,8 +30,8 @@
                 "imageRegistration": "Off",
                 "streamHeadOrientation": true,
                 "deviceID": 1,
-                "compressionOptions": ["None","MJPG"],
-                "compression": "Not implemented yet",
+                "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
+                "compression": "FFV1",
                 "framesPerFile": 1000,
                 "windowScale": 0.75,
                 "windowX": 800,
@@ -42,26 +42,14 @@
                 "frameRate": "30FPS"
             }
         ],
-        "cameras2": [
+        "cameras": [
             {
                 "deviceName": "BehavCam 0",
                 "deviceType": "WebCam",
                 "deviceID": 0,
                 "cameraCalibrationFileLocation": "",
-                "compressionOptions": ["None","MJPG"],
-                "compression": "Not implemented yet",
-                "framesPerFile": 1000,
-                "windowScale": 0.75,
-                "windowX": 800,
-                "windowY": 600
-            },
-            {
-                "deviceName": "BehavCam 1",
-                "deviceType": "WebCam",
-                "deviceID": 1,
-                "cameraCalibrationFileLocation": "",
-                "compressionOptions": ["None","MJPG"],
-                "compression": "Not implemented yet",
+                "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
+                "compression": "FFV1",
                 "framesPerFile": 1000,
                 "windowScale": 0.75,
                 "windowX": 800,

@@ -18,7 +18,7 @@
 #include "datasaver.h"
 #include "behaviortracker.h"
 
-#define DEBUG
+//#define DEBUG
 
 backEnd::backEnd(QObject *parent) :
     QObject(parent),
@@ -162,6 +162,7 @@ void backEnd::setupDataSaver()
 //    dataSaver->startRecording();
 
     for (int i = 0; i < miniscope.length(); i++) {
+        dataSaver->setDataCompression(miniscope[i]->getDeviceName(), miniscope[i]->getCompressionType());
         dataSaver->setFrameBufferParameters(miniscope[i]->getDeviceName(),
                                             miniscope[i]->getFrameBufferPointer(),
                                             miniscope[i]->getTimeStampBufferPointer(),
@@ -174,6 +175,7 @@ void backEnd::setupDataSaver()
         dataSaver->setHeadOrientationStreamingState(miniscope[i]->getDeviceName(), miniscope[i]->getHeadOrienataionStreamState());
     }
     for (int i = 0; i < behavCam.length(); i++) {
+        dataSaver->setDataCompression(behavCam[i]->getDeviceName(), behavCam[i]->getCompressionType());
         dataSaver->setFrameBufferParameters(behavCam[i]->getDeviceName(),
                                             behavCam[i]->getFrameBufferPointer(),
                                             behavCam[i]->getTimeStampBufferPointer(),

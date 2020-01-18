@@ -30,8 +30,8 @@ VideoStreamOCV::~VideoStreamOCV() {
 int VideoStreamOCV::connect2Camera(int cameraID) {
     m_cameraID = cameraID;
     cam = new cv::VideoCapture;
-    cam->open(m_cameraID);
-//    qDebug() <<  "Camera capture backend is" << QString::fromStdString (cam->getBackendName());
+    cam->open(m_cameraID, cv::CAP_DSHOW);
+    qDebug() <<  "Camera capture backend is" << QString::fromStdString (cam->getBackendName());
     return cam->isOpened();
 
 
@@ -56,7 +56,7 @@ void VideoStreamOCV::startStream()
     int idx = 0;
     int daqFrameNumOffset = 0;
 //    float heading, pitch, roll;
-    double w, x, y, z, norm;
+    double w, x, y, z;
     cv::Mat frame;
 
     m_stopStreaming = false;
