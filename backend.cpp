@@ -9,6 +9,8 @@
 #include <QThread>
 #include <QObject>
 #include <QVariant>
+#include <QDir>
+#include <QVector>
 
 #include "miniscope.h"
 #include "behaviorcam.h"
@@ -24,9 +26,12 @@ backEnd::backEnd(QObject *parent) :
     behavTracker(nullptr)
 {
 #ifdef DEBUG
-    m_userConfigFileName = ":/userConfigs/UserConfigExample.json";
-    loadUserConfigFile();
-    setUserConfigOK(true);
+//    QString homePath = QDir::homePath();
+    m_userConfigFileName = "./userConfigs/UserConfigExample.json";
+//    loadUserConfigFile();
+    handleUserConfigFileNameChanged();
+
+//    setUserConfigOK(true);
 #endif
 
 //    m_userConfigOK = false;
@@ -44,6 +49,7 @@ backEnd::backEnd(QObject *parent) :
     ucBehaviorTracker["type"] = "None";
 
     dataSaver = new DataSaver();
+//    QObject::connect(this, SIGNAL (userConfigFileNameChanged()), this, SLOT( handleUserConfigFileNameChanged() ));
 }
 
 void backEnd::setUserConfigFileName(const QString &input)
@@ -53,7 +59,7 @@ void backEnd::setUserConfigFileName(const QString &input)
         //emit userConfigFileNameChanged();
     }
 
-    loadUserConfigFile();
+    handleUserConfigFileNameChanged();
 }
 
 void backEnd::setUserConfigDisplay(const QString &input)
@@ -80,9 +86,8 @@ void backEnd::loadUserConfigFile()
 void backEnd::onRunClicked()
 {
 //    qDebug() << "Run was clicked!";
-    m_userConfigOK = checkUserConfigForIssues();
+
     if (m_userConfigOK) {
-        parseUserConfig();
 
         constructUserConfigGUI();
 
@@ -106,6 +111,13 @@ void backEnd::exitClicked()
     // TODO: Do other exit stuff such as stop recording???
     emit closeAll();
 
+}
+
+void backEnd::handleUserConfigFileNameChanged()
+{
+    loadUserConfigFile();
+    parseUserConfig();
+    checkUserConfigForIssues();
 }
 
 void backEnd::connectSnS()
@@ -185,7 +197,17 @@ void backEnd::setupDataSaver()
 
 bool backEnd::checkUserConfigForIssues()
 {
-    // TODO: check user config for issues
+    if (checkForUniqueDeviceNames() == false) {
+        // Need to tell user that user config has error(s)
+        setUserConfigOK(false);
+        userConfigOKChanged();
+        showErrorMessage();
+    }
+    else {
+        setUserConfigOK(true);
+        userConfigOKChanged();
+    }
+    // TODO: make return do something or remove
     return true;
 }
 
@@ -205,6 +227,8 @@ void backEnd::parseUserConfig()
     ucMiniscopes = devices["miniscopes"].toArray();
     ucBehaviorCams = devices["cameras"].toArray();
     ucBehaviorTracker = m_userConfig["behaviorTracker"].toObject();
+
+
 }
 
 void backEnd::setupBehaviorTracker()
@@ -214,6 +238,39 @@ void backEnd::setupBehaviorTracker()
                                                      behavCam[i]->getFrameBufferPointer(),
                                                      behavCam[i]->getBufferSize(),
                                                      behavCam[i]->getAcqFrameNumPointer());
+    }
+}
+
+bool backEnd::checkForUniqueDeviceNames()
+{
+    bool repeatingDeviceName = false;
+    QString tempName;
+    QVector<QString> deviceNames;
+    for (int i = 0; i < ucMiniscopes.size(); i++) {
+        tempName = ucMiniscopes[i].toObject()["deviceName"].toString();
+        if (!deviceNames.contains(tempName))
+            deviceNames.append(tempName);
+        else {
+            repeatingDeviceName = true;
+            break;
+        }
+    }
+    for (int i = 0; i < ucBehaviorCams.size(); i++) {
+        tempName = ucBehaviorCams[i].toObject()["deviceName"].toString();
+        if (!deviceNames.contains(tempName))
+            deviceNames.append(tempName);
+        else {
+            repeatingDeviceName = true;
+            break;
+        }
+    }
+
+    if (repeatingDeviceName == true) {
+        qDebug() << "Repeating Device Names!";
+        return false;
+    }
+    else {
+        return true;
     }
 }
 

@@ -40,16 +40,20 @@ public:
 
     void setupBehaviorTracker();
 
+    bool checkForUniqueDeviceNames();
+
 signals:
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();
     void userConfigOKChanged();
     void closeAll();
+    void showErrorMessage();
 
 public slots:
     void onRunClicked();
     void onRecordClicked();
     void exitClicked();
+    void handleUserConfigFileNameChanged();
 //    void onStopClicked();
 
 private:

@@ -101,7 +101,7 @@ void VideoDisplayRenderer::paint()
         m_program->bindAttributeLocation("texcoord", 1);
         m_program->link();
 
-        m_texture = new QOpenGLTexture(QImage(":/img/MiniscopeLogo.png"));
+        m_texture = new QOpenGLTexture(QImage(":/img/MiniscopeLogo.png").rgbSwapped());
         m_texture->bind(0);
 
 

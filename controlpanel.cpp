@@ -105,7 +105,7 @@ void ControlPanel::recordTimerTick()
 {
     currentRecordTime++;
     rootObject->setProperty("currentRecordTime", currentRecordTime);
-    if (currentRecordTime >= m_ucRecordLengthinSeconds) {
+    if (currentRecordTime >= m_ucRecordLengthinSeconds && m_ucRecordLengthinSeconds != 0) {
         recordTimer->stop();
         recordStop();
         receiveMessage("Recording Stopped.");

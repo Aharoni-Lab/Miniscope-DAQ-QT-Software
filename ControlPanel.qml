@@ -159,7 +159,7 @@ Item {
 //            Layout.preferredHeight: 40
             Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             Layout.fillWidth: true
-            value: root.currentRecordTime/root.ucRecordLength
+            value: (root.ucRecordLength > 0) ? root.currentRecordTime/root.ucRecordLength : 1
             from: 0
             to:1
             Layout.columnSpan: 1
@@ -169,7 +169,7 @@ Item {
             id: recordTimeText
             objectName: "recordTimeText"
 
-            text: root.currentRecordTime.toString() + "/" + root.ucRecordLength.toString() + "s"
+            text: (root.ucRecordLength > 0) ? root.currentRecordTime.toString() + "/" + root.ucRecordLength.toString() + "s" : root.currentRecordTime.toString() + "s"
             Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             font.pointSize: 12
             font.family: "Arial"

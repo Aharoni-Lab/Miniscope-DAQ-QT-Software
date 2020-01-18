@@ -95,7 +95,8 @@ void Miniscope::createView()
 
     // Setup Miniscope window
     // TODO: Check deviceType and log correct qml file
-    const QUrl url("qrc:/" + m_deviceType + ".qml");
+//    const QUrl url("qrc:/" + m_deviceType + ".qml");
+    const QUrl url(m_cMiniscopes["qmlFile"].toString());
     view = new NewQuickView(url);
 
     view->setWidth(m_cMiniscopes["width"].toInt() * m_ucMiniscope["windowScale"].toDouble(1));
@@ -186,7 +187,8 @@ void Miniscope::getMiniscopeConfig(QString deviceType) {
     QString jsonFile;
     QFile file;
     m_deviceType = deviceType;
-    file.setFileName(":/deviceConfigs/miniscopes.json");
+//    file.setFileName(":/deviceConfigs/miniscopes.json");
+    file.setFileName("./deviceConfigs/miniscopes.json");
     file.open(QIODevice::ReadOnly | QIODevice::Text);
     jsonFile = file.readAll();
     file.close();

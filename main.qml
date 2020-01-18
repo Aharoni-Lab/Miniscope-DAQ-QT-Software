@@ -7,8 +7,8 @@ import QtQuick.Dialogs 1.2
 Window {
     id: root
     visible: true
-    width: 320
-    height: 480
+    width: 480
+    height: 640
     color: "#afafaf"
     title: qsTr("Miniscope DAQ")
 
@@ -16,8 +16,9 @@ Window {
         // Used to select user config file
 
         id: fileDialog
-        title: "Please choose a file"
+        title: "Please choose a user configuration file."
         folder: shortcuts.home
+        nameFilters: [ "JSON files (*.json)", "All files (*)" ]
         onAccepted: {
             // Remove "file:///" from selected file name
             var path = fileDialog.fileUrl.toString();
@@ -26,13 +27,14 @@ Window {
 
             // Send file name to c++ backend
             backend.userConfigFileName = path
-            rbRun.enabled = true
+//            rbRun.enabled = true
         }
         onRejected: {
             console.log("Canceled")
         }
         visible: false
     }
+
 
     Window {
         id: helpDialog
@@ -48,7 +50,7 @@ Window {
                       "Developed by the <a href='https://aharoni-lab.github.io/'>Aharoni Lab</a>, UCLA <br/> " +
                       "Overview of the UCLA Miniscope project: <a href='http://www.miniscope.org'>click here</a> <br/>" +
                       "Miniscope Discussion Board: <a href='https://groups.google.com/d/forum/miniscope'>click here</a> <br/>" +
-                      "Miniscope Github Repositories: <a href='https://github.com/Aharoni-Lab'>click here</a> <br/>" +
+                      "Please submit issues, comments, suggestions to the Miniscope DAQ Software Github Repositories: <a href='https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software'>click here</a> <br/>" +
                       "Miniscope Twitter Link: <a href='https://twitter.com/MiniscopeTeam'>click here</a>"
                 verticalAlignment: Text.AlignVCenter
                 horizontalAlignment: Text.AlignHCenter
@@ -83,6 +85,17 @@ Window {
             }
         }
     }
+
+    MessageDialog {
+        id: errorMessageDialog
+        title: "User Config File Error"
+        text: "The selected user configuration file contains device name repeats. Please edit the file the so each 'deviceName' entry is unique."
+        onAccepted: {
+            visible = false
+        }
+        visible: false
+    }
+
 
     ColumnLayout {
         id: columnLayout
@@ -126,12 +139,15 @@ Window {
             Layout.preferredHeight: 80
             Layout.fillHeight: true
             Layout.rowSpan: 4
+            ScrollBar.horizontal.interactive: true
+            ScrollBar.vertical.interactive: true
 
             TextArea {
                 id: taConfigDesc
                 text: backend.userConfigDisplay
-                wrapMode: Text.WrapAnywhere
-//                anchors.fill: parent
+                wrapMode: Text.NoWrap
+                //                wrapMode: Text.WrapAnywhere
+                //                anchors.fill: parent
                 font.pointSize: 12
                 background: Rectangle {
                     radius: rbSelectUserConfig.radius
@@ -225,6 +241,10 @@ Window {
             }
         }
 
+    }
+    Connections{
+        target: backend
+        onShowErrorMessage: errorMessageDialog.visible = true
     }
 }
 

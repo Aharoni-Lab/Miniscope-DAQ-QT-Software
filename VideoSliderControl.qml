@@ -14,7 +14,7 @@ Item {
     property double min: 0.0
     property double max: 100.0
     property double stepSize: 1.0
-    property double startValue: -1000.23948
+    property double startValue: -1000.23948 // just start with a value that will definitely be different than initialize value. This way onValueChanged will be called
     property double displayValueScale: 1
     property double displayValueOffset: 0
     property double displayRotation: 0
