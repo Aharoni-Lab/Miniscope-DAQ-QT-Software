@@ -205,11 +205,13 @@ void DataSaver::startRecording()
         csvFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/timeStamps.csv");
         csvFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
         csvStream[keys[i]] = new QTextStream(csvFile[keys[i]]);
+        *csvStream[keys[i]] << "Frame Number\tTime Stamp\tBuffer Index" << endl;
 
         if (streamHeadOrientationState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr) {
             headOriFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/headOrientation.csv");
             headOriFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
             headOriStream[keys[i]] = new QTextStream(headOriFile[keys[i]]);
+            *headOriStream[keys[i]] << "qw\tqx\tqy\tqz" << endl;
         }
         // TODO: Remember to close files on exit or stop recording signal
 

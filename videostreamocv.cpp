@@ -69,6 +69,11 @@ void VideoStreamOCV::startStream()
                 m_isStreaming = false;
                 break;
             }
+            if (freeFrames->available() == 0) {
+                // Buffers are full!
+                sendMessage("Warning: " + m_deviceName + " frame buffer is full. Frames will be lost!");
+            }
+
             if(freeFrames->tryAcquire(1,20)) {
                 if (!cam->grab()) {
                     sendMessage("Warning: " + m_deviceName + " grab frame failed.");
@@ -126,6 +131,7 @@ void VideoStreamOCV::startStream()
 //                        qDebug() << *m_acqFrameNum << *daqFrameNum;
                         idx++;
                         usedFrames->release();
+
                         emit newFrameAvailable(m_deviceName, *m_acqFrameNum);
                     }
                 }
