@@ -175,6 +175,15 @@ Item {
             font.family: "Arial"
         }
     }
+    Connections{
+        target: root
+        onCurrentRecordTimeChanged: {
+            if (root.currentRecordTime >= root.ucRecordLength) {
+                bStop.enabled = false;
+                bRecord.enabled = true;
+            }
+        }
+    }
 }
 
 
