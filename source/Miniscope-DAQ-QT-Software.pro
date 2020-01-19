@@ -80,3 +80,15 @@ else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../../../../../../op
 
 INCLUDEPATH += $$PWD/../../../../../../../opencv-build420/install/include
 DEPENDPATH += $$PWD/../../../../../../../opencv-build420/install/include
+
+
+# Move user and device configs to build directory
+copydata.commands = $(COPY_DIR) \"$$shell_path($$PWD\\..\\deviceConfigs)\" \"$$shell_path($$OUT_PWD\\deviceConfigs)\"
+copydata2.commands = $(COPY_DIR) \"$$shell_path($$PWD\\..\\userConfigs)\" \"$$shell_path($$OUT_PWD\\userConfigs)\"
+first.depends = $(first) copydata copydata2
+export(first.depends)
+export(copydata.commands)
+export(copydata2.commands)
+
+QMAKE_EXTRA_TARGETS += first copydata copydata2
+
