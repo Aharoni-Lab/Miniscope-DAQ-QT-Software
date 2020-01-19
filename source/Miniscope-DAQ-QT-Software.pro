@@ -75,8 +75,8 @@ HEADERS += \
 DISTFILES +=
 
 
-win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420
-else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420d
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420d
 
-INCLUDEPATH += $$PWD/../../../../../../opencv-build420/install/include
-DEPENDPATH += $$PWD/../../../../../../opencv-build420/install/include
+INCLUDEPATH += $$PWD/../../../../../../../opencv-build420/install/include
+DEPENDPATH += $$PWD/../../../../../../../opencv-build420/install/include

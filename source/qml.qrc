@@ -9,9 +9,7 @@
         <file>img/icon/ewl.ico</file>
         <file>img/icon/led.ico</file>
         <file>TopMenu.qml</file>
-        <file>deviceConfigs/miniscopes.json</file>
         <file>img/MiniscopeLogo.png</file>
-        <file>userConfigs/UserConfigExample.json</file>
         <file>shaders/imageBasic.vert</file>
         <file>shaders/imageSaturationScaling.frag</file>
         <file>VideoSpinBoxControl.qml</file>
@@ -23,7 +21,6 @@
         <file>BNODisplay.qml</file>
         <file>img/Miniscope_Logo_BNO.png</file>
         <file>Miniscope_V4_BNO.qml</file>
-        <file>deviceConfigs/behaviorCams.json</file>
         <file>behaviorTracker.qml</file>
         <file>img/icon/alpha.png</file>
         <file>img/icon/beta.png</file>
