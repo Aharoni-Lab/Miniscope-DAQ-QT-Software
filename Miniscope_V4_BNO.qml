@@ -161,7 +161,7 @@ Item {
             objectName: "led0"
             max: 100
             startValue: 0
-            iconPath: "img/icon/led.ico"
+            iconPath: "img/icon/led.png"
             textColor: "blue"
         }
 
@@ -170,19 +170,19 @@ Item {
             objectName: "ewl"
             max: 100
             startValue: 10
-            iconPath: "img/icon/ewl.ico"
+            iconPath: "img/icon/ewl.png"
             textColor: "black"
         }
 
         VideoSpinBoxControl{
             id: frameRate
             objectName: "frameRate"
-            iconPath: "img/icon/exposure.ico"
+            iconPath: "img/icon/fps.png"
         }
         VideoSpinBoxControl{
             id: gain
             objectName: "gain"
-            iconPath: "img/icon/gain.ico"
+            iconPath: "img/icon/gain.png"
         }
         ToolSeparator {
             id: toolSeparator
@@ -190,7 +190,7 @@ Item {
         VideoSliderControl{
             id: alpha
             objectName: "alpha"
-            iconPath: "img/icon/alpha.ico"
+            iconPath: "img/icon/alpha.png"
             startValue: 1
             min: 0
             max: 1
@@ -200,7 +200,7 @@ Item {
         VideoSliderControl{
             id: beta
             objectName: "beta"
-            iconPath: "img/icon/beta.ico"
+            iconPath: "img/icon/beta.png"
             startValue: 0
             min: 0
             max: 1

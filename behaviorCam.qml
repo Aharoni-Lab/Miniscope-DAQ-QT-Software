@@ -139,7 +139,7 @@ Item {
         VideoSliderControl{
             id: alpha
             objectName: "alpha"
-            iconPath: "img/icon/alpha.ico"
+            iconPath: "img/icon/alpha.png"
             startValue: 1
             min: 0
             max: 1
@@ -149,7 +149,7 @@ Item {
         VideoSliderControl{
             id: beta
             objectName: "beta"
-            iconPath: "img/icon/beta.ico"
+            iconPath: "img/icon/beta.png"
             startValue: 0
             min: 0
             max: 1

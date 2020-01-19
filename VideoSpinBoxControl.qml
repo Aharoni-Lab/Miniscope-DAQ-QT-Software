@@ -5,7 +5,7 @@ import QtQuick.Controls.Styles 1.4
 
 Item {
     id:root
-    height:32
+    height:24
     x: 0
     y: 0
     width: spinBox.width + icon.width + textValue.width + 20
@@ -58,7 +58,7 @@ Item {
     SpinBox {
         id: spinBox
         width: 200
-        height: 32
+        height: 24
         font.family: "Arial"
         font.pointSize: 12
         font.bold: true
@@ -101,12 +101,12 @@ Item {
     Image {
         id: icon
         height: root.height
-        sourceSize.height: 32
-        sourceSize.width: 32
+        sourceSize.height: 24
+        sourceSize.width: 24
         anchors.left: textValue.right
         anchors.leftMargin: 10
         anchors.verticalCenter: parent.verticalCenter
-        width:32
+        width:24
 
         fillMode: Image.PreserveAspectFit
         source: root.iconPath

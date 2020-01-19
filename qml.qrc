@@ -25,5 +25,11 @@
         <file>Miniscope_V4_BNO.qml</file>
         <file>deviceConfigs/behaviorCams.json</file>
         <file>behaviorTracker.qml</file>
+        <file>img/icon/alpha.png</file>
+        <file>img/icon/beta.png</file>
+        <file>img/icon/ewl.png</file>
+        <file>img/icon/fps.png</file>
+        <file>img/icon/gain.png</file>
+        <file>img/icon/led.png</file>
     </qresource>
 </RCC>

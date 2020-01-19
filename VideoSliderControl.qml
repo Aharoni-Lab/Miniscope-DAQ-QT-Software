@@ -4,7 +4,7 @@ import QtQuick.Layouts 1.12
 
 Item {
     id:root
-    height:32
+    height:24
     x: 0
     y: 0
     width: slider.width + icon.width + textValue.width + 20
@@ -94,12 +94,12 @@ Item {
     Image {
         id: icon
         height: root.height
-        sourceSize.height: 32
-        sourceSize.width: 32
+        sourceSize.height: 24
+        sourceSize.width: 24
         anchors.left: textValue.right
         anchors.leftMargin: 10
         anchors.verticalCenter: parent.verticalCenter
-        width:32
+        width:24
 
         fillMode: Image.PreserveAspectFit
         source: root.iconPath
