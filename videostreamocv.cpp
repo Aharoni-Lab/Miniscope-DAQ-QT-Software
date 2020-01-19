@@ -71,7 +71,7 @@ void VideoStreamOCV::startStream()
             }
             if (freeFrames->available() == 0) {
                 // Buffers are full!
-                sendMessage("Warning: " + m_deviceName + " frame buffer is full. Frames will be lost!");
+                sendMessage("Error: " + m_deviceName + " frame buffer is full. Frames will be lost!");
             }
 
             if(freeFrames->tryAcquire(1,20)) {

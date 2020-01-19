@@ -181,7 +181,7 @@ void DataSaver::startRecording()
     // For Miniscopes
     for (int i = 0; i < m_userConfig["devices"].toObject()["miniscopes"].toArray().size(); i++) {
         deviceName = m_userConfig["devices"].toObject()["miniscopes"].toArray()[i].toObject()["deviceName"].toString();
-        jDoc = constructMiniscopeMetaData(i);
+        jDoc = constructDeviceMetaData("miniscopes",i);
         saveJson(jDoc, deviceDirectory[deviceName] + "/metaData.json");
 
         // Get user config frames per file
@@ -190,7 +190,7 @@ void DataSaver::startRecording()
     // For Cameras
     for (int i = 0; i < m_userConfig["devices"].toObject()["cameras"].toArray().size(); i++) {
         deviceName = m_userConfig["devices"].toObject()["cameras"].toArray()[i].toObject()["deviceName"].toString();
-        jDoc = constructMiniscopeMetaData(i);
+        jDoc = constructDeviceMetaData("cameras", i);
         saveJson(jDoc, deviceDirectory[deviceName] + "/metaData.json");
 
         // Get user config frames per file
@@ -205,7 +205,7 @@ void DataSaver::startRecording()
         csvFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/timeStamps.csv");
         csvFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
         csvStream[keys[i]] = new QTextStream(csvFile[keys[i]]);
-        *csvStream[keys[i]] << "Frame Number\tTime Stamp\tBuffer Index" << endl;
+        *csvStream[keys[i]] << "Frame Number\tTime Stamp (ms)\tBuffer Index" << endl;
 
         if (streamHeadOrientationState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr) {
             headOriFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/headOrientation.csv");
@@ -350,19 +350,20 @@ QJsonDocument DataSaver::constructBaseDirectoryMetaData()
     return jDoc;
 }
 
-QJsonDocument DataSaver::constructMiniscopeMetaData(int idx)
+QJsonDocument DataSaver::constructDeviceMetaData(QString type, int idx)
 {
     QJsonObject metaData;
     QJsonDocument jDoc;
 
-    QJsonObject miniscope = m_userConfig["devices"].toObject()["miniscopes"].toArray()[idx].toObject();
-    QString deviceName = miniscope["deviceName"].toString();
+    QJsonObject deviceObj = m_userConfig["devices"].toObject()[type].toArray()[idx].toObject();
+    QString deviceName = deviceObj["deviceName"].toString();
 
     metaData["deviceName"] = deviceName;
-    metaData["deviceType"] = miniscope["deviceType"].toString();
-    metaData["deviceID"] = miniscope["deviceID"].toInt();
+    metaData["deviceType"] = deviceObj["deviceType"].toString();
+    metaData["deviceID"] = deviceObj["deviceID"].toInt();
     metaData["deviceDirectory"] = deviceDirectory[deviceName];
-    metaData["framesPerFile"] = miniscope["framesPerFile"].toInt(1000);
+    metaData["framesPerFile"] = deviceObj["framesPerFile"].toInt(1000);
+    metaData["compression"] = deviceObj["compression"].toString("FFV1");
 
     // loop through device properties at the start of recording
     QStringList keys = deviceProperties[deviceName].keys();
