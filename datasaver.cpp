@@ -141,15 +141,15 @@ void DataSaver::startRunning()
 
                     }
                     bufPosition = frameCount[names[i]] % bufferSize[names[i]];
-                    *csvStream[names[i]] << savedFrameCount[names[i]] << "\t"
-                                         << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << "\t"
+                    *csvStream[names[i]] << savedFrameCount[names[i]] << ","
+                                         << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << ","
                                          << usedCount[names[i]]->available() << endl;
 
                     if (streamHeadOrientationState[names[i]] == true && bnoBuffer[names[i]] != nullptr) {
-                        *headOriStream[names[i]] << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << "\t"
-                                                 << bnoBuffer[names[i]][bufPosition*4 + 0] << "\t"
-                                                 << bnoBuffer[names[i]][bufPosition*4 + 1] << "\t"
-                                                 << bnoBuffer[names[i]][bufPosition*4 + 2] << "\t"
+                        *headOriStream[names[i]] << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << ","
+                                                 << bnoBuffer[names[i]][bufPosition*4 + 0] << ","
+                                                 << bnoBuffer[names[i]][bufPosition*4 + 1] << ","
+                                                 << bnoBuffer[names[i]][bufPosition*4 + 2] << ","
                                                  << bnoBuffer[names[i]][bufPosition*4 + 3] << endl;
 
                     }
@@ -205,13 +205,13 @@ void DataSaver::startRecording()
         csvFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/timeStamps.csv");
         csvFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
         csvStream[keys[i]] = new QTextStream(csvFile[keys[i]]);
-        *csvStream[keys[i]] << "Frame Number\tTime Stamp (ms)\tBuffer Index" << endl;
+        *csvStream[keys[i]] << "Frame Number,Time Stamp (ms),Buffer Index" << endl;
 
         if (streamHeadOrientationState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr) {
             headOriFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/headOrientation.csv");
             headOriFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
             headOriStream[keys[i]] = new QTextStream(headOriFile[keys[i]]);
-            *headOriStream[keys[i]] << "qw\tqx\tqy\tqz" << endl;
+            *headOriStream[keys[i]] << "qw,qx,qy,qz" << endl;
         }
         // TODO: Remember to close files on exit or stop recording signal
 
@@ -287,7 +287,7 @@ void DataSaver::takeNote(QString note)
     // Writes note to file submitted through control panel
     // Only write notes when recording
     if (m_recording) {
-        *noteStream << QDateTime().currentMSecsSinceEpoch() - recordStartDateTime.toMSecsSinceEpoch() << "\t" << note << endl;
+        *noteStream << QDateTime().currentMSecsSinceEpoch() - recordStartDateTime.toMSecsSinceEpoch() << "," << note << endl;
     }
 }
 
