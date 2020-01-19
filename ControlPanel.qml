@@ -67,7 +67,7 @@ Item {
                  id: messageTextArea
                  objectName: "messageTextArea"
                  textFormat: TextEdit.RichText
-                 text: "'Space Bar': screenshot of video stream.\n'h': hides/shows video stream controls.\nMessages:\n"
+                 text: "'Space Bar': screenshot of video stream.<br/>'h': hides/shows video stream controls.<br/>Messages:"
  //                wrapMode: Text.WrapAnywhere
                  anchors.fill: parent
                  font.pointSize: 12

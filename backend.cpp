@@ -132,8 +132,7 @@ void backEnd::connectSnS()
     QObject::connect(dataSaver, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
 
     for (int i = 0; i < miniscope.length(); i++) {
-        // Connect send and receive message to textbox in controlPanel
-        QObject::connect(miniscope[i], SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+
 
         // For triggering screenshots
         QObject::connect(miniscope[i], SIGNAL(takeScreenShot(QString)), dataSaver, SLOT( takeScreenShot(QString)));
@@ -279,12 +278,20 @@ bool backEnd::checkForUniqueDeviceNames()
 void backEnd::constructUserConfigGUI()
 {
     int idx;
+
+    // Load main control GUI
+    controlPanel = new ControlPanel(this, m_userConfig);
+
     for (idx = 0; idx < ucMiniscopes.size(); idx++) {
         miniscope.append(new Miniscope(this, ucMiniscopes[idx].toObject()));
         QObject::connect(miniscope.last(),
                          SIGNAL (onPropertyChanged(QString, QString, QVariant)),
                          dataSaver,
                          SLOT (devicePropertyChanged(QString, QString, QVariant)));
+
+        // Connect send and receive message to textbox in controlPanel
+        QObject::connect(miniscope.last(), SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+
         miniscope.last()->createView();
     }
     for (idx = 0; idx < ucBehaviorCams.size(); idx++) {
@@ -293,6 +300,10 @@ void backEnd::constructUserConfigGUI()
                          SIGNAL (onPropertyChanged(QString, QString, QVariant)),
                          dataSaver,
                          SLOT (devicePropertyChanged(QString, QString, QVariant)));
+
+        // Connect send and receive message to textbox in controlPanel
+        QObject::connect(behavCam.last(), SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+
         behavCam.last()->createView();
     }
     if (!ucExperiment.isEmpty()){
@@ -302,8 +313,7 @@ void backEnd::constructUserConfigGUI()
         behavTracker = new BehaviorTracker(this, m_userConfig);
         setupBehaviorTracker();
     }
-    // Load main control GUI
-    controlPanel = new ControlPanel(this, m_userConfig);
+
 
     connectSnS();
 }

@@ -17,6 +17,7 @@
 
 Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     QObject(parent),
+    m_camConnected(false),
     miniscopeStream(0),
     rootObject(0),
     vidDisplay(0),
@@ -49,84 +50,92 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     miniscopeStream->setStreamHeadOrientation(m_streamHeadOrientationState);
     miniscopeStream->setIsColor(m_cMiniscopes["isColor"].toBool(false));
 
-    if (!miniscopeStream->connect2Camera(m_ucMiniscope["deviceID"].toInt()))
+    m_camConnected = miniscopeStream->connect2Camera(m_ucMiniscope["deviceID"].toInt());
+    if (!m_camConnected) {
         qDebug() << "Not able to connect and open " << m_ucMiniscope["deviceName"].toString();
+    }
+    else {
+        miniscopeStream->setBufferParameters(frameBuffer,
+                                             timeStampBuffer,
+                                             bnoBuffer,
+                                             FRAME_BUFFER_SIZE,
+                                             freeFrames,
+                                             usedFrames,
+                                             m_acqFrameNum,
+                                             m_daqFrameNum);
 
-    miniscopeStream->setBufferParameters(frameBuffer,
-                                         timeStampBuffer,
-                                         bnoBuffer,
-                                         FRAME_BUFFER_SIZE,
-                                         freeFrames,
-                                         usedFrames,
-                                         m_acqFrameNum,
-                                         m_daqFrameNum);
 
+        // -----------------
 
-    // -----------------
+        // Threading and connections for thread stuff
+        videoStreamThread = new QThread;
+        miniscopeStream->moveToThread(videoStreamThread);
 
-    // Threading and connections for thread stuff
-    videoStreamThread = new QThread;
-    miniscopeStream->moveToThread(videoStreamThread);
+    //    QObject::connect(miniscopeStream, SIGNAL (error(QString)), this, SLOT (errorString(QString)));
+        QObject::connect(videoStreamThread, SIGNAL (started()), miniscopeStream, SLOT (startStream()));
+    //    QObject::connect(miniscopeStream, SIGNAL (finished()), videoStreamThread, SLOT (quit()));
+    //    QObject::connect(miniscopeStream, SIGNAL (finished()), miniscopeStream, SLOT (deleteLater()));
+        QObject::connect(videoStreamThread, SIGNAL (finished()), videoStreamThread, SLOT (deleteLater()));
 
-//    QObject::connect(miniscopeStream, SIGNAL (error(QString)), this, SLOT (errorString(QString)));
-    QObject::connect(videoStreamThread, SIGNAL (started()), miniscopeStream, SLOT (startStream()));
-//    QObject::connect(miniscopeStream, SIGNAL (finished()), videoStreamThread, SLOT (quit()));
-//    QObject::connect(miniscopeStream, SIGNAL (finished()), miniscopeStream, SLOT (deleteLater()));
-    QObject::connect(videoStreamThread, SIGNAL (finished()), videoStreamThread, SLOT (deleteLater()));
+        // Pass send message signal through
+        QObject::connect(miniscopeStream, &VideoStreamOCV::sendMessage, this, &Miniscope::sendMessage);
+        // ----------------------------------------------
 
-    // Pass send message signal through
-    QObject::connect(miniscopeStream, &VideoStreamOCV::sendMessage, this, &Miniscope::sendMessage);
-    // ----------------------------------------------
+    //    createView();
+        connectSnS();
 
-//    createView();
-    connectSnS();
+        sendInitCommands();
 
-    sendInitCommands();
+        videoStreamThread->start();
 
-    videoStreamThread->start();
-
-    // Short sleep to make i2c initialize commands be sent before loading in user config controls
-    QThread::msleep(500);
+        // Short sleep to make i2c initialize commands be sent before loading in user config controls
+        QThread::msleep(500);
+    }
 }
 
 void Miniscope::createView()
 {
-    qmlRegisterType<VideoDisplay>("VideoDisplay", 1, 0, "VideoDisplay");
+    if (m_camConnected) {
+        qmlRegisterType<VideoDisplay>("VideoDisplay", 1, 0, "VideoDisplay");
 
-    // Setup Miniscope window
-    // TODO: Check deviceType and log correct qml file
-//    const QUrl url("qrc:/" + m_deviceType + ".qml");
-    const QUrl url(m_cMiniscopes["qmlFile"].toString());
-    view = new NewQuickView(url);
+        // Setup Miniscope window
+        // TODO: Check deviceType and log correct qml file
+    //    const QUrl url("qrc:/" + m_deviceType + ".qml");
+        const QUrl url(m_cMiniscopes["qmlFile"].toString());
+        view = new NewQuickView(url);
 
-    view->setWidth(m_cMiniscopes["width"].toInt() * m_ucMiniscope["windowScale"].toDouble(1));
-    view->setHeight(m_cMiniscopes["height"].toInt() * m_ucMiniscope["windowScale"].toDouble(1));
+        view->setWidth(m_cMiniscopes["width"].toInt() * m_ucMiniscope["windowScale"].toDouble(1));
+        view->setHeight(m_cMiniscopes["height"].toInt() * m_ucMiniscope["windowScale"].toDouble(1));
 
-    view->setTitle(m_deviceName);
-    view->setX(m_ucMiniscope["windowX"].toInt(1));
-    view->setY(m_ucMiniscope["windowY"].toInt(1));
+        view->setTitle(m_deviceName);
+        view->setX(m_ucMiniscope["windowX"].toInt(1));
+        view->setY(m_ucMiniscope["windowY"].toInt(1));
 
-    view->show();
-    // --------------------
+        view->show();
+        // --------------------
 
-    rootObject = view->rootObject();
+        rootObject = view->rootObject();
 
-    QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
-                         this, SLOT( handleTakeScreenShotSignal() ));
-    QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double) ),
-                         this, SLOT( handlePropChangedSignal(QString, double, double) ));
+        QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
+                             this, SLOT( handleTakeScreenShotSignal() ));
+        QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double) ),
+                             this, SLOT( handlePropChangedSignal(QString, double, double) ));
 
-    configureMiniscopeControls();
-    vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
-    vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
+        configureMiniscopeControls();
+        vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
+        vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
 
-    if (m_streamHeadOrientationState)
-        bnoDisplay = rootObject->findChild<QQuickItem*>("bno");
+        if (m_streamHeadOrientationState)
+            bnoDisplay = rootObject->findChild<QQuickItem*>("bno");
 
+        QObject::connect(view, &NewQuickView::closing, miniscopeStream, &VideoStreamOCV::stopSteam);
+        QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &Miniscope::sendNewFrame);
 
-
-    QObject::connect(view, &NewQuickView::closing, miniscopeStream, &VideoStreamOCV::stopSteam);
-    QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &Miniscope::sendNewFrame);
+        sendMessage(m_deviceName + " is connected.");
+    }
+    else {
+        sendMessage("Error: " + m_deviceName + " cannot connect to camera.");
+    }
 
 }
 
@@ -454,5 +463,6 @@ void Miniscope::handleTakeScreenShotSignal()
 
 void Miniscope::close()
 {
-    view->close();
+    if (m_camConnected)
+        view->close();
 }

@@ -17,6 +17,7 @@
 
 BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucBehavCam) :
     QObject(parent),
+    m_camConnected(false),
     behavCamStream(0),
     rootObject(0),
     vidDisplay(0),
@@ -48,78 +49,88 @@ BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucBehavCam) :
     behavCamStream->setStreamHeadOrientation(m_streamHeadOrientationState);
     behavCamStream->setIsColor(m_cBehavCam["isColor"].toBool(false));
 
-    if (!behavCamStream->connect2Camera(m_ucBehavCam["deviceID"].toInt()))
+    m_camConnected = behavCamStream->connect2Camera(m_ucBehavCam["deviceID"].toInt());
+    if (!m_camConnected) {
         qDebug() << "Not able to connect and open " << m_ucBehavCam["deviceName"].toString();
+    }
+    else {
+        behavCamStream->setBufferParameters(frameBuffer,
+                                             timeStampBuffer,
+                                             nullptr,
+                                             FRAME_BUFFER_SIZE,
+                                             freeFrames,
+                                             usedFrames,
+                                             m_acqFrameNum,
+                                             nullptr);
 
-    behavCamStream->setBufferParameters(frameBuffer,
-                                         timeStampBuffer,
-                                         nullptr,
-                                         FRAME_BUFFER_SIZE,
-                                         freeFrames,
-                                         usedFrames,
-                                         m_acqFrameNum,
-                                         nullptr);
 
+        // -----------------
 
-    // -----------------
+        // Threading and connections for thread stuff
+        videoStreamThread = new QThread;
+        behavCamStream->moveToThread(videoStreamThread);
 
-    // Threading and connections for thread stuff
-    videoStreamThread = new QThread;
-    behavCamStream->moveToThread(videoStreamThread);
+    //    QObject::connect(miniscopeStream, SIGNAL (error(QString)), this, SLOT (errorString(QString)));
+        QObject::connect(videoStreamThread, SIGNAL (started()), behavCamStream, SLOT (startStream()));
+    //    QObject::connect(miniscopeStream, SIGNAL (finished()), videoStreamThread, SLOT (quit()));
+    //    QObject::connect(miniscopeStream, SIGNAL (finished()), miniscopeStream, SLOT (deleteLater()));
+        QObject::connect(videoStreamThread, SIGNAL (finished()), videoStreamThread, SLOT (deleteLater()));
 
-//    QObject::connect(miniscopeStream, SIGNAL (error(QString)), this, SLOT (errorString(QString)));
-    QObject::connect(videoStreamThread, SIGNAL (started()), behavCamStream, SLOT (startStream()));
-//    QObject::connect(miniscopeStream, SIGNAL (finished()), videoStreamThread, SLOT (quit()));
-//    QObject::connect(miniscopeStream, SIGNAL (finished()), miniscopeStream, SLOT (deleteLater()));
-    QObject::connect(videoStreamThread, SIGNAL (finished()), videoStreamThread, SLOT (deleteLater()));
+        // Pass send message signal through
+        QObject::connect(behavCamStream, &VideoStreamOCV::sendMessage, this, &BehaviorCam::sendMessage);
 
-    // Pass send message signal through
-    QObject::connect(behavCamStream, &VideoStreamOCV::sendMessage, this, &BehaviorCam::sendMessage);
+        // Pass new Frame available through to parent
+        QObject::connect(behavCamStream, &VideoStreamOCV::newFrameAvailable, this, &BehaviorCam::newFrameAvailable);
+        // ----------------------------------------------
 
-    // Pass new Frame available through to parent
-    QObject::connect(behavCamStream, &VideoStreamOCV::newFrameAvailable, this, &BehaviorCam::newFrameAvailable);
-    // ----------------------------------------------
+        connectSnS();
 
-    connectSnS();
+    //    sendInitCommands();
 
-//    sendInitCommands();
-
-    videoStreamThread->start();
+        videoStreamThread->start();
+    }
 }
 
 void BehaviorCam::createView()
 {
-    qmlRegisterType<VideoDisplay>("VideoDisplay", 1, 0, "VideoDisplay");
+    if (m_camConnected) {
+        qmlRegisterType<VideoDisplay>("VideoDisplay", 1, 0, "VideoDisplay");
 
-    // Setup Miniscope window
+        // Setup Miniscope window
 
-    // TODO: Check deviceType and log correct qml file
-//    const QUrl url("qrc:/" + m_deviceType + ".qml");
-    const QUrl url("qrc:/behaviorCam.qml");
-    view = new NewQuickView(url);
+        // TODO: Check deviceType and log correct qml file
+    //    const QUrl url("qrc:/" + m_deviceType + ".qml");
+        const QUrl url("qrc:/behaviorCam.qml");
+        view = new NewQuickView(url);
 
-    view->setWidth(m_cBehavCam["width"].toInt() * m_ucBehavCam["windowScale"].toDouble(1));
-    view->setHeight(m_cBehavCam["height"].toInt() * m_ucBehavCam["windowScale"].toDouble(1));
+        view->setWidth(m_cBehavCam["width"].toInt() * m_ucBehavCam["windowScale"].toDouble(1));
+        view->setHeight(m_cBehavCam["height"].toInt() * m_ucBehavCam["windowScale"].toDouble(1));
 
-    view->setTitle(m_deviceName);
-    view->setX(m_ucBehavCam["windowX"].toInt(1));
-    view->setY(m_ucBehavCam["windowY"].toInt(1));
+        view->setTitle(m_deviceName);
+        view->setX(m_ucBehavCam["windowX"].toInt(1));
+        view->setY(m_ucBehavCam["windowY"].toInt(1));
 
-    view->show();
-    // --------------------
+        view->show();
+        // --------------------
 
-    rootObject = view->rootObject();
-    configureBehavCamControls();
-    vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
-    vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
+        rootObject = view->rootObject();
+        configureBehavCamControls();
+        vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
+        vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
 
-    QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
-                         this, SLOT( handleTakeScreenShotSignal() ));
-    QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double) ),
-                         this, SLOT( handlePropCangedSignal(QString, double, double) ));
+        QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
+                             this, SLOT( handleTakeScreenShotSignal() ));
+        QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double) ),
+                             this, SLOT( handlePropCangedSignal(QString, double, double) ));
 
-    QObject::connect(view, &NewQuickView::closing, behavCamStream, &VideoStreamOCV::stopSteam);
-    QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &BehaviorCam::sendNewFrame);
+        QObject::connect(view, &NewQuickView::closing, behavCamStream, &VideoStreamOCV::stopSteam);
+        QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &BehaviorCam::sendNewFrame);
+
+        sendMessage(m_deviceName + " is connected.");
+    }
+    else {
+        sendMessage("Error: " + m_deviceName + " cannot connect to camera.");
+    }
 
 }
 
@@ -199,7 +210,7 @@ void BehaviorCam::configureBehavCamControls() {
     QJsonObject controlSettings = m_cBehavCam["controlSettings"].toObject(); // Get controlSettings from json
 
     if (controlSettings.isEmpty()) {
-        qDebug() << "controlSettings missing from miniscopes.json for deviceType = " << m_deviceType;
+        qDebug() << "controlSettings missing from behaviorCams.json for deviceType = " << m_deviceType;
         return;
     }
     QStringList controlName =  controlSettings.keys();
@@ -420,5 +431,6 @@ void BehaviorCam::handleTakeScreenShotSignal()
 
 void BehaviorCam::close()
 {
-    view->close();
+    if (m_camConnected)
+        view->close();
 }

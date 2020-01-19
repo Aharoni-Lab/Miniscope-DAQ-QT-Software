@@ -31,7 +31,7 @@ int VideoStreamOCV::connect2Camera(int cameraID) {
     m_cameraID = cameraID;
     cam = new cv::VideoCapture;
     cam->open(m_cameraID, cv::CAP_DSHOW);
-    qDebug() <<  "Camera capture backend is" << QString::fromStdString (cam->getBackendName());
+//    qDebug() <<  "Camera capture backend is" << QString::fromStdString (cam->getBackendName());
     return cam->isOpened();
 
 
