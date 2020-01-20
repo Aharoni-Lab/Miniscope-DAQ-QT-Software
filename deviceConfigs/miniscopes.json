@@ -443,46 +443,19 @@
             "led0": {
                 "startValue": 0,
                 "min": 0,
-                "max": 100,
-                "stepSize": 1,
-                "displayValueScale": -2.55,
-                "displayValueOffset": -255,
-                "sendCommand": [
-                    {
-                        "protocol": "I2C",
-                        "addressW": "0b00100000",
-                        "regLength": "1",
-                        "reg0": "0x01",
-                        "dataLength": "1",
-                        "data0": "value"
-                    },
-                    {
-                        "protocol": "I2C",
-                        "addressW": "0b01011000",
-                        "regLength": "1",
-                        "reg0": "0x00",
-                        "dataLength": "2",
-                        "data0": 114,
-                        "data1": "value"
-                    }
-                ]
-            },
-            "ewl": {
-                "startValue": 0,
-                "min": -127,
-                "max": 127,
+                "max": 255,
                 "stepSize": 1,
                 "displayValueScale": 1,
-                "displayValueOffset": -127,
+                "displayValueOffset": 0,
+                "displayValueBitShift": 4,
                 "sendCommand": [
                     {
                         "protocol": "I2C",
-                        "addressW": "0b11101110",
-                        "regLength": "1",
-                        "reg0": "0x08",
+                        "addressW": "0b10011000",
+                        "regLength": "0",
                         "dataLength": "2",
-                        "data0": "value",
-                        "data1": "0x02"
+                        "data0": "valueH",
+                        "data1": "valueL"
                     }
                 ]
             }
@@ -539,15 +512,11 @@
                 "addressW": "0xC0",
                 "regLength": "1",
                 "reg0": "0x08",
-                "dataLength": "4",
-                "device0": "MCU",
-                "data0": "0b00100000",
-                "device1": "EWL Driver",
-                "data1": "0b11101110",
-                "device2": "Digital Pot",
-                "data2": "0b10100000",
-                "device3": "BNO",
-                "data3": "0b01010000"
+                "dataLength": "2",
+                "device0": "Sensor",
+                "data0": "0xB0",
+                "device1": "LED Driver",
+                "data1": "0b10011000"
             },
             {
                 "description": "sets sudo allowable i2c addresses to send through serializer",
@@ -555,44 +524,53 @@
                 "addressW": "0xC0",
                 "regLength": "1",
                 "reg0": "0x10",
-                "dataLength": "4",
-                "device0": "MCU",
-                "data0": "0b00100000",
-                "device1": "EWL Driver",
-                "data1": "0b11101110",
-                "device2": "Digital Pot Sudo",
-                "data2": "0b01011000",
-                "device3": "BNO",
-                "data3": "0b01010000"
-            },
-            {
-                "description": "Remap BNO axes, and sign",
-                "protocol": "I2C",
-                "addressW": "0b01010000",
-                "regLength": "1",
-                "reg0": "0x41",
                 "dataLength": "2",
-                "data0": "0b00001001",
-                "data1": "0b00000101"
+                "device0": "Sensor",
+                "data0": "0xB0",
+                "device1": "LED Driver",
+                "data1": "0b10011000"
             },
             {
-                "description": "Set BNO operation mode to NDOF",
+                "description": "Image sensor soft reset",
                 "protocol": "I2C",
-                "addressW": "0b01010000",
+                "addressW": "0xB0",
                 "regLength": "1",
-                "reg0": "0x3D",
-                "dataLength": "1",
-                "data0": "0b00001100"
+                "reg0": "0x0C",
+                "dataLength": "2",
+                "data0": "0",
+                "data1": "1"
             },
             {
-                "description": "Enable EWL Driver",
+                "description": "Image sensor disable auto gain",
                 "protocol": "I2C",
-                "addressW": "0b11101110",
+                "addressW": "0xB0",
                 "regLength": "1",
-                "reg0": "0x03",
-                "dataLength": "1",
-                "data0": "0x03"
+                "reg0": "0xAF",
+                "dataLength": "2",
+                "data0": "0",
+                "data1": "0"
+            },
+            {
+                "description": "Image sensor shutter width",
+                "protocol": "I2C",
+                "addressW": "0xB0",
+                "regLength": "1",
+                "reg0": "0x0B",
+                "dataLength": "2",
+                "data0": "0",
+                "data1": "0xFF"
+            },
+            {
+                "description": "Image sensor vertical blanking",
+                "protocol": "I2C",
+                "addressW": "0xB0",
+                "regLength": "1",
+                "reg0": "0x06",
+                "dataLength": "2",
+                "data0": "0x02",
+                "data1": "0x21"
             }
+
 
         ]
     }
