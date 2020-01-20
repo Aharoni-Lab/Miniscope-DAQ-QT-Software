@@ -29,8 +29,8 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
 {
 
     m_ucMiniscope = ucMiniscope; // hold user config for this Miniscope
+//    qDebug() << m_ucMiniscope["deviceType"].toString();
     parseUserConfigMiniscope();
-
     getMiniscopeConfig(m_ucMiniscope["deviceType"].toString()); // holds specific Miniscope configuration
 
     // Checks to make sure user config and miniscope device type are supporting BNO streaming

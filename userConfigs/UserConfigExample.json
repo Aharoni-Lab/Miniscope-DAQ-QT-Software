@@ -1,5 +1,5 @@
 {
-    "researcherName": "Daniel Aharoni",
+    "researcherName": "Dr_Miniscope",
     "dataDirectory": "C:/Users/DBAharoni/Documents/Data",
     "directoryStructure": [
         "researcherName",
@@ -11,12 +11,12 @@
     "animalName": "testMouse",
     "experimentName": "Linear Track Test",
     "recordLengthinSeconds": 30,
-    "experiment": {
+    "experiment_Not_Implemented": {
         "type": "linearTrack",
         "units": "cm",
         "trackLength": 200
     },
-    "behaviorTracker": {
+    "behaviorTracker_Not_Implemented": {
         "type": "HSV",
         "hue": [0, 1],
         "saturation": [0, 1],
@@ -26,7 +26,7 @@
         "miniscopes": [
             {
                 "deviceName": "Miniscope 2",
-                "deviceType": "Miniscope_V4_BNO",
+                "deviceType": "Miniscope_V3",
                 "imageRegistration": "Off",
                 "streamHeadOrientation": true,
                 "deviceID": 1,
