@@ -52,7 +52,7 @@ signals:
 public slots:
     void sendNewFrame();
     void testSlot(QString, double);
-    void handlePropCangedSignal(QString type, double displayValue, double i2cValue);
+    void handlePropChangedSignal(QString type, double displayValue, double i2cValue, double i2cValue2);
     void handleTakeScreenShotSignal();
     void close();
 

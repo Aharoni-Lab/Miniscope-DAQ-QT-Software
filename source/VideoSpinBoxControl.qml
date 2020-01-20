@@ -16,6 +16,7 @@ Item {
     property var displaySpinBoxValues: ["1", "2", "3"]
     property var displayTextValues: [1.0,2.0,3.0]
     property var outputValues: [1, 2, 3]
+    property var outputValues2: [0,0,0,0,0,0,0,0,0,0,0]
     property var startValue: "1"
 
     onStartValueChanged: {
@@ -24,7 +25,7 @@ Item {
 
     objectName: "default"
 
-    signal valueChangedSignal(double displayValue, double i2cValue)
+    signal valueChangedSignal(double displayValue, double i2cValue, double i2cValue2)
 
     Rectangle {
         id: rectangle
@@ -80,7 +81,7 @@ Item {
             return root.displaySpinBoxValues[value];
         }
 
-        onValueChanged: root.valueChangedSignal(root.displayTextValues[value], root.outputValues[value])
+        onValueChanged: root.valueChangedSignal(root.displayTextValues[value], root.outputValues[value],root.outputValues2[value])
     }
 
     Text {

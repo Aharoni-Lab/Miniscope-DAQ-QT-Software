@@ -18,9 +18,9 @@
 Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     QObject(parent),
     m_camConnected(false),
-    miniscopeStream(0),
-    rootObject(0),
-    vidDisplay(0),
+    miniscopeStream(nullptr),
+    rootObject(nullptr),
+    vidDisplay(nullptr),
     m_previousDisplayFrameNum(0),
     m_acqFrameNum(new QAtomicInt(0)),
     m_daqFrameNum(new QAtomicInt(0)),
@@ -118,8 +118,8 @@ void Miniscope::createView()
 
         QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
                              this, SLOT( handleTakeScreenShotSignal() ));
-        QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double) ),
-                             this, SLOT( handlePropChangedSignal(QString, double, double) ));
+        QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double, double) ),
+                             this, SLOT( handlePropChangedSignal(QString, double, double, double) ));
 
         configureMiniscopeControls();
         vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
@@ -330,6 +330,10 @@ int Miniscope::processString2Int(QString s)
                 value = PROTOCOL_I2C;
             else if (s == "SPI")
                 value = PROTOCOL_SPI;
+            else if (s == "valueH24")
+                value = SEND_COMMAND_VALUE_H24;
+            else if (s == "valueH16")
+                value = SEND_COMMAND_VALUE_H16;
             else if (s == "valueH")
                 value = SEND_COMMAND_VALUE_H;
             else if (s == "valueL")
@@ -390,7 +394,7 @@ void Miniscope::sendNewFrame(){
 }
 
 
-void Miniscope::handlePropChangedSignal(QString type, double displayValue, double i2cValue)
+void Miniscope::handlePropChangedSignal(QString type, double displayValue, double i2cValue, double i2cValue2)
 {
     // type is the objectName of the control
     // value is the control value that was just updated
@@ -431,11 +435,23 @@ void Miniscope::handlePropChangedSignal(QString type, double displayValue, doubl
                 for (int j = 0; j < sendCommand["dataLength"]; j++) {
                     tempValue = sendCommand["data" + QString::number(j)];
                     // TODO: Handle value1 through value3
-                    if (tempValue == SEND_COMMAND_VALUE_H) {
-                        packet.append(((quint16)round(i2cValue))>>8);
+                    if (tempValue == SEND_COMMAND_VALUE_H24) {
+                        packet.append((static_cast<quint32>(round(i2cValue))>>24)&0xFF);
+                    }
+                    else if (tempValue == SEND_COMMAND_VALUE_H16) {
+                        packet.append((static_cast<quint32>(round(i2cValue))>>16)&0xFF);
+                    }
+                    else if (tempValue == SEND_COMMAND_VALUE_H) {
+                        packet.append((static_cast<quint32>(round(i2cValue))>>8)&0xFF);
                     }
                     else if (tempValue == SEND_COMMAND_VALUE_L) {
-                        packet.append((quint8)round(i2cValue));
+                        packet.append(static_cast<quint32>(round(i2cValue))&0xFF);
+                    }
+                    else if (tempValue == SEND_COMMAND_VALUE2_H) {
+                        packet.append((static_cast<quint32>(round(i2cValue2))>>8)&0xFF);
+                    }
+                    else if (tempValue == SEND_COMMAND_VALUE2_L) {
+                        packet.append(static_cast<quint32>(round(i2cValue2))&0xFF);
                     }
                     else {
                         packet.append(tempValue);

@@ -18,9 +18,9 @@
 BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucBehavCam) :
     QObject(parent),
     m_camConnected(false),
-    behavCamStream(0),
-    rootObject(0),
-    vidDisplay(0),
+    behavCamStream(nullptr),
+    rootObject(nullptr),
+    vidDisplay(nullptr),
     m_previousDisplayFrameNum(0),
     m_acqFrameNum(new QAtomicInt(0)),
 //    m_daqFrameNum(new QAtomicInt(0)),
@@ -120,8 +120,8 @@ void BehaviorCam::createView()
 
         QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
                              this, SLOT( handleTakeScreenShotSignal() ));
-        QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double) ),
-                             this, SLOT( handlePropCangedSignal(QString, double, double) ));
+        QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double, double) ),
+                             this, SLOT( handlePropChangedSignal(QString, double, double, double) ));
 
         QObject::connect(view, &NewQuickView::closing, behavCamStream, &VideoStreamOCV::stopSteam);
         QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &BehaviorCam::sendNewFrame);
@@ -358,7 +358,7 @@ void BehaviorCam::sendNewFrame(){
     }
 }
 
-void BehaviorCam::handlePropCangedSignal(QString type, double displayValue, double i2cValue)
+void BehaviorCam::handlePropChangedSignal(QString type, double displayValue, double i2cValue, double i2cValue2)
 {
     // type is the objectName of the control
     // value is the control value that was just updated

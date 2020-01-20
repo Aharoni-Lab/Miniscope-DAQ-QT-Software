@@ -24,7 +24,11 @@
 #define SEND_COMMAND_VALUE_H    -5
 #define SEND_COMMAND_VALUE_L    -6
 #define SEND_COMMAND_VALUE      -6
-#define SEND_COMMAND_ERROR      -10
+#define SEND_COMMAND_VALUE_H16  -7
+#define SEND_COMMAND_VALUE_H24  -8
+#define SEND_COMMAND_VALUE2_H   -9
+#define SEND_COMMAND_VALUE2_L   -10
+#define SEND_COMMAND_ERROR      -20
 
 #define FRAME_BUFFER_SIZE   128
 
@@ -60,7 +64,7 @@ signals:
 public slots:
     void sendNewFrame();
     void testSlot(QString, double);
-    void handlePropChangedSignal(QString type, double displayValue, double i2cValue);
+    void handlePropChangedSignal(QString type, double displayValue, double i2cValue, double i2cValue2);
     void handleTakeScreenShotSignal();
     void close();
 

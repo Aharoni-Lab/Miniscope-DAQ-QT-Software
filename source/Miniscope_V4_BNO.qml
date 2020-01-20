@@ -11,7 +11,7 @@ Item {
     height: parent.height
     state: "controlsShown"
     focus: true
-    signal vidPropChangedSignal(string name, double displayValue, double i2cValue)
+    signal vidPropChangedSignal(string name, double displayValue, double i2cValue, double i2cValue2)
     signal takeScreenShotSignal()
 
     Keys.onPressed: {
@@ -220,27 +220,27 @@ Item {
 
     Connections{
         target: led0
-        onValueChangedSignal: vidPropChangedSignal(led0.objectName, displayValue, i2cValue)
+        onValueChangedSignal: vidPropChangedSignal(led0.objectName, displayValue, i2cValue, i2cValue2)
     }
     Connections{
         target: ewl
-        onValueChangedSignal: vidPropChangedSignal(ewl.objectName, displayValue, i2cValue)
+        onValueChangedSignal: vidPropChangedSignal(ewl.objectName, displayValue, i2cValue, i2cValue2)
     }
     Connections{
         target: gain
-        onValueChangedSignal: vidPropChangedSignal(gain.objectName, displayValue, i2cValue)
+        onValueChangedSignal: vidPropChangedSignal(gain.objectName, displayValue, i2cValue, i2cValue2)
     }
     Connections{
         target: frameRate
-        onValueChangedSignal: vidPropChangedSignal(frameRate.objectName, displayValue, i2cValue)
+        onValueChangedSignal: vidPropChangedSignal(frameRate.objectName, displayValue, i2cValue, i2cValue2)
     }
     Connections{
         target: alpha
-        onValueChangedSignal: vidPropChangedSignal(alpha.objectName, displayValue, i2cValue)
+        onValueChangedSignal: vidPropChangedSignal(alpha.objectName, displayValue, i2cValue, i2cValue2)
     }
     Connections{
         target: beta
-        onValueChangedSignal: vidPropChangedSignal(beta.objectName, displayValue, i2cValue)
+        onValueChangedSignal: vidPropChangedSignal(beta.objectName, displayValue, i2cValue, i2cValue2)
     }
 
     states: [

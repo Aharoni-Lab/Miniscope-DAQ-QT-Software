@@ -24,7 +24,7 @@ Item {
 //    onStartValueChanged: {
 //        slider.valueChanged()
 //    }
-    signal valueChangedSignal(double displayValue, double i2cValue)
+    signal valueChangedSignal(double displayValue, double i2cValue, double i2cValue2)
 
     Rectangle {
         id: rectangle
@@ -69,7 +69,7 @@ Item {
         to: root.max
         value: root.startValue
 
-        onValueChanged: root.valueChangedSignal(value, value * root.displayValueScale  - root.displayValueOffset)
+        onValueChanged: root.valueChangedSignal(value, value * root.displayValueScale  - root.displayValueOffset, 0)
 
 //        function valueChanged(){
 //            root.valueChangedSignal(value, value * root.displayValueScale  - root.displayValueOffset);
