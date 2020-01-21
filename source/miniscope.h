@@ -40,6 +40,7 @@ public:
     explicit Miniscope(QObject *parent = nullptr, QJsonObject ucMiniscope = QJsonObject());
     void createView();
     void connectSnS();
+    void defineDeviceAddrs();
     void parseUserConfigMiniscope();
     void sendInitCommands();
     QString getCompressionType();
@@ -73,6 +74,7 @@ private:
     void configureMiniscopeControls();
     QVector<QMap<QString, int>> parseSendCommand(QJsonArray sendCommand);
     int processString2Int(QString s);
+    QMap<QString,quint16> deviceAddr;
 
     bool m_camConnected;
     NewQuickView *view;

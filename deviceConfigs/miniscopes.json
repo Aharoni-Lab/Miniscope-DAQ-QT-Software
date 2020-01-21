@@ -192,6 +192,14 @@
                 "data0": "0b00001100"
             },
             {
+                "description": "Enable BNO streaming in DAQ",
+                "protocol": "I2C",
+                "addressW": "0xFE",
+                "regLength": "1",
+                "reg0": "0x00",
+                "dataLength": "0"
+            },
+            {
                 "description": "Enable EWL Driver",
                 "protocol": "I2C",
                 "addressW": "0b11101110",

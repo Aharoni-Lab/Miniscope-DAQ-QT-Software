@@ -145,6 +145,25 @@ void Miniscope::connectSnS(){
 
 }
 
+void Miniscope::defineDeviceAddrs()
+{
+    // Currently these values are not used in the code but are helpful for creating config files by hand
+    deviceAddr["deser"] = 0xC0;
+    deviceAddr["ser"] = 0xB0;
+    deviceAddr["v3_DAC"] = 0b10011000;
+    deviceAddr["MT9V032"] = 0xB8;
+    deviceAddr["MT9M001"] = 0xBA;
+    deviceAddr["ewlDriver"] = 0b11101110;
+    deviceAddr["digPot_deserSide"] = 0b01011000;
+    deviceAddr["digPot"] = 0b1010000;
+    deviceAddr["v4_MCU"] = 0x20;
+    deviceAddr["BNO"] = 0b0101000;
+    deviceAddr["MT9P031"] = 0xBA;
+    deviceAddr["DAQ_EEPROM"] = 0xA0;
+    deviceAddr["DAQ_CONFIG_COMMAND"] = 0xFE;
+
+}
+
 void Miniscope::parseUserConfigMiniscope() {
     // Currently not needed. If arrays get added into JSON config then this might
     m_deviceName = m_ucMiniscope["deviceName"].toString("Miniscope " + QString::number(m_ucMiniscope["deviceID"].toInt()));

@@ -26,10 +26,10 @@
         "miniscopes": [
             {
                 "deviceName": "Miniscope 2",
-                "deviceType": "Miniscope_V3",
+                "deviceType": "Miniscope_V4_BNO",
                 "imageRegistration": "Off",
                 "streamHeadOrientation": true,
-                "deviceID": 1,
+                "deviceID": 2,
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
                 "compression": "FFV1",
                 "framesPerFile": 1000,
@@ -42,7 +42,7 @@
                 "frameRate": "30FPS"
             }
         ],
-        "cameras": [
+        "cameras2": [
             {
                 "deviceName": "BehavCam 0",
                 "deviceType": "WebCam",

@@ -46,7 +46,7 @@ Window {
             anchors.fill: parent
 
             TextArea {
-                text: "Miniscope DAQ Software version 4 <br/>" +
+                text: "Miniscope DAQ Software version 0.12 <br/>" +
                       "Developed by the <a href='https://aharoni-lab.github.io/'>Aharoni Lab</a>, UCLA <br/> " +
                       "Overview of the UCLA Miniscope project: <a href='http://www.miniscope.org'>click here</a> <br/>" +
                       "Miniscope Discussion Board: <a href='https://groups.google.com/d/forum/miniscope'>click here</a> <br/>" +
