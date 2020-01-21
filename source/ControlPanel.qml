@@ -54,6 +54,7 @@ Item {
         Switch {
             id: element
             text: qsTr("Triggerable")
+            enabled: false
         }
 
         Flickable {
