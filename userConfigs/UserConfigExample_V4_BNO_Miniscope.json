@@ -1,0 +1,46 @@
+{
+    "researcherName": "Dr_Miniscope",
+    "dataDirectory": "C:/Users/DBAharoni/Documents/Data",
+    "directoryStructure": [
+        "researcherName",
+        "experimentName",
+        "animalName",
+        "date",
+        "time"
+    ],
+    "animalName": "testMouse",
+    "experimentName": "Linear Track Test",
+    "recordLengthinSeconds": 0,
+    "experiment_Not_Implemented": {
+        "type": "linearTrack",
+        "units": "cm",
+        "trackLength": 200
+    },
+    "behaviorTracker_Not_Implemented": {
+        "type": "HSV",
+        "hue": [0, 1],
+        "saturation": [0, 1],
+        "value": [0, 1]
+    },
+    "devices": {
+        "miniscopes": [
+            {
+                "deviceName": "Miniscope",
+                "deviceType": "Miniscope_V4_BNO",
+                "imageRegistration": "Off",
+                "streamHeadOrientation": true,
+                "deviceID": 2,
+                "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
+                "compression": "FFV1",
+                "framesPerFile": 1000,
+                "windowScale": 0.75,
+                "windowX": 800,
+                "windowY": 100,
+                "gain": "Low",
+                "ewl": 50,
+                "led0": 10,
+                "frameRate": "30FPS"
+            }
+        ]
+    }
+}

@@ -25,11 +25,11 @@
     "devices": {
         "miniscopes": [
             {
-                "deviceName": "Miniscope 2",
-                "deviceType": "Miniscope_V4_BNO",
+                "deviceName": "Miniscope",
+                "deviceType": "Miniscope_V3",
                 "imageRegistration": "Off",
-                "streamHeadOrientation": true,
-                "deviceID": 1,
+                "streamHeadOrientation": false,
+                "deviceID": 2,
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
                 "compression": "FFV1",
                 "framesPerFile": 1000,
@@ -40,20 +40,6 @@
                 "ewl": 50,
                 "led0": 30,
                 "frameRate": "30FPS"
-            }
-        ],
-        "cameras": [
-            {
-                "deviceName": "BehavCam 0",
-                "deviceType": "WebCam",
-                "deviceID": 0,
-                "cameraCalibrationFileLocation": "",
-                "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
-                "compression": "FFV1",
-                "framesPerFile": 1000,
-                "windowScale": 0.75,
-                "windowX": 800,
-                "windowY": 600
             }
         ]
     }
