@@ -61,6 +61,8 @@ signals:
     void onPropertyChanged(QString devieName, QString propName, QVariant propValue);
     void sendMessage(QString msg);
     void takeScreenShot(QString type);
+    void setExtTriggerTrackingState(bool state);
+    void extTriggered(bool state);
 
 public slots:
     void sendNewFrame();

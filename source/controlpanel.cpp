@@ -16,7 +16,8 @@
 
 ControlPanel::ControlPanel(QObject *parent, QJsonObject userConfig) :
     QObject(parent),
-    currentRecordTime(0)
+    currentRecordTime(0),
+    m_recording(false)
 {
     m_userConfig = userConfig;
 
@@ -72,6 +73,10 @@ void ControlPanel::connectSnS()
                      SIGNAL(submitNoteSignal(QString)),
                      this,
                      SLOT(handleNoteSumbit(QString)));
+    QObject::connect(rootObject,
+                     SIGNAL(extTriggerSwitchToggled(bool)),
+                     this,
+                     SLOT(extTriggerSwitchToggled2(bool)));
 
 
 }
@@ -88,6 +93,8 @@ void ControlPanel::receiveMessage(QString msg)
 void ControlPanel::onRecordActivated()
 {
     recordStart();
+    m_recording = true;
+    rootObject->setProperty("recording", true);
     currentRecordTime = 0;
     recordTimer->start(1000);
     receiveMessage("Recording Started.");
@@ -96,6 +103,8 @@ void ControlPanel::onRecordActivated()
 void ControlPanel::onStopActivated()
 {
     recordStop();
+    m_recording = false;
+    rootObject->setProperty("recording", false);
     if (recordTimer->isActive())
         recordTimer->stop();
 
@@ -120,6 +129,27 @@ void ControlPanel::handleNoteSumbit(QString note)
 
     sendNote(note);
     receiveMessage("Note logged.");
+}
+
+void ControlPanel::extTriggerSwitchToggled2(bool checkedState)
+{
+    emit setExtTriggerTrackingState(checkedState);
+    if (checkedState == true) {
+        rootObject->setProperty("ucRecordLength", 0);
+    }
+    else {
+        rootObject->setProperty("ucRecordLength", m_ucRecordLengthinSeconds);
+    }
+}
+
+void ControlPanel::extTriggerTriggered(bool state)
+{
+    if (state == true) {
+        onRecordActivated();
+    }
+    else {
+        onStopActivated();
+    }
 }
 
 void ControlPanel::close()

@@ -23,12 +23,15 @@ public slots:
     void onStopActivated();
     void recordTimerTick();
     void handleNoteSumbit(QString note);
+    void extTriggerSwitchToggled2(bool checkedState);
+    void extTriggerTriggered(bool state);
     void close();
 
 signals:
     void recordStart();
     void recordStop();
     void sendNote(QString note);
+    void setExtTriggerTrackingState(bool state);
 
 private:
     NewQuickView *view;
@@ -41,6 +44,7 @@ private:
     int m_ucRecordLengthinSeconds;
 
     QTimer *recordTimer;
+    bool m_recording;
 
 
 };

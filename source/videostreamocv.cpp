@@ -16,7 +16,8 @@ VideoStreamOCV::VideoStreamOCV(QObject *parent) :
     m_deviceName(""),
     m_stopStreaming(false),
     m_streamHeadOrientationState(false),
-    m_isColor(false)
+    m_isColor(false),
+    m_trackExtTrigger(false)
 {
 
 }
@@ -57,6 +58,8 @@ void VideoStreamOCV::startStream()
     int daqFrameNumOffset = 0;
 //    float heading, pitch, roll;
     double w, x, y, z;
+    double extTriggerLast = -1;
+    double extTrigger;
     cv::Mat frame;
 
     m_stopStreaming = false;
@@ -103,10 +106,28 @@ void VideoStreamOCV::startStream()
 //                        qDebug() << "Frame Number:" << *m_acqFrameNum - cam->get(cv::CAP_PROP_CONTRAST);
 
         //                frameBuffer[idx%frameBufferSize] = frame;
+                        if (m_trackExtTrigger) {
+                            if (extTriggerLast == -1) {
+                                // first time grabbing trigger state.
+                                extTriggerLast = cam->get(cv::CAP_PROP_GAMMA);
+                            }
+                            else {
+                                extTrigger = cam->get(cv::CAP_PROP_GAMMA);
+                                if (extTriggerLast != extTrigger) {
+                                    // State change
+                                    if (extTriggerLast == 0) {
+                                        // Went from 0 to 1
+                                        emit extTriggered(true);
+                                    }
+                                    else {
+                                        // Went from 1 to 0
+                                        emit extTriggered(false);
+                                    }
+                                }
+                                extTriggerLast = extTrigger;
+                            }
+                        }
                         if (m_streamHeadOrientationState) {
-//                            heading = static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION))/16.0;
-//                            roll = static_cast<qint16>(cam->get(cv::CAP_PROP_HUE))/16.0;
-//                            pitch = static_cast<qint16>(cam->get(cv::CAP_PROP_GAIN))/16.0;
 
                             // BNO output is a unit quaternion after 2^14 division
                             w = static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION))/16384.0;
@@ -162,6 +183,11 @@ void VideoStreamOCV::setPropertyI2C(long preambleKey, QVector<quint8> packet)
     if (!sendCommandQueue.contains(preambleKey))
         sendCommandQueueOrder.append(preambleKey);
     sendCommandQueue[preambleKey] = packet;
+}
+
+void VideoStreamOCV::setExtTriggerTrackingState(bool state)
+{
+    m_trackExtTrigger = state;
 }
 
 void VideoStreamOCV::sendCommands()

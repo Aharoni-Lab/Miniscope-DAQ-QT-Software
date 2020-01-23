@@ -79,6 +79,10 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
 
         // Pass send message signal through
         QObject::connect(miniscopeStream, &VideoStreamOCV::sendMessage, this, &Miniscope::sendMessage);
+
+        // Handle external triggering passthrough
+        QObject::connect(this, &Miniscope::setExtTriggerTrackingState, miniscopeStream, &VideoStreamOCV::setExtTriggerTrackingState);
+        QObject::connect(miniscopeStream, &VideoStreamOCV::extTriggered, this, &Miniscope::extTriggered);
         // ----------------------------------------------
 
     //    createView();
@@ -134,7 +138,7 @@ void Miniscope::createView()
         sendMessage(m_deviceName + " is connected.");
     }
     else {
-        sendMessage("Error: " + m_deviceName + " cannot connect to camera.");
+        sendMessage("Error: " + m_deviceName + " cannot connect to camera. Check deviceID and make sure your computer supports Direct Show.");
     }
 
 }

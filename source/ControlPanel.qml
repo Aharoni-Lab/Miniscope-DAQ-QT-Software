@@ -10,8 +10,10 @@ Item {
 
     property double currentRecordTime: 0
     property double ucRecordLength: 1
+    property bool recording: false
 
     signal submitNoteSignal(string note)
+    signal extTriggerSwitchToggled(bool checkedState)
 
     Rectangle {
         id: rectangle
@@ -52,9 +54,28 @@ Item {
 
         }
         Switch {
-            id: element
+            id: switchExtTrigger
+            objectName: "switchExtTrigger"
             text: qsTr("Triggerable")
-            enabled: false
+            checked: false
+            enabled: true
+            onToggled: {
+                if (checked) {
+                    bRecord.enabled = false;
+                    bStop.enabled = false;
+                }
+                else {
+                    if (root.recording == false) {
+                        bRecord.enabled = true;
+                    }
+                    else {
+                        bStop.enabled = true;
+
+                    }
+                }
+
+                root.extTriggerSwitchToggled(switchExtTrigger.checked);
+            }
         }
 
         Flickable {
@@ -121,7 +142,7 @@ Item {
             Layout.rowSpan: 1
             Layout.columnSpan: 1
             onActivated: {
-
+                switchExtTrigger.enabled = false;
                 bNoteSubmit.enabled = true;
                 bStop.enabled = true;
                 bRecord.enabled = false;
@@ -145,7 +166,7 @@ Item {
             Layout.rowSpan: 1
             Layout.columnSpan: 1
             onActivated: {
-
+                switchExtTrigger.enabled = true;
                 bNoteSubmit.enabled = false;
                 bStop.enabled = false;
                 bRecord.enabled = true;
@@ -160,7 +181,7 @@ Item {
 //            Layout.preferredHeight: 40
             Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             Layout.fillWidth: true
-            value: (root.ucRecordLength > 0) ? root.currentRecordTime/root.ucRecordLength : 1
+            value: (root.ucRecordLength > 0) ? root.currentRecordTime/root.ucRecordLength : root.currentRecordTime%2
             from: 0
             to:1
             Layout.columnSpan: 1

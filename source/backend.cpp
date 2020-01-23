@@ -132,11 +132,12 @@ void backEnd::connectSnS()
     QObject::connect(dataSaver, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
 
     for (int i = 0; i < miniscope.length(); i++) {
-
-
         // For triggering screenshots
         QObject::connect(miniscope[i], SIGNAL(takeScreenShot(QString)), dataSaver, SLOT( takeScreenShot(QString)));
         QObject::connect(this, SIGNAL( closeAll()), miniscope[i], SLOT (close()));
+
+        QObject::connect(controlPanel, &ControlPanel::setExtTriggerTrackingState, miniscope[i], &Miniscope::setExtTriggerTrackingState);
+        QObject::connect(miniscope[i], &Miniscope::extTriggered, controlPanel, &ControlPanel::extTriggerTriggered);
     }
     for (int i = 0; i < behavCam.length(); i++) {
         QObject::connect(behavCam[i], SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));

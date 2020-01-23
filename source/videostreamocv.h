@@ -32,11 +32,13 @@ public:
 signals:
     void sendMessage(QString msg);
     void newFrameAvailable(QString name, int frameNum);
+    void extTriggered(bool triggerState);
 
 public slots:
     void startStream();
     void stopSteam();
     void setPropertyI2C(long preambleKey, QVector<quint8> packet);
+    void setExtTriggerTrackingState(bool state);
 
 private:
     void sendCommands();
@@ -59,6 +61,8 @@ private:
     // Handles commands sent to video stream device
     QVector<long> sendCommandQueueOrder;
     QMap<long, QVector<quint8>> sendCommandQueue;
+
+    bool m_trackExtTrigger;
 
 
 };
