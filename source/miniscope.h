@@ -63,6 +63,8 @@ signals:
     void takeScreenShot(QString type);
     void setExtTriggerTrackingState(bool state);
     void extTriggered(bool state);
+    void startRecording();
+    void stopRecording();
 
 public slots:
     void sendNewFrame();
@@ -78,7 +80,7 @@ private:
     int processString2Int(QString s);
     QMap<QString,quint16> deviceAddr;
 
-    bool m_camConnected;
+    int m_camConnected;
     NewQuickView *view;
     VideoStreamOCV *miniscopeStream;
     QThread *videoStreamThread;

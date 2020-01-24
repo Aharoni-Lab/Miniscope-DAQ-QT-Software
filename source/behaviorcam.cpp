@@ -50,7 +50,7 @@ BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucBehavCam) :
     behavCamStream->setIsColor(m_cBehavCam["isColor"].toBool(false));
 
     m_camConnected = behavCamStream->connect2Camera(m_ucBehavCam["deviceID"].toInt());
-    if (!m_camConnected) {
+    if (m_camConnected == 0) {
         qDebug() << "Not able to connect and open " << m_ucBehavCam["deviceName"].toString();
     }
     else {
@@ -93,7 +93,11 @@ BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucBehavCam) :
 
 void BehaviorCam::createView()
 {
-    if (m_camConnected) {
+    if (m_camConnected != 0) {
+        if (m_camConnected == 1)
+             sendMessage(m_deviceName + " connected using Direct Show.");
+        else if (m_camConnected == 2)
+            sendMessage(m_deviceName + " couldn't connect using Direct Show. Using computer's default backend.");
         qmlRegisterType<VideoDisplay>("VideoDisplay", 1, 0, "VideoDisplay");
 
         // Setup Miniscope window
@@ -129,7 +133,7 @@ void BehaviorCam::createView()
         sendMessage(m_deviceName + " is connected.");
     }
     else {
-        sendMessage("Error: " + m_deviceName + " cannot connect to camera.");
+        sendMessage("Error: " + m_deviceName + " cannot connect to camera. Check deviceID.");
     }
 
 }

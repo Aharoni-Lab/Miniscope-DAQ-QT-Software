@@ -62,7 +62,7 @@ private:
 //    QVector<QMap<QString, int>> parseSendCommand(QJsonArray sendCommand);
     int processString2Int(QString s);
 
-    bool m_camConnected;
+    int m_camConnected;
     NewQuickView *view;
     VideoStreamOCV *behavCamStream;
     QThread *videoStreamThread;

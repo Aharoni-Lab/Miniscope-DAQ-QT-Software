@@ -51,7 +51,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     miniscopeStream->setIsColor(m_cMiniscopes["isColor"].toBool(false));
 
     m_camConnected = miniscopeStream->connect2Camera(m_ucMiniscope["deviceID"].toInt());
-    if (!m_camConnected) {
+    if (m_camConnected == 0) {
         qDebug() << "Not able to connect and open " << m_ucMiniscope["deviceName"].toString();
     }
     else {
@@ -83,6 +83,9 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
         // Handle external triggering passthrough
         QObject::connect(this, &Miniscope::setExtTriggerTrackingState, miniscopeStream, &VideoStreamOCV::setExtTriggerTrackingState);
         QObject::connect(miniscopeStream, &VideoStreamOCV::extTriggered, this, &Miniscope::extTriggered);
+
+        QObject::connect(this, &Miniscope::startRecording, miniscopeStream, &VideoStreamOCV::startRecording);
+        QObject::connect(this, &Miniscope::stopRecording, miniscopeStream, &VideoStreamOCV::stopRecording);
         // ----------------------------------------------
 
     //    createView();
@@ -99,7 +102,11 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
 
 void Miniscope::createView()
 {
-    if (m_camConnected) {
+    if (m_camConnected != 0) {
+        if (m_camConnected == 1)
+             sendMessage(m_deviceName + " connected using Direct Show.");
+        else if (m_camConnected == 2)
+            sendMessage(m_deviceName + " couldn't connect using Direct Show. Using computer's default backend.");
         qmlRegisterType<VideoDisplay>("VideoDisplay", 1, 0, "VideoDisplay");
 
         // Setup Miniscope window
@@ -138,7 +145,7 @@ void Miniscope::createView()
         sendMessage(m_deviceName + " is connected.");
     }
     else {
-        sendMessage("Error: " + m_deviceName + " cannot connect to camera. Check deviceID and make sure your computer supports Direct Show.");
+        sendMessage("Error: " + m_deviceName + " cannot connect to camera. Check deviceID.");
     }
 
 }

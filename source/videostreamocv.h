@@ -39,6 +39,8 @@ public slots:
     void stopSteam();
     void setPropertyI2C(long preambleKey, QVector<quint8> packet);
     void setExtTriggerTrackingState(bool state);
+    void startRecording();
+    void stopRecording();
 
 private:
     void sendCommands();

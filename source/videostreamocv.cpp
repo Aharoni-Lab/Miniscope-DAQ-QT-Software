@@ -29,11 +29,20 @@ VideoStreamOCV::~VideoStreamOCV() {
 }
 
 int VideoStreamOCV::connect2Camera(int cameraID) {
+    int connectionState = 0;
     m_cameraID = cameraID;
     cam = new cv::VideoCapture;
-    cam->open(m_cameraID, cv::CAP_DSHOW);
+    // Try connecting using DShow backend
+    if (cam->open(m_cameraID, cv::CAP_DSHOW))
+        connectionState = 1;
+    else {
+        // connecting again using defaulk backend
+        if (cam->open(m_cameraID)) {
+            connectionState = 2;
+        }
+    }
 //    qDebug() <<  "Camera capture backend is" << QString::fromStdString (cam->getBackendName());
-    return cam->isOpened();
+    return connectionState;
 
 
 }
@@ -188,6 +197,20 @@ void VideoStreamOCV::setPropertyI2C(long preambleKey, QVector<quint8> packet)
 void VideoStreamOCV::setExtTriggerTrackingState(bool state)
 {
     m_trackExtTrigger = state;
+}
+
+void VideoStreamOCV::startRecording()
+{
+    if (cam->isOpened()){
+        cam->set(cv::CAP_PROP_SATURATION, 0x0001);
+    }
+}
+
+void VideoStreamOCV::stopRecording()
+{
+    if (cam->isOpened()){
+        cam->set(cv::CAP_PROP_SATURATION, 0x0000);
+    }
 }
 
 void VideoStreamOCV::sendCommands()
