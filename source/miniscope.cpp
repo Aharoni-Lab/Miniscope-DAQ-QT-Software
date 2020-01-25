@@ -370,6 +370,10 @@ int Miniscope::processString2Int(QString s)
                 value = SEND_COMMAND_VALUE_L;
             else if (s == "value")
                 value = SEND_COMMAND_VALUE;
+            else if (s == "value2H")
+                value = SEND_COMMAND_VALUE2_H;
+            else if (s == "value2L")
+                value = SEND_COMMAND_VALUE2_L;
             else
                 value = SEND_COMMAND_ERROR;
             ok = true;

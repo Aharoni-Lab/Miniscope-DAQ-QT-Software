@@ -419,11 +419,11 @@
                 ]
             },
             "frameRate": {
-                "displaySpinBoxValues":["10FPS", "15FPS", "20FPS", "30FPS", "60FPS"],
-                "displayTextValues": [10, 15, 20, 30, 60],
-                "outputValues":[49153250,43057902,57016641, 6160929, 6094881],
-                "outputValues2":[1720,1220,800,1000,500],
-                "startValue": "20FPS",
+                "displaySpinBoxValues":["10FPS", "30FPS", "60FPS"],
+                "displayTextValues": [10, 30, 60],
+                "outputValues":[49153250, 6160929, 6094881],
+                "outputValues2":[1720,1000,500],
+                "startValue": "30FPS",
                 "sendCommand": [
 
                     {
@@ -557,26 +557,6 @@
                 "dataLength": "2",
                 "data0": "0",
                 "data1": "0"
-            },
-            {
-                "description": "Image sensor shutter width",
-                "protocol": "I2C",
-                "addressW": "0xB8",
-                "regLength": "1",
-                "reg0": "0x0B",
-                "dataLength": "2",
-                "data0": "0",
-                "data1": "0xFF"
-            },
-            {
-                "description": "Image sensor vertical blanking",
-                "protocol": "I2C",
-                "addressW": "0xB8",
-                "regLength": "1",
-                "reg0": "0x06",
-                "dataLength": "2",
-                "data0": "0x02",
-                "data1": "0x21"
             }
         ]
     }
