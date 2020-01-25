@@ -522,7 +522,7 @@
                 "reg0": "0x08",
                 "dataLength": "2",
                 "device0": "Sensor",
-                "data0": "0xB0",
+                "data0": "0xB8",
                 "device1": "LED Driver",
                 "data1": "0b10011000"
             },
@@ -534,14 +534,14 @@
                 "reg0": "0x10",
                 "dataLength": "2",
                 "device0": "Sensor",
-                "data0": "0xB0",
+                "data0": "0xB8",
                 "device1": "LED Driver",
                 "data1": "0b10011000"
             },
             {
                 "description": "Image sensor soft reset",
                 "protocol": "I2C",
-                "addressW": "0xB0",
+                "addressW": "0xB8",
                 "regLength": "1",
                 "reg0": "0x0C",
                 "dataLength": "2",
@@ -551,7 +551,7 @@
             {
                 "description": "Image sensor disable auto gain",
                 "protocol": "I2C",
-                "addressW": "0xB0",
+                "addressW": "0xB8",
                 "regLength": "1",
                 "reg0": "0xAF",
                 "dataLength": "2",
@@ -561,7 +561,7 @@
             {
                 "description": "Image sensor shutter width",
                 "protocol": "I2C",
-                "addressW": "0xB0",
+                "addressW": "0xB8",
                 "regLength": "1",
                 "reg0": "0x0B",
                 "dataLength": "2",
@@ -571,7 +571,7 @@
             {
                 "description": "Image sensor vertical blanking",
                 "protocol": "I2C",
-                "addressW": "0xB0",
+                "addressW": "0xB8",
                 "regLength": "1",
                 "reg0": "0x06",
                 "dataLength": "2",
