@@ -24,7 +24,10 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     m_previousDisplayFrameNum(0),
     m_acqFrameNum(new QAtomicInt(0)),
     m_daqFrameNum(new QAtomicInt(0)),
-    m_streamHeadOrientationState(false)
+    m_streamHeadOrientationState(false),
+    m_displatState("Raw"),
+    baselineFrameBufWritePos(0),
+    baselinePreviousTimeStamp(0)
 
 {
 
@@ -131,6 +134,8 @@ void Miniscope::createView()
                              this, SLOT( handleTakeScreenShotSignal() ));
         QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double, double) ),
                              this, SLOT( handlePropChangedSignal(QString, double, double, double) ));
+        QObject::connect(rootObject, SIGNAL( dFFSwitchChanged(bool) ),
+                             this, SLOT( handleDFFSwitchChange(bool) ));
 
         configureMiniscopeControls();
         vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
@@ -393,6 +398,7 @@ void Miniscope::testSlot(QString type, double value)
 void Miniscope::sendNewFrame(){
 //    vidDisplay->setProperty("displayFrame", QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
     int f = *m_acqFrameNum;
+    cv::Mat tempMat1, tempMat2;
 
     if (f > m_previousDisplayFrameNum) {
         m_previousDisplayFrameNum = f;
@@ -407,7 +413,40 @@ void Miniscope::sendNewFrame(){
         }
         else
             tempFrame2 = QImage(frameBuffer[f].data, frameBuffer[f].cols, frameBuffer[f].rows, frameBuffer[f].step, QImage::Format_RGB888);
-        vidDisplay->setDisplayFrame(tempFrame2.copy());
+
+        // Generate moving average baseline frame
+        if ((timeStampBuffer[f] - baselinePreviousTimeStamp) > 100) {
+            // update baseline frame buffer every ~500ms
+            tempMat1 = frameBuffer[f].clone();
+            tempMat1.convertTo(tempMat1, CV_32F);
+            tempMat1 = tempMat1/(BASELINE_FRAME_BUFFER_SIZE);
+            if (baselineFrameBufWritePos == 0) {
+                baselineFrame = tempMat1;
+            }
+            else if (baselineFrameBufWritePos < BASELINE_FRAME_BUFFER_SIZE) {
+                baselineFrame += tempMat1;
+            }
+            else {
+                baselineFrame += tempMat1;
+                baselineFrame -= baselineFrameBuffer[baselineFrameBufWritePos%BASELINE_FRAME_BUFFER_SIZE];
+            }
+            baselineFrameBuffer[baselineFrameBufWritePos % BASELINE_FRAME_BUFFER_SIZE] = tempMat1.clone();
+            baselinePreviousTimeStamp = timeStampBuffer[f];
+            baselineFrameBufWritePos++;
+        }
+        if (m_displatState == "Raw")
+            vidDisplay->setDisplayFrame(tempFrame2.copy());
+        else if (m_displatState == "dFF") {
+            // TODO: Implement this better. I am sure it can be sped up a lot. Maybe do most of it in a shader
+            tempMat2 = frameBuffer[f].clone();
+            tempMat2.convertTo(tempMat2, CV_32F);
+            cv::divide(tempMat2,baselineFrame,tempMat2);
+            tempMat2 = ((tempMat2 - 1.0) + 0.5) * 255;
+            tempMat2.convertTo(tempMat2, CV_8U);
+            cv::cvtColor(tempMat2, tempFrame, cv::COLOR_GRAY2BGR);
+            tempFrame2 = QImage(tempFrame.data, tempFrame.cols, tempFrame.rows, tempFrame.step, QImage::Format_RGB888);
+            vidDisplay->setDisplayFrame(tempFrame2.copy());
+        }
 
         vidDisplay->setBufferUsed(usedFrames->available());
         if (f > 0) // This is just a quick cheat so I don't have to wrap around for (f-1)
@@ -509,6 +548,15 @@ void Miniscope::handleTakeScreenShotSignal()
 {
     // Is called when signal from qml GUI is triggered
     takeScreenShot(m_deviceName);
+}
+
+void Miniscope::handleDFFSwitchChange(bool checked)
+{
+    qDebug() << "Switch" << checked;
+    if (checked)
+        m_displatState = "dFF";
+    else
+        m_displatState = "Raw";
 }
 
 void Miniscope::close()

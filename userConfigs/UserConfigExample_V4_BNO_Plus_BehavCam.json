@@ -29,7 +29,7 @@
                 "deviceType": "Miniscope_V4_BNO",
                 "imageRegistration": "Off",
                 "streamHeadOrientation": true,
-                "deviceID": 2,
+                "deviceID": 1,
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
                 "compression": "FFV1",
                 "framesPerFile": 1000,

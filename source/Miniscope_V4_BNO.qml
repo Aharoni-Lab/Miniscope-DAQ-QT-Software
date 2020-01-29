@@ -13,6 +13,7 @@ Item {
     focus: true
     signal vidPropChangedSignal(string name, double displayValue, double i2cValue, double i2cValue2)
     signal takeScreenShotSignal()
+    signal dFFSwitchChanged(bool value)
 
     Keys.onPressed: {
         if (event.key === Qt.Key_H) {
@@ -61,7 +62,7 @@ Item {
 
         GridLayout {
             id: gridLayout
-            height: 32
+            height: 64
             columnSpacing: 0
             rowSpacing: 0
             anchors.bottom: parent.bottom
@@ -73,6 +74,19 @@ Item {
             columns: 3
             rows: 2
 
+
+            Switch {
+                id: dFFSwitch
+                objectName: "dFFSwitch"
+                text: qsTr("dF/F Display")
+                hoverEnabled: false
+
+                font.bold: true
+                font.family: "Arial"
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
+                Layout.column: 0
+                Layout.row: 0
+            }
 
             Text{
                 id: droppedFrameCount
@@ -143,6 +157,7 @@ Item {
                     }
                 }
             }
+
 
 
         }
@@ -241,6 +256,10 @@ Item {
     Connections{
         target: beta
         onValueChangedSignal: vidPropChangedSignal(beta.objectName, displayValue, i2cValue, i2cValue2)
+    }
+    Connections{
+        target: dFFSwitch
+        onClicked: dFFSwitchChanged(dFFSwitch.checked)
     }
 
     states: [

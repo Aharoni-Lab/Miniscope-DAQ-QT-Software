@@ -61,7 +61,7 @@ Item {
 
         GridLayout {
             id: gridLayout
-            height: 32
+            height: 64
             columnSpacing: 0
             rowSpacing: 0
             anchors.bottom: parent.bottom
@@ -72,6 +72,28 @@ Item {
             anchors.leftMargin: 0
             columns: 3
             rows: 2
+
+            RoundButton {
+                id: calibrateCamera
+                objectName: "calibrateCamera"
+                text: "Calib. Cam."
+                font.family: "Arial"
+                font.pointSize: 10
+                font.bold: true
+                font.weight: Font.Normal
+                radius: 4
+                enabled: false
+                Layout.column: 0
+                Layout.row: 0
+                background: Rectangle {
+                    id: calibrateRect
+                    radius: calibrateCamera.radius
+                    border.width: 1
+                    color: "#a8a7fd"
+                }
+                onHoveredChanged: hovered ? calibrateRect.color = "#f8a7fd" : calibrateRect.color = "#a8a7fd"
+
+            }
 
             Text{
                 id: acqFPS

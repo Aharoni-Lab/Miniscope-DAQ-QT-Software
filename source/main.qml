@@ -46,7 +46,8 @@ Window {
             anchors.fill: parent
 
             TextArea {
-                text: "Miniscope DAQ Software version 0.12 <br/>" +
+                text: "Miniscope DAQ Software version 0.13 <br/>" +
+                      "Your OpenGL verions: " + OpenGLInfo.majorVersion + "." + OpenGLInfo.minorVersion + "<br/>" +
                       "Developed by the <a href='https://aharoni-lab.github.io/'>Aharoni Lab</a>, UCLA <br/> " +
                       "Overview of the UCLA Miniscope project: <a href='http://www.miniscope.org'>click here</a> <br/>" +
                       "Miniscope Discussion Board: <a href='https://groups.google.com/d/forum/miniscope'>click here</a> <br/>" +
@@ -150,6 +151,7 @@ Window {
                 //                wrapMode: Text.WrapAnywhere
                 //                anchors.fill: parent
                 font.pointSize: 12
+                readOnly: true
                 background: Rectangle {
                     radius: rbSelectUserConfig.radius
                     anchors.fill: parent

@@ -31,6 +31,7 @@
 #define SEND_COMMAND_ERROR      -20
 
 #define FRAME_BUFFER_SIZE   128
+#define BASELINE_FRAME_BUFFER_SIZE  128
 
 
 class Miniscope : public QObject
@@ -71,6 +72,7 @@ public slots:
     void testSlot(QString, double);
     void handlePropChangedSignal(QString type, double displayValue, double i2cValue, double i2cValue2);
     void handleTakeScreenShotSignal();
+    void handleDFFSwitchChange(bool checked);
     void close();
 
 private:
@@ -116,7 +118,12 @@ private:
 
     bool m_streamHeadOrientationState;
     QString m_compressionType;
+    QString m_displatState;
 
+    cv::Mat baselineFrameBuffer[BASELINE_FRAME_BUFFER_SIZE];
+    cv::Mat baselineFrame;
+    int baselineFrameBufWritePos;
+    qint64 baselinePreviousTimeStamp;
 };
 
 
