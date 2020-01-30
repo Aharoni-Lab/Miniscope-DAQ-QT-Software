@@ -1,4 +1,7 @@
 # Miniscope-DAQ-QT-Software
+
+**[[Miniscope V4 Wiki](https://github.com/Aharoni-Lab/Miniscope-v4/wiki)] [[Miniscope DAQ Software Wiki](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/wiki)] [[Miniscope DAQ Firmware Wiki](https://github.com/Aharoni-Lab/Miniscope-DAQ-Cypress-firmware/wiki)]**
+
 Neural and behavior control and recording software for the UCLA Miniscope Project
 
 **Make sure to click Watch and Star in the upper right corner of this page to get updates on new features and releases.**
