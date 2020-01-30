@@ -10,6 +10,7 @@
 #include <QMap>
 #include <QVector>
 #include <QDateTime>
+#include <QThread>
 
 VideoStreamOCV::VideoStreamOCV(QObject *parent) :
     QObject(parent),
@@ -89,7 +90,19 @@ void VideoStreamOCV::startStream()
 
             if(freeFrames->tryAcquire(1,20)) {
                 if (!cam->grab()) {
-                    sendMessage("Warning: " + m_deviceName + " grab frame failed.");
+                    sendMessage("Warning: " + m_deviceName + " grab frame failed. Attempting to reconnect.");
+                    if (cam->isOpened()) {
+                        qDebug() << "Releasing cam" << m_cameraID;
+                        cam->release();
+                        qDebug() << "Released cam" << m_cameraID;
+                    }
+                    QThread::msleep(1000);
+
+                    if (cam->open(m_cameraID)) {
+                        // TODO: add some timeout here
+                        sendMessage("Warning: " + m_deviceName + " reconnected.");
+                        qDebug() << "Reconnect to camera" << m_cameraID;
+                    }
                 }
                 else {
                     timeStampBuffer[idx%frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
@@ -100,6 +113,8 @@ void VideoStreamOCV::startStream()
                             cam->release();
                             qDebug() << "Released cam" << m_cameraID;
                         }
+                        QThread::msleep(1000);
+
                         if (cam->open(m_cameraID)) {
                             // TODO: add some timeout here
                             sendMessage("Warning: " + m_deviceName + " reconnected.");

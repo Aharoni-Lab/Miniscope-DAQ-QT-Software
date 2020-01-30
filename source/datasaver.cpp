@@ -211,7 +211,7 @@ void DataSaver::startRecording()
             headOriFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/headOrientation.csv");
             headOriFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
             headOriStream[keys[i]] = new QTextStream(headOriFile[keys[i]]);
-            *headOriStream[keys[i]] << "qw,qx,qy,qz" << endl;
+            *headOriStream[keys[i]] << "Time Stamp (ms),qw,qx,qy,qz" << endl;
         }
         // TODO: Remember to close files on exit or stop recording signal
 
