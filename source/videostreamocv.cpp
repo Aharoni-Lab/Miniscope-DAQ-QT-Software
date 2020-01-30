@@ -66,6 +66,7 @@ void VideoStreamOCV::startStream()
     int idx = 0;
     int daqFrameNumOffset = 0;
 //    float heading, pitch, roll;
+    double norm;
     double w, x, y, z;
     double extTriggerLast = -1;
     double extTrigger;
@@ -143,12 +144,12 @@ void VideoStreamOCV::startStream()
                             x = static_cast<qint16>(cam->get(cv::CAP_PROP_HUE));
                             y = static_cast<qint16>(cam->get(cv::CAP_PROP_GAIN));
                             z = static_cast<qint16>(cam->get(cv::CAP_PROP_BRIGHTNESS));
-//                            norm = sqrt(w*w + x*x + y*y + z*z);
+                            norm = sqrt(w*w + x*x + y*y + z*z);
                             bnoBuffer[(idx%frameBufferSize)*4 + 0] = w/16384.0;
                             bnoBuffer[(idx%frameBufferSize)*4 + 1] = x/16384.0;
                             bnoBuffer[(idx%frameBufferSize)*4 + 2] = y/16384.0;
                             bnoBuffer[(idx%frameBufferSize)*4 + 3] = z/16384.0;
-                            qDebug() << w << x << y << z;
+//                            qDebug() << QString::number(static_cast<qint16>(cam->get(cv::CAP_PROP_SHARPNESS)),2) << norm << w << x << y << z ;
                         }
                         if (daqFrameNum != nullptr) {
                             *daqFrameNum = cam->get(cv::CAP_PROP_CONTRAST) - daqFrameNumOffset;

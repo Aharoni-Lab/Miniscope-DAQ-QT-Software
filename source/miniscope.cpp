@@ -457,10 +457,12 @@ void Miniscope::sendNewFrame(){
 //            bnoDisplay->setProperty("heading", bnoBuffer[f*3+0]);
 //            bnoDisplay->setProperty("roll", bnoBuffer[f*3+1]);
 //            bnoDisplay->setProperty("pitch", bnoBuffer[f*3+2]);
-            bnoDisplay->setProperty("qw", bnoBuffer[f*4+0]);
-            bnoDisplay->setProperty("qx", bnoBuffer[f*4+1]);
-            bnoDisplay->setProperty("qy", bnoBuffer[f*4+2]);
-            bnoDisplay->setProperty("qz", bnoBuffer[f*4+3]);
+//            if (bnoBuffer[f*4+0] != -1/16384.0 && bnoBuffer[f*4+1] != -1/16384.0 && bnoBuffer[f*4+2] != -1/16384.0 && bnoBuffer[f*4+3] != -1/16384.0) {
+                bnoDisplay->setProperty("qw", bnoBuffer[f*4+0]);
+                bnoDisplay->setProperty("qx", bnoBuffer[f*4+1]);
+                bnoDisplay->setProperty("qy", bnoBuffer[f*4+2]);
+                bnoDisplay->setProperty("qz", bnoBuffer[f*4+3]);
+//            }
         }
 //        qDebug() << bnoBuffer[f*3+0] << bnoBuffer[f*3+1] << bnoBuffer[f*3+2];
     }
