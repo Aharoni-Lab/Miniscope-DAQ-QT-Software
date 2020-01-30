@@ -22,6 +22,7 @@
 
 backEnd::backEnd(QObject *parent) :
     QObject(parent),
+    m_userConfigFileName(""),
     m_userConfigOK(false),
     behavTracker(nullptr)
 {
@@ -54,12 +55,17 @@ backEnd::backEnd(QObject *parent) :
 
 void backEnd::setUserConfigFileName(const QString &input)
 {
-    if (input != m_userConfigFileName) {
-        m_userConfigFileName = input;
-        //emit userConfigFileNameChanged();
-    }
+    if (input.contains(".json")) {
+        if (input != m_userConfigFileName) {
+            m_userConfigFileName = input;
+            //emit userConfigFileNameChanged();
+        }
 
-    handleUserConfigFileNameChanged();
+        handleUserConfigFileNameChanged();
+    }
+    else {
+        setUserConfigDisplay("Must select a .json User Config File.");
+    }
 }
 
 void backEnd::setUserConfigDisplay(const QString &input)

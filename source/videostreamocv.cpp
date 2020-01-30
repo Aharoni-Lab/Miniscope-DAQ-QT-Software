@@ -139,16 +139,16 @@ void VideoStreamOCV::startStream()
                         if (m_streamHeadOrientationState) {
 
                             // BNO output is a unit quaternion after 2^14 division
-                            w = static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION))/16384.0;
-                            x = static_cast<qint16>(cam->get(cv::CAP_PROP_HUE))/16384.0;
-                            y = static_cast<qint16>(cam->get(cv::CAP_PROP_GAIN))/16384.0;
-                            z = static_cast<qint16>(cam->get(cv::CAP_PROP_BRIGHTNESS))/16384.0;
+                            w = static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION));
+                            x = static_cast<qint16>(cam->get(cv::CAP_PROP_HUE));
+                            y = static_cast<qint16>(cam->get(cv::CAP_PROP_GAIN));
+                            z = static_cast<qint16>(cam->get(cv::CAP_PROP_BRIGHTNESS));
 //                            norm = sqrt(w*w + x*x + y*y + z*z);
-                            bnoBuffer[(idx%frameBufferSize)*4 + 0] = w;
-                            bnoBuffer[(idx%frameBufferSize)*4 + 1] = x;
-                            bnoBuffer[(idx%frameBufferSize)*4 + 2] = y;
-                            bnoBuffer[(idx%frameBufferSize)*4 + 3] = z;
-//                            qDebug() << norm << w << x << y << z;
+                            bnoBuffer[(idx%frameBufferSize)*4 + 0] = w/16384.0;
+                            bnoBuffer[(idx%frameBufferSize)*4 + 1] = x/16384.0;
+                            bnoBuffer[(idx%frameBufferSize)*4 + 2] = y/16384.0;
+                            bnoBuffer[(idx%frameBufferSize)*4 + 3] = z/16384.0;
+                            qDebug() << w << x << y << z;
                         }
                         if (daqFrameNum != nullptr) {
                             *daqFrameNum = cam->get(cv::CAP_PROP_CONTRAST) - daqFrameNumOffset;

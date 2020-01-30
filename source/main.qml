@@ -12,6 +12,7 @@ Window {
     color: "#afafaf"
     title: qsTr("Miniscope DAQ")
 
+
     FileDialog {
         // Used to select user config file
 
@@ -158,7 +159,23 @@ Window {
                     border.width: 1
                     color: "#ebebeb"
                 }
+
+                DropArea {
+                    id: drop
+                    anchors.fill: parent
+                    onDropped: {
+                        // Remove "file:///" from selected file name
+                        var path = drop.text;
+                        path = path.replace(/^(file:\/{3})|(qrc:\/{2})|(http:\/{2})/,"");
+                        path = decodeURIComponent(path);
+
+                        // Send file name to c++ backend
+                        backend.userConfigFileName = path
+            //            rbRun.enabled = true
+                    }
+                }
             }
+
         }
 
         RoundButton {
