@@ -10,7 +10,7 @@ Item {
     y: 0
     width: spinBox.width + icon.width + textValue.width + 20
     state: "nothovered"
-    property color textColor: "blue"
+    property color textColor: "black"
     property var iconPath: "img/icon/ewl.ico"
 
     property var displaySpinBoxValues: ["1", "2", "3"]

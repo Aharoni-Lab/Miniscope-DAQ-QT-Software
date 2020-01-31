@@ -177,7 +177,7 @@ Item {
             max: 100
             startValue: 0
             iconPath: "img/icon/led.png"
-            textColor: "blue"
+            textColor: "black"
         }
 
         VideoSliderControl {
