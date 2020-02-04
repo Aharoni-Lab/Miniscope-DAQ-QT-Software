@@ -228,15 +228,6 @@ void backEnd::testCodecSupport()
     // This function will test which codecs are supported on host's machine
     cv::VideoWriter testVid;
     QVector<QString> possibleCodec({"DIB ", "MJPG", "MJ2C", "XVID", "FFV1"});
-
-    testVid.open("test.raw", 0, 0, cv::Size(640, 480), true);
-    if (testVid.isOpened()) {
-        qDebug() << "RAWAWAWAWAW";
-        testVid.release();
-    }
-    else
-        qDebug() << "NOOOOOOO GOOOOOOOOD";
-
     for (int i = 0; i < possibleCodec.length(); i++) {
         testVid.open("test.avi", cv::VideoWriter::fourcc(possibleCodec[i].toStdString()[0],possibleCodec[i].toStdString()[1],possibleCodec[i].toStdString()[2],possibleCodec[i].toStdString()[3]),
                 20, cv::Size(640, 480), true);
