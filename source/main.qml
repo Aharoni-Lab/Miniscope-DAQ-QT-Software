@@ -99,6 +99,16 @@ Window {
         visible: false
     }
 
+    MessageDialog {
+        id: errorMessageDialogCompression
+        title: "User Config File Error"
+        text: "The selected user configuration file contains video compression(s) that are not supported by your computer. Please edit the file so each 'compression' entry is a supported option from the following list: " + backend.availableCodecList
+        onAccepted: {
+            visible = false
+        }
+        visible: false
+    }
+
 
     ColumnLayout {
         id: columnLayout
@@ -265,6 +275,10 @@ Window {
     Connections{
         target: backend
         onShowErrorMessage: errorMessageDialog.visible = true
+    }
+    Connections{
+        target: backend
+        onShowErrorMessageCompression: errorMessageDialogCompression.visible = true
     }
 }
 

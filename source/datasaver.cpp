@@ -293,20 +293,23 @@ void DataSaver::takeNote(QString note)
 
 void DataSaver::setDataCompression(QString name, QString type)
 {
-    if (type == "MJPG")
-        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('M','J','P','G');
-    else if (type == "uncompressed" || type == "None")
-        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('D','I','B',' ');
-    else if (type == "MJ2C")
-        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('M','J','2','C');
-    else if (type == "XVID")
-        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('X','V','I','D');
-    else if (type == "FFV1")
-        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('F','F','V','1');
-//    else if (type == "LAGS")
-//        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('L','A',G','S');
-    else
-        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('F','F','V','1');
+//    if (type == "MJPG")
+//        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('M','J','P','G');
+//    else if (type == "uncompressed" || type == "None")
+//        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('D','I','B',' ');
+//    else if (type == "MJ2C")
+//        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('M','J','2','C');
+//    else if (type == "XVID")
+//        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('X','V','I','D');
+//    else if (type == "FFV1")
+//        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('F','F','V','1');
+////    else if (type == "LAGS")
+////        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('L','A',G','S');
+//    else
+//        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('F','F','V','1');
+
+    dataCompressionFourCC[name] =cv::VideoWriter::fourcc(type.toStdString()[0],type.toStdString()[1],type.toStdString()[2],type.toStdString()[3]);
+
 
     qDebug() << name << type << dataCompressionFourCC[name];
 

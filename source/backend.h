@@ -21,6 +21,7 @@ class backEnd : public QObject
     Q_PROPERTY(QString userConfigFileName READ userConfigFileName WRITE setUserConfigFileName NOTIFY userConfigFileNameChanged)
     Q_PROPERTY(QString userConfigDisplay READ userConfigDisplay WRITE setUserConfigDisplay NOTIFY userConfigDisplayChanged)
     Q_PROPERTY(bool userConfigOK READ userConfigOK WRITE setUserConfigOK NOTIFY userConfigOKChanged)
+    Q_PROPERTY(QString availableCodecList READ availableCodecList WRITE setAvailableCodecList NOTIFY availableCodecListChanged)
 public:
     explicit backEnd(QObject *parent = nullptr);
 
@@ -33,6 +34,9 @@ public:
     QString userConfigDisplay(){ return m_userConfigDisplay; }
     void setUserConfigDisplay(const QString &input);
 
+    QString availableCodecList(){ return m_availableCodecList; }
+    void setAvailableCodecList(const QString &input);
+
     void loadUserConfigFile();
     bool checkUserConfigForIssues();
     void constructUserConfigGUI();
@@ -41,13 +45,16 @@ public:
     void setupBehaviorTracker();
 
     bool checkForUniqueDeviceNames();
+    bool checkForCompression();
 
 signals:
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();
     void userConfigOKChanged();
+    void availableCodecListChanged();
     void closeAll();
     void showErrorMessage();
+    void showErrorMessageCompression();
     void sendMessage(QString);
 
 public slots:
@@ -90,7 +97,9 @@ private:
 
     BehaviorTracker *behavTracker;
 
-    QVector<QString> availableCodec;
+    QVector<QString> m_availableCodec;
+    QString m_availableCodecList;
+    QVector<QString> unAvailableCodec;
 
 };
 

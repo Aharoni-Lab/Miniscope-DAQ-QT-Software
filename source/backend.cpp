@@ -60,10 +60,15 @@ backEnd::backEnd(QObject *parent) :
 
     testCodecSupport();
     QString tempStr;
-    for (int i = 0; i < availableCodec.length(); i++)
-        tempStr += availableCodec[i] + ", ";
+    for (int i = 0; i < m_availableCodec.length(); i++)
+        m_availableCodecList += m_availableCodec[i] + ", ";
 
-    setUserConfigDisplay("Select a User Configuration file.\n\nAvailable compression Codecs on your computer are:\n" + tempStr);
+    m_availableCodecList = m_availableCodecList.chopped(2);
+    for (int i = 0; i < unAvailableCodec.length(); i++)
+        tempStr += unAvailableCodec[i] + ", ";
+
+    setUserConfigDisplay("Select a User Configuration file.\n\nAvailable compression Codecs on your computer are:\n" + m_availableCodecList +
+                         "\n\nUnavailable compression Codes on your computer are:\n" + tempStr.chopped(2));
 
 //    QObject::connect(this, SIGNAL (userConfigFileNameChanged()), this, SLOT( handleUserConfigFileNameChanged() ));
 }
@@ -89,6 +94,11 @@ void backEnd::setUserConfigDisplay(const QString &input)
         m_userConfigDisplay = input;
         emit userConfigDisplayChanged();
     }
+}
+
+void backEnd::setAvailableCodecList(const QString &input)
+{
+    m_availableCodecList = input;
 }
 
 void backEnd::loadUserConfigFile()
@@ -227,15 +237,17 @@ void backEnd::testCodecSupport()
 {
     // This function will test which codecs are supported on host's machine
     cv::VideoWriter testVid;
-    QVector<QString> possibleCodec({"DIB ", "MJPG", "MJ2C", "XVID", "FFV1"});
+    QVector<QString> possibleCodec({"DIB ", "MJPG", "MJ2C", "XVID", "FFV1", "DX50", "FLV1", "H264", "I420","MPEG","mp4v"});
     for (int i = 0; i < possibleCodec.length(); i++) {
         testVid.open("test.avi", cv::VideoWriter::fourcc(possibleCodec[i].toStdString()[0],possibleCodec[i].toStdString()[1],possibleCodec[i].toStdString()[2],possibleCodec[i].toStdString()[3]),
                 20, cv::Size(640, 480), true);
         if (testVid.isOpened()) {
-            availableCodec.append(possibleCodec[i]);
+            m_availableCodec.append(possibleCodec[i]);
             qDebug() << "Codec" << possibleCodec[i] << "supported for color";
             testVid.release();
         }
+        else
+            unAvailableCodec.append(possibleCodec[i]);
     }
 
 }
@@ -247,6 +259,12 @@ bool backEnd::checkUserConfigForIssues()
         setUserConfigOK(false);
         userConfigOKChanged();
         showErrorMessage();
+    }
+    else if (checkForCompression() == false) {
+        // Need to tell user that user config has error(s)
+        setUserConfigOK(false);
+        userConfigOKChanged();
+        showErrorMessageCompression();
     }
     else {
         setUserConfigOK(true);
@@ -317,6 +335,22 @@ bool backEnd::checkForUniqueDeviceNames()
     else {
         return true;
     }
+}
+
+bool backEnd::checkForCompression()
+{
+    QString tempName;
+    for (int i = 0; i < ucMiniscopes.size(); i++) {
+        tempName = ucMiniscopes[i].toObject()["compression"].toString("Empty");
+        if (!m_availableCodec.contains(tempName) && tempName != "Empty")
+            return false;
+    }
+    for (int i = 0; i < ucBehaviorCams.size(); i++) {
+        tempName = ucBehaviorCams[i].toObject()["compression"].toString("Empty");
+        if (!m_availableCodec.contains(tempName) && tempName != "Empty")
+            return false;
+    }
+    return true;
 }
 
 void backEnd::constructUserConfigGUI()
