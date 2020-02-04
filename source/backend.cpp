@@ -12,6 +12,12 @@
 #include <QDir>
 #include <QVector>
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/videoio.hpp>
+
 #include "miniscope.h"
 #include "behaviorcam.h"
 #include "controlpanel.h"
@@ -50,7 +56,15 @@ backEnd::backEnd(QObject *parent) :
     ucBehaviorTracker["type"] = "None";
 
     dataSaver = new DataSaver();
-    setUserConfigDisplay("Select a User Configuration file.");
+
+
+    testCodecSupport();
+    QString tempStr;
+    for (int i = 0; i < availableCodec.length(); i++)
+        tempStr += availableCodec[i] + ", ";
+
+    setUserConfigDisplay("Select a User Configuration file.\nAvailable Codecs on your computer are:\n" + tempStr);
+
 //    QObject::connect(this, SIGNAL (userConfigFileNameChanged()), this, SLOT( handleUserConfigFileNameChanged() ));
 }
 
@@ -209,6 +223,32 @@ void backEnd::setupDataSaver()
     dataSaverThread->start();
 }
 
+void backEnd::testCodecSupport()
+{
+    // This function will test which codecs are supported on host's machine
+    cv::VideoWriter testVid;
+    QVector<QString> possibleCodec({"DIB ", "MJPG", "MJ2C", "XVID", "FFV1"});
+
+    testVid.open("test.raw", 0, 0, cv::Size(640, 480), true);
+    if (testVid.isOpened()) {
+        qDebug() << "RAWAWAWAWAW";
+        testVid.release();
+    }
+    else
+        qDebug() << "NOOOOOOO GOOOOOOOOD";
+
+    for (int i = 0; i < possibleCodec.length(); i++) {
+        testVid.open("test.avi", cv::VideoWriter::fourcc(possibleCodec[i].toStdString()[0],possibleCodec[i].toStdString()[1],possibleCodec[i].toStdString()[2],possibleCodec[i].toStdString()[3]),
+                20, cv::Size(640, 480), true);
+        if (testVid.isOpened()) {
+            availableCodec.append(possibleCodec[i]);
+            qDebug() << "Codec" << possibleCodec[i] << "supported for color";
+            testVid.release();
+        }
+    }
+
+}
+
 bool backEnd::checkUserConfigForIssues()
 {
     if (checkForUniqueDeviceNames() == false) {
@@ -294,6 +334,9 @@ void backEnd::constructUserConfigGUI()
 
     // Load main control GUI
     controlPanel = new ControlPanel(this, m_userConfig);
+    QObject::connect(this, SIGNAL (sendMessage(QString) ), controlPanel, SLOT( receiveMessage(QString)));
+
+
 
     for (idx = 0; idx < ucMiniscopes.size(); idx++) {
         miniscope.append(new Miniscope(this, ucMiniscopes[idx].toObject()));

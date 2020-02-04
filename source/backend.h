@@ -48,6 +48,7 @@ signals:
     void userConfigOKChanged();
     void closeAll();
     void showErrorMessage();
+    void sendMessage(QString);
 
 public slots:
     void onRunClicked();
@@ -59,6 +60,8 @@ public slots:
 private:
     void connectSnS();
     void setupDataSaver();
+
+    void testCodecSupport();
 
     QString m_userConfigFileName;
     QString m_userConfigDisplay;
@@ -86,6 +89,8 @@ private:
     QThread *dataSaverThread;
 
     BehaviorTracker *behavTracker;
+
+    QVector<QString> availableCodec;
 
 };
 
