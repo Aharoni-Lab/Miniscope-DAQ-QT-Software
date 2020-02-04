@@ -295,8 +295,8 @@ void DataSaver::setDataCompression(QString name, QString type)
 {
     if (type == "MJPG")
         dataCompressionFourCC[name] = cv::VideoWriter::fourcc('M','J','P','G');
-//    else if (type == "uncompressed" || type == "None")
-//        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('D','I','B',' ');
+    else if (type == "uncompressed" || type == "None")
+        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('D','I','B',' ');
     else if (type == "MJ2C")
         dataCompressionFourCC[name] = cv::VideoWriter::fourcc('M','J','2','C');
     else if (type == "XVID")

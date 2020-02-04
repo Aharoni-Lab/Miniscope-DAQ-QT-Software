@@ -200,7 +200,7 @@ Item {
     Connections{
         target: root
         onCurrentRecordTimeChanged: {
-            if (root.currentRecordTime >= root.ucRecordLength) {
+            if ((root.currentRecordTime >= root.ucRecordLength) && root.ucRecordLength > 0) {
                 bStop.enabled = false;
                 bRecord.enabled = true;
             }

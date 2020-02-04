@@ -50,7 +50,7 @@ backEnd::backEnd(QObject *parent) :
     ucBehaviorTracker["type"] = "None";
 
     dataSaver = new DataSaver();
-    setUserConfigDisplay("Select User Configuration file by \nclicking the button above or dragging file here.");
+    setUserConfigDisplay("Select a User Configuration file.");
 //    QObject::connect(this, SIGNAL (userConfigFileNameChanged()), this, SLOT( handleUserConfigFileNameChanged() ));
 }
 
