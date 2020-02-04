@@ -63,7 +63,7 @@ backEnd::backEnd(QObject *parent) :
     for (int i = 0; i < availableCodec.length(); i++)
         tempStr += availableCodec[i] + ", ";
 
-    setUserConfigDisplay("Select a User Configuration file.\nAvailable Codecs on your computer are:\n" + tempStr);
+    setUserConfigDisplay("Select a User Configuration file.\n\nAvailable compression Codecs on your computer are:\n" + tempStr);
 
 //    QObject::connect(this, SIGNAL (userConfigFileNameChanged()), this, SLOT( handleUserConfigFileNameChanged() ));
 }

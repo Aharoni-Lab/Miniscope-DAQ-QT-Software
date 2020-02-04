@@ -76,7 +76,7 @@ DISTFILES +=
 
 
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420
-win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_videoio_ffmpeg420_64
+#win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_videoio_ffmpeg420_64
 else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420d
 
 INCLUDEPATH += $$PWD/../../../../../../../opencv-build420/install/include
