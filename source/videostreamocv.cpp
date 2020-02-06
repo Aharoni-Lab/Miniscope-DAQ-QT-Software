@@ -126,6 +126,7 @@ void VideoStreamOCV::startStream()
                             frame.copyTo(frameBuffer[idx%frameBufferSize]);
                         }
                         else {
+//                            frame = cv::repeat(frame,4,4);
                             cv::cvtColor(frame, frameBuffer[idx%frameBufferSize], cv::COLOR_BGR2GRAY);
                         }
 //                        qDebug() << "Frame Number:" << *m_acqFrameNum - cam->get(cv::CAP_PROP_CONTRAST);
