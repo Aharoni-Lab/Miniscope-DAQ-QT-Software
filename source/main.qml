@@ -21,13 +21,8 @@ Window {
         folder: shortcuts.home
         nameFilters: [ "JSON files (*.json)", "All files (*)" ]
         onAccepted: {
-            // Remove "file:///" from selected file name
-            var path = fileDialog.fileUrl.toString();
-            path = path.replace(/^(file:\/{3})|(qrc:\/{2})|(http:\/{2})/,"");
-            path = decodeURIComponent(path);
-
             // Send file name to c++ backend
-            backend.userConfigFileName = path
+            backend.userConfigFileName = fileDialog.fileUrl
 //            rbRun.enabled = true
         }
         onRejected: {

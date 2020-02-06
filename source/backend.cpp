@@ -11,6 +11,7 @@
 #include <QVariant>
 #include <QDir>
 #include <QVector>
+#include <QUrl>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -75,9 +76,11 @@ backEnd::backEnd(QObject *parent) :
 
 void backEnd::setUserConfigFileName(const QString &input)
 {
-    if (input.contains(".json")) {
-        if (input != m_userConfigFileName) {
-            m_userConfigFileName = input;
+    const QUrl url(input);
+    QString furl = url.toLocalFile();
+    if (furl.contains(".json")) {
+        if (furl != m_userConfigFileName) {
+            m_userConfigFileName = furl;
             //emit userConfigFileNameChanged();
         }
 
