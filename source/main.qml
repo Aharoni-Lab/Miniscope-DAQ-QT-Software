@@ -169,13 +169,10 @@ Window {
                     id: drop
                     anchors.fill: parent
                     onDropped: {
-                        // Remove "file:///" from selected file name
-                        var path = drop.text;
-                        path = path.replace(/^(file:\/{3})|(qrc:\/{2})|(http:\/{2})/,"");
-                        path = decodeURIComponent(path);
-
                         // Send file name to c++ backend
-                        backend.userConfigFileName = path
+                        if (drop.hasUrls) {
+                            backend.userConfigFileName = drop.urls[0];
+                        }
             //            rbRun.enabled = true
                     }
                 }
