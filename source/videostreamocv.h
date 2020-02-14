@@ -41,6 +41,7 @@ public slots:
     void setExtTriggerTrackingState(bool state);
     void startRecording();
     void stopRecording();
+    void openCamPropsDialog();
 
 private:
     void sendCommands();

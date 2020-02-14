@@ -127,6 +127,11 @@ void BehaviorCam::createView()
         QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double, double) ),
                              this, SLOT( handlePropChangedSignal(QString, double, double, double) ));
 
+        // Open OpenCV properties dialog for behav cam
+        QObject::connect(rootObject, SIGNAL( camPropsClicked() ), this, SLOT( handleCamPropsClicked()));
+        QObject::connect(this, SIGNAL( openCamPropsDialog()), behavCamStream, SLOT( openCamPropsDialog()));
+
+        //
         QObject::connect(view, &NewQuickView::closing, behavCamStream, &VideoStreamOCV::stopSteam);
         QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &BehaviorCam::sendNewFrame);
 

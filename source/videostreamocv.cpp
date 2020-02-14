@@ -230,6 +230,13 @@ void VideoStreamOCV::stopRecording()
     }
 }
 
+void VideoStreamOCV::openCamPropsDialog()
+{
+    if (cam->isOpened()){
+        cam->set(cv::CAP_PROP_SETTINGS, 0);
+    }
+}
+
 void VideoStreamOCV::sendCommands()
 {
 //    QList<long> keys = sendCommandQueue.keys();

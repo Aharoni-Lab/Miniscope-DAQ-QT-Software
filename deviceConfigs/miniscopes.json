@@ -560,7 +560,7 @@
             }
         ]
     },
-	    "Siminiscope_Bin2x": {
+	"Siminiscope_Bin2x": {
         "qmlFile": "qrc:/Miniscope_V4_BNO.qml",
         "sensor": "MT9P031",
         "frameRate": "adjustable",

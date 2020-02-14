@@ -48,6 +48,7 @@ signals:
     void sendMessage(QString msg);
     void takeScreenShot(QString type);
     void newFrameAvailable(QString name, int frameNum);
+    void openCamPropsDialog();
 
 public slots:
     void sendNewFrame();
@@ -55,6 +56,7 @@ public slots:
     void handlePropChangedSignal(QString type, double displayValue, double i2cValue, double i2cValue2);
     void handleTakeScreenShotSignal();
     void close();
+    void handleCamPropsClicked() { emit openCamPropsDialog();}
 
 private:
     void getBehavCamConfig(QString deviceType);

@@ -14,6 +14,8 @@ Item {
     signal vidPropChangedSignal(string name, double displayValue, double i2cValue)
     signal takeScreenShotSignal()
 
+    signal camPropsClicked()
+
     Keys.onPressed: {
         if (event.key === Qt.Key_H) {
             if (root.state == "controlsShown")
@@ -157,6 +159,27 @@ Item {
         spacing: 0
         anchors.verticalCenter: parent.verticalCenter
 
+
+        RoundButton {
+            id: camProps
+            objectName: "camProps"
+            text: "Cam. Props."
+            font.family: "Arial"
+            font.pointSize: 10
+            font.bold: true
+            font.weight: Font.Normal
+            radius: 4
+            enabled: true
+            background: Rectangle {
+                id: camPropsRect
+                radius: camProps.radius
+                border.width: 1
+                color: "#a8a7fd"
+            }
+            onHoveredChanged: hovered ? camPropsRect.color = "#f8a7fd" : camPropsRect.color = "#a8a7fd"
+            onClicked: root.camPropsClicked()
+
+        }
 
         VideoSliderControl{
             id: alpha
