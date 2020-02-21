@@ -128,16 +128,17 @@ void VideoStreamOCV::startStream()
                         }
                     }
                     else {
+
                         // Let's make sure the frame acquired has the correct size. An openCV error seems to occur on cam reconnect due to a mismatch in size.
-                        if (frame.cols != m_expectedWidth || frame.rows != m_expectedHeight) {
-                            sendMessage("Warning: " + m_deviceName + " acquired frame has wrong size. [" + QString::number(frame.cols) + ", " + QString::number(frame.rows) + "]");
-                            qDebug() << "Wrong frame size for device" << m_cameraID;
+//                        if (frame.cols != m_expectedWidth || frame.rows != m_expectedHeight) {
+//                            sendMessage("Warning: " + m_deviceName + " acquired frame has wrong size. [" + QString::number(frame.cols) + ", " + QString::number(frame.rows) + "]");
+//                            qDebug() << "Wrong frame size for device" << m_cameraID;
 
-                            // This likely means the correct video stream crashed and openCV defaulted to a different video stream. So lets disconnect and try to reconnect to the correct one
-                            cam->release();
-
-                        }
-                        else {
+//                            // This likely means the correct video stream crashed and openCV defaulted to a different video stream. So lets disconnect and try to reconnect to the correct one
+//                            cam->release();
+//                        }
+//                        else {
+                        if (true) {
                             if (m_isColor) {
                                 frame.copyTo(frameBuffer[idx%frameBufferSize]);
                             }
