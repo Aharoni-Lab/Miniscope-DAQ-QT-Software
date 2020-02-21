@@ -22,7 +22,8 @@ public:
         m_texture(0),
         m_newFrame(false),
         m_alpha(1),
-        m_beta(0)
+        m_beta(0),
+        m_showStaturation(1)
     { }
     ~VideoDisplayRenderer();
 
@@ -32,6 +33,7 @@ public:
     void setWindow(QQuickWindow *window) { m_window = window; }
     void setAlpha(double a) {m_alpha = a;}
     void setBeta(double b) {m_beta = b;}
+    void setShowSaturation(double value) {m_showStaturation = value; }
 
 signals:
     void requestNewFrame();
@@ -50,6 +52,7 @@ private:
 
     double m_alpha;
     double m_beta;
+    double m_showStaturation;
 
 
 };
@@ -86,6 +89,7 @@ public:
     void setDisplayFrame(QImage frame);
     void setAlpha(double a) {m_renderer->setAlpha(a);}
     void setBeta(double b) {m_renderer->setBeta(b);}
+    void setShowSaturation(double value);
 
 signals:
     void tChanged();
@@ -111,6 +115,8 @@ private:
     int m_droppedFrameCount;
     QImage m_displayFrame2;
     VideoDisplayRenderer *m_renderer;
+
+    double m_showSaturation;
 };
 //! [2]
 

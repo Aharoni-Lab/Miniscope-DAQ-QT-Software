@@ -30,6 +30,7 @@
                 "imageRegistration": "Off",
                 "streamHeadOrientation": false,
                 "deviceID": 1,
+				"showSaturation": true,
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
                 "compression": "FFV1",
                 "framesPerFile": 1000,

@@ -43,7 +43,7 @@ BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucBehavCam) :
     // -------------------------
 
     // Setup OpenCV camera stream
-    behavCamStream = new VideoStreamOCV;
+    behavCamStream = new VideoStreamOCV(nullptr,  m_cBehavCam["width"].toInt(), m_cBehavCam["height"].toInt());
     behavCamStream->setDeviceName(m_deviceName);
 
     behavCamStream->setStreamHeadOrientation(m_streamHeadOrientationState);
@@ -121,6 +121,12 @@ void BehaviorCam::createView()
         configureBehavCamControls();
         vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
         vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
+
+        // Turn on or off saturation display
+        if (m_ucBehavCam["showSaturation"].toBool(true))
+            vidDisplay->setShowSaturation(1);
+        else
+            vidDisplay->setShowSaturation(0);
 
         QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
                              this, SLOT( handleTakeScreenShotSignal() ));

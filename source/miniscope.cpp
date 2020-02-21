@@ -47,7 +47,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     // -------------------------
 
     // Setup OpenCV camera stream
-    miniscopeStream = new VideoStreamOCV;
+    miniscopeStream = new VideoStreamOCV(nullptr, m_cMiniscopes["width"].toInt(-1), m_cMiniscopes["height"].toInt(-1));
     miniscopeStream->setDeviceName(m_deviceName);
 
     miniscopeStream->setStreamHeadOrientation(m_streamHeadOrientationState);
@@ -140,6 +140,12 @@ void Miniscope::createView()
         configureMiniscopeControls();
         vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
         vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
+
+        // Turn on or off show saturation display
+        if (m_ucMiniscope["showSaturation"].toBool(true))
+            vidDisplay->setShowSaturation(1);
+        else
+            vidDisplay->setShowSaturation(0);
 
         if (m_streamHeadOrientationState)
             bnoDisplay = rootObject->findChild<QQuickItem*>("bno");
@@ -399,7 +405,6 @@ void Miniscope::sendNewFrame(){
 //    vidDisplay->setProperty("displayFrame", QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
     int f = *m_acqFrameNum;
     cv::Mat tempMat1, tempMat2;
-
     if (f > m_previousDisplayFrameNum) {
         m_previousDisplayFrameNum = f;
         QImage tempFrame2;
@@ -434,8 +439,11 @@ void Miniscope::sendNewFrame(){
             baselinePreviousTimeStamp = timeStampBuffer[f];
             baselineFrameBufWritePos++;
         }
-        if (m_displatState == "Raw")
+
+        if (m_displatState == "Raw") {
+
             vidDisplay->setDisplayFrame(tempFrame2.copy());
+        }
         else if (m_displatState == "dFF") {
             // TODO: Implement this better. I am sure it can be sped up a lot. Maybe do most of it in a shader
             tempMat2 = frameBuffer[f].clone();

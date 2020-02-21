@@ -28,6 +28,7 @@
                 "deviceName": "BehavCam 0",
                 "deviceType": "WebCam",
                 "deviceID": 0,
+				"showSaturation": true,
                 "cameraCalibrationFileLocation": "",
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
                 "compression": "FFV1",

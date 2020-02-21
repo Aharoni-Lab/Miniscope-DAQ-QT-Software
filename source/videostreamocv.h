@@ -18,7 +18,7 @@ class VideoStreamOCV : public QObject
 {
     Q_OBJECT
 public:
-    explicit VideoStreamOCV(QObject *parent = nullptr);
+    explicit VideoStreamOCV(QObject *parent = nullptr, int width = 0, int height = 0);
     ~VideoStreamOCV();
 //    void setCameraID(int cameraID);
     void setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf,
@@ -45,6 +45,7 @@ public slots:
 
 private:
     void sendCommands();
+    bool attemptReconnect();
     int m_cameraID;
     QString m_deviceName;
     cv::VideoCapture *cam;
@@ -67,6 +68,10 @@ private:
 
     bool m_trackExtTrigger;
 
+    int m_expectedWidth;
+    int m_expectedHeight;
+
+    QString m_connectionType;
 
 };
 

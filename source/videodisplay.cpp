@@ -34,6 +34,14 @@ void VideoDisplay::setDisplayFrame(QImage frame) {
     if (m_renderer)
         m_renderer->setDisplayFrame(m_displayFrame2.copy());
 }
+
+void VideoDisplay::setShowSaturation(double value)
+{
+    m_showSaturation = value;
+    if (m_renderer) {
+        m_renderer->setShowSaturation(value);
+    }
+}
 //void VideoDisplayRenderer::setDisplayFrame(QImage frame) {
 //    m_displayFrame = frame;
 //}
@@ -75,6 +83,7 @@ void VideoDisplay::sync()
 {
     if (!m_renderer) {
         m_renderer = new VideoDisplayRenderer();
+        m_renderer->setShowSaturation(m_showSaturation);
 //        m_renderer->setDisplayFrame(QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
         connect(window(), &QQuickWindow::beforeRendering, m_renderer, &VideoDisplayRenderer::paint, Qt::DirectConnection);
     }
@@ -140,7 +149,7 @@ void VideoDisplayRenderer::paint()
     m_program->setAttributeArray(1, GL_FLOAT, texcoord, 2);
     m_program->setUniformValue("alpha", (float) m_alpha);
     m_program->setUniformValue("beta", (float) m_beta);
-    m_program->setUniformValue("showSaturation", (float) 1);
+    m_program->setUniformValue("showSaturation", (float) m_showStaturation);
 
     glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
 
