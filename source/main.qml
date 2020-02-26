@@ -153,9 +153,9 @@ Window {
             TextArea {
                 id: taConfigDesc
                 text: backend.userConfigDisplay
-                wrapMode: Text.NoWrap
-                //                wrapMode: Text.WrapAnywhere
-                //                anchors.fill: parent
+//                wrapMode: Text.NoWrap
+                                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                //                anchors.fill: parent
                 font.pointSize: 12
                 readOnly: true
                 background: Rectangle {
