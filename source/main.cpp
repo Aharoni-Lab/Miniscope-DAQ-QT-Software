@@ -9,6 +9,7 @@
 
 #include "backend.h"
 
+#define VERSION_NUMBER "0.162"
 // TODO: have exit button close everything
 
 // For Window's deployment
@@ -40,6 +41,7 @@ int main(int argc, char *argv[])
 
     engine.load(url);
 
+    backend.setVersionNumber(VERSION_NUMBER);
     QObject::connect(&backend, &backEnd::closeAll, &engine, &QQmlApplicationEngine::quit);
     return app.exec();
 }

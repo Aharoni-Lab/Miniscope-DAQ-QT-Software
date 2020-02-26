@@ -22,6 +22,7 @@ class backEnd : public QObject
     Q_PROPERTY(QString userConfigDisplay READ userConfigDisplay WRITE setUserConfigDisplay NOTIFY userConfigDisplayChanged)
     Q_PROPERTY(bool userConfigOK READ userConfigOK WRITE setUserConfigOK NOTIFY userConfigOKChanged)
     Q_PROPERTY(QString availableCodecList READ availableCodecList WRITE setAvailableCodecList NOTIFY availableCodecListChanged)
+    Q_PROPERTY(QString versionNumber READ versionNumber WRITE setVersionNumber NOTIFY versionNumberChanged)
 public:
     explicit backEnd(QObject *parent = nullptr);
 
@@ -36,6 +37,9 @@ public:
 
     QString availableCodecList(){ return m_availableCodecList; }
     void setAvailableCodecList(const QString &input);
+
+    QString versionNumber() { return m_versionNumber; }
+    void setVersionNumber(const QString &input) { m_versionNumber = input; }
 
     void loadUserConfigFile();
     bool checkUserConfigForIssues();
@@ -52,6 +56,8 @@ signals:
     void userConfigDisplayChanged();
     void userConfigOKChanged();
     void availableCodecListChanged();
+    void versionNumberChanged();
+
     void closeAll();
     void showErrorMessage();
     void showErrorMessageCompression();
@@ -70,6 +76,7 @@ private:
 
     void testCodecSupport();
 
+    QString m_versionNumber;
     QString m_userConfigFileName;
     QString m_userConfigDisplay;
     bool m_userConfigOK;

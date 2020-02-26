@@ -26,10 +26,10 @@
         "miniscopes": [
             {
                 "deviceName": "Miniscope 2",
-                "deviceType": "Miniscope_V4_BNO",
+                "deviceType": "Miniscope_V4",
                 "imageRegistration": "Off",
                 "streamHeadOrientation": true,
-                "deviceID": 1,
+                "deviceID": 2,
 				"showSaturation": true,
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
                 "compression": "FFV1",
