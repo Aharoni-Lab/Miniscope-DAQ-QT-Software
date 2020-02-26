@@ -94,7 +94,7 @@ void VideoStreamOCV::startStream()
                 sendMessage("Error: " + m_deviceName + " frame buffer is full. Frames will be lost!");
             }
 
-            if(freeFrames->tryAcquire(1,20)) {
+            if(freeFrames->tryAcquire(1,100)) {
                 if (!cam->grab()) {
                     sendMessage("Warning: " + m_deviceName + " grab frame failed. Attempting to reconnect.");
                     if (cam->isOpened()) {

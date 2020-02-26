@@ -75,14 +75,17 @@ HEADERS += \
 DISTFILES +=
 
 
-win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420
-#win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_videoio_ffmpeg420_64
-else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420d
+LIBS += -L$$PWD/../../../../../../../opencv-build420/lib/Release/ -lopencv_world420
+#LIBS += -L$$PWD/../../../../../../../opencv-build420/lib/Debug/ -lopencv_world420d
+
+#win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420
+##win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_videoio_ffmpeg420_64
+#else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420d
 
 #LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420
 
-INCLUDEPATH += $$PWD/../../../../../../../opencv-build420/install/include
-DEPENDPATH += $$PWD/../../../../../../../opencv-build420/install/include
+INCLUDEPATH += $$PWD/../../../../../../../opencv/build/include
+#DEPENDPATH += $$PWD/../../../../../../../opencv-build420/install/include
 
 
 # Move user and device configs to build directory

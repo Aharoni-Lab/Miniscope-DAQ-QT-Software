@@ -91,12 +91,12 @@ Item {
                  textFormat: TextEdit.RichText
                  text: "'Space Bar': screenshot of video stream.<br/>'h': hides/shows video stream controls.<br/>Messages:"
  //                wrapMode: Text.WrapAnywhere
-                 anchors.fill: parent
+//                 anchors.fill: flick1
                  font.pointSize: 12
                  readOnly: true
                  background: Rectangle {
  //                    radius: rbSelectUserConfig.radius
-                     anchors.fill: parent
+//                     anchors.fill: flick1
  //                    border.width: 1
                      color: "#ebebeb"
                  }
