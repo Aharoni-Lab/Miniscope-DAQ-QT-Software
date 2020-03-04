@@ -19,6 +19,7 @@ Item {
     property var outputValues2: [0,0,0,0,0,0,0,0,0,0,0]
     property var startValue: "1"
 
+
     onStartValueChanged: {
         spinBox.value = displaySpinBoxValues.indexOf(startValue)
     }

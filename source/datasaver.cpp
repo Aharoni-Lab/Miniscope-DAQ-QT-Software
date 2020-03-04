@@ -35,8 +35,11 @@ void DataSaver::setupFilePaths()
     setupBaseDirectory();
 
     if (!QDir(baseDirectory).exists()) {
-        if(!QDir().mkpath(baseDirectory))
+        if(!QDir().mkpath(baseDirectory)) {
             qDebug() << "Could not make path: " << baseDirectory;
+            sendMessage("Error: Data folder structure failed to be created.");
+            // TODO: When this happens stop recording
+        }
     }
     else
         qDebug() << baseDirectory << " already exisits. This likely will cause issues";

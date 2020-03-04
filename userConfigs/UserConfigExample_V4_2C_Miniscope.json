@@ -10,7 +10,7 @@
     ],
     "animalName": "testMouse",
     "experimentName": "Linear Track Test",
-    "recordLengthinSeconds": 600,
+    "recordLengthinSeconds": 0,
     "experiment_Not_Implemented": {
         "type": "linearTrack",
         "units": "cm",
@@ -25,37 +25,23 @@
     "devices": {
         "miniscopes": [
             {
-                "deviceName": "Miniscope 2",
-                "deviceType": "Miniscope_V4_BNO",
+                "deviceName": "Miniscope",
+                "deviceType": "Miniscope_V4_2C",
                 "imageRegistration": "Off",
                 "streamHeadOrientation": true,
-                "deviceID": 1,
+                "deviceID": 2,
 				"showSaturation": true,
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
-                "compression": "GREY",
+                "compression": "FFV1",
                 "framesPerFile": 1000,
                 "windowScale": 0.75,
                 "windowX": 800,
                 "windowY": 100,
                 "gain": "Low",
                 "ewl": 50,
-                "led0": 30,
+                "led0": 10,
+				"led1": 20,
                 "frameRate": "30FPS"
-            }
-        ],
-        "cameras": [
-            {
-                "deviceName": "BehavCam 0",
-                "deviceType": "WebCam",
-                "deviceID": 0,
-				"showSaturation": false,
-                "cameraCalibrationFileLocation": "",
-                "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
-                "compression": "XVID",
-                "framesPerFile": 1000,
-                "windowScale": 0.75,
-                "windowX": 800,
-                "windowY": 600
             }
         ]
     }

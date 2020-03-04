@@ -281,6 +281,7 @@ void Miniscope::configureMiniscopeControls() {
 
         keys = values.keys();
         if (controlItem) {
+            controlItem->setVisible(true);
             for (int j = 0; j < keys.size(); j++) { // Set min, max, startValue, and stepSize in order found in 'format'
                 if (keys[j] == "sendCommand") {
                     m_controlSendCommand[controlName[i]] = parseSendCommand(values["sendCommand"].toArray());

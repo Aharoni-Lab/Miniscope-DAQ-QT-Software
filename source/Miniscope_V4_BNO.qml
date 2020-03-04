@@ -181,6 +181,16 @@ Item {
         }
 
         VideoSliderControl {
+            id: led1
+            objectName: "led1"
+            max: 100
+            startValue: 0
+            iconPath: "img/icon/led.png"
+            textColor: "black"
+            visible: false
+        }
+
+        VideoSliderControl {
             id: ewl
             objectName: "ewl"
             max: 100
@@ -236,6 +246,10 @@ Item {
     Connections{
         target: led0
         onValueChangedSignal: vidPropChangedSignal(led0.objectName, displayValue, i2cValue, i2cValue2)
+    }
+    Connections{
+        target: led1
+        onValueChangedSignal: vidPropChangedSignal(led1.objectName, displayValue, i2cValue, i2cValue2)
     }
     Connections{
         target: ewl
