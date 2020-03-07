@@ -71,7 +71,9 @@ class VideoDisplay : public QQuickItem
 
 public:
     VideoDisplay();
-    void mousePressEvent(QMouseEvent *event);
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
 
     qreal t() const { return m_t; }
     double acqFPS() const { return m_acqFPS; }

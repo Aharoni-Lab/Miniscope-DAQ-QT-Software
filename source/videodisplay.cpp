@@ -99,6 +99,13 @@ void VideoDisplay::mousePressEvent(QMouseEvent *event){
     qDebug() << "Mouse Press" << event;
 }
 
+void VideoDisplay::mouseMoveEvent(QMouseEvent *event) {
+    qDebug() << "Mouse Move" << event;
+}
+
+void VideoDisplay::mouseReleaseEvent(QMouseEvent *event) {
+    qDebug() << "Mouse Release" << event;
+}
 //! [4]
 void VideoDisplayRenderer::paint()
 {
