@@ -14,6 +14,7 @@ VideoDisplay::VideoDisplay()
       m_renderer(nullptr)
 {
 //    m_displayFrame2.load("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png");
+    setAcceptedMouseButtons(Qt::AllButtons);
     connect(this, &QQuickItem::windowChanged, this, &VideoDisplay::handleWindowChanged);
 
 }
@@ -93,6 +94,10 @@ void VideoDisplay::sync()
     m_renderer->setWindow(window());
 }
 //! [9]
+
+void VideoDisplay::mousePressEvent(QMouseEvent *event){
+    qDebug() << "Mouse Press" << event;
+}
 
 //! [4]
 void VideoDisplayRenderer::paint()

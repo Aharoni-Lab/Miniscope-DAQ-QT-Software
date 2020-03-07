@@ -36,6 +36,7 @@ Item {
         Layout.minimumHeight: 480
         Layout.minimumWidth: 640
         objectName: "vD"
+        anchors.fill: parent
 
         property var sumAcqFPS: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
         property var idx: 0
