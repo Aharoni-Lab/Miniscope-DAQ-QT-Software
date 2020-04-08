@@ -179,8 +179,12 @@ void DataSaver::startRunning()
 void DataSaver::startRecording()
 {
     if (baseDirectory.isEmpty()) {
-        qWarning() << "Could not start recording since the base directory is empty.";
-        return;
+        setupBaseDirectory();
+        // give up if a base directory still can not be found
+        if (baseDirectory.isEmpty()) {
+            qWarning() << "Could not start recording since the base directory is empty.";
+            return;
+        }
     }
 
     QJsonDocument jDoc;
