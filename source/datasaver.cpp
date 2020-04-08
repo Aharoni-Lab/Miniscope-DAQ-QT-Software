@@ -19,7 +19,6 @@
 #include <QTextStream>
 #include <QVariant>
 #include <QMetaType>
-#include <QMessageBox>
 
 DataSaver::DataSaver(QObject *parent) :
     QObject(parent),
