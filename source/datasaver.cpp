@@ -19,6 +19,7 @@
 #include <QTextStream>
 #include <QVariant>
 #include <QMetaType>
+#include <QMessageBox>
 
 DataSaver::DataSaver(QObject *parent) :
     QObject(parent),
@@ -172,8 +173,12 @@ void DataSaver::startRunning()
 
 void DataSaver::startRecording()
 {
-    QJsonDocument jDoc;
+    if (baseDirectory.isEmpty()) {
+        qWarning() << "Could not start recording since the base directory is empty.";
+        return;
+    }
 
+    QJsonDocument jDoc;
     recordStartDateTime = QDateTime::currentDateTime();
     setupFilePaths();
     // TODO: Save meta data JSONs
