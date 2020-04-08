@@ -114,6 +114,11 @@ void DataSaver::setupBaseDirectory()
 
 void DataSaver::startRunning()
 {
+    if (m_running) {
+        qCritical() << "Tried to run a DataSaver that was already running.";
+        return;
+    }
+
     m_running = true;
     int i;
     int bufPosition;
