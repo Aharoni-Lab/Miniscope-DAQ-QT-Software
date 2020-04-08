@@ -243,6 +243,8 @@ void DataSaver::startRecording()
 
 void DataSaver::stopRecording()
 {
+    if (!m_recording)
+        return;
     m_recording = false;
     QStringList keys = videoWriter.keys();
     for (int i = 0; i < keys.length(); i++) {
