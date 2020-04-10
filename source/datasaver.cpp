@@ -113,6 +113,11 @@ void DataSaver::setupBaseDirectory()
 
 void DataSaver::startRunning()
 {
+    if (m_running) {
+        qCritical() << "Tried to run a DataSaver that was already running.";
+        return;
+    }
+
     m_running = true;
     int i;
     int bufPosition;
@@ -172,8 +177,16 @@ void DataSaver::startRunning()
 
 void DataSaver::startRecording()
 {
-    QJsonDocument jDoc;
+    if (baseDirectory.isEmpty()) {
+        setupBaseDirectory();
+        // give up if a base directory still can not be found
+        if (baseDirectory.isEmpty()) {
+            qWarning() << "Could not start recording since the base directory is empty.";
+            return;
+        }
+    }
 
+    QJsonDocument jDoc;
     recordStartDateTime = QDateTime::currentDateTime();
     setupFilePaths();
     // TODO: Save meta data JSONs
@@ -238,6 +251,8 @@ void DataSaver::startRecording()
 
 void DataSaver::stopRecording()
 {
+    if (!m_recording)
+        return;
     m_recording = false;
     QStringList keys = videoWriter.keys();
     for (int i = 0; i < keys.length(); i++) {
