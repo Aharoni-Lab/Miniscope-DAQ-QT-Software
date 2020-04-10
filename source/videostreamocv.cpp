@@ -36,13 +36,25 @@ int VideoStreamOCV::connect2Camera(int cameraID) {
     int connectionState = 0;
     m_cameraID = cameraID;
     cam = new cv::VideoCapture;
+
+    auto apiPreference = cv::CAP_ANY;
+    QString apiName = "OTHER";
+#ifdef Q_OS_LINUX
+    apiPreference = cv::CAP_V4L2;
+    apiName = QStringLiteral("V4L");
+#elif defined(Q_OS_WINDOWS)
     // Try connecting using DShow backend
-    if (cam->open(m_cameraID, cv::CAP_DSHOW)) {
+    apiPreference = cv::CAP_DSHOW;
+    apiName = QStringLiteral("DSHOW");
+#endif
+
+    if (cam->open(m_cameraID, apiPreference)) {
+        // we got our preferred backend!
         connectionState = 1;
-        m_connectionType = "DSHOW";
+        m_connectionType = apiName;
     }
     else {
-        // connecting again using defaulk backend
+        // connecting again using default backend
         if (cam->open(m_cameraID)) {
             connectionState = 2;
             m_connectionType = "OTHER";

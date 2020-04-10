@@ -74,19 +74,22 @@ HEADERS += \
 
 DISTFILES +=
 
+win32 {
+    LIBS += -L$$PWD/../../../../../../../opencv-build420/lib/Release/ -lopencv_world420
+    #LIBS += -L$$PWD/../../../../../../../opencv-build420/lib/Debug/ -lopencv_world420d
 
-LIBS += -L$$PWD/../../../../../../../opencv-build420/lib/Release/ -lopencv_world420
-#LIBS += -L$$PWD/../../../../../../../opencv-build420/lib/Debug/ -lopencv_world420d
+    #win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420
+    ##win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_videoio_ffmpeg420_64
+    #else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420d
 
-#win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420
-##win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_videoio_ffmpeg420_64
-#else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420d
+    #LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420
 
-#LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420
-
-INCLUDEPATH += $$PWD/../../../../../../../opencv/build/include
-#DEPENDPATH += $$PWD/../../../../../../../opencv-build420/install/include
-
+    INCLUDEPATH += $$PWD/../../../../../../../opencv/build/include
+    #DEPENDPATH += $$PWD/../../../../../../../opencv-build420/install/include
+} else {
+    CONFIG += link_pkgconfig
+    PKGCONFIG += opencv4
+}
 
 # Move user and device configs to build directory
 copydata.commands = $(COPY_DIR) \"$$shell_path($$PWD\\..\\deviceConfigs)\" \"$$shell_path($$OUT_PWD\\deviceConfigs)\"
@@ -97,4 +100,3 @@ export(copydata.commands)
 export(copydata2.commands)
 
 QMAKE_EXTRA_TARGETS += first copydata copydata2
-
