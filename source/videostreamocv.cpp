@@ -268,6 +268,21 @@ void VideoStreamOCV::openCamPropsDialog()
     }
 }
 
+static bool camSetProperty(cv::VideoCapture *cam, int propId, double value)
+{
+    const auto ret = cam->set(propId, value);
+    // Linux apparently is faster at USB communication than Windows, and since our DAQ
+    // board is slow at clearing data from its control endpoint, not waiting a bit before
+    // sending the next command will result in the old command being overridden (which breaks
+    // our packet layout)
+    // Waiting >100µs seems to generally work. We call the wait function on all platforms,
+    // just in case some computers on Windows also manage to communicate with similar speeds then
+    // Windows, but keep in mind that Windows may not be able to wait with microsecond accuracy and
+    // may wait 1ms instead of our set value.
+    QThread::usleep(128);
+    return ret;
+}
+
 void VideoStreamOCV::sendCommands()
 {
 //    QList<long> keys = sendCommandQueue.keys();
@@ -288,9 +303,9 @@ void VideoStreamOCV::sendCommands()
                 tempPacket |= ((quint64)packet[j])<<(8*(j+1));
             qDebug() << "1-5: 0x" << QString::number(tempPacket,16);
 //            cam->set(cv::CAP_PROP_GAMMA, tempPacket);
-            success = cam->set(cv::CAP_PROP_CONTRAST, (tempPacket & 0x00000000FFFF));
-            success = cam->set(cv::CAP_PROP_GAMMA, (tempPacket & 0x0000FFFF0000)>>16);
-            success = cam->set(cv::CAP_PROP_SHARPNESS, (tempPacket & 0xFFFF00000000)>>32);
+            success = camSetProperty(cam, cv::CAP_PROP_CONTRAST, (tempPacket & 0x00000000FFFF));
+            success = camSetProperty(cam, cv::CAP_PROP_GAMMA, (tempPacket & 0x0000FFFF0000) >> 16) && success;
+            success = camSetProperty(cam, cv::CAP_PROP_SHARPNESS, (tempPacket & 0xFFFF00000000) >> 32) && success;
             if (!success)
                 qDebug() << "Send setting failed";
             sendCommandQueue.remove(key);
@@ -304,14 +319,11 @@ void VideoStreamOCV::sendCommands()
 
 //            success = cam->set(cv::CAP_PROP_GAIN, 0x1122ff20);
 
-
-            success = cam->set(cv::CAP_PROP_CONTRAST, (tempPacket & 0x00000000FFFF));
-            success = cam->set(cv::CAP_PROP_GAMMA, (tempPacket & 0x0000FFFF0000)>>16);
-            success = cam->set(cv::CAP_PROP_SHARPNESS, (tempPacket & 0xFFFF00000000)>>32);
-
+            success = camSetProperty(cam, cv::CAP_PROP_CONTRAST, (tempPacket & 0x00000000FFFF));
+            success = camSetProperty(cam, cv::CAP_PROP_GAMMA, (tempPacket & 0x0000FFFF0000) >> 16) && success;
+            success = camSetProperty(cam, cv::CAP_PROP_SHARPNESS, (tempPacket & 0xFFFF00000000) >> 32) && success;
             if (!success)
                 qDebug() << "Send setting failed";
-
 
             sendCommandQueue.remove(key);
             sendCommandQueueOrder.removeFirst();
