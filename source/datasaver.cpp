@@ -29,7 +29,7 @@ DataSaver::DataSaver(QObject *parent) :
 
 }
 
-void DataSaver::setupFilePaths()
+bool DataSaver::setupFilePaths()
 {
     QString tempString, tempString2;
     setupBaseDirectory();
@@ -38,11 +38,20 @@ void DataSaver::setupFilePaths()
         if(!QDir().mkpath(baseDirectory)) {
             qDebug() << "Could not make path: " << baseDirectory;
             sendMessage("Error: Data folder structure failed to be created.");
+            sendMessage("Error: Close program and correct User Config file.");
+            return false;
             // TODO: When this happens stop recording
         }
+        else {
+            qDebug() << "Path to" << baseDirectory << "created.";
+            sendMessage("Data being saved to : " + baseDirectory);
+        }
     }
-    else
+    else {
         qDebug() << baseDirectory << " already exisits. This likely will cause issues";
+        sendMessage("Data being saved to : " + baseDirectory);
+        sendMessage("Warning: " + baseDirectory + " already exisits. This likely will cause issues.");
+    }
 
     // TODO: save metadata in base directory for experiment. Maybe some thing like saveBaseMetaDataJscon();
 
@@ -65,6 +74,7 @@ void DataSaver::setupFilePaths()
     }
     // Experiment Directory
     QDir().mkdir(baseDirectory + "/experiment");
+    return true;
 }
 
 void DataSaver::setFrameBufferParameters(QString name,
@@ -101,12 +111,24 @@ void DataSaver::setupBaseDirectory()
                 baseDirectory += "/" + recordStartDateTime.date().toString("yyyy_MM_dd");
             else if (tempString == "time")
                 baseDirectory += "/" + recordStartDateTime.time().toString("HH_mm_ss");
-            else if (tempString == "researcherName")
-                baseDirectory += "/" + m_userConfig["researcherName"].toString().replace(" ", "_");
-            else if (tempString == "experimentName")
-                baseDirectory += "/" + m_userConfig["experimentName"].toString().replace(" ", "_");
-            else if (tempString == "animalName")
-                baseDirectory += "/" + m_userConfig["animalName"].toString().replace(" ", "_");
+            else {
+                tempString2 = m_userConfig[tempString].toString().replace(" ", "_");
+
+                if (tempString2.isEmpty()) {
+                    // Entry does not exist in User Config JSON file
+                    sendMessage("Warning: " + tempString + " does not have associated value in User Config JSON file.");
+                    sendMessage("Warning: Using /" + tempString + "Missing/ as place holder in data path.");
+                    baseDirectory += "/" + tempString + "Missing";
+                }
+                else
+                    baseDirectory += "/" + tempString2;
+            }
+//            else if (tempString == "researcherName")
+//                baseDirectory += "/" + m_userConfig["researcherName"].toString().replace(" ", "_");
+//            else if (tempString == "experimentName")
+//                baseDirectory += "/" + m_userConfig["experimentName"].toString().replace(" ", "_");
+//            else if (tempString == "animalName")
+//                baseDirectory += " /" + m_userConfig["animalName"].toString().replace(" ", "_");
         }
 //    }
 }
@@ -177,76 +199,82 @@ void DataSaver::startRunning()
 
 void DataSaver::startRecording()
 {
-    if (baseDirectory.isEmpty()) {
-        setupBaseDirectory();
-        // give up if a base directory still can not be found
-        if (baseDirectory.isEmpty()) {
-            qWarning() << "Could not start recording since the base directory is empty.";
-            return;
-        }
-    }
+    // setupBaseDirectory() is called within setupFilePaths() right after recording start time is set. This initial call to setupBaseDir shouldn't be needed.
+//    if (baseDirectory.isEmpty()) {
+//        setupBaseDirectory();
+//        // give up if a base directory still can not be found
+//        if (baseDirectory.isEmpty()) {
+//            qWarning() << "Could not start recording since the base directory is empty.";
+//            return;
+//        }
+//    }
 
     QJsonDocument jDoc;
     recordStartDateTime = QDateTime::currentDateTime();
-    setupFilePaths();
-    // TODO: Save meta data JSONs
-    jDoc = constructBaseDirectoryMetaData();
-    saveJson(jDoc, baseDirectory + "/metaData.json");
+    if (setupFilePaths()) {
+        // TODO: Save meta data JSONs
+        jDoc = constructBaseDirectoryMetaData();
+        saveJson(jDoc, baseDirectory + "/metaData.json");
 
-    QString deviceName;
-    // For Miniscopes
-    for (int i = 0; i < m_userConfig["devices"].toObject()["miniscopes"].toArray().size(); i++) {
-        deviceName = m_userConfig["devices"].toObject()["miniscopes"].toArray()[i].toObject()["deviceName"].toString();
-        jDoc = constructDeviceMetaData("miniscopes",i);
-        saveJson(jDoc, deviceDirectory[deviceName] + "/metaData.json");
+        QString deviceName;
+        // For Miniscopes
+        for (int i = 0; i < m_userConfig["devices"].toObject()["miniscopes"].toArray().size(); i++) {
+            deviceName = m_userConfig["devices"].toObject()["miniscopes"].toArray()[i].toObject()["deviceName"].toString();
+            jDoc = constructDeviceMetaData("miniscopes",i);
+            saveJson(jDoc, deviceDirectory[deviceName] + "/metaData.json");
 
-        // Get user config frames per file
-        framesPerFile[deviceName] = m_userConfig["devices"].toObject()["miniscopes"].toArray()[i].toObject()["framesPerFile"].toInt(1000);
-    }
-    // For Cameras
-    for (int i = 0; i < m_userConfig["devices"].toObject()["cameras"].toArray().size(); i++) {
-        deviceName = m_userConfig["devices"].toObject()["cameras"].toArray()[i].toObject()["deviceName"].toString();
-        jDoc = constructDeviceMetaData("cameras", i);
-        saveJson(jDoc, deviceDirectory[deviceName] + "/metaData.json");
-
-        // Get user config frames per file
-        framesPerFile[deviceName] = m_userConfig["devices"].toObject()["cameras"].toArray()[i].toObject()["framesPerFile"].toInt(1000);
-    }
-
-    // TODO: Create data files
-    QString tempStr;
-    QStringList keys = frameBuffer.keys();
-    for (int i = 0; i < keys.length(); i++) {
-        // loop through devices that make frames and setup csv file and videoWriter
-        csvFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/timeStamps.csv");
-        csvFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
-        csvStream[keys[i]] = new QTextStream(csvFile[keys[i]]);
-        *csvStream[keys[i]] << "Frame Number,Time Stamp (ms),Buffer Index" << endl;
-
-        if (streamHeadOrientationState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr) {
-            headOriFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/headOrientation.csv");
-            headOriFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
-            headOriStream[keys[i]] = new QTextStream(headOriFile[keys[i]]);
-            *headOriStream[keys[i]] << "Time Stamp (ms),qw,qx,qy,qz" << endl;
+            // Get user config frames per file
+            framesPerFile[deviceName] = m_userConfig["devices"].toObject()["miniscopes"].toArray()[i].toObject()["framesPerFile"].toInt(1000);
         }
-        // TODO: Remember to close files on exit or stop recording signal
+        // For Cameras
+        for (int i = 0; i < m_userConfig["devices"].toObject()["cameras"].toArray().size(); i++) {
+            deviceName = m_userConfig["devices"].toObject()["cameras"].toArray()[i].toObject()["deviceName"].toString();
+            jDoc = constructDeviceMetaData("cameras", i);
+            saveJson(jDoc, deviceDirectory[deviceName] + "/metaData.json");
 
-        videoWriter[keys[i]] = new cv::VideoWriter();
-        // TODO: Correctly enter size of videoWriter
-//         TODO: Release videoWriters at exit
+            // Get user config frames per file
+            framesPerFile[deviceName] = m_userConfig["devices"].toObject()["cameras"].toArray()[i].toObject()["framesPerFile"].toInt(1000);
+        }
 
-        savedFrameCount[keys[i]] = 0;
+        // TODO: Create data files
+        QString tempStr;
+        QStringList keys = frameBuffer.keys();
+        for (int i = 0; i < keys.length(); i++) {
+            // loop through devices that make frames and setup csv file and videoWriter
+            csvFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/timeStamps.csv");
+            csvFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
+            csvStream[keys[i]] = new QTextStream(csvFile[keys[i]]);
+            *csvStream[keys[i]] << "Frame Number,Time Stamp (ms),Buffer Index" << endl;
+
+            if (streamHeadOrientationState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr) {
+                headOriFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/headOrientation.csv");
+                headOriFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
+                headOriStream[keys[i]] = new QTextStream(headOriFile[keys[i]]);
+                *headOriStream[keys[i]] << "Time Stamp (ms),qw,qx,qy,qz" << endl;
+            }
+            // TODO: Remember to close files on exit or stop recording signal
+
+            videoWriter[keys[i]] = new cv::VideoWriter();
+            // TODO: Correctly enter size of videoWriter
+    //         TODO: Release videoWriters at exit
+
+            savedFrameCount[keys[i]] = 0;
 
 
+        }
+
+        // Creates note csv file
+        noteFile = new QFile(baseDirectory + "/notes.csv");
+        noteFile->open(QFile::WriteOnly | QFile::Truncate);
+        noteStream = new QTextStream(noteFile);
+
+        // TODO: Save camera calibration file to data directory for each behavioral camera
+        m_recording = true;
     }
-
-    // Creates note csv file
-    noteFile = new QFile(baseDirectory + "/notes.csv");
-    noteFile->open(QFile::WriteOnly | QFile::Truncate);
-    noteStream = new QTextStream(noteFile);
-
-    // TODO: Save camera calibration file to data directory for each behavioral camera
-    m_recording = true;
+    else {
+        qDebug() << "Failed to record due to base directory creation failing";
+        // TODO: Stop counting and disable buttons since data directory needs to be corrected in user config
+    }
 }
 
 void DataSaver::stopRecording()
@@ -340,10 +368,21 @@ QJsonDocument DataSaver::constructBaseDirectoryMetaData()
 {
     QJsonObject metaData;
     QJsonDocument jDoc;
+    QString tempString;
 
-    metaData["researcherName"] = m_userConfig["researcherName"].toString();
-    metaData["animalName"] = m_userConfig["animalName"].toString();
-    metaData["experimentName"] = m_userConfig["experimentName"].toString();
+    QJsonArray directoryStructure = m_userConfig["directoryStructure"].toArray();
+    for (int i = 0; i < directoryStructure.size(); i++) {
+        tempString = directoryStructure[i].toString();
+        if (tempString != "date" && tempString != "time" && !tempString.isEmpty())
+            metaData[tempString] = m_userConfig[tempString].toString();
+    }
+    if (!metaData.contains("researcherName"))
+        metaData["researcherName"] = m_userConfig["researcherName"].toString();
+    if (!metaData.contains("animalName"))
+        metaData["animalName"] = m_userConfig["animalName"].toString();
+    if (!metaData.contains("experimentName"))
+        metaData["experimentName"] = m_userConfig["experimentName"].toString();
+
     metaData["baseDirectory"] = baseDirectory;
 
     // Start time

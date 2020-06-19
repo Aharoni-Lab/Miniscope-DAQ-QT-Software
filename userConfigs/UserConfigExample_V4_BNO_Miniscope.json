@@ -1,15 +1,18 @@
 {
     "researcherName": "Dr_Miniscope",
     "dataDirectory": "C:/Users/DBAharoni/Documents/Data",
+	"reserved terms for directoryStructure": ["time", "date"],
     "directoryStructure": [
         "researcherName",
         "experimentName",
-        "animalName",
+        "animalID",
         "date",
         "time"
     ],
     "animalName": "testMouse",
+	"animalID": "ID42",
     "experimentName": "Linear Track Test",
+	"test": "TEST",
     "recordLengthinSeconds": 0,
     "experiment_Not_Implemented": {
         "type": "linearTrack",

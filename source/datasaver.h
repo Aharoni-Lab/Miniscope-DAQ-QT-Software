@@ -25,7 +25,7 @@ class DataSaver : public QObject
 public:
     explicit DataSaver(QObject *parent = nullptr);
     void setUserConfig(QJsonObject userConfig) { m_userConfig = userConfig; }
-    void setupFilePaths();
+    bool setupFilePaths();
     void setRecord(bool input) {m_recording = input;}
     void setFrameBufferParameters(QString name, cv::Mat* frameBuf, qint64 *tsBuffer, float *bnoBuf, int bufSize, QSemaphore* freeFrames, QSemaphore* usedFrames, QAtomicInt* acqFrame);
     void setHeadOrientationStreamingState(QString name, bool streamState) {streamHeadOrientationState[name] = streamState; }
