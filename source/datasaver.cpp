@@ -175,12 +175,17 @@ void DataSaver::startRunning()
                                          << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << ","
                                          << usedCount[names[i]]->available() << endl;
 
-                    if (streamHeadOrientationState[names[i]] == true && bnoBuffer[names[i]] != nullptr) {
-                        *headOriStream[names[i]] << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << ","
-                                                 << bnoBuffer[names[i]][bufPosition*4 + 0] << ","
-                                                 << bnoBuffer[names[i]][bufPosition*4 + 1] << ","
-                                                 << bnoBuffer[names[i]][bufPosition*4 + 2] << ","
-                                                 << bnoBuffer[names[i]][bufPosition*4 + 3] << endl;
+                    if (headOrientationStreamState[names[i]] == true && bnoBuffer[names[i]] != nullptr) {
+                        if (headOrientationFilterState[names[i]] && bnoBuffer[names[i]][bufPosition*5 + 4] <= 0.98) { // norm is below 0.98. Should be 1 ideally
+                            // Filter bad data and current data is bad
+                        }
+                        else {
+                            *headOriStream[names[i]] << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << ","
+                                                     << bnoBuffer[names[i]][bufPosition*5 + 0] << ","
+                                                     << bnoBuffer[names[i]][bufPosition*5 + 1] << ","
+                                                     << bnoBuffer[names[i]][bufPosition*5 + 2] << ","
+                                                     << bnoBuffer[names[i]][bufPosition*5 + 3] << endl;
+                        }
 
                     }
 
@@ -246,7 +251,7 @@ void DataSaver::startRecording()
             csvStream[keys[i]] = new QTextStream(csvFile[keys[i]]);
             *csvStream[keys[i]] << "Frame Number,Time Stamp (ms),Buffer Index" << endl;
 
-            if (streamHeadOrientationState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr) {
+            if (headOrientationStreamState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr) {
                 headOriFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/headOrientation.csv");
                 headOriFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
                 headOriStream[keys[i]] = new QTextStream(headOriFile[keys[i]]);
@@ -287,7 +292,7 @@ void DataSaver::stopRecording()
         videoWriter[keys[i]]->release();
         csvFile[keys[i]]->close();
 
-        if (streamHeadOrientationState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr)
+        if (headOrientationStreamState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr)
             if (headOriFile[keys[i]]->isOpen())
                 headOriFile[keys[i]]->close();
     }

@@ -212,7 +212,8 @@ void backEnd::setupDataSaver()
                                             miniscope[i]->getUsedFramesPointer(),
                                             miniscope[i]->getAcqFrameNumPointer());
 
-        dataSaver->setHeadOrientationStreamingState(miniscope[i]->getDeviceName(), miniscope[i]->getHeadOrienataionStreamState());
+        dataSaver->setHeadOrientationConfig(miniscope[i]->getDeviceName(), miniscope[i]->getHeadOrienataionStreamState(), miniscope[i]->getHeadOrienataionFilterState());
+
     }
     for (int i = 0; i < behavCam.length(); i++) {
         dataSaver->setDataCompression(behavCam[i]->getDeviceName(), behavCam[i]->getCompressionType());
@@ -224,8 +225,7 @@ void backEnd::setupDataSaver()
                                             behavCam[i]->getFreeFramesPointer(),
                                             behavCam[i]->getUsedFramesPointer(),
                                             behavCam[i]->getAcqFrameNumPointer());
-
-        dataSaver->setHeadOrientationStreamingState(behavCam[i]->getDeviceName(), false);
+        dataSaver->setHeadOrientationConfig(behavCam[i]->getDeviceName(), false, false);
     }
 
     dataSaverThread = new QThread;

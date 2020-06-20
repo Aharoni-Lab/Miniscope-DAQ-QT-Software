@@ -54,7 +54,8 @@ public:
     QAtomicInt* getAcqFrameNumPointer(){return m_acqFrameNum;}
     QAtomicInt* getDAQFrameNumPointer() { return m_daqFrameNum; }
     QString getDeviceName(){return m_deviceName;}
-    bool getHeadOrienataionStreamState() { return m_streamHeadOrientationState;}
+    bool getHeadOrienataionStreamState() { return m_headOrientationStreamState;}
+    bool getHeadOrienataionFilterState() { return m_headOrientationFilterState;}
 
 signals:
     // TODO: setup signals to configure camera in thread
@@ -90,7 +91,7 @@ private:
     cv::Mat tempFrame;
     qint64 timeStampBuffer[FRAME_BUFFER_SIZE];
 //    float bnoBuffer[FRAME_BUFFER_SIZE*3];
-    float bnoBuffer[FRAME_BUFFER_SIZE*4];
+    float bnoBuffer[FRAME_BUFFER_SIZE*5]; //w,x,y,z,norm
     QSemaphore *freeFrames;
     QSemaphore *usedFrames;
     QObject *rootObject;
@@ -116,7 +117,8 @@ private:
     QMap<QString,QVector<QMap<QString, int>>> m_controlSendCommand;
     QMap<QString, int> m_sendCommand;
 
-    bool m_streamHeadOrientationState;
+    bool m_headOrientationStreamState;
+    bool m_headOrientationFilterState;
     QString m_compressionType;
     QString m_displatState;
 

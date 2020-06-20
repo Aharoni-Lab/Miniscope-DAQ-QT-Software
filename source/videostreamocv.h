@@ -25,7 +25,7 @@ public:
                              int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS,
                              QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber);
     int connect2Camera(int cameraID);
-    void setStreamHeadOrientation(bool streamState) { m_streamHeadOrientationState = streamState; }
+    void setHeadOrientationConfig(bool enableState, bool filterState) { m_headOrientationStreamState = enableState; m_headOrientationFilterState = filterState; }
     void setIsColor(bool isColor) { m_isColor = isColor; }
     void setDeviceName(QString name) { m_deviceName = name; }
 
@@ -51,7 +51,8 @@ private:
     cv::VideoCapture *cam;
     bool m_isStreaming;
     bool m_stopStreaming;
-    bool m_streamHeadOrientationState;
+    bool m_headOrientationStreamState;
+    bool m_headOrientationFilterState;
     bool m_isColor;
     cv::Mat *frameBuffer;
     qint64 *timeStampBuffer;

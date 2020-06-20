@@ -24,7 +24,8 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     m_previousDisplayFrameNum(0),
     m_acqFrameNum(new QAtomicInt(0)),
     m_daqFrameNum(new QAtomicInt(0)),
-    m_streamHeadOrientationState(false),
+    m_headOrientationStreamState(false),
+    m_headOrientationFilterState(false),
     m_displatState("Raw"),
     baselineFrameBufWritePos(0),
     baselinePreviousTimeStamp(0)
@@ -37,7 +38,20 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     getMiniscopeConfig(m_ucMiniscope["deviceType"].toString()); // holds specific Miniscope configuration
 
     // Checks to make sure user config and miniscope device type are supporting BNO streaming
-    m_streamHeadOrientationState = m_ucMiniscope["streamHeadOrientation"].toBool(false) && m_cMiniscopes["headOrientation"].toBool(false);
+    if (m_ucMiniscope.contains("headOrientation")) {
+        m_headOrientationStreamState = m_ucMiniscope["headOrientation"].toObject()["enable"].toBool(false);
+        m_headOrientationFilterState = m_ucMiniscope["headOrientation"].toObject()["filterBadData"].toBool(false);
+
+    }
+
+    // DEPRICATED
+    if (m_ucMiniscope.contains("streamHeadOrientation")) {
+        m_headOrientationStreamState = m_ucMiniscope["streamHeadOrientation"].toBool(false) && m_cMiniscopes["headOrientation"].toBool(false);
+        // TODO: Tell user this name/value is depricated
+    }
+    // ==========
+
+
 
 
     // Thread safe buffer stuff
@@ -50,7 +64,8 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     miniscopeStream = new VideoStreamOCV(nullptr, m_cMiniscopes["width"].toInt(-1), m_cMiniscopes["height"].toInt(-1));
     miniscopeStream->setDeviceName(m_deviceName);
 
-    miniscopeStream->setStreamHeadOrientation(m_streamHeadOrientationState);
+    miniscopeStream->setHeadOrientationConfig(m_headOrientationStreamState, m_headOrientationFilterState);
+
     miniscopeStream->setIsColor(m_cMiniscopes["isColor"].toBool(false));
 
     m_camConnected = miniscopeStream->connect2Camera(m_ucMiniscope["deviceID"].toInt());
@@ -147,7 +162,7 @@ void Miniscope::createView()
         else
             vidDisplay->setShowSaturation(0);
 
-        if (m_streamHeadOrientationState)
+        if (m_headOrientationStreamState)
             bnoDisplay = rootObject->findChild<QQuickItem*>("bno");
 
         QObject::connect(view, &NewQuickView::closing, miniscopeStream, &VideoStreamOCV::stopSteam);
@@ -462,15 +477,23 @@ void Miniscope::sendNewFrame(){
             vidDisplay->setAcqFPS(timeStampBuffer[f] - timeStampBuffer[f-1]); // TODO: consider changing name as this is now interframeinterval
         vidDisplay->setDroppedFrameCount(*m_daqFrameNum - *m_acqFrameNum);
 
-        if (m_streamHeadOrientationState) {
+        if (m_headOrientationStreamState) {
 //            bnoDisplay->setProperty("heading", bnoBuffer[f*3+0]);
 //            bnoDisplay->setProperty("roll", bnoBuffer[f*3+1]);
 //            bnoDisplay->setProperty("pitch", bnoBuffer[f*3+2]);
 //            if (bnoBuffer[f*4+0] != -1/16384.0 && bnoBuffer[f*4+1] != -1/16384.0 && bnoBuffer[f*4+2] != -1/16384.0 && bnoBuffer[f*4+3] != -1/16384.0) {
-                bnoDisplay->setProperty("qw", bnoBuffer[f*4+0]);
-                bnoDisplay->setProperty("qx", bnoBuffer[f*4+1]);
-                bnoDisplay->setProperty("qy", bnoBuffer[f*4+2]);
-                bnoDisplay->setProperty("qz", bnoBuffer[f*4+3]);
+            if (bnoBuffer[f*5+4] > 0.98) { // Checks to see if norm of quat is close to 1
+                // good data
+                bnoDisplay->setProperty("badData", false);
+                bnoDisplay->setProperty("qw", bnoBuffer[f*5+0]);
+                bnoDisplay->setProperty("qx", bnoBuffer[f*5+1]);
+                bnoDisplay->setProperty("qy", bnoBuffer[f*5+2]);
+                bnoDisplay->setProperty("qz", bnoBuffer[f*5+3]);
+            }
+            else {
+                // bad BNO data
+                bnoDisplay->setProperty("badData", true);
+            }
 //            }
         }
 //        qDebug() << bnoBuffer[f*3+0] << bnoBuffer[f*3+1] << bnoBuffer[f*3+2];

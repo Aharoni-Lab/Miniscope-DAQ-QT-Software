@@ -16,7 +16,8 @@ VideoStreamOCV::VideoStreamOCV(QObject *parent, int width, int height) :
     QObject(parent),
     m_deviceName(""),
     m_stopStreaming(false),
-    m_streamHeadOrientationState(false),
+    m_headOrientationStreamState(false),
+    m_headOrientationFilterState(false),
     m_isColor(false),
     m_trackExtTrigger(false),
     m_expectedWidth(width),
@@ -172,20 +173,20 @@ void VideoStreamOCV::startStream()
                         }
                     }
 
-                    if (m_streamHeadOrientationState) {
+                    if (m_headOrientationStreamState) {
                         // BNO output is a unit quaternion after 2^14 division
                         w = static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION));
                         x = static_cast<qint16>(cam->get(cv::CAP_PROP_HUE));
                         y = static_cast<qint16>(cam->get(cv::CAP_PROP_GAIN));
                         z = static_cast<qint16>(cam->get(cv::CAP_PROP_BRIGHTNESS));
                         norm = sqrt(w*w + x*x + y*y + z*z);
-                        bnoBuffer[(idx%frameBufferSize)*4 + 0] = w/16384.0;
-                        bnoBuffer[(idx%frameBufferSize)*4 + 1] = x/16384.0;
-                        bnoBuffer[(idx%frameBufferSize)*4 + 2] = y/16384.0;
-                        bnoBuffer[(idx%frameBufferSize)*4 + 3] = z/16384.0;
+                        bnoBuffer[(idx%frameBufferSize)*5 + 0] = w/16384.0;
+                        bnoBuffer[(idx%frameBufferSize)*5 + 1] = x/16384.0;
+                        bnoBuffer[(idx%frameBufferSize)*5 + 2] = y/16384.0;
+                        bnoBuffer[(idx%frameBufferSize)*5 + 3] = z/16384.0;
+                        bnoBuffer[(idx%frameBufferSize)*5 + 4] = (norm/16384.0);
                         //                            qDebug() << QString::number(static_cast<qint16>(cam->get(cv::CAP_PROP_SHARPNESS)),2) << norm << w << x << y << z ;
                     }
-
                     if (daqFrameNum != nullptr) {
                         *daqFrameNum = cam->get(cv::CAP_PROP_CONTRAST) - daqFrameNumOffset;
                         // qDebug() << cam->get(cv::CAP_PROP_CONTRAST);// *daqFrameNum;
@@ -279,6 +280,8 @@ static bool camSetProperty(cv::VideoCapture *cam, int propId, double value)
     // just in case some computers on Windows also manage to communicate with similar speeds then
     // Windows, but keep in mind that Windows may not be able to wait with microsecond accuracy and
     // may wait 1ms instead of our set value.
+
+    // TODO: Make sure this doesn't break things on Windows. It really shouldn't!
     QThread::usleep(128);
     return ret;
 }

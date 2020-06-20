@@ -31,7 +31,11 @@
                 "deviceName": "Miniscope",
                 "deviceType": "Miniscope_V4_BNO",
                 "imageRegistration": "Off",
-                "streamHeadOrientation": true,
+				"headOrientation": {
+					"enable": true,
+					"filterBadData": true
+				},
+                "streamHeadOrientation_OLD": true,
                 "deviceID": 1,
 				"showSaturation": true,
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
