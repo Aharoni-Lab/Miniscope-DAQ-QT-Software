@@ -56,7 +56,14 @@ public slots:
     void handlePropChangedSignal(QString type, double displayValue, double i2cValue, double i2cValue2);
     void handleTakeScreenShotSignal();
     void close();
+
     void handleCamPropsClicked() { emit openCamPropsDialog();}
+    void handleSetRoiClicked();
+
+    // Camera calibration slots
+    void handleCamCalibClicked();
+    void handleCamCalibStart();
+    void handleCamCalibQuit();
 
 private:
     void getBehavCamConfig(QString deviceType);
@@ -95,6 +102,10 @@ private:
 
     bool m_streamHeadOrientationState;
     QString m_compressionType;
+
+    // Camera Calibration Vars
+    bool m_camCalibWindowOpen;
+    bool m_camCalibRunning;
 };
 
 #endif // BEHAVIORCAM_H

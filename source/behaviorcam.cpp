@@ -24,7 +24,9 @@ BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucBehavCam) :
     m_previousDisplayFrameNum(0),
     m_acqFrameNum(new QAtomicInt(0)),
 //    m_daqFrameNum(new QAtomicInt(0)),
-    m_streamHeadOrientationState(false)
+    m_streamHeadOrientationState(false),
+    m_camCalibWindowOpen(false),
+    m_camCalibRunning(false)
 {
 
     m_ucBehavCam = ucBehavCam; // hold user config for this Miniscope
@@ -136,6 +138,15 @@ void BehaviorCam::createView()
         // Open OpenCV properties dialog for behav cam
         QObject::connect(rootObject, SIGNAL( camPropsClicked() ), this, SLOT( handleCamPropsClicked()));
         QObject::connect(this, SIGNAL( openCamPropsDialog()), behavCamStream, SLOT( openCamPropsDialog()));
+
+        // Set ROI Stuff
+        QObject::connect(rootObject, SIGNAL( setRoiClicked() ), this, SLOT( handleSetRoiClicked()));
+
+
+        // Handle camera calibration signals from GUI
+        QObject::connect(rootObject, SIGNAL( calibrateCameraClicked() ), this, SLOT( handleCamCalibClicked()));
+        QObject::connect(rootObject, SIGNAL( calibrateCameraStart() ), this, SLOT( handleCamCalibStart()));
+        QObject::connect(rootObject, SIGNAL( calibrateCameraQuit() ), this, SLOT( handleCamCalibQuit()));
 
         //
         QObject::connect(view, &NewQuickView::closing, behavCamStream, &VideoStreamOCV::stopSteam);
@@ -444,8 +455,48 @@ void BehaviorCam::handleTakeScreenShotSignal()
     takeScreenShot(m_deviceName);
 }
 
+void BehaviorCam::handleCamCalibClicked()
+{
+    // This slot gets called when user clicks "camera calibration" in behavior cam GUI
+    qDebug() << "Entering camera calibration";
+    m_camCalibWindowOpen = true;
+    // camCalibWindow will open up. This is located in the behaviorCam.qml file
+    // This window will display directions begin/quit buttons, and progress of calibration
+
+}
+
+void BehaviorCam::handleCamCalibStart()
+{
+    qDebug() << "Beginning camera calibration";
+    m_camCalibRunning = true;
+    // Probably can use an if statement in sendNewFrame() to send frames somewhere for camera calibration
+    // Probably want to update the cam calib window that opens up with info as the cam is being calibrated
+
+    // When done, calibration should be saved in a file and the file path should be updated in the user config or
+    // Another option would be to just save all the calibration data directly into the user config file
+
+}
+
+void BehaviorCam::handleCamCalibQuit()
+{
+    qDebug() << "Quitting camera calibration";
+    if (m_camCalibRunning) {
+        // Do stuff to exit cam calibration algorithm without issue
+        m_camCalibRunning = false;
+    }
+    m_camCalibWindowOpen = false;
+}
 void BehaviorCam::close()
 {
     if (m_camConnected)
         view->close();
+}
+
+void BehaviorCam::handleSetRoiClicked()
+{
+
+    qDebug() << "Set ROI Clicked!";
+    // Mouse clicks and moves are detected in videodisplay.cpp.
+    // This info needs to be sent to this .cpp file.
+    // Maybe send click and unclick positions only when "Set ROI" is enabled.
 }

@@ -11,6 +11,7 @@
 #include <QVector>
 #include <QDateTime>
 #include <QThread>
+#include <QtMath>
 
 VideoStreamOCV::VideoStreamOCV(QObject *parent, int width, int height) :
     QObject(parent),
@@ -184,7 +185,7 @@ void VideoStreamOCV::startStream()
                         bnoBuffer[(idx%frameBufferSize)*5 + 1] = x/16384.0;
                         bnoBuffer[(idx%frameBufferSize)*5 + 2] = y/16384.0;
                         bnoBuffer[(idx%frameBufferSize)*5 + 3] = z/16384.0;
-                        bnoBuffer[(idx%frameBufferSize)*5 + 4] = (norm/16384.0);
+                        bnoBuffer[(idx%frameBufferSize)*5 + 4] = abs((norm/16384.0) - 1);
                         //                            qDebug() << QString::number(static_cast<qint16>(cam->get(cv::CAP_PROP_SHARPNESS)),2) << norm << w << x << y << z ;
                     }
                     if (daqFrameNum != nullptr) {

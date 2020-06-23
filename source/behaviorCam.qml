@@ -1,5 +1,6 @@
 import QtQuick 2.12
 import VideoDisplay 1.0
+import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.3
 
@@ -15,6 +16,11 @@ Item {
     signal takeScreenShotSignal()
 
     signal camPropsClicked()
+    signal setRoiClicked()
+
+    signal calibrateCameraClicked()
+    signal calibrateCameraStart()
+    signal calibrateCameraQuit()
 
     Keys.onPressed: {
         if (event.key === Qt.Key_H) {
@@ -26,6 +32,93 @@ Item {
         if (event.key === Qt.Key_Space) {
             // Take screenshot of window
             takeScreenShotSignal();
+        }
+    }
+
+    Window {
+        id: camCalibWindow
+        width: 600
+        height: 200
+        visible: false
+        title: "Camera Calibration"
+        ColumnLayout {
+            anchors.fill: parent
+
+            TextArea {
+                text: "Camera Calibration " + "<br/>" +
+                      "Directions go here"
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignHCenter
+                Layout.margins: 5
+                Layout.fillWidth: true
+                textFormat: Text.RichText
+                onLinkActivated: Qt.openUrlExternally(link)
+                font.pointSize: 12
+                font.family: "Arial"
+                wrapMode: Text.WordWrap
+                MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.NoButton // we don't want to eat clicks on the Text
+                        cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    }
+            }
+
+            ProgressBar {
+                id: camCalibProgressBar
+                width: parent.width
+                value: 0.5
+            }
+
+            RowLayout {
+                id: camCalibRow
+                objectName: "camCalibRow"
+                width: parent.width
+                height: 100
+                spacing: 0
+//                anchors.verticalCenter: parent.verticalCenter
+
+                Button {
+                    text: "Begin"
+                    font.family: "Arial"
+                    font.pointSize: 12
+                    font.bold: true
+                    font.weight: Font.Normal
+                    background: Rectangle {
+                        id: startRect
+                        border.width: 1
+                        color: "#a8a7fd"
+                    }
+                    Layout.margins: 5
+                    Layout.fillWidth: true
+                    onClicked: {
+                        root.calibrateCameraStart()
+                    }
+
+                    onHoveredChanged: hovered ? startRect.color = "#f8a7fd" : startRect.color = "#a8a7fd"
+                }
+
+                Button {
+                    text: "Quit"
+                    font.family: "Arial"
+                    font.pointSize: 12
+                    font.bold: true
+                    font.weight: Font.Normal
+                    background: Rectangle {
+                        id: quitRect
+                        border.width: 1
+                        color: "#a8a7fd"
+                    }
+                    Layout.margins: 5
+                    Layout.fillWidth: true
+                    onClicked: {
+                        root.calibrateCameraQuit()
+                        camCalibWindow.visible = false
+                    }
+                    onHoveredChanged: hovered ? quitRect.color = "#f8a7fd" : quitRect.color = "#a8a7fd"
+                }
+            }
+
+
         }
     }
 
@@ -85,9 +178,11 @@ Item {
                 font.bold: true
                 font.weight: Font.Normal
                 radius: 4
-                enabled: false
+                enabled: true
                 Layout.column: 0
                 Layout.row: 0
+                // TODO: Make hovering color change work.
+                hoverEnabled: false
                 background: Rectangle {
                     id: calibrateRect
                     radius: calibrateCamera.radius
@@ -95,7 +190,11 @@ Item {
                     color: "#a8a7fd"
                 }
                 onHoveredChanged: hovered ? calibrateRect.color = "#f8a7fd" : calibrateRect.color = "#a8a7fd"
+                onClicked: {
 
+                    root.calibrateCameraClicked()
+                    camCalibWindow.visible = true
+                }
             }
 
             Text{
@@ -152,6 +251,7 @@ Item {
         }
     }
 
+
     ColumnLayout {
         id: controlColumn
         objectName: "controlColumn"
@@ -179,6 +279,27 @@ Item {
             }
             onHoveredChanged: hovered ? camPropsRect.color = "#f8a7fd" : camPropsRect.color = "#a8a7fd"
             onClicked: root.camPropsClicked()
+
+        }
+
+        RoundButton {
+            id: setRoi
+            objectName: "setRoi"
+            text: "Set ROI"
+            font.family: "Arial"
+            font.pointSize: 10
+            font.bold: true
+            font.weight: Font.Normal
+            radius: 4
+            enabled: false
+            background: Rectangle {
+                id: setRoiRect
+                radius: setRoi.radius
+                border.width: 1
+                color: "#a8a7fd"
+            }
+            onHoveredChanged: hovered ? setRoiRect.color = "#f8a7fd" : setRoiRect.color = "#a8a7fd"
+            onClicked: root.setRoiClicked()
 
         }
 
@@ -215,6 +336,7 @@ Item {
         target: beta
         onValueChangedSignal: vidPropChangedSignal(beta.objectName, displayValue, i2cValue, i2cValue2)
     }
+
 
     states: [
         State{

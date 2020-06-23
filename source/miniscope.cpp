@@ -482,7 +482,14 @@ void Miniscope::sendNewFrame(){
 //            bnoDisplay->setProperty("roll", bnoBuffer[f*3+1]);
 //            bnoDisplay->setProperty("pitch", bnoBuffer[f*3+2]);
 //            if (bnoBuffer[f*4+0] != -1/16384.0 && bnoBuffer[f*4+1] != -1/16384.0 && bnoBuffer[f*4+2] != -1/16384.0 && bnoBuffer[f*4+3] != -1/16384.0) {
-            if (bnoBuffer[f*5+4] > 0.98) { // Checks to see if norm of quat is close to 1
+            if (bnoBuffer[f*5+4] >= 0.05) {
+                sendMessage("Quat w: " + QString::number( bnoBuffer[f*5+0]));
+                sendMessage("Quat x: " + QString::number( bnoBuffer[f*5+1]));
+                sendMessage("Quat y: " + QString::number( bnoBuffer[f*5+2]));
+                sendMessage("Quat z: " + QString::number( bnoBuffer[f*5+3]));
+                sendMessage("Quat n: " + QString::number( bnoBuffer[f*5+4]));
+            }
+            if (bnoBuffer[f*5+4] < 0.05) { // Checks to see if norm of quat differs from 1 by 0.05
                 // good data
                 bnoDisplay->setProperty("badData", false);
                 bnoDisplay->setProperty("qw", bnoBuffer[f*5+0]);

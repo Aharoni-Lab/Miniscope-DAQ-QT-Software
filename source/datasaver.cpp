@@ -176,7 +176,7 @@ void DataSaver::startRunning()
                                          << usedCount[names[i]]->available() << endl;
 
                     if (headOrientationStreamState[names[i]] == true && bnoBuffer[names[i]] != nullptr) {
-                        if (headOrientationFilterState[names[i]] && bnoBuffer[names[i]][bufPosition*5 + 4] <= 0.98) { // norm is below 0.98. Should be 1 ideally
+                        if (headOrientationFilterState[names[i]] && bnoBuffer[names[i]][bufPosition*5 + 4] >= 0.05) { // norm is below 0.98. Should be 1 ideally
                             // Filter bad data and current data is bad
                         }
                         else {
