@@ -108,7 +108,6 @@ void BehaviorCam::createView()
     //    const QUrl url("qrc:/" + m_deviceType + ".qml");
         const QUrl url("qrc:/behaviorCam.qml");
         view = new NewQuickView(url);
-
         view->setWidth(m_cBehavCam["width"].toInt() * m_ucBehavCam["windowScale"].toDouble(1));
         view->setHeight(m_cBehavCam["height"].toInt() * m_ucBehavCam["windowScale"].toDouble(1));
 
@@ -151,6 +150,9 @@ void BehaviorCam::createView()
         //
         QObject::connect(view, &NewQuickView::closing, behavCamStream, &VideoStreamOCV::stopSteam);
         QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &BehaviorCam::sendNewFrame);
+
+        // Link up ROI signal and slot
+        QObject::connect(vidDisplay, &VideoDisplay::newROISignal, this, &BehaviorCam::handleNewROI);
 
         sendMessage(m_deviceName + " is connected.");
     }
@@ -495,8 +497,22 @@ void BehaviorCam::close()
 void BehaviorCam::handleSetRoiClicked()
 {
 
-    qDebug() << "Set ROI Clicked!";
+    // We probably should reset video display to full resolution here before user input of ROI????
+
+    // Tell videodisplay that we will need mouse actions and will need to draw ROI rectangle
+    vidDisplay->setROISelectionState(true);
     // Mouse clicks and moves are detected in videodisplay.cpp.
     // This info needs to be sent to this .cpp file.
     // Maybe send click and unclick positions only when "Set ROI" is enabled.
+}
+
+void BehaviorCam::handleNewROI(int leftEdge, int topEdge, int width, int height)
+{
+    // First scale the local position values to pixel values
+    leftEdge = round(leftEdge/m_ucBehavCam["windowScale"].toDouble(1));
+    topEdge = round(topEdge/m_ucBehavCam["windowScale"].toDouble(1));
+    width = round(width/m_ucBehavCam["windowScale"].toDouble(1));
+    height = round(height/m_ucBehavCam["windowScale"].toDouble(1));
+
+    qDebug() << leftEdge << topEdge << width << height;
 }

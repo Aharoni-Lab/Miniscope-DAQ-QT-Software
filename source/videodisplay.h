@@ -93,6 +93,7 @@ public:
     void setAlpha(double a) {m_renderer->setAlpha(a);}
     void setBeta(double b) {m_renderer->setBeta(b);}
     void setShowSaturation(double value);
+    void setROISelectionState(bool state) { m_roiSelectionActive = state; }
 
 signals:
     void tChanged();
@@ -102,6 +103,7 @@ signals:
     void droppedFrameCountChanged();
 
     void displayFrameChanged();
+    void newROISignal(int leftEdge, int topEdge, int width, int height);
 
 public slots:
     void sync();
@@ -120,6 +122,9 @@ private:
     VideoDisplayRenderer *m_renderer;
 
     double m_showSaturation;
+    bool m_roiSelectionActive;
+    QMouseEvent *lastMouseClickEvent;
+    QMouseEvent *lastMouseReleaseEvent;
 };
 //! [2]
 

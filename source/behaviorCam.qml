@@ -149,6 +149,7 @@ Item {
             running: true
                 }
     }
+
     TopMenu{
         id: topMenu
         anchors.top: parent.top
@@ -291,7 +292,7 @@ Item {
             font.bold: true
             font.weight: Font.Normal
             radius: 4
-            enabled: false
+            enabled: true
             background: Rectangle {
                 id: setRoiRect
                 radius: setRoi.radius

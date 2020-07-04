@@ -65,6 +65,9 @@ public slots:
     void handleCamCalibStart();
     void handleCamCalibQuit();
 
+    // Setting new ROI
+    void handleNewROI(int leftEdge, int topEdge, int width, int height);
+
 private:
     void getBehavCamConfig(QString deviceType);
     void configureBehavCamControls();

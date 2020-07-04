@@ -11,7 +11,10 @@
 VideoDisplay::VideoDisplay()
     : m_t(0),
       m_acqFPS(0),
-      m_renderer(nullptr)
+      m_renderer(nullptr),
+      m_roiSelectionActive(false),
+      lastMouseClickEvent(nullptr),
+      lastMouseReleaseEvent(nullptr)
 {
 //    m_displayFrame2.load("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png");
     setAcceptedMouseButtons(Qt::AllButtons);
@@ -96,15 +99,37 @@ void VideoDisplay::sync()
 //! [9]
 
 void VideoDisplay::mousePressEvent(QMouseEvent *event){
-    qDebug() << "Mouse Press" << event;
+    if (m_roiSelectionActive && event->button() == Qt::LeftButton) {
+        // TODO: Send info to shader to draw rectangle
+        lastMouseClickEvent = new QMouseEvent(*event);
+    }
+//        qDebug() << "Mouse Press" << event;
 }
 
 void VideoDisplay::mouseMoveEvent(QMouseEvent *event) {
-    qDebug() << "Mouse Move" << event;
+    // We currently do not use this for setting the ROI
+//    qDebug() << "Mouse Move" << event;
 }
 
 void VideoDisplay::mouseReleaseEvent(QMouseEvent *event) {
-    qDebug() << "Mouse Release" << event;
+    if (m_roiSelectionActive && event->button() == Qt::LeftButton && lastMouseClickEvent != nullptr) {
+        lastMouseReleaseEvent = event;
+
+        // Calculate ROI properties
+        int leftEdge = (lastMouseClickEvent->x() < lastMouseReleaseEvent->x()) ? (lastMouseClickEvent->x()) : (lastMouseReleaseEvent->x());
+        int topEdge = (lastMouseClickEvent->y() < lastMouseReleaseEvent->y()) ? (lastMouseClickEvent->y()) : (lastMouseReleaseEvent->y());
+        int width = abs(lastMouseClickEvent->x() - lastMouseReleaseEvent->x());
+        int height = abs(lastMouseClickEvent->y() - lastMouseReleaseEvent->y());
+
+        // Send new ROI to behavior camera class
+        emit newROISignal(leftEdge, topEdge, width, height);
+
+        // Reset these Mouse events
+        lastMouseClickEvent = nullptr;
+        lastMouseReleaseEvent = nullptr;
+
+        m_roiSelectionActive = false;
+    }
 }
 //! [4]
 void VideoDisplayRenderer::paint()
