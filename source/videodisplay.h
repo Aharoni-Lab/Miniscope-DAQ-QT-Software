@@ -17,9 +17,9 @@ class VideoDisplayRenderer : public QObject, protected QOpenGLFunctions
 public:
     VideoDisplayRenderer() :
         m_t(0),
-        m_displayFrame(0),
-        m_program(0),
-        m_texture(0),
+        m_displayFrame(nullptr),
+        m_program(nullptr),
+        m_texture(nullptr),
         m_newFrame(false),
         m_alpha(1),
         m_beta(0),

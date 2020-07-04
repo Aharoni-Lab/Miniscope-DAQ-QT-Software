@@ -180,6 +180,12 @@ void VideoStreamOCV::startStream()
                         x = static_cast<qint16>(cam->get(cv::CAP_PROP_HUE));
                         y = static_cast<qint16>(cam->get(cv::CAP_PROP_GAIN));
                         z = static_cast<qint16>(cam->get(cv::CAP_PROP_BRIGHTNESS));
+
+                        sendMessage("W|X: 0x" + QString::number(static_cast<qint16>(w), 16) + " | 0x" + QString::number(static_cast<qint16>(x), 16));
+                        sendMessage("Y|Z: 0x" + QString::number(static_cast<qint16>(y), 16) + " | 0x" + QString::number(static_cast<qint16>(z), 16));
+//                        if (*daqFrameNum%30 == 0)
+//                            sendMessage("Warning: BNO Calib: 0x" + QString::number(static_cast<quint16>(cam->get(cv::CAP_PROP_SHARPNESS)),16).toUpper());
+
                         norm = sqrt(w*w + x*x + y*y + z*z);
                         bnoBuffer[(idx%frameBufferSize)*5 + 0] = w/16384.0;
                         bnoBuffer[(idx%frameBufferSize)*5 + 1] = x/16384.0;
