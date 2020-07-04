@@ -165,9 +165,17 @@ void DataSaver::startRunning()
                         else
                             isColor = true;
                         // TODO: Add compression options here
-                        videoWriter[names[i]]->open(tempStr.toUtf8().constData(),
-                                dataCompressionFourCC[names[i]], 60,
-                                cv::Size(frameBuffer[names[i]][0].cols, frameBuffer[names[i]][0].rows), isColor); // color should be set to false?
+                        if (ROI.contains(names[i])) {
+                            // Need to trim frame to ROI
+                            videoWriter[names[i]]->open(tempStr.toUtf8().constData(),
+                                    dataCompressionFourCC[names[i]], 60,
+                                    cv::Size(ROI[names[i]][2], ROI[names[i]][3]), isColor); // color should be set to false?
+                        }
+                        else {
+                            videoWriter[names[i]]->open(tempStr.toUtf8().constData(),
+                                    dataCompressionFourCC[names[i]], 60,
+                                    cv::Size(frameBuffer[names[i]][0].cols, frameBuffer[names[i]][0].rows), isColor); // color should be set to false?
+                        }
 
                     }
                     bufPosition = frameCount[names[i]] % bufferSize[names[i]];
@@ -190,7 +198,13 @@ void DataSaver::startRunning()
                     }
 
                     // TODO: Increment video file if reach max frame number per file
-                    videoWriter[names[i]]->write(frameBuffer[names[i]][bufPosition]);
+                    if (ROI.contains(names[i])) {
+                        videoWriter[names[i]]->write(frameBuffer[names[i]][bufPosition](cv::Rect(ROI[names[i]][0],ROI[names[i]][1],ROI[names[i]][2],ROI[names[i]][3])));
+
+                    }
+                    else
+                        videoWriter[names[i]]->write(frameBuffer[names[i]][bufPosition]);
+
                     savedFrameCount[names[i]]++;
                 }
 
@@ -369,6 +383,11 @@ void DataSaver::setDataCompression(QString name, QString type)
 
 }
 
+void DataSaver::setROI(QString name, int *bbox)
+{
+    ROI[name] = bbox;
+}
+
 QJsonDocument DataSaver::constructBaseDirectoryMetaData()
 {
     QJsonObject metaData;
@@ -430,6 +449,14 @@ QJsonDocument DataSaver::constructDeviceMetaData(QString type, int idx)
     metaData["framesPerFile"] = deviceObj["framesPerFile"].toInt(1000);
     metaData["compression"] = deviceObj["compression"].toString("FFV1");
 
+    if (ROI.contains(deviceName)) {
+        QJsonObject jROI;
+        jROI["leftEdge"] = ROI[deviceName][0];
+        jROI["topEdge"] = ROI[deviceName][1];
+        jROI["width"] = ROI[deviceName][2];
+        jROI["height"] = ROI[deviceName][3];
+        metaData["ROI"] = jROI;
+    }
     // loop through device properties at the start of recording
     QStringList keys = deviceProperties[deviceName].keys();
     for (int i = 0; i < keys.length(); i++) {

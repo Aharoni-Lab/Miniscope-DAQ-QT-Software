@@ -509,6 +509,7 @@ void BehaviorCam::close()
 
 void BehaviorCam::handleSetRoiClicked()
 {
+    // TODO: Don't allow this if recording is active!!!!
 
     // We probably should reset video display to full resolution here before user input of ROI????
 
@@ -528,10 +529,12 @@ void BehaviorCam::handleNewROI(int leftEdge, int topEdge, int width, int height)
     m_roiBoundingBox[2] = round(width/m_ucBehavCam["windowScale"].toDouble(1));
     m_roiBoundingBox[3] = round(height/m_ucBehavCam["windowScale"].toDouble(1));
 
-    // TODO: Make sure ROI gets saved in meta data
-    qDebug() << m_roiBoundingBox[0] << m_roiBoundingBox[1] << m_roiBoundingBox[2] << m_roiBoundingBox[3];
+    sendMessage("ROI Set to [" + QString::number(m_roiBoundingBox[0]) + ", " +
+            QString::number(m_roiBoundingBox[1]) + ", " +
+            QString::number(m_roiBoundingBox[2]) + ", " +
+            QString::number(m_roiBoundingBox[3]) + "]");
 
-    // Send ROI info to data saver
+    // TODO: Make sure ROI gets saved in meta data
     // TODO: enable ROI button
 
 }

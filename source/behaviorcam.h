@@ -38,6 +38,7 @@ public:
     QAtomicInt* getAcqFrameNumPointer(){return m_acqFrameNum;}
 //    QAtomicInt* getDAQFrameNumPointer() { return m_daqFrameNum; }
     QString getDeviceName() {return m_deviceName;}
+    int* getROI() { return m_roiBoundingBox; }
 
 
 

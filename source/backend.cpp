@@ -226,6 +226,7 @@ void backEnd::setupDataSaver()
                                             behavCam[i]->getUsedFramesPointer(),
                                             behavCam[i]->getAcqFrameNumPointer());
         dataSaver->setHeadOrientationConfig(behavCam[i]->getDeviceName(), false, false);
+        dataSaver->setROI(behavCam[i]->getDeviceName(), behavCam[i]->getROI());
     }
 
     dataSaverThread = new QThread;
