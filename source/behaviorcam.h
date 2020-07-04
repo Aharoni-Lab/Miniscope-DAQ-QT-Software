@@ -109,6 +109,10 @@ private:
     // Camera Calibration Vars
     bool m_camCalibWindowOpen;
     bool m_camCalibRunning;
+
+    // ROI
+    bool m_roiIsDefined;
+    int m_roiBoundingBox[4]; // left, top, width, height
 };
 
 #endif // BEHAVIORCAM_H

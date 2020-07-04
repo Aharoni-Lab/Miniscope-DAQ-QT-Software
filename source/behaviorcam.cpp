@@ -26,7 +26,8 @@ BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucBehavCam) :
 //    m_daqFrameNum(new QAtomicInt(0)),
     m_streamHeadOrientationState(false),
     m_camCalibWindowOpen(false),
-    m_camCalibRunning(false)
+    m_camCalibRunning(false),
+    m_roiIsDefined(false)
 {
 
     m_ucBehavCam = ucBehavCam; // hold user config for this Miniscope
@@ -172,6 +173,18 @@ void BehaviorCam::parseUserConfigBehavCam() {
     // Currently not needed. If arrays get added into JSON config then this might
     m_deviceName = m_ucBehavCam["deviceName"].toString("Behavior Cam " + QString::number(m_ucBehavCam["deviceID"].toInt()));
     m_compressionType = m_ucBehavCam["compression"].toString("None");
+
+    if (m_ucBehavCam.contains("ROI")) {
+        // User Config defines ROI Bounding Box
+        m_roiIsDefined = true;
+        m_roiBoundingBox[0] = m_ucBehavCam["ROI"].toObject()["leftEdge"].toInt(-1);
+        m_roiBoundingBox[1] = m_ucBehavCam["ROI"].toObject()["topEdge"].toInt(-1);
+        m_roiBoundingBox[2] = m_ucBehavCam["ROI"].toObject()["width"].toInt(-1);
+        m_roiBoundingBox[3] = m_ucBehavCam["ROI"].toObject()["height"].toInt(-1);
+        qDebug() << m_roiBoundingBox[0] << m_roiBoundingBox[1] << m_roiBoundingBox[2] << m_roiBoundingBox[3];
+
+        // TODO: Throw error is values are incorrect or missing
+    }
 }
 
 QString BehaviorCam::getCompressionType()
@@ -501,18 +514,24 @@ void BehaviorCam::handleSetRoiClicked()
 
     // Tell videodisplay that we will need mouse actions and will need to draw ROI rectangle
     vidDisplay->setROISelectionState(true);
-    // Mouse clicks and moves are detected in videodisplay.cpp.
-    // This info needs to be sent to this .cpp file.
-    // Maybe send click and unclick positions only when "Set ROI" is enabled.
+
+
+    // TODO: disable ROI Button
+
 }
 
 void BehaviorCam::handleNewROI(int leftEdge, int topEdge, int width, int height)
 {
     // First scale the local position values to pixel values
-    leftEdge = round(leftEdge/m_ucBehavCam["windowScale"].toDouble(1));
-    topEdge = round(topEdge/m_ucBehavCam["windowScale"].toDouble(1));
-    width = round(width/m_ucBehavCam["windowScale"].toDouble(1));
-    height = round(height/m_ucBehavCam["windowScale"].toDouble(1));
+    m_roiBoundingBox[0] = round(leftEdge/m_ucBehavCam["windowScale"].toDouble(1));
+    m_roiBoundingBox[1] = round(topEdge/m_ucBehavCam["windowScale"].toDouble(1));
+    m_roiBoundingBox[2] = round(width/m_ucBehavCam["windowScale"].toDouble(1));
+    m_roiBoundingBox[3] = round(height/m_ucBehavCam["windowScale"].toDouble(1));
 
-    qDebug() << leftEdge << topEdge << width << height;
+    // TODO: Make sure ROI gets saved in meta data
+    qDebug() << m_roiBoundingBox[0] << m_roiBoundingBox[1] << m_roiBoundingBox[2] << m_roiBoundingBox[3];
+
+    // Send ROI info to data saver
+    // TODO: enable ROI button
+
 }
