@@ -142,6 +142,13 @@ void VideoDisplay::mouseReleaseEvent(QMouseEvent *event) {
 
     }
 }
+
+void VideoDisplay::setROI(QList<int> roi)
+{
+    m_ROI = roi;
+
+    roiChanged();
+}
 //! [4]
 void VideoDisplayRenderer::paint()
 {

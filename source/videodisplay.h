@@ -89,7 +89,7 @@ public:
 //    QImage displayFrame() {return m_displayFrame;}
     void setT(qreal t);
     void setAcqFPS(double acqFPS) { m_acqFPS = acqFPS; acqFPSChanged();}
-    void setROI(QList<int> roi) { m_ROI = roi; roiChanged();}
+    void setROI(QList<int> roi);
     void setBufferUsed(int bufUsed) { m_bufferUsed = bufUsed; }
     void setMaxBuffer(int maxBuf) { m_maxBuffer = maxBuf; }
 
@@ -99,6 +99,7 @@ public:
     void setBeta(double b) {m_renderer->setBeta(b);}
     void setShowSaturation(double value);
     void setROISelectionState(bool state) { m_roiSelectionActive = state; }
+    void setWindowScaleValue(double scale) { m_windowScaleValue = scale; }
 
 signals:
     void tChanged();
@@ -129,6 +130,7 @@ private:
 
     double m_showSaturation;
     bool m_roiSelectionActive;
+    double m_windowScaleValue;
     QList<int> m_ROI;
     QMouseEvent *lastMouseClickEvent;
     QMouseEvent *lastMouseReleaseEvent;

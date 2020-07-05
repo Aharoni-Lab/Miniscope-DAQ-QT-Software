@@ -123,6 +123,7 @@ void BehaviorCam::createView()
         configureBehavCamControls();
         vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
         vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
+        vidDisplay->setWindowScaleValue(m_ucBehavCam["windowScale"].toDouble(1));
 
         // Turn on or off saturation display
         if (m_ucBehavCam["showSaturation"].toBool(true))
@@ -157,7 +158,11 @@ void BehaviorCam::createView()
 
         sendMessage(m_deviceName + " is connected.");
         if (m_ucBehavCam.contains("ROI")) {
-            vidDisplay->setROI({m_roiBoundingBox[0],m_roiBoundingBox[1],m_roiBoundingBox[2],m_roiBoundingBox[3],0});
+            vidDisplay->setROI({(int)round(m_roiBoundingBox[0] * m_ucBehavCam["windowScale"].toDouble(1)),
+                                (int)round(m_roiBoundingBox[1] * m_ucBehavCam["windowScale"].toDouble(1)),
+                                (int)round(m_roiBoundingBox[2] * m_ucBehavCam["windowScale"].toDouble(1)),
+                                (int)round(m_roiBoundingBox[3] * m_ucBehavCam["windowScale"].toDouble(1)),
+                                0});
         }
     }
     else {
