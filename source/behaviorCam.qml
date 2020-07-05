@@ -132,6 +132,7 @@ Item {
         anchors.fill: parent
 
         property var sumAcqFPS: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+//        property variant roiArray: [0,0,100,100,0]
         property var idx: 0
         onAcqFPSChanged: {
 
@@ -141,6 +142,19 @@ Item {
             if (idx >= 20)
                 idx = 0;
         }
+        onRoiChanged: {
+            if (videoDisplay.ROI[4] === 1) {
+                rectROI.visible = true;
+                rectROI.color = "#40e38787";
+                rectROI.x = videoDisplay.ROI[0];
+                rectROI.y = videoDisplay.ROI[1];
+                rectROI.width = videoDisplay.ROI[2];
+                rectROI.height = videoDisplay.ROI[3];
+            }
+            else {
+                rectROI.color = "#00000000";
+            }
+        }
 
         SequentialAnimation on t {
             NumberAnimation { to: 1; duration: 2500; easing.type: Easing.InQuad }
@@ -148,6 +162,19 @@ Item {
             loops: Animation.Infinite
             running: true
                 }
+
+        Rectangle {
+            id: rectROI
+            x: 0
+            y: 0
+            width: videoDisplay.ROI[2]
+            height: videoDisplay.ROI[3]
+            visible: false
+
+            border.color: "red"
+            border.width: 2
+//            radius: 10
+        }
     }
 
     TopMenu{

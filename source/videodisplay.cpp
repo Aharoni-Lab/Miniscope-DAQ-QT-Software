@@ -13,6 +13,7 @@ VideoDisplay::VideoDisplay()
       m_acqFPS(0),
       m_renderer(nullptr),
       m_roiSelectionActive(false),
+      m_ROI({0,0,10,10,0}),
       lastMouseClickEvent(nullptr),
       lastMouseReleaseEvent(nullptr)
 {
@@ -107,8 +108,16 @@ void VideoDisplay::mousePressEvent(QMouseEvent *event){
 }
 
 void VideoDisplay::mouseMoveEvent(QMouseEvent *event) {
-    // We currently do not use this for setting the ROI
-//    qDebug() << "Mouse Move" << event;
+
+    if (m_roiSelectionActive /*&& event->button() == Qt::LeftButton*/ && lastMouseClickEvent != nullptr) {
+        int leftEdge = (lastMouseClickEvent->x() < event->x()) ? (lastMouseClickEvent->x()) : (event->x());
+        int topEdge = (lastMouseClickEvent->y() < event->y()) ? (lastMouseClickEvent->y()) : (event->y());
+        int width = abs(lastMouseClickEvent->x() - event->x());
+        int height = abs(lastMouseClickEvent->y() - event->y());
+
+        setROI({leftEdge,topEdge,width,height,m_roiSelectionActive});
+        qDebug() << "Mouse Move" << event;
+    }
 }
 
 void VideoDisplay::mouseReleaseEvent(QMouseEvent *event) {
@@ -121,14 +130,16 @@ void VideoDisplay::mouseReleaseEvent(QMouseEvent *event) {
         int width = abs(lastMouseClickEvent->x() - lastMouseReleaseEvent->x());
         int height = abs(lastMouseClickEvent->y() - lastMouseReleaseEvent->y());
 
+        m_roiSelectionActive = false;
         // Send new ROI to behavior camera class
         emit newROISignal(leftEdge, topEdge, width, height);
+        setROI({leftEdge,topEdge,width,height,m_roiSelectionActive});
 
         // Reset these Mouse events
         lastMouseClickEvent = nullptr;
         lastMouseReleaseEvent = nullptr;
 
-        m_roiSelectionActive = false;
+
     }
 }
 //! [4]
@@ -215,5 +226,6 @@ void VideoDisplayRenderer::paint()
         m_texture->create();
         m_texture->setData(m_displayFrame.copy());
     }
+
 }
 //! [5]

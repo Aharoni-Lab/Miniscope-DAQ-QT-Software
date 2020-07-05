@@ -69,6 +69,9 @@ class VideoDisplay : public QQuickItem
     Q_PROPERTY(qreal t READ t WRITE setT NOTIFY tChanged)
     Q_PROPERTY(QImage displayFrame READ displayFrame WRITE setDisplayFrame NOTIFY displayFrameChanged)
 
+    // For visualizing ROI
+    Q_PROPERTY(QList<int> ROI READ ROI WRITE setROI NOTIFY roiChanged)
+
 public:
     VideoDisplay();
     void mousePressEvent(QMouseEvent *event) override;
@@ -77,6 +80,7 @@ public:
 
     qreal t() const { return m_t; }
     double acqFPS() const { return m_acqFPS; }
+    QList<int> ROI() const { return m_ROI; }
     int maxBuffer() const {return m_maxBuffer; }
     int bufferUsed() const { return m_bufferUsed; }
     int droppedFrameCount() const {return m_droppedFrameCount; }
@@ -85,6 +89,7 @@ public:
 //    QImage displayFrame() {return m_displayFrame;}
     void setT(qreal t);
     void setAcqFPS(double acqFPS) { m_acqFPS = acqFPS; acqFPSChanged();}
+    void setROI(QList<int> roi) { m_ROI = roi; roiChanged();}
     void setBufferUsed(int bufUsed) { m_bufferUsed = bufUsed; }
     void setMaxBuffer(int maxBuf) { m_maxBuffer = maxBuf; }
 
@@ -98,6 +103,7 @@ public:
 signals:
     void tChanged();
     void acqFPSChanged();
+    void roiChanged();
     void maxBufferChanged();
     void bufferUsedChanged();
     void droppedFrameCountChanged();
@@ -123,6 +129,7 @@ private:
 
     double m_showSaturation;
     bool m_roiSelectionActive;
+    QList<int> m_ROI;
     QMouseEvent *lastMouseClickEvent;
     QMouseEvent *lastMouseReleaseEvent;
 };
