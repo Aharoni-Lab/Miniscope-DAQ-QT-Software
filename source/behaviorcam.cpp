@@ -156,6 +156,9 @@ void BehaviorCam::createView()
         QObject::connect(vidDisplay, &VideoDisplay::newROISignal, this, &BehaviorCam::handleNewROI);
 
         sendMessage(m_deviceName + " is connected.");
+        if (m_ucBehavCam.contains("ROI")) {
+            vidDisplay->setROI({m_roiBoundingBox[0],m_roiBoundingBox[1],m_roiBoundingBox[2],m_roiBoundingBox[3],0});
+        }
     }
     else {
         sendMessage("Error: " + m_deviceName + " cannot connect to camera. Check deviceID.");
@@ -181,7 +184,7 @@ void BehaviorCam::parseUserConfigBehavCam() {
         m_roiBoundingBox[1] = m_ucBehavCam["ROI"].toObject()["topEdge"].toInt(-1);
         m_roiBoundingBox[2] = m_ucBehavCam["ROI"].toObject()["width"].toInt(-1);
         m_roiBoundingBox[3] = m_ucBehavCam["ROI"].toObject()["height"].toInt(-1);
-        qDebug() << m_roiBoundingBox[0] << m_roiBoundingBox[1] << m_roiBoundingBox[2] << m_roiBoundingBox[3];
+
 
         // TODO: Throw error is values are incorrect or missing
     }

@@ -152,7 +152,12 @@ Item {
                 rectROI.height = videoDisplay.ROI[3];
             }
             else {
+                rectROI.visible = true;
                 rectROI.color = "#00000000";
+                rectROI.x = videoDisplay.ROI[0];
+                rectROI.y = videoDisplay.ROI[1];
+                rectROI.width = videoDisplay.ROI[2];
+                rectROI.height = videoDisplay.ROI[3];
             }
         }
 
