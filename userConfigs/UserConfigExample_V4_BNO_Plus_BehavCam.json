@@ -28,7 +28,10 @@
                 "deviceName": "Miniscope 2",
                 "deviceType": "Miniscope_V4_BNO",
                 "imageRegistration": "Off",
-                "streamHeadOrientation": true,
+				"headOrientation": {
+					"enable": true,
+					"filterBadData": true
+				},
                 "deviceID": 1,
 				"showSaturation": true,
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
@@ -50,6 +53,13 @@
                 "deviceID": 0,
 				"showSaturation": false,
                 "cameraCalibrationFileLocation": "",
+				"ROI": {
+					"notes": "This defines the bounding box of the portion of the video that is saved to disk",
+					"leftEdge": 10,
+					"topEdge": 20,
+					"width": 300,
+					"height": 200
+				},
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
                 "compression": "XVID",
                 "framesPerFile": 1000,

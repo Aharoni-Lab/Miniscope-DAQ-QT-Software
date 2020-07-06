@@ -49,6 +49,13 @@
                 "deviceType": "WebCam",
                 "deviceID": 0,
 				"showSaturation": true,
+				"ROI": {
+					"notes": "This defines the bounding box of the portion of the video that is saved to disk",
+					"leftEdge": 10,
+					"topEdge": 20,
+					"width": 300,
+					"height": 200
+				},
                 "cameraCalibrationFileLocation": "",
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
                 "compression": "FFV1",
