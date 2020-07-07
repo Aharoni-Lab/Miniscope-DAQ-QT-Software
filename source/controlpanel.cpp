@@ -43,6 +43,10 @@ void ControlPanel::createView()
     view->setTitle("Control Panel");
     view->setX(1);
     view->setY(50);
+
+#ifdef Q_OS_WINDOWS
+        view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
+#endif
     view->show();
 
     rootObject = view->rootObject();
