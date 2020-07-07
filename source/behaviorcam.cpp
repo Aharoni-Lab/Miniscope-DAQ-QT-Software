@@ -116,6 +116,7 @@ void BehaviorCam::createView()
         view->setX(m_ucBehavCam["windowX"].toInt(1));
         view->setY(m_ucBehavCam["windowY"].toInt(1));
 
+        view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowCloseButtonHint);
         view->show();
         // --------------------
 

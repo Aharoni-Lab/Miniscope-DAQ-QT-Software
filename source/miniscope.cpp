@@ -148,6 +148,7 @@ void Miniscope::createView()
         view->setX(m_ucMiniscope["windowX"].toInt(1));
         view->setY(m_ucMiniscope["windowY"].toInt(1));
 
+        view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowCloseButtonHint);
         view->show();
         // --------------------
 
