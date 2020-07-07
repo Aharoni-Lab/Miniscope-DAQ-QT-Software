@@ -145,7 +145,7 @@ Item {
         onRoiChanged: {
             if (videoDisplay.ROI[4] === 1) {
                 rectROI.visible = true;
-                rectROI.color = "#40e38787";
+                rectROI.color = "#40ffffff"; //"e38787";
                 rectROI.x = videoDisplay.ROI[0];
                 rectROI.y = videoDisplay.ROI[1];
                 rectROI.width = videoDisplay.ROI[2];
