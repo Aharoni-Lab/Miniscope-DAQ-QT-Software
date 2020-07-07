@@ -68,7 +68,7 @@ Item {
                 }
                 else {
                     bRecord.text = qsTr("Record");
-                    bStop.text = qsTr("Stop]");
+                    bStop.text = qsTr("Stop");
 //                    if (root.recording == false) {
 //                        bRecord.enabled = true;
 //                    }
