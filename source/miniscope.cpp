@@ -28,7 +28,8 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     m_headOrientationFilterState(false),
     m_displatState("Raw"),
     baselineFrameBufWritePos(0),
-    baselinePreviousTimeStamp(0)
+    baselinePreviousTimeStamp(0),
+    m_extTriggerTrackingState(false)
 
 {
 
@@ -104,6 +105,13 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
 
         QObject::connect(this, &Miniscope::startRecording, miniscopeStream, &VideoStreamOCV::startRecording);
         QObject::connect(this, &Miniscope::stopRecording, miniscopeStream, &VideoStreamOCV::stopRecording);
+        // ----------------------------------------------
+
+        // Signal/Slots for handling LED toggling during external trigger
+        // TODO: Should probably consolidate how these signals and slots interact and remove the above signal passthrough
+        QObject::connect(this, &Miniscope::setExtTriggerTrackingState, this, &Miniscope::handleSetExtTriggerTrackingState);
+        QObject::connect(this, &Miniscope::startRecording, this, &Miniscope::handleRecordStart);
+        QObject::connect(this, &Miniscope::stopRecording, this, &Miniscope::handleRecordStop);
         // ----------------------------------------------
 
     //    createView();
@@ -319,9 +327,12 @@ void Miniscope::configureMiniscopeControls() {
                             // sends signal on initial setup of controls
                             emit onPropertyChanged(m_deviceName, controlName[i], values["startValue"].toVariant());
                     }
-                    else {
+                    else { // remaining option is value is a double
                         controlItem->setProperty(keys[j].toLatin1().data(), values[keys[j]].toDouble());
                         if (keys[j] == "startValue")
+                            if (controlName[i] == "led0") { // This is used to hold initial (and last known) LED value for toggling LED on and off using remote trigger
+                                m_lastLED0Value = values["startValue"].toDouble();
+                            }
                             // sends signal on initial setup of controls
                             emit onPropertyChanged(m_deviceName, controlName[i], values["startValue"].toVariant());
                     }
@@ -530,7 +541,17 @@ void Miniscope::handlePropChangedSignal(QString type, double displayValue, doubl
 
         // TODO: maybe add a check to make sure property successfully updates before signallng it has changed
     //    qDebug() << "Sending updated prop signal to backend";
-        emit onPropertyChanged(m_deviceName, type, QVariant(displayValue));
+
+
+        if (type == "led0") {// This will update the last known LED value for use when toggling LED on and off using external trigger
+            if (m_extTriggerTrackingState == false || (m_extTriggerTrackingState == true && displayValue > 0)) {
+                m_lastLED0Value = displayValue;
+                emit onPropertyChanged(m_deviceName, type, QVariant(displayValue)); // This sends the change to the datasaver
+            }
+        }
+        else {
+            emit onPropertyChanged(m_deviceName, type, QVariant(displayValue)); // This sends the change to the datasaver
+        }
 
         // TODO: Handle int values greater than 8 bits
         for (int i = 0; i < m_controlSendCommand[type].length(); i++) {
@@ -599,6 +620,43 @@ void Miniscope::handleDFFSwitchChange(bool checked)
     else
         m_displatState = "Raw";
 }
+
+void Miniscope::handleSetExtTriggerTrackingState(bool state)
+{
+     m_extTriggerTrackingState = state;
+     if (m_extTriggerTrackingState == true) {
+         // Let's turn off the led0
+         QQuickItem *controlItem; // Pointer to VideoPropertyControl in qml for each objectName
+         controlItem = rootObject->findChild<QQuickItem*>("led0");
+         controlItem->setProperty("startValue", 0);
+     }
+     else {
+         // Let's turn led0 back on
+         QQuickItem *controlItem; // Pointer to VideoPropertyControl in qml for each objectName
+         controlItem = rootObject->findChild<QQuickItem*>("led0");
+         controlItem->setProperty("startValue", m_lastLED0Value);
+     }
+}
+void Miniscope::handleRecordStart()
+{
+    // Turns on led0 if software is in external trigger configuration
+    if (m_extTriggerTrackingState) {
+        QQuickItem *controlItem; // Pointer to VideoPropertyControl in qml for each objectName
+        controlItem = rootObject->findChild<QQuickItem*>("led0");
+        controlItem->setProperty("startValue", m_lastLED0Value);
+    }
+}
+
+void Miniscope::handleRecordStop()
+{
+    // Turns off led0 if software is in external trigger configuration
+    if (m_extTriggerTrackingState) {
+        QQuickItem *controlItem; // Pointer to VideoPropertyControl in qml for each objectName
+        controlItem = rootObject->findChild<QQuickItem*>("led0");
+        controlItem->setProperty("startValue", 0);
+    }
+}
+
 
 void Miniscope::close()
 {

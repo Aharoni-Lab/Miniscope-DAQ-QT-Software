@@ -61,17 +61,21 @@ Item {
             enabled: true
             onToggled: {
                 if (checked) {
-                    bRecord.enabled = false;
-                    bStop.enabled = false;
+                    bRecord.text = qsTr("Record [Ext. Trig. Enabled]");
+                    bStop.text = qsTr("Stop [Ext. Trig. Enabled]");
+//                    bRecord.enabled = false;
+//                    bStop.enabled = false;
                 }
                 else {
-                    if (root.recording == false) {
-                        bRecord.enabled = true;
-                    }
-                    else {
-                        bStop.enabled = true;
+                    bRecord.text = qsTr("Record");
+                    bStop.text = qsTr("Stop]");
+//                    if (root.recording == false) {
+//                        bRecord.enabled = true;
+//                    }
+//                    else {
+//                        bStop.enabled = true;
 
-                    }
+//                    }
                 }
 
                 root.extTriggerSwitchToggled(switchExtTrigger.checked);
@@ -90,9 +94,9 @@ Item {
                  objectName: "messageTextArea"
                  textFormat: TextEdit.RichText
                  text: "'Space Bar': screenshot of video stream.<br/>'h': hides/shows video stream controls.<br/>Messages:"
- //                wrapMode: Text.WrapAnywhere
+                 wrapMode: Text.WrapAnywhere
 //                 anchors.fill: flick1
-                 font.pointSize: 12
+                 font.pointSize: 10
                  readOnly: true
                  background: Rectangle {
  //                    radius: rbSelectUserConfig.radius

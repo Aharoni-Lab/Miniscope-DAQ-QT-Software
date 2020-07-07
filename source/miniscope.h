@@ -74,6 +74,9 @@ public slots:
     void handlePropChangedSignal(QString type, double displayValue, double i2cValue, double i2cValue2);
     void handleTakeScreenShotSignal();
     void handleDFFSwitchChange(bool checked);
+    void handleSetExtTriggerTrackingState(bool state);
+    void handleRecordStart(); // Currently used to toggle LED on and off
+    void handleRecordStop(); // Currently used to toggle LED on and off
     void close();
 
 private:
@@ -126,6 +129,9 @@ private:
     cv::Mat baselineFrame;
     int baselineFrameBufWritePos;
     qint64 baselinePreviousTimeStamp;
+
+    double m_lastLED0Value;
+    bool m_extTriggerTrackingState;
 };
 
 

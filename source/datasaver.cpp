@@ -228,6 +228,11 @@ void DataSaver::startRecording()
 //        }
 //    }
 
+    if (m_recording) {
+        // Data saver is already recording. This likely happens if there is a manual record and then an external trig record
+        sendMessage("Warning: External 'START' trigger detected but software is already recording.");
+        return;
+    }
     QJsonDocument jDoc;
     recordStartDateTime = QDateTime::currentDateTime();
     if (setupFilePaths()) {
@@ -298,8 +303,10 @@ void DataSaver::startRecording()
 
 void DataSaver::stopRecording()
 {
-    if (!m_recording)
+    if (!m_recording) {
+        sendMessage("Warning: External 'STOP' trigger detected but software is not recording.");
         return;
+    }
     m_recording = false;
     QStringList keys = videoWriter.keys();
     for (int i = 0; i < keys.length(); i++) {
