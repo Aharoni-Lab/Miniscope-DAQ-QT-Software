@@ -9,12 +9,12 @@
         }
     },
 	
-	"Minicam-Mono5": {
+	"Minicam-Mono-XGA": {
         "qmlFile": "qrc:/behaviorCam.qml",
         "sensor": "MT9P031",
         "frameRate": "adjustable",
-        "width": 1296,
-        "height": 972,
+        "width": 1024,
+        "height": 768,
         "headOrientation": false,
         "isColor": false,
         "controlSettings": {
@@ -36,10 +36,10 @@
                 ]
             },
             "frameRate": {
-                "displaySpinBoxValues":["10FPS", "15FPS", "20FPS"],
-                "displayTextValues": [10, 15, 20],
+                "displaySpinBoxValues":["10FPS", "30FPS", "45FPS"],
+                "displayTextValues": [10, 30, 45],
                 "outputValues":[2048,1536,1024],
-                "startValue": "30FPS",
+                "startValue": "45FPS",
                 "sendCommand": [
                     {
                         "protocol": "I2C",
@@ -51,7 +51,7 @@
                         "data1": "valueL"
                     }
                 ]
-            },        
+            },       
 	   		"led0": {
                 "startValue": 0,
                 "min": 0,
