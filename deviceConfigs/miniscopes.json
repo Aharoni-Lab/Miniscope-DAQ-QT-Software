@@ -1035,5 +1035,172 @@
             }
 
     ]
+    },
+	"MiniLFM": {
+        "qmlFile": "qrc:/Miniscope_V4_BNO.qml",
+        "sensor": "MT9P031",
+        "frameRate": "adjustable",
+        "width": 2592,
+        "height": 1944,
+        "headOrientation": false,
+        "isColor": false,
+        "controlSettings": {
+            "gain": {
+                "displaySpinBoxValues":["Low", "Medium", "High"],
+                "displayTextValues": [1, 4, 8],
+                "outputValues":[8,32,96],
+                "startValue": "Low",
+                "sendCommand": [
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0xBA",
+                        "regLength": "1",
+                        "reg0": "0x35",
+                        "dataLength": "2",
+                        "data0": "valueH",
+                        "data1": "valueL"
+                    }
+                ]
+            },
+            "frameRate": {
+                "displaySpinBoxValues":["10FPS", "15FPS", "20FPS"],
+                "displayTextValues": [10, 15, 20],
+                "outputValues":[2048,1536,1024],
+                "startValue": "20FPS",
+                "sendCommand": [
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0xBA",
+                        "regLength": "1",
+                        "reg0": "0x09",
+                        "dataLength": "2",
+                        "data0": "valueH",
+                        "data1": "valueL"
+                    }
+                ]
+            },
+            "led0": {
+                "startValue": 0,
+                "min": 0,
+                "max": 100,
+                "stepSize": 1,
+                "displayValueScale": -2.55,
+                "displayValueOffset": -255,
+                "sendCommand": [
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0b01011000",
+                        "regLength": "1",
+                        "reg0": "0x00",
+                        "dataLength": "2",
+                        "data0": "value",
+                        "data1": "value"
+                    }
+                ]
+            },
+            "ewl": {
+                "startValue": 0,
+                "min": -127,
+                "max": 127,
+                "stepSize": 1,
+                "displayValueScale": 1,
+                "displayValueOffset": -127,
+                "sendCommand": [
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0b11101110",
+                        "regLength": "1",
+                        "reg0": "0x08",
+                        "dataLength": "2",
+                        "data0": "value",
+                        "data1": "0x02"
+                    }
+                ]
+            }
+        },
+        "initialize": [
+            {
+                "description": "Speed up i2c bus timer to 50us max",
+                "protocol": "I2C",
+                "addressW": "0xC0",
+                "regLength": "1",
+                "reg0": "0x22",
+                "dataLength": "1",
+                "data0": "0b00000010"
+            },
+            {
+                "description": "Decrease BCC timeout, units in 2ms XX",
+                "protocol": "I2C",
+                "addressW": "0xC0",
+                "regLength": "1",
+                "reg0": "0x20",
+                "dataLength": "1",
+                "data0": "0b00001010"
+            },
+            {
+                "description": "Make sure DES has SER ADDR",
+                "protocol": "I2C",
+                "addressW": "0xC0",
+                "regLength": "1",
+                "reg0": "0x07",
+                "dataLength": "1",
+                "data0": "0xB0"
+            },
+            {
+                "description": "Speed up I2c bus timer to 50u Max",
+                "protocol": "I2C",
+                "addressW": "0xB0",
+                "regLength": "1",
+                "reg0": "0x0F",
+                "dataLength": "1",
+                "data0": "0b00000010"
+            },
+            {
+                "description": "Decrease BCC timeout, units in 2ms",
+                "protocol": "I2C",
+                "addressW": "0xB0",
+                "regLength": "1",
+                "reg0": "0x1E",
+                "dataLength": "1",
+                "data0": "0b00001010"
+            },
+            {
+                "description": "sets allowable i2c addresses to send through serializer",
+                "protocol": "I2C",
+                "addressW": "0xC0",
+                "regLength": "1",
+                "reg0": "0x08",
+                "dataLength": "3",
+                "device0": "MT9P031",
+                "data0": "0xBA",
+                "device1": "EWL Driver",
+                "data1": "0b11101110",
+                "device2": "Digital Pot",
+                "data2": "0b10100000"
+            },
+            {
+                "description": "sets sudo allowable i2c addresses to send through serializer",
+                "protocol": "I2C",
+                "addressW": "0xC0",
+                "regLength": "1",
+                "reg0": "0x10",
+                "dataLength": "3",
+                "device0": "MT9P031",
+                "data0": "0xBA",
+                "device1": "EWL Driver",
+                "data1": "0b11101110",
+                "device2": "Digital Pot Sudo",
+                "data2": "0b01011000"
+            },
+            {
+                "description": "Enable EWL Driver",
+                "protocol": "I2C",
+                "addressW": "0b11101110",
+                "regLength": "1",
+                "reg0": "0x03",
+                "dataLength": "1",
+                "data0": "0x03"
+            }
+    ]
     }
 }

@@ -62,6 +62,10 @@ int VideoStreamOCV::connect2Camera(int cameraID) {
             m_connectionType = "OTHER";
         }
     }
+    if (connectionState != 0) {
+         cam->set(cv::CAP_PROP_FRAME_WIDTH, m_expectedWidth);
+         cam->set(cv::CAP_PROP_FRAME_HEIGHT, m_expectedHeight);
+    }
 //    qDebug() <<  "Camera capture backend is" << QString::fromStdString (cam->getBackendName());
     return connectionState;
 
