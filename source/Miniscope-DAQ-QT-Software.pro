@@ -74,6 +74,11 @@ HEADERS += \
 DISTFILES +=
 
 win32 {
+    # For libusb
+    LIBS += -LC:/libusb-1.0.23/MS64/dll/ -llibusb-1.0
+    INCLUDEPATH += C:/libusb-1.0.23/include/libusb-1.0
+
+    # For OpenCV
     LIBS += -L$$PWD/../../../../../../../opencv-build420/lib/Release/ -lopencv_world420
     #LIBS += -L$$PWD/../../../../../../../opencv-build420/lib/Debug/ -lopencv_world420d
 

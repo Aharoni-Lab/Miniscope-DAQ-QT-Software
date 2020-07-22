@@ -25,6 +25,8 @@
 #include "datasaver.h"
 #include "behaviortracker.h"
 
+#include <libusb.h>
+
 //#define DEBUG
 
 backEnd::backEnd(QObject *parent) :
@@ -58,6 +60,63 @@ backEnd::backEnd(QObject *parent) :
     ucBehaviorTracker["type"] = "None";
 
     dataSaver = new DataSaver();
+
+    // ---- LIBUSB TEST ----
+    libusb_device **devs;
+    int r;
+    ssize_t cnt;
+
+    r = libusb_init(NULL);
+    if (r < 0)
+        qDebug() << "Problem 1 ";
+    else {
+        cnt = libusb_get_device_list(NULL, &devs);
+        if (cnt < 0){
+            libusb_exit(NULL);
+            qDebug() << "Problem 2";
+        }
+        else {
+            // -----------
+            libusb_device *dev;
+            int i = 0, j = 0;
+            uint8_t path[8];
+
+            while ((dev = devs[i++]) != NULL) {
+                struct libusb_device_descriptor desc;
+                int r = libusb_get_device_descriptor(dev, &desc);
+                if (r < 0) {
+                    qDebug() << "failed to get device descriptor";
+                }
+                else {
+                    qDebug() << desc.idVendor << ":" << desc.idProduct << "bus" << libusb_get_bus_number(dev) << "device" << libusb_get_device_address(dev);
+
+                    r = libusb_get_port_numbers(dev, path, sizeof(path));
+                    if (r > 0) {
+                        qDebug() <<" path:" << path[0];
+                        for (j = 1; j < r; j++)
+                            qDebug() << path[j];
+                    }
+                    unsigned char name[200];
+                    libusb_device_handle *d_h = NULL;
+                    r = libusb_open(dev,&d_h);
+//                    d_h = libusb_open_device_with_vid_pid(NULL,desc.idVendor,desc.idProduct);
+                    if ( r > 0) {
+                        r = libusb_get_string_descriptor_ascii(d_h,desc.iManufacturer,name,200);
+                        if ( r > 0) {
+                            qDebug() << name;
+                            libusb_close(d_h);
+                        }
+                    }
+                    else {
+                        qDebug() << "Open Fail:" << r;
+                    }
+                }
+            }
+            // ---------------
+            libusb_free_device_list(devs, 1);
+            libusb_exit(NULL);
+        }
+    }
 
 
     testCodecSupport();
