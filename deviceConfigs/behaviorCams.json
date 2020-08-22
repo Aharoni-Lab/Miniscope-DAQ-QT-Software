@@ -19,10 +19,10 @@
         "isColor": false,
         "controlSettings": {
             "gain": {
-                "displaySpinBoxValues":["Low", "Medium", "High"],
-                "displayTextValues": [1, 4, 8],
-                "outputValues":[8,32,96],
-                "startValue": "Low",
+                "displaySpinBoxValues":["1X", "8X", "16X", "32X"],
+                "displayTextValues": [1, 8, 16, 32],
+                "outputValues":[8,96,2144,6240],
+                "startValue": "1X",
                 "sendCommand": [
                     {
                         "protocol": "I2C",
@@ -36,10 +36,10 @@
                 ]
             },
             "frameRate": {
-                "displaySpinBoxValues":["10FPS", "30FPS", "45FPS"],
-                "displayTextValues": [10, 30, 45],
-                "outputValues":[2048,1536,1024],
-                "startValue": "45FPS",
+                "displaySpinBoxValues":["10FPS", "40FPS", "50FPS"],
+                "displayTextValues": [10, 40, 50],
+                "outputValues":[2048,1536,766],
+                "startValue": "40FPS",
                 "sendCommand": [
                     {
                         "protocol": "I2C",
@@ -126,9 +126,9 @@
                 "dataLength": "2",
                 "device0": "MT9P031",
                 "data0": "0xBA",
-                "device1": "Digital LED Driver",
+               "device1": "Digital LED Driver",
                 "data1": "0x6C"
-        
+                
             },
             {
                 "description": "sets sudo allowable i2c addresses to send through serializer",
@@ -139,11 +139,31 @@
                 "dataLength": "2",
                 "device0": "MT9P031",
                 "data0": "0xBA",
-                "device1": "Digital LED Driver",
+                 "device1": "Digital LED Driver",
                 "data1": "0x6C"
-              
-            }, 
-         		{
+            },
+		    {
+				"description": "1535 Rows",
+                "protocol": "I2C",
+                "addressW": "0xBA",
+                "regLength": "1",
+                "reg0": "0x03",
+                "dataLength": "2",
+                "data0": "0b00000101",
+				"data1": "0b11111111"
+			},
+			{
+				"description": "2047 Colums",
+                "protocol": "I2C",
+                "addressW": "0xBA",
+                "regLength": "1",
+                "reg0": "0x04",
+                "dataLength": "2",
+                "data0": "0b00000111",
+				"data1": "0b11111111"
+			},
+           
+			{
 				"description": "2x subsamp and binning 1",
                 "protocol": "I2C",
                 "addressW": "0xBA",
@@ -173,6 +193,16 @@
                 "data0": "0x00",
 				"data1": "0b01100000"
 			},
+	        {
+				"description": "Set R0X03E to 0X00C0 when Sensor Gain>4",
+                "protocol": "I2C",
+                "addressW": "0xBA",
+                "regLength": "1",
+                "reg0": "0x3E",
+                "dataLength": "2",
+                "data0": "0x00",
+				"data1": "0xC0"
+			},
 			{
 				"description": "Change shutter width",
                 "protocol": "I2C",
@@ -180,9 +210,11 @@
                 "regLength": "1",
                 "reg0": "0x09",
                 "dataLength": "2",
-                "data0": "0b00000100",
-				"data1": "0x00"
+                "data0": "0b00000010",
+				"data1": "0b11111111"
 			},
+
+		
 			{
 				"description": "LED Driver LM3509",
                 "protocol": "I2C",
@@ -193,6 +225,7 @@
                 "data0": "0b11010111"
 				
 			}
-	    ]
+
+        ]
     }
 }

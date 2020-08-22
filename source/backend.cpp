@@ -12,6 +12,7 @@
 #include <QDir>
 #include <QVector>
 #include <QUrl>
+#include <QString>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -83,29 +84,66 @@ backEnd::backEnd(QObject *parent) :
 
             while ((dev = devs[i++]) != NULL) {
                 struct libusb_device_descriptor desc;
+                struct libusb_config_descriptor **configDesc;
+                const struct libusb_endpoint_descriptor *epdesc;
+                const struct libusb_interface_descriptor *interdesc;
                 int r = libusb_get_device_descriptor(dev, &desc);
                 if (r < 0) {
                     qDebug() << "failed to get device descriptor";
                 }
                 else {
+
                     qDebug() << desc.idVendor << ":" << desc.idProduct << "bus" << libusb_get_bus_number(dev) << "device" << libusb_get_device_address(dev);
 
                     r = libusb_get_port_numbers(dev, path, sizeof(path));
                     if (r > 0) {
-                        qDebug() <<" path:" << path[0];
+                        qDebug() <<"path:" << path[0];
                         for (j = 1; j < r; j++)
-                            qDebug() << path[j];
+                            qDebug() << " more paths:" << path[j];
                     }
-                    unsigned char name[200];
+
+
+
+
                     libusb_device_handle *d_h = NULL;
                     r = libusb_open(dev,&d_h);
-//                    d_h = libusb_open_device_with_vid_pid(NULL,desc.idVendor,desc.idProduct);
-                    if ( r > 0) {
-                        r = libusb_get_string_descriptor_ascii(d_h,desc.iManufacturer,name,200);
+                    if ( r == 0) {
+                        unsigned char name[200];
+                        r = libusb_get_string_descriptor_ascii(d_h,desc.iProduct,name,200);
                         if ( r > 0) {
-                            qDebug() << name;
-                            libusb_close(d_h);
+                            qDebug() << "name" << QString::fromUtf8((char *)name, r);
                         }
+//                        libusb_set_configuration(d_h,0);
+//                        r = libusb_get_active_config_descriptor(dev,configDesc);
+//                        if (r < 0)
+//                            qDebug() << "Config Desc failed:" << r;
+//                        else {
+//                            qDebug() << "Number of alt settings:" << configDesc[0]->interface->num_altsetting;
+//                            interdesc = configDesc[0]->interface->altsetting;
+
+//                                qDebug() << "Number of endpoints: "<< interdesc->bNumEndpoints;
+//                                for(int k=0; k<(int)interdesc->bNumEndpoints; k++) {
+//                                    epdesc = &interdesc->endpoint[k];
+//                                    qDebug()<<"Descriptor Type: "<<(int)epdesc->bDescriptorType;
+//                                    qDebug()<<"EP Address: "<<(int)epdesc->bEndpointAddress;
+//                                }
+//                            }
+////                        }
+//                        libusb_free_config_descriptor(configDesc[0]);
+
+                        libusb_claim_interface(d_h,2);
+                        uint8_t data[5] = {0,1,2,3,4};
+                        uint8_t inData[1024];
+                        int actualLength;
+                        qDebug() << "Sending" << data[0] << data[1] << data[2] << data[3] << data[4];
+                        r = libusb_bulk_transfer(d_h,0x04|LIBUSB_ENDPOINT_OUT,data,5,NULL,1000);
+                        if (r != 0)
+                            qDebug() << "Issue sending bulk transfer to device:" << r;
+                        else {
+                            libusb_bulk_transfer(d_h,0x04|LIBUSB_ENDPOINT_IN ,inData,1024,&actualLength,1000);
+                            qDebug() << "Receiving" << inData[0] << inData[1] << inData[2] << inData[3] << inData[4] << "inLength:" << actualLength;
+                        }
+                        libusb_close(d_h);
                     }
                     else {
                         qDebug() << "Open Fail:" << r;
@@ -113,6 +151,7 @@ backEnd::backEnd(QObject *parent) :
                 }
             }
             // ---------------
+
             libusb_free_device_list(devs, 1);
             libusb_exit(NULL);
         }

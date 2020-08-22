@@ -65,6 +65,7 @@ int VideoStreamOCV::connect2Camera(int cameraID) {
     if (connectionState != 0) {
          cam->set(cv::CAP_PROP_FRAME_WIDTH, m_expectedWidth);
          cam->set(cv::CAP_PROP_FRAME_HEIGHT, m_expectedHeight);
+         QThread::msleep(500);
     }
 //    qDebug() <<  "Camera capture backend is" << QString::fromStdString (cam->getBackendName());
     return connectionState;
@@ -353,12 +354,16 @@ void VideoStreamOCV::sendCommands()
 bool VideoStreamOCV::attemptReconnect()
 {
     if (m_connectionType == "DSHOW") {
-        if (cam->open(m_cameraID, cv::CAP_DSHOW))
+        if (cam->open(m_cameraID, cv::CAP_DSHOW)) {
+            requestInitCommands();
             return true;
+        }
     }
     else if (m_connectionType == "OTHER") {
-        if (cam->open(m_cameraID))
+        if (cam->open(m_cameraID)) {
+            requestInitCommands();
             return true;
+        }
     }
     return false;
 }

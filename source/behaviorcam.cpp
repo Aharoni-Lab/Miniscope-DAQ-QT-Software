@@ -46,7 +46,8 @@ BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucBehavCam) :
     // -------------------------
 
     // Setup OpenCV camera stream
-    behavCamStream = new VideoStreamOCV(nullptr,  m_cBehavCam["width"].toInt(), m_cBehavCam["height"].toInt());
+    qDebug() << m_cBehavCam["width"].toInt() << m_cBehavCam["height"].toInt();
+    behavCamStream = new VideoStreamOCV(nullptr,  m_cBehavCam["width"].toInt(-1), m_cBehavCam["height"].toInt(-1));
     behavCamStream->setDeviceName(m_deviceName);
 
     behavCamStream->setHeadOrientationConfig(false, false); // don't allow head orientation streaming for behavior cameras

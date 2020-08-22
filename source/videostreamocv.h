@@ -33,6 +33,7 @@ signals:
     void sendMessage(QString msg);
     void newFrameAvailable(QString name, int frameNum);
     void extTriggered(bool triggerState);
+    void requestInitCommands();
 
 public slots:
     void startStream();

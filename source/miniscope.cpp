@@ -99,6 +99,9 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
         // Pass send message signal through
         QObject::connect(miniscopeStream, &VideoStreamOCV::sendMessage, this, &Miniscope::sendMessage);
 
+        // Handle request for reinitialization of commands
+        QObject::connect(miniscopeStream, &VideoStreamOCV::requestInitCommands, this, &Miniscope::handleInitCommandsRequest);
+
         // Handle external triggering passthrough
         QObject::connect(this, &Miniscope::setExtTriggerTrackingState, miniscopeStream, &VideoStreamOCV::setExtTriggerTrackingState);
         QObject::connect(miniscopeStream, &VideoStreamOCV::extTriggered, this, &Miniscope::extTriggered);
@@ -658,6 +661,12 @@ void Miniscope::handleRecordStop()
         controlItem = rootObject->findChild<QQuickItem*>("led0");
         controlItem->setProperty("startValue", 0);
     }
+}
+
+void Miniscope::handleInitCommandsRequest()
+{
+    qDebug() << "Reinitializing device.";
+    sendInitCommands();
 }
 
 
