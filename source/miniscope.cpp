@@ -62,7 +62,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     // -------------------------
 
     // Setup OpenCV camera stream
-    miniscopeStream = new VideoStreamOCV(nullptr, m_cMiniscopes["width"].toInt(-1), m_cMiniscopes["height"].toInt(-1));
+    miniscopeStream = new VideoStreamOCV(nullptr, m_cMiniscopes["width"].toInt(-1), m_cMiniscopes["height"].toInt(-1), m_cMiniscopes["pixelClock"].toDouble(-1));
     miniscopeStream->setDeviceName(m_deviceName);
 
     miniscopeStream->setHeadOrientationConfig(m_headOrientationStreamState, m_headOrientationFilterState);

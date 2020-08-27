@@ -5,6 +5,7 @@
         "frameRate": "adjustable",
         "width": 608,
         "height": 608,
+        "pixelClock": 16.6,
         "headOrientation": true,
         "isColor": false,
         "controlSettings": {
@@ -217,6 +218,7 @@
         "frameRate": "adjustable",
         "width": 608,
         "height": 608,
+        "pixelClock": 16.6,
         "headOrientation": false,
         "isColor": false,
         "controlSettings": {
@@ -398,6 +400,7 @@
         "frameRate": "adjustable",
         "width": 752,
         "height": 480,
+        "pixelClock": 26,
         "headOrientation": false,
         "isColor": false,
         "controlSettings": {
@@ -566,6 +569,7 @@
         "frameRate": "adjustable",
         "width": 1024,
         "height": 768,
+        "pixelClock": 96,
         "headOrientation": false,
         "isColor": false,
         "controlSettings": {
@@ -635,7 +639,7 @@
             },
             {
                 "description": "Change MODE to 10 bit 50MHz to 100MHz in Deser",
-                "protocol": "I2C",
+                "protocol": "I2C2",
                 "addressW": "0xC0",
                 "regLength": "1",
                 "reg0": "0x1F",
@@ -644,7 +648,7 @@
             },
             {
                 "description": "Change MODE to 10 bit 50MHz to 100MHz in Ser",
-                "protocol": "I2C",
+                "protocol": "I2C2",
                 "addressW": "0xB0",
                 "regLength": "1",
                 "reg0": "0x05",
@@ -653,7 +657,7 @@
             },
             {
                 "description": "Change MODE to 10 bit 50MHz to 100MHz in Deser",
-                "protocol": "I2C",
+                "protocol": "I2C2",
                 "addressW": "0xC0",
                 "regLength": "1",
                 "reg0": "0x1F",
@@ -662,7 +666,7 @@
             },
             {
                 "description": "Change MODE to 10 bit 50MHz to 100MHz in Ser",
-                "protocol": "I2C",
+                "protocol": "I2C2",
                 "addressW": "0xB0",
                 "regLength": "1",
                 "reg0": "0x05",
