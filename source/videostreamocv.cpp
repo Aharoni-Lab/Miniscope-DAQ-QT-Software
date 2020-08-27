@@ -68,7 +68,6 @@ int VideoStreamOCV::connect2Camera(int cameraID) {
     // Currently this is for the 913/914 TI SERES
     // TODO: Probably should move this somewhere else
     QVector<quint8> packet;
-    qDebug() << "Pixel Clock is" << m_pixelClock;
     if (m_pixelClock > 0 && connectionState != 0) {
         if (m_pixelClock <= 50) {
             // Set to 12bit low frequency in this case
@@ -109,22 +108,22 @@ int VideoStreamOCV::connect2Camera(int cameraID) {
             sendCommands();
             QThread::msleep(500);
 
-            // DES
-            packet.clear();
-            packet.append(0xC0); // I2C Address
-            packet.append(0x1F); // reg
-            packet.append(0b00010001); // data
-            setPropertyI2C(0,packet);
+//            // DES
+//            packet.clear();
+//            packet.append(0xC0); // I2C Address
+//            packet.append(0x1F); // reg
+//            packet.append(0b00010001); // data
+//            setPropertyI2C(0,packet);
 
-            // SER
-            packet.clear();
-            packet.append(0xB0); // I2C Address
-            packet.append(0x05); // reg
-            packet.append(0b00100001); // data
-            setPropertyI2C(1,packet);
+//            // SER
+//            packet.clear();
+//            packet.append(0xB0); // I2C Address
+//            packet.append(0x05); // reg
+//            packet.append(0b00100001); // data
+//            setPropertyI2C(1,packet);
 
-            sendCommands();
-            QThread::msleep(500);
+//            sendCommands();
+//            QThread::msleep(500);
         }
 
     }
@@ -423,9 +422,27 @@ void VideoStreamOCV::sendCommands()
 bool VideoStreamOCV::attemptReconnect()
 {
     // TODO: handle quitting nicely when stuck in this loop
-
+    QVector<quint8> packet;
     if (m_connectionType == "DSHOW") {
         if (cam->open(m_cameraID, cv::CAP_DSHOW)) {
+
+            // DES
+            packet.clear();
+            packet.append(0xC0); // I2C Address
+            packet.append(0x1F); // reg
+            packet.append(0b00010001); // data
+            setPropertyI2C(0,packet);
+
+            // SER
+            packet.clear();
+            packet.append(0xB0); // I2C Address
+            packet.append(0x05); // reg
+            packet.append(0b00100001); // data
+            setPropertyI2C(1,packet);
+
+            sendCommands();
+            QThread::msleep(500);
+
             cam->set(cv::CAP_PROP_FRAME_WIDTH, m_expectedWidth);
             cam->set(cv::CAP_PROP_FRAME_HEIGHT, m_expectedHeight);
             QThread::msleep(500);
