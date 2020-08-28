@@ -117,7 +117,7 @@
             {
                 "description": "Make sure DES has SER ADDR",
                 "protocol": "I2C",
-                "addressW": "0x07",
+                "addressW": "0xC0",
                 "regLength": "1",
                 "reg0": "0x07",
                 "dataLength": "1",
@@ -330,7 +330,7 @@
             {
                 "description": "Make sure DES has SER ADDR",
                 "protocol": "I2C",
-                "addressW": "0x07",
+                "addressW": "0xC0",
                 "regLength": "1",
                 "reg0": "0x07",
                 "dataLength": "1",
@@ -493,7 +493,7 @@
             {
                 "description": "Make sure DES has SER ADDR",
                 "protocol": "I2C",
-                "addressW": "0x07",
+                "addressW": "0xC0",
                 "regLength": "1",
                 "reg0": "0x07",
                 "dataLength": "1",
@@ -631,7 +631,7 @@
             {
                 "description": "Make sure DES has SER ADDR",
                 "protocol": "I2C",
-                "addressW": "0x0C",
+                "addressW": "0xC0",
                 "regLength": "1",
                 "reg0": "0x07",
                 "dataLength": "1",
