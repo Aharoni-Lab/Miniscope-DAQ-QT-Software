@@ -77,6 +77,7 @@ public slots:
     void handleSetExtTriggerTrackingState(bool state);
     void handleRecordStart(); // Currently used to toggle LED on and off
     void handleRecordStop(); // Currently used to toggle LED on and off
+    void handleInitCommandsRequest();
     void close();
 
 private:

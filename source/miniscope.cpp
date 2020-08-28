@@ -34,7 +34,6 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
 {
 
     m_ucMiniscope = ucMiniscope; // hold user config for this Miniscope
-//    qDebug() << m_ucMiniscope["deviceType"].toString();
     parseUserConfigMiniscope();
     getMiniscopeConfig(m_ucMiniscope["deviceType"].toString()); // holds specific Miniscope configuration
 
@@ -62,7 +61,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     // -------------------------
 
     // Setup OpenCV camera stream
-    miniscopeStream = new VideoStreamOCV(nullptr, m_cMiniscopes["width"].toInt(-1), m_cMiniscopes["height"].toInt(-1));
+    miniscopeStream = new VideoStreamOCV(nullptr, m_cMiniscopes["width"].toInt(-1), m_cMiniscopes["height"].toInt(-1), m_cMiniscopes["pixelClock"].toDouble(-1));
     miniscopeStream->setDeviceName(m_deviceName);
 
     miniscopeStream->setHeadOrientationConfig(m_headOrientationStreamState, m_headOrientationFilterState);
@@ -98,6 +97,9 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
 
         // Pass send message signal through
         QObject::connect(miniscopeStream, &VideoStreamOCV::sendMessage, this, &Miniscope::sendMessage);
+
+        // Handle request for reinitialization of commands
+        QObject::connect(miniscopeStream, &VideoStreamOCV::requestInitCommands, this, &Miniscope::handleInitCommandsRequest);
 
         // Handle external triggering passthrough
         QObject::connect(this, &Miniscope::setExtTriggerTrackingState, miniscopeStream, &VideoStreamOCV::setExtTriggerTrackingState);
@@ -166,9 +168,10 @@ void Miniscope::createView()
         configureMiniscopeControls();
         vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
         vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
+        vidDisplay->setWindowScaleValue(m_ucMiniscope["windowScale"].toDouble(1));
 
         // Turn on or off show saturation display
-        if (m_ucMiniscope["showSaturation"].toBool(true))
+        if (m_ucMiniscope["showSaturation"].toBool(false))
             vidDisplay->setShowSaturation(1);
         else
             vidDisplay->setShowSaturation(0);
@@ -332,12 +335,14 @@ void Miniscope::configureMiniscopeControls() {
                     }
                     else { // remaining option is value is a double
                         controlItem->setProperty(keys[j].toLatin1().data(), values[keys[j]].toDouble());
-                        if (keys[j] == "startValue")
+                        if (keys[j] == "startValue") {
                             if (controlName[i] == "led0") { // This is used to hold initial (and last known) LED value for toggling LED on and off using remote trigger
                                 m_lastLED0Value = values["startValue"].toDouble();
                             }
                             // sends signal on initial setup of controls
                             emit onPropertyChanged(m_deviceName, controlName[i], values["startValue"].toVariant());
+
+                        }
                     }
                 }
             }
@@ -472,6 +477,8 @@ void Miniscope::sendNewFrame(){
 
         if (m_displatState == "Raw") {
 
+//            vidDisplay->setDisplayFrame(tempFrame2.copy());
+            // TODO: Check to see if we can get rid of .copy() here
             vidDisplay->setDisplayFrame(tempFrame2.copy());
         }
         else if (m_displatState == "dFF") {
@@ -658,6 +665,12 @@ void Miniscope::handleRecordStop()
         controlItem = rootObject->findChild<QQuickItem*>("led0");
         controlItem->setProperty("startValue", 0);
     }
+}
+
+void Miniscope::handleInitCommandsRequest()
+{
+    qDebug() << "Reinitializing device.";
+    sendInitCommands();
 }
 
 

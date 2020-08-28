@@ -231,6 +231,25 @@ Item {
             }
 
             Text{
+                id: droppedFrameCount
+                objectName: "droppedFrameCount"
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignBottom
+                text: "--"
+                font.pointSize: 10
+                font.family: "Arial"
+                Layout.column: 0
+                Layout.row: 1
+                Timer{
+                    interval: 100
+                    repeat: true
+                    running: true
+                    onTriggered: {
+                        droppedFrameCount.text = "Dropped Frames: " + videoDisplay.droppedFrameCount;
+                      }
+                }
+            }
+
+            Text{
                 id: acqFPS
                 objectName: "acqFPS"
                 property double aveFPS: 0
@@ -346,6 +365,23 @@ Item {
             visible: false
         }
 
+        VideoSpinBoxControl{
+            id: frameRate
+            objectName: "frameRate"
+            iconPath: "img/icon/fps.png"
+            visible: false
+        }
+        VideoSpinBoxControl{
+            id: gain
+            objectName: "gain"
+            iconPath: "img/icon/gain.png"
+            visible: false
+        }
+
+        ToolSeparator {
+            id: toolSeparator
+        }
+
         VideoSliderControl{
             id: alpha
             objectName: "alpha"
@@ -374,6 +410,14 @@ Item {
     Connections{
         target: led0
         onValueChangedSignal: vidPropChangedSignal(led0.objectName, displayValue, i2cValue, i2cValue2)
+    }
+    Connections{
+        target: gain
+        onValueChangedSignal: vidPropChangedSignal(gain.objectName, displayValue, i2cValue, i2cValue2)
+    }
+    Connections{
+        target: frameRate
+        onValueChangedSignal: vidPropChangedSignal(frameRate.objectName, displayValue, i2cValue, i2cValue2)
     }
     Connections{
         target: alpha

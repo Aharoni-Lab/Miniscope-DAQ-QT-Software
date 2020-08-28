@@ -28,12 +28,15 @@ public:
     ~VideoDisplayRenderer();
 
     void setT(qreal t) { m_t = t; }
-    void setDisplayFrame(QImage frame) { m_displayFrame = frame; m_newFrame = true;}
+    void setDisplayFrame(QImage frame) {m_displayFrame = frame.copy(); m_newFrame = true;}
     void setViewportSize(const QSize &size) { m_viewportSize = size; }
     void setWindow(QQuickWindow *window) { m_window = window; }
     void setAlpha(double a) {m_alpha = a;}
     void setBeta(double b) {m_beta = b;}
     void setShowSaturation(double value) {m_showStaturation = value; }
+
+
+    bool m_newFrame;
 
 signals:
     void requestNewFrame();
@@ -48,7 +51,7 @@ private:
     QOpenGLShaderProgram *m_program;
     QOpenGLTexture *m_texture;
     QQuickWindow *m_window;
-    bool m_newFrame;
+
 
     double m_alpha;
     double m_beta;
@@ -67,7 +70,7 @@ class VideoDisplay : public QQuickItem
     Q_PROPERTY(int bufferUsed READ bufferUsed WRITE setBufferUsed NOTIFY bufferUsedChanged)
     Q_PROPERTY(int maxBuffer READ maxBuffer WRITE setMaxBuffer NOTIFY maxBufferChanged)
     Q_PROPERTY(qreal t READ t WRITE setT NOTIFY tChanged)
-    Q_PROPERTY(QImage displayFrame READ displayFrame WRITE setDisplayFrame NOTIFY displayFrameChanged)
+//    Q_PROPERTY(QImage displayFrame READ displayFrame WRITE setDisplayFrame NOTIFY displayFrameChanged)
 
     // For visualizing ROI
     Q_PROPERTY(QList<int> ROI READ ROI WRITE setROI NOTIFY roiChanged)
@@ -85,8 +88,7 @@ public:
     int bufferUsed() const { return m_bufferUsed; }
     int droppedFrameCount() const {return m_droppedFrameCount; }
 
-    QImage displayFrame() { return m_displayFrame2; }
-//    QImage displayFrame() {return m_displayFrame;}
+//    QImage displayFrame() { return m_displayFrame2; }
     void setT(qreal t);
     void setAcqFPS(double acqFPS) { m_acqFPS = acqFPS; acqFPSChanged();}
     void setROI(QList<int> roi);
@@ -125,7 +127,7 @@ private:
     int m_bufferUsed;
     int m_maxBuffer;
     int m_droppedFrameCount;
-    QImage m_displayFrame2;
+//    QImage m_displayFrame2;
     VideoDisplayRenderer *m_renderer;
 
     double m_showSaturation;

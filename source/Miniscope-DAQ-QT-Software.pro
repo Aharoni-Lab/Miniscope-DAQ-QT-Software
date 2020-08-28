@@ -54,13 +54,19 @@ DISTFILES +=
 win32 {
     # Path to your openCV .lib file(s)
     LIBS += -LC:/opencv-4.4.0/build/lib/Release -lopencv_world440
-##    LIBS += -LC:/opencv-4.4.0/build/lib/Debug -lopencv_world440d
+
+#    LIBS += -LC:/opencv-4.4.0/build/lib/Debug -lopencv_world440d
 
     # Path to openCV header files
     INCLUDEPATH += C:/opencv-4.4.0/build/install/include
 
     # Do we need DEPENDPATH ????
 #    #DEPENDPATH +=
+
+    # For libusb
+    LIBS += -LC:/libusb-1.0.23/MS64/dll/ -llibusb-1.0
+    INCLUDEPATH += C:/libusb-1.0.23/include/libusb-1.0
+
 } else {
     CONFIG += link_pkgconfig
     PKGCONFIG += opencv4

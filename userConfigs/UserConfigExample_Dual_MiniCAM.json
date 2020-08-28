@@ -1,0 +1,69 @@
+{
+    "researcherName": "Dr_Miniscope",
+    "dataDirectory": "C:/Users/DBAharoni/Documents/Data",
+    "directoryStructure": [
+        "researcherName",
+        "experimentName",
+        "animalName",
+        "date",
+        "time"
+    ],
+    "animalName": "testMouse",
+    "experimentName": "Linear Track Test",
+    "recordLengthinSeconds": 600,
+    "experiment_Not_Implemented": {
+        "type": "linearTrack",
+        "units": "cm",
+        "trackLength": 200
+    },
+    "behaviorTracker_Not_Implemented": {
+        "type": "HSV",
+        "hue": [0, 1],
+        "saturation": [0, 1],
+        "value": [0, 1]
+    },
+    "devices": {
+       "cameras": [
+            {
+                "deviceName": "MiniCAM0",
+                "deviceType": "Minicam-Mono-XGA",
+                "deviceID": 1,
+				"showSaturation": true,
+				"ROI": {
+					"notes": "This defines the bounding box of the portion of the video that is saved to disk",
+					"leftEdge": 10,
+					"topEdge": 20,
+					"width": 300,
+					"height": 200
+				},
+                "cameraCalibrationFileLocation": "",
+                "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
+                "compression": "MJPG",
+                "framesPerFile": 1000,
+                "windowScale": 0.75,
+                "windowX": 800,
+                "windowY": 600
+            },
+            {
+                "deviceName": "MiniCAM1",
+                "deviceType": "Minicam-Mono-XGA",
+                "deviceID": 2,
+				"showSaturation": true,
+				"ROI": {
+					"notes": "This defines the bounding box of the portion of the video that is saved to disk",
+					"leftEdge": 10,
+					"topEdge": 20,
+					"width": 300,
+					"height": 200
+				},
+                "cameraCalibrationFileLocation": "",
+                "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
+                "compression": "MJPG",
+                "framesPerFile": 1000,
+                "windowScale": 0.75,
+                "windowX": 800,
+                "windowY": 600
+            }
+        ]
+    }
+}
