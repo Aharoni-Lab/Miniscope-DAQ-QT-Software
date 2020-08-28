@@ -335,12 +335,14 @@ void Miniscope::configureMiniscopeControls() {
                     }
                     else { // remaining option is value is a double
                         controlItem->setProperty(keys[j].toLatin1().data(), values[keys[j]].toDouble());
-                        if (keys[j] == "startValue")
+                        if (keys[j] == "startValue") {
                             if (controlName[i] == "led0") { // This is used to hold initial (and last known) LED value for toggling LED on and off using remote trigger
                                 m_lastLED0Value = values["startValue"].toDouble();
                             }
                             // sends signal on initial setup of controls
                             emit onPropertyChanged(m_deviceName, controlName[i], values["startValue"].toVariant());
+
+                        }
                     }
                 }
             }
