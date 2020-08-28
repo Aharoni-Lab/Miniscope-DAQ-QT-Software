@@ -475,6 +475,8 @@ void Miniscope::sendNewFrame(){
 
         if (m_displatState == "Raw") {
 
+//            vidDisplay->setDisplayFrame(tempFrame2.copy());
+
             vidDisplay->setDisplayFrame(tempFrame2.copy());
         }
         else if (m_displatState == "dFF") {

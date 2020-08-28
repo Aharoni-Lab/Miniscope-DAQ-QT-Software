@@ -35,9 +35,15 @@ void VideoDisplay::setT(qreal t)
         window()->update();
 }
 void VideoDisplay::setDisplayFrame(QImage frame) {
-    m_displayFrame2 = frame;
-    if (m_renderer)
-        m_renderer->setDisplayFrame(m_displayFrame2.copy());
+//    m_displayFrame2 = frame;
+    // Checking to see if there is already a new frame waiting has solved a
+    // consistent source of crash.
+    // This crash was due to the texture data of the next frame in the queue to be displayed
+    // changing before it is moved to GPU memory I think.
+    if (m_renderer && !m_renderer->m_newFrame)
+        m_renderer->setDisplayFrame(frame);
+//    else
+//        qDebug() << "New frame available before last frame was displayed";
 }
 
 void VideoDisplay::setShowSaturation(double value)
@@ -228,10 +234,11 @@ void VideoDisplayRenderer::paint()
 
     if (m_newFrame) {
 //        qDebug() << "Set new texture QImage";
-        m_newFrame = false;
+
         m_texture->destroy();
         m_texture->create();
-        m_texture->setData(m_displayFrame.copy());
+        m_texture->setData(m_displayFrame);
+        m_newFrame = false;
     }
 
 }

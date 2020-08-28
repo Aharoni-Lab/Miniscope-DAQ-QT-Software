@@ -54,7 +54,7 @@ DISTFILES +=
 win32 {
     # Path to your openCV .lib file(s)
     LIBS += -LC:/opencv-4.4.0/build/lib/Release -lopencv_world440
-##    LIBS += -LC:/opencv-4.4.0/build/lib/Debug -lopencv_world440d
+#    LIBS += -LC:/opencv-4.4.0/build/lib/Debug -lopencv_world440d
 
     # Path to openCV header files
     INCLUDEPATH += C:/opencv-4.4.0/build/install/include
