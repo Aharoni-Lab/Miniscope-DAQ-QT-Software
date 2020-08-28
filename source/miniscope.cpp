@@ -34,7 +34,6 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
 {
 
     m_ucMiniscope = ucMiniscope; // hold user config for this Miniscope
-//    qDebug() << m_ucMiniscope["deviceType"].toString();
     parseUserConfigMiniscope();
     getMiniscopeConfig(m_ucMiniscope["deviceType"].toString()); // holds specific Miniscope configuration
 
@@ -169,9 +168,10 @@ void Miniscope::createView()
         configureMiniscopeControls();
         vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
         vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
+        vidDisplay->setWindowScaleValue(m_ucMiniscope["windowScale"].toDouble(1));
 
         // Turn on or off show saturation display
-        if (m_ucMiniscope["showSaturation"].toBool(true))
+        if (m_ucMiniscope["showSaturation"].toBool(false))
             vidDisplay->setShowSaturation(1);
         else
             vidDisplay->setShowSaturation(0);
@@ -476,7 +476,7 @@ void Miniscope::sendNewFrame(){
         if (m_displatState == "Raw") {
 
 //            vidDisplay->setDisplayFrame(tempFrame2.copy());
-
+            // TODO: Check to see if we can get rid of .copy() here
             vidDisplay->setDisplayFrame(tempFrame2.copy());
         }
         else if (m_displatState == "dFF") {

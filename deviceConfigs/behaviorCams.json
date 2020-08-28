@@ -15,12 +15,13 @@
         "frameRate": "adjustable",
         "width": 1024,
         "height": 768,
+        "pixelClock": 96,
         "headOrientation": false,
         "isColor": false,
         "controlSettings": {
             "gain": {
                 "displaySpinBoxValues":["1X", "8X", "16X", "32X"],
-                "displayTextValues": [1, 8, 16, 32],
+                "displayTextValues": [1, 8, 16,32],
                 "outputValues":[8,96,2144,6240],
                 "startValue": "1X",
                 "sendCommand": [
@@ -39,7 +40,7 @@
                 "displaySpinBoxValues":["10FPS", "40FPS", "50FPS"],
                 "displayTextValues": [10, 40, 50],
                 "outputValues":[2048,1536,766],
-                "startValue": "40FPS",
+                "startValue": "50FPS",
                 "sendCommand": [
                     {
                         "protocol": "I2C",
@@ -51,9 +52,9 @@
                         "data1": "valueL"
                     }
                 ]
-            },       
-	   		"led0": {
-                "startValue": 0,
+            },
+           "led0": {
+                "startValue": 20,
                 "min": 0,
                 "max": 100,
                 "stepSize": 1,
@@ -71,7 +72,17 @@
                 ]
             }
         },
-        "initialize": [
+	      
+        "initialize": [ 
+            {
+                "description": "Make sure DES has SER ADDR",
+                "protocol": "I2C",
+                "addressW": "0x0C",
+                "regLength": "1",
+                "reg0": "0x07",
+                "dataLength": "1",
+                "data0": "0xB0"
+            },
             {
                 "description": "Speed up i2c bus timer to 50us max",
                 "protocol": "I2C",
@@ -89,15 +100,6 @@
                 "reg0": "0x20",
                 "dataLength": "1",
                 "data0": "0b00001010"
-            },
-            {
-                "description": "Make sure DES has SER ADDR",
-                "protocol": "I2C",
-                "addressW": "0x07",
-                "regLength": "1",
-                "reg0": "0x07",
-                "dataLength": "1",
-                "data0": "0xB0"
             },
             {
                 "description": "Speed up I2c bus timer to 50u Max",
@@ -212,9 +214,7 @@
                 "dataLength": "2",
                 "data0": "0b00000010",
 				"data1": "0b11111111"
-			},
-
-		
+			},		
 			{
 				"description": "LED Driver LM3509",
                 "protocol": "I2C",

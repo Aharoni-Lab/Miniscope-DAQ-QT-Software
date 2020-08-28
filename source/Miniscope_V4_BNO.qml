@@ -106,8 +106,6 @@ Item {
                         droppedFrameCount.text = "Dropped Frames: " + videoDisplay.droppedFrameCount;
                       }
                 }
-
-
             }
 
             Text{

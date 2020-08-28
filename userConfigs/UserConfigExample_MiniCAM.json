@@ -23,11 +23,11 @@
         "value": [0, 1]
     },
     "devices": {
-       "miniscopes": [
+       "cameras": [
             {
                 "deviceName": "MiniCAM0",
-                "deviceType": "Siminiscope_1024X768",
-                "deviceID": 1,
+                "deviceType": "Minicam-Mono-XGA",
+                "deviceID": 2,
 				"showSaturation": true,
 				"ROI": {
 					"notes": "This defines the bounding box of the portion of the video that is saved to disk",

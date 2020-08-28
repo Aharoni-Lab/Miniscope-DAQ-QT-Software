@@ -18,6 +18,17 @@
 #include "newquickview.h"
 #include <opencv2/opencv.hpp>
 
+#define PROTOCOL_I2C            -2
+#define PROTOCOL_SPI            -3
+#define SEND_COMMAND_VALUE_H    -5
+#define SEND_COMMAND_VALUE_L    -6
+#define SEND_COMMAND_VALUE      -6
+#define SEND_COMMAND_VALUE_H16  -7
+#define SEND_COMMAND_VALUE_H24  -8
+#define SEND_COMMAND_VALUE2_H   -9
+#define SEND_COMMAND_VALUE2_L   -10
+#define SEND_COMMAND_ERROR      -20
+
 #define FRAME_BUFFER_SIZE   128
 
 class BehaviorCam : public QObject
@@ -28,6 +39,7 @@ public:
     void createView();
     void connectSnS();
     void parseUserConfigBehavCam();
+    void sendInitCommands();
     QString getCompressionType();
 //    void sendInitCommands();
     cv::Mat* getFrameBufferPointer(){return frameBuffer;}
@@ -44,7 +56,7 @@ public:
 
 signals:
     // TODO: setup signals to configure camera in thread
-//    void setPropertyI2C(long preambleKey, QVector<quint8> packet);
+    void setPropertyI2C(long preambleKey, QVector<quint8> packet);
     void onPropertyChanged(QString devieName, QString propName, QVariant propValue);
     void sendMessage(QString msg);
     void takeScreenShot(QString type);
@@ -57,6 +69,7 @@ public slots:
     void handlePropChangedSignal(QString type, double displayValue, double i2cValue, double i2cValue2);
     void handleTakeScreenShotSignal();
     void close();
+    void handleInitCommandsRequest();
 
     void handleCamPropsClicked() { emit openCamPropsDialog();}
     void handleSetRoiClicked();
@@ -72,7 +85,7 @@ public slots:
 private:
     void getBehavCamConfig(QString deviceType);
     void configureBehavCamControls();
-//    QVector<QMap<QString, int>> parseSendCommand(QJsonArray sendCommand);
+    QVector<QMap<QString, int>> parseSendCommand(QJsonArray sendCommand);
     int processString2Int(QString s);
 
     int m_camConnected;
@@ -89,7 +102,7 @@ private:
     QTimer *timer;
     int m_previousDisplayFrameNum;
     QAtomicInt *m_acqFrameNum;
-//    QAtomicInt *m_daqFrameNum;
+    QAtomicInt *m_daqFrameNum;
 
 //    QAtomicInt *m_DAQTimeStamp;
 
@@ -101,7 +114,7 @@ private:
 
 
     QJsonObject m_cBehavCam; // Consider renaming to not confuse with ucMiniscopes
-//    QMap<QString,QVector<QMap<QString, int>>> m_controlSendCommand;
+    QMap<QString,QVector<QMap<QString, int>>> m_controlSendCommand;
 //    QMap<QString, int> m_sendCommand;
 
     bool m_streamHeadOrientationState;
@@ -114,6 +127,9 @@ private:
     // ROI
     bool m_roiIsDefined;
     int m_roiBoundingBox[4]; // left, top, width, height
+
+    // Handle MiniCAM stuff
+    bool isMiniCAM;
 };
 
 #endif // BEHAVIORCAM_H

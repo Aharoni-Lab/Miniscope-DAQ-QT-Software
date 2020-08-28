@@ -23,10 +23,10 @@
         "value": [0, 1]
     },
     "devices": {
-       "miniscopes": [
+       "cameras": [
             {
                 "deviceName": "MiniCAM0",
-                "deviceType": "Siminiscope_1024X768",
+                "deviceType": "Minicam-Mono-XGA",
                 "deviceID": 1,
 				"showSaturation": true,
 				"ROI": {
@@ -38,7 +38,7 @@
 				},
                 "cameraCalibrationFileLocation": "",
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
-                "compression": "FFV1",
+                "compression": "MJPG",
                 "framesPerFile": 1000,
                 "windowScale": 0.75,
                 "windowX": 800,
@@ -46,7 +46,7 @@
             },
             {
                 "deviceName": "MiniCAM1",
-                "deviceType": "Siminiscope_1024X768",
+                "deviceType": "Minicam-Mono-XGA",
                 "deviceID": 2,
 				"showSaturation": true,
 				"ROI": {
@@ -58,7 +58,7 @@
 				},
                 "cameraCalibrationFileLocation": "",
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
-                "compression": "FFV1",
+                "compression": "MJPG",
                 "framesPerFile": 1000,
                 "windowScale": 0.75,
                 "windowX": 800,
