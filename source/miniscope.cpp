@@ -479,7 +479,7 @@ void Miniscope::sendNewFrame(){
 
 //            vidDisplay->setDisplayFrame(tempFrame2.copy());
             // TODO: Check to see if we can get rid of .copy() here
-            vidDisplay->setDisplayFrame(tempFrame2.copy());
+            vidDisplay->setDisplayFrame(tempFrame2);
         }
         else if (m_displatState == "dFF") {
             // TODO: Implement this better. I am sure it can be sped up a lot. Maybe do most of it in a shader

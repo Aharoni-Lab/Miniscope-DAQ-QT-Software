@@ -36,7 +36,7 @@
 					"filterBadData": true
 				},
                 "streamHeadOrientation_OLD": true,
-                "deviceID": 1,
+                "deviceID": 0,
 				"showSaturation": true,
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
                 "compression": "FFV1",

@@ -27,7 +27,7 @@
             {
                 "deviceName": "MiniCAM0",
                 "deviceType": "Minicam-Mono-XGA",
-                "deviceID": 2,
+                "deviceID": 1,
 				"showSaturation": true,
 				"ROI": {
 					"notes": "This defines the bounding box of the portion of the video that is saved to disk",
