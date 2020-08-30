@@ -70,6 +70,7 @@ public slots:
     void handleTakeScreenShotSignal();
     void close();
     void handleInitCommandsRequest();
+    void handleSaturationSwitchChanged(bool checked);
 
     void handleCamPropsClicked() { emit openCamPropsDialog();}
     void handleSetRoiClicked();
