@@ -22,6 +22,8 @@ Item {
     signal calibrateCameraStart()
     signal calibrateCameraQuit()
 
+    signal saturationSwitchChanged(bool value)
+
     Keys.onPressed: {
         if (event.key === Qt.Key_H) {
             if (root.state == "controlsShown")
@@ -211,7 +213,7 @@ Item {
                 font.bold: true
                 font.weight: Font.Normal
                 radius: 4
-                enabled: true
+                enabled: false
                 Layout.column: 0
                 Layout.row: 0
                 // TODO: Make hovering color change work.
@@ -228,6 +230,19 @@ Item {
                     root.calibrateCameraClicked()
                     camCalibWindow.visible = true
                 }
+            }
+
+            Switch {
+                id: saturationSwitch
+                objectName: "saturationSwitch"
+                text: qsTr("Show Saturation")
+                hoverEnabled: false
+
+                font.bold: true
+                font.family: "Arial"
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
+                Layout.column: 2
+                Layout.row: 0
             }
 
             Text{
@@ -323,6 +338,7 @@ Item {
             font.weight: Font.Normal
             radius: 4
             enabled: true
+            visible: false
             background: Rectangle {
                 id: camPropsRect
                 radius: camProps.radius
@@ -426,6 +442,10 @@ Item {
     Connections{
         target: beta
         onValueChangedSignal: vidPropChangedSignal(beta.objectName, displayValue, i2cValue, i2cValue2)
+    }
+    Connections{
+        target: saturationSwitch
+        onClicked: saturationSwitchChanged(saturationSwitch.checked)
     }
 
 

@@ -32,6 +32,8 @@ QML_IMPORT_PATH =
 # Additional import path used to resolve QML modules just for Qt Quick Designer
 QML_DESIGNER_IMPORT_PATH =
 
+# Add Icon
+RC_ICONS = miniscope_icon.ico
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -64,8 +66,8 @@ win32 {
 #    #DEPENDPATH +=
 
     # For libusb
-    LIBS += -LC:/libusb-1.0.23/MS64/dll/ -llibusb-1.0
-    INCLUDEPATH += C:/libusb-1.0.23/include/libusb-1.0
+#    LIBS += -LC:/libusb-1.0.23/MS64/dll/ -llibusb-1.0
+#    INCLUDEPATH += C:/libusb-1.0.23/include/libusb-1.0
 
 } else {
     CONFIG += link_pkgconfig

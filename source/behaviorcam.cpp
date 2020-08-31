@@ -140,16 +140,24 @@ void BehaviorCam::createView()
         // --------------------
 
         rootObject = view->rootObject();
+
+        QObject::connect(rootObject, SIGNAL( saturationSwitchChanged(bool) ),
+                             this, SLOT( handleSaturationSwitchChanged(bool) ));
+
         configureBehavCamControls();
         vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
         vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
         vidDisplay->setWindowScaleValue(m_ucBehavCam["windowScale"].toDouble(1));
 
         // Turn on or off saturation display
-        if (m_ucBehavCam["showSaturation"].toBool(false))
+        if (m_ucBehavCam["showSaturation"].toBool(false)) {
             vidDisplay->setShowSaturation(1);
-        else
+            rootObject->findChild<QQuickItem*>("saturationSwitch")->setProperty("checked", true);
+        }
+        else {
             vidDisplay->setShowSaturation(0);
+            rootObject->findChild<QQuickItem*>("saturationSwitch")->setProperty("checked", false);
+        }
 
         QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
                              this, SLOT( handleTakeScreenShotSignal() ));
@@ -158,6 +166,7 @@ void BehaviorCam::createView()
 
         // Open OpenCV properties dialog for behav cam
         if (!isMiniCAM) {
+            rootObject->findChild<QQuickItem*>("camProps")->setProperty("visible", true);
             QObject::connect(rootObject, SIGNAL( camPropsClicked() ), this, SLOT( handleCamPropsClicked()));
             QObject::connect(this, SIGNAL( openCamPropsDialog()), behavCamStream, SLOT( openCamPropsDialog()));
         }
@@ -445,7 +454,7 @@ void BehaviorCam::sendNewFrame(){
         else
             tempFrame2 = QImage(frameBuffer[f].data, frameBuffer[f].cols, frameBuffer[f].rows, frameBuffer[f].step, QImage::Format_RGB888);
 
-        vidDisplay->setDisplayFrame(tempFrame2.copy());
+        vidDisplay->setDisplayFrame(tempFrame2);
 
         vidDisplay->setBufferUsed(usedFrames->available());
         if (f > 0) // This is just a quick cheat so I don't have to wrap around for (f-1)
@@ -616,4 +625,9 @@ void BehaviorCam::handleInitCommandsRequest()
 {
     qDebug() << "Reinitializing device.";
     sendInitCommands();
+}
+
+void BehaviorCam::handleSaturationSwitchChanged(bool checked)
+{
+    vidDisplay->setShowSaturation(checked);
 }

@@ -47,7 +47,7 @@
             {
                 "deviceName": "MiniCAM1",
                 "deviceType": "Minicam-Mono-XGA",
-                "deviceID": 2,
+                "deviceID": 3,
 				"showSaturation": true,
 				"ROI": {
 					"notes": "This defines the bounding box of the portion of the video that is saved to disk",
@@ -75,7 +75,7 @@
 					"filterBadData": true
 				},
                 "streamHeadOrientation_OLD": true,
-                "deviceID": 3,
+                "deviceID": 0,
 				"showSaturation": true,
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
                 "compression": "FFV1",

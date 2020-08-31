@@ -26,7 +26,7 @@
 #include "datasaver.h"
 #include "behaviortracker.h"
 
-#include <libusb.h>
+//#include <libusb.h>
 
 //#define DEBUG
 

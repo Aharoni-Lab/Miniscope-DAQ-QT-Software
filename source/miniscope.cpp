@@ -164,6 +164,8 @@ void Miniscope::createView()
                              this, SLOT( handlePropChangedSignal(QString, double, double, double) ));
         QObject::connect(rootObject, SIGNAL( dFFSwitchChanged(bool) ),
                              this, SLOT( handleDFFSwitchChange(bool) ));
+        QObject::connect(rootObject, SIGNAL( saturationSwitchChanged(bool) ),
+                             this, SLOT( handleSaturationSwitchChanged(bool) ));
 
         configureMiniscopeControls();
         vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
@@ -171,10 +173,14 @@ void Miniscope::createView()
         vidDisplay->setWindowScaleValue(m_ucMiniscope["windowScale"].toDouble(1));
 
         // Turn on or off show saturation display
-        if (m_ucMiniscope["showSaturation"].toBool(false))
+        if (m_ucMiniscope["showSaturation"].toBool(false)) {
             vidDisplay->setShowSaturation(1);
-        else
+            rootObject->findChild<QQuickItem*>("saturationSwitch")->setProperty("checked", true);
+        }
+        else {
             vidDisplay->setShowSaturation(0);
+            rootObject->findChild<QQuickItem*>("saturationSwitch")->setProperty("checked", false);
+        }
 
         if (m_headOrientationStreamState)
             bnoDisplay = rootObject->findChild<QQuickItem*>("bno");
@@ -479,7 +485,7 @@ void Miniscope::sendNewFrame(){
 
 //            vidDisplay->setDisplayFrame(tempFrame2.copy());
             // TODO: Check to see if we can get rid of .copy() here
-            vidDisplay->setDisplayFrame(tempFrame2.copy());
+            vidDisplay->setDisplayFrame(tempFrame2);
         }
         else if (m_displatState == "dFF") {
             // TODO: Implement this better. I am sure it can be sped up a lot. Maybe do most of it in a shader
@@ -629,6 +635,11 @@ void Miniscope::handleDFFSwitchChange(bool checked)
         m_displatState = "dFF";
     else
         m_displatState = "Raw";
+}
+
+void Miniscope::handleSaturationSwitchChanged(bool checked)
+{
+    vidDisplay->setShowSaturation(checked);
 }
 
 void Miniscope::handleSetExtTriggerTrackingState(bool state)
