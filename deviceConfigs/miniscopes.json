@@ -395,7 +395,7 @@
         ]
     },
     "Miniscope_V3": {
-        "qmlFile": "qrc:/Miniscope_V3.qml",
+        "qmlFile": "qrc:/Miniscope_V4_BNO.qml",
         "sensor": "MT9V032",
         "frameRate": "adjustable",
         "width": 752,

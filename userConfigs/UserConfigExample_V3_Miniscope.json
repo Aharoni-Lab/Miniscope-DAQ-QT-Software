@@ -29,7 +29,7 @@
                 "deviceType": "Miniscope_V3",
                 "imageRegistration": "Off",
                 "streamHeadOrientation": false,
-                "deviceID": 1,
+                "deviceID": 0,
 				"showSaturation": true,
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
                 "compression": "FFV1",
