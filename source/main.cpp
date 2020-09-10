@@ -9,7 +9,7 @@
 
 #include "backend.h"
 
-#define VERSION_NUMBER "1.00"
+#define VERSION_NUMBER "1.01"
 // TODO: have exit button close everything
 
 // For Window's deployment
