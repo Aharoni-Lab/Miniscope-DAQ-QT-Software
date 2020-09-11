@@ -54,7 +54,7 @@
                 "max": 100,
                 "stepSize": 1,
                 "displayValueScale": -2.55,
-                "displayValueOffset": 0,
+                "displayValueOffset": -255,
                 "sendCommand": [
                     {
                         "protocol": "I2C",

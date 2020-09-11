@@ -32,12 +32,12 @@ BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucBehavCam) :
 
     m_ucBehavCam = ucBehavCam; // hold user config for this Miniscope
 
-    parseUserConfigBehavCam();
-
     getBehavCamConfig(m_ucBehavCam["deviceType"].toString()); // holds specific Miniscope configuration
 
+    parseUserConfigBehavCam();
+
     // TODO: Handle cases where there is more than webcams and MiniCAMs
-    if (m_ucBehavCam["deviceType"].toString() == "WebCam") {
+    if (m_ucBehavCam["deviceType"].toString().toLower().contains("webcam")) {
         isMiniCAM = false;
         m_daqFrameNum = nullptr;
     }
@@ -220,9 +220,13 @@ void BehaviorCam::parseUserConfigBehavCam() {
         m_roiBoundingBox[1] = m_ucBehavCam["ROI"].toObject()["topEdge"].toInt(-1);
         m_roiBoundingBox[2] = m_ucBehavCam["ROI"].toObject()["width"].toInt(-1);
         m_roiBoundingBox[3] = m_ucBehavCam["ROI"].toObject()["height"].toInt(-1);
-
-
         // TODO: Throw error is values are incorrect or missing
+    }
+    else {
+        m_roiBoundingBox[0] = 0;
+        m_roiBoundingBox[1] = 0;
+        m_roiBoundingBox[2] = m_cBehavCam["width"].toInt(-1);
+        m_roiBoundingBox[3] = m_cBehavCam["height"].toInt(-1);
     }
 }
 
@@ -285,7 +289,6 @@ void BehaviorCam::getBehavCamConfig(QString deviceType) {
     QJsonDocument d = QJsonDocument::fromJson(jsonFile.toUtf8());
     QJsonObject jObj = d.object();
     m_cBehavCam = jObj[deviceType].toObject();
-
 }
 
 void BehaviorCam::configureBehavCamControls() {
@@ -605,19 +608,31 @@ void BehaviorCam::handleSetRoiClicked()
 
 void BehaviorCam::handleNewROI(int leftEdge, int topEdge, int width, int height)
 {
+    m_roiIsDefined = true;
     // First scale the local position values to pixel values
     m_roiBoundingBox[0] = round(leftEdge/m_ucBehavCam["windowScale"].toDouble(1));
     m_roiBoundingBox[1] = round(topEdge/m_ucBehavCam["windowScale"].toDouble(1));
     m_roiBoundingBox[2] = round(width/m_ucBehavCam["windowScale"].toDouble(1));
     m_roiBoundingBox[3] = round(height/m_ucBehavCam["windowScale"].toDouble(1));
 
+    if ((m_roiBoundingBox[0] + m_roiBoundingBox[2]) > m_cBehavCam["width"].toInt(-1)) {
+        // Edge is off screen
+        m_roiBoundingBox[2] = m_cBehavCam["width"].toInt(-1) - m_roiBoundingBox[0];
+        sendMessage("Warning: Right edge of ROI drawn beyond right edge of video. If this is incorrect you can change the width and height values in deviceCnfigs/behaviorCams.json");
+    }
+    if ((m_roiBoundingBox[1] + m_roiBoundingBox[3]) > m_cBehavCam["height"].toInt(-1)) {
+        // Edge is off screen
+        m_roiBoundingBox[3] = m_cBehavCam["height"].toInt(-1) - m_roiBoundingBox[1];
+        sendMessage("Warning: Bottm edge of ROI drawn beyond bottom edge of video. If this is incorrect you can change the width and height values in deviceCnfigs/behaviorCams.json");
+
+    }
+
     sendMessage("ROI Set to [" + QString::number(m_roiBoundingBox[0]) + ", " +
             QString::number(m_roiBoundingBox[1]) + ", " +
             QString::number(m_roiBoundingBox[2]) + ", " +
             QString::number(m_roiBoundingBox[3]) + "]");
 
-    // TODO: Make sure ROI gets saved in meta data
-    // TODO: enable ROI button
+    // TODO: Correct ROI if out of bounds
 
 }
 
