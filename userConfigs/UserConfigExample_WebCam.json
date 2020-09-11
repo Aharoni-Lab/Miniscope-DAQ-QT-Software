@@ -1,6 +1,6 @@
 {
     "researcherName": "Dr_Miniscope",
-    "dataDirectory": "C:/Users/DBAharoni/Documents/Data",
+    "dataDirectory": "C:/Users/dbaha/Documents/Data",
     "directoryStructure": [
         "researcherName",
         "experimentName",
@@ -30,7 +30,8 @@
                 "deviceID": 0,
 				"showSaturation": true,
 				"ROI": {
-					"notes": "This defines the bounding box of the portion of the video that is saved to disk",
+                    "notes": "This defines the bounding box of the portion of the video that is saved to disk",
+                    "note3": "Edge values are zero indexed",
 					"leftEdge": 10,
 					"topEdge": 20,
 					"width": 300,
@@ -38,7 +39,7 @@
 				},
                 "cameraCalibrationFileLocation": "",
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
-                "compression": "FFV1",
+                "compression": "MJPG",
                 "framesPerFile": 1000,
                 "windowScale": 0.75,
                 "windowX": 800,
