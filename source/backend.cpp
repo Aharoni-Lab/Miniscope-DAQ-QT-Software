@@ -167,7 +167,7 @@ backEnd::backEnd(QObject *parent) :
     for (int i = 0; i < unAvailableCodec.length(); i++)
         tempStr += unAvailableCodec[i] + ", ";
 
-    setUserConfigDisplay("Select a User Configuration file.\n\nAvailable compression Codecs on your computer are:\n" + m_availableCodecList +
+    setUserConfigDisplay("Select a User Configuration file.\n\nSupported devices are listed in the .json files in the deviceConfig folder.\n\nAvailable compression Codecs on your computer are:\n" + m_availableCodecList +
                          "\n\nUnavailable compression Codes on your computer are:\n" + tempStr.chopped(2));
 
 //    QObject::connect(this, SIGNAL (userConfigFileNameChanged()), this, SLOT( handleUserConfigFileNameChanged() ));
