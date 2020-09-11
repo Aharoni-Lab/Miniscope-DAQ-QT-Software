@@ -8,7 +8,33 @@
         "controlSettings": {
         }
     },
-	
+    "WebCam-320x240": {
+        "sensor": "",
+        "frameRate": 30,
+        "width": 320,
+        "height": 240,
+        "isColor": true,
+        "controlSettings": {
+        }
+    },
+	"WebCam-640x480": {
+        "sensor": "",
+        "frameRate": 30,
+        "width": 640,
+        "height": 480,
+        "isColor": true,
+        "controlSettings": {
+        }
+    },
+    "WebCam-1280x720": {
+        "sensor": "",
+        "frameRate": 30,
+        "width": 1280,
+        "height": 720,
+        "isColor": true,
+        "controlSettings": {
+        }
+    },
 	"Minicam-Mono-XGA": {
         "qmlFile": "qrc:/behaviorCam.qml",
         "sensor": "MT9P031",

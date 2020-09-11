@@ -26,16 +26,16 @@
        "cameras": [
             {
                 "deviceName": "BehavCam 0",
-                "deviceType": "WebCam",
+                "deviceType": "WebCam-1280x720",
                 "deviceID": 0,
 				"showSaturation": true,
 				"ROI": {
                     "notes": "This defines the bounding box of the portion of the video that is saved to disk",
                     "note3": "Edge values are zero indexed",
-					"leftEdge": 10,
-					"topEdge": 20,
-					"width": 300,
-					"height": 200
+					"leftEdge": 0,
+					"topEdge": 0,
+					"width": 640,
+					"height": 480
 				},
                 "cameraCalibrationFileLocation": "",
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],

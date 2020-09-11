@@ -37,7 +37,7 @@ BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucBehavCam) :
     parseUserConfigBehavCam();
 
     // TODO: Handle cases where there is more than webcams and MiniCAMs
-    if (m_ucBehavCam["deviceType"].toString() == "WebCam") {
+    if (m_ucBehavCam["deviceType"].toString().toLower().contains("webcam")) {
         isMiniCAM = false;
         m_daqFrameNum = nullptr;
     }
@@ -289,7 +289,6 @@ void BehaviorCam::getBehavCamConfig(QString deviceType) {
     QJsonDocument d = QJsonDocument::fromJson(jsonFile.toUtf8());
     QJsonObject jObj = d.object();
     m_cBehavCam = jObj[deviceType].toObject();
-
 }
 
 void BehaviorCam::configureBehavCamControls() {
@@ -619,10 +618,13 @@ void BehaviorCam::handleNewROI(int leftEdge, int topEdge, int width, int height)
     if ((m_roiBoundingBox[0] + m_roiBoundingBox[2]) > m_cBehavCam["width"].toInt(-1)) {
         // Edge is off screen
         m_roiBoundingBox[2] = m_cBehavCam["width"].toInt(-1) - m_roiBoundingBox[0];
+        sendMessage("Warning: Right edge of ROI drawn beyond right edge of video. If this is incorrect you can change the width and height values in deviceCnfigs/behaviorCams.json");
     }
     if ((m_roiBoundingBox[1] + m_roiBoundingBox[3]) > m_cBehavCam["height"].toInt(-1)) {
         // Edge is off screen
         m_roiBoundingBox[3] = m_cBehavCam["height"].toInt(-1) - m_roiBoundingBox[1];
+        sendMessage("Warning: Bottm edge of ROI drawn beyond bottom edge of video. If this is incorrect you can change the width and height values in deviceCnfigs/behaviorCams.json");
+
     }
 
     sendMessage("ROI Set to [" + QString::number(m_roiBoundingBox[0]) + ", " +
