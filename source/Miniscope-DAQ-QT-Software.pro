@@ -7,6 +7,8 @@ CONFIG += c++11
 # deprecated API to know how to port your code away from it.
 DEFINES += QT_DEPRECATED_WARNINGS
 
+#DEFINES += USE_USB
+#DEFINES += USE_PYTHON
 # You can also make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
@@ -51,7 +53,8 @@ HEADERS += \
     videodisplay.h \
     videostreamocv.h
 
-DISTFILES +=
+DISTFILES += \
+    pythonTest.py
 
 win32 {
     # Path to your openCV .lib file(s)
