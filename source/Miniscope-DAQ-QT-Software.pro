@@ -69,6 +69,10 @@ win32 {
 #    LIBS += -LC:/libusb-1.0.23/MS64/dll/ -llibusb-1.0
 #    INCLUDEPATH += C:/libusb-1.0.23/include/libusb-1.0
 
+    # For Python
+    INCLUDEPATH += C:/Python38/include
+    LIBS += -LC:/Python38/libs -lpython38
+
 } else {
     CONFIG += link_pkgconfig
     PKGCONFIG += opencv4

@@ -27,6 +27,15 @@
 #include "behaviortracker.h"
 
 //#include <libusb.h>
+#undef slots
+#ifdef _DEBUG
+  #undef _DEBUG
+  #include <python.h>
+  #define _DEBUG
+#else
+  #include <python.h>
+#endif
+#define slots
 
 //#define DEBUG
 
@@ -157,6 +166,11 @@ backEnd::backEnd(QObject *parent) :
 //        }
 //    }
 
+//    Py_SetProgramName(argv[0]);  /* optional but recommended */
+      Py_Initialize();
+      PyRun_SimpleString("from time import time,ctime\n"
+                         "print('Hello World')\n");
+      Py_Finalize();
 
     testCodecSupport();
     QString tempStr;
