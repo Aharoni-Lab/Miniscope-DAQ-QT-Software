@@ -1,7 +1,6 @@
 QT += qml quick widgets
 CONFIG += c++11
 
-
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
 # depend on your compiler). Refer to the documentation for the
@@ -33,28 +32,8 @@ QML_IMPORT_PATH =
 # Additional import path used to resolve QML modules just for Qt Quick Designer
 QML_DESIGNER_IMPORT_PATH =
 
-#Below is for the opencv build I did
-#INCLUDEPATH += C:\opencv-build\install\include
-
-
-#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_core412.dll.a
-#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_highgui412.dll.a
-#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgcodecs412.dll.a
-#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412.dll.a
-#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_features2d412.dll.a
-#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_calib3d412.dll.a
-#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412.dll.a
-#LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_videoio412.dll.a
-
-##LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_core412d.dll.a
-##LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_highgui412d.dll.a
-##LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgcodecs412d.dll.a
-##LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412d.dll.a
-##LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_features2d412d.dll.a
-##LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_calib3d412d.dll.a
-##LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_imgproc412d.dll.a
-##LIBS += C:\opencv-build\install\x64\mingw\lib\libopencv_videoio412d.dll.a
-
+# Add Icon
+RC_ICONS = miniscope_icon.ico
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -75,17 +54,21 @@ HEADERS += \
 DISTFILES +=
 
 win32 {
-    LIBS += -L$$PWD/../../../../../../../opencv-build420/lib/Release/ -lopencv_world420
-    #LIBS += -L$$PWD/../../../../../../../opencv-build420/lib/Debug/ -lopencv_world420d
+    # Path to your openCV .lib file(s)
+    LIBS += -LC:/opencv-4.4.0/build/lib/Release -lopencv_world440
 
-    #win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420
-    ##win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_videoio_ffmpeg420_64
-    #else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420d
+#    LIBS += -LC:/opencv-4.4.0/build/lib/Debug -lopencv_world440d
 
-    #LIBS += -L$$PWD/../../../../../../../opencv-build420/install/x64/vc15/lib/ -lopencv_world420
+    # Path to openCV header files
+    INCLUDEPATH += C:/opencv-4.4.0/build/install/include
 
-    INCLUDEPATH += $$PWD/../../../../../../../opencv/build/include
-    #DEPENDPATH += $$PWD/../../../../../../../opencv-build420/install/include
+    # Do we need DEPENDPATH ????
+#    #DEPENDPATH +=
+
+    # For libusb
+#    LIBS += -LC:/libusb-1.0.23/MS64/dll/ -llibusb-1.0
+#    INCLUDEPATH += C:/libusb-1.0.23/include/libusb-1.0
+
 } else {
     CONFIG += link_pkgconfig
     PKGCONFIG += opencv4

@@ -165,9 +165,17 @@ void DataSaver::startRunning()
                         else
                             isColor = true;
                         // TODO: Add compression options here
-                        videoWriter[names[i]]->open(tempStr.toUtf8().constData(),
-                                dataCompressionFourCC[names[i]], 60,
-                                cv::Size(frameBuffer[names[i]][0].cols, frameBuffer[names[i]][0].rows), isColor); // color should be set to false?
+                        if (ROI.contains(names[i])) {
+                            // Need to trim frame to ROI
+                            videoWriter[names[i]]->open(tempStr.toUtf8().constData(),
+                                    dataCompressionFourCC[names[i]], 60,
+                                    cv::Size(ROI[names[i]][2], ROI[names[i]][3]), isColor); // color should be set to false?
+                        }
+                        else {
+                            videoWriter[names[i]]->open(tempStr.toUtf8().constData(),
+                                    dataCompressionFourCC[names[i]], 60,
+                                    cv::Size(frameBuffer[names[i]][0].cols, frameBuffer[names[i]][0].rows), isColor); // color should be set to false?
+                        }
 
                     }
                     bufPosition = frameCount[names[i]] % bufferSize[names[i]];
@@ -175,17 +183,28 @@ void DataSaver::startRunning()
                                          << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << ","
                                          << usedCount[names[i]]->available() << endl;
 
-                    if (streamHeadOrientationState[names[i]] == true && bnoBuffer[names[i]] != nullptr) {
-                        *headOriStream[names[i]] << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << ","
-                                                 << bnoBuffer[names[i]][bufPosition*4 + 0] << ","
-                                                 << bnoBuffer[names[i]][bufPosition*4 + 1] << ","
-                                                 << bnoBuffer[names[i]][bufPosition*4 + 2] << ","
-                                                 << bnoBuffer[names[i]][bufPosition*4 + 3] << endl;
+                    if (headOrientationStreamState[names[i]] == true && bnoBuffer[names[i]] != nullptr) {
+                        if (headOrientationFilterState[names[i]] && bnoBuffer[names[i]][bufPosition*5 + 4] >= 0.05) { // norm is below 0.98. Should be 1 ideally
+                            // Filter bad data and current data is bad
+                        }
+                        else {
+                            *headOriStream[names[i]] << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << ","
+                                                     << bnoBuffer[names[i]][bufPosition*5 + 0] << ","
+                                                     << bnoBuffer[names[i]][bufPosition*5 + 1] << ","
+                                                     << bnoBuffer[names[i]][bufPosition*5 + 2] << ","
+                                                     << bnoBuffer[names[i]][bufPosition*5 + 3] << endl;
+                        }
 
                     }
 
                     // TODO: Increment video file if reach max frame number per file
-                    videoWriter[names[i]]->write(frameBuffer[names[i]][bufPosition]);
+                    if (ROI.contains(names[i])) {
+                        videoWriter[names[i]]->write(frameBuffer[names[i]][bufPosition](cv::Rect(ROI[names[i]][0],ROI[names[i]][1],ROI[names[i]][2],ROI[names[i]][3])));
+
+                    }
+                    else
+                        videoWriter[names[i]]->write(frameBuffer[names[i]][bufPosition]);
+
                     savedFrameCount[names[i]]++;
                 }
 
@@ -209,6 +228,11 @@ void DataSaver::startRecording()
 //        }
 //    }
 
+    if (m_recording) {
+        // Data saver is already recording. This likely happens if there is a manual record and then an external trig record
+        sendMessage("Warning: External 'START' trigger detected but software is already recording.");
+        return;
+    }
     QJsonDocument jDoc;
     recordStartDateTime = QDateTime::currentDateTime();
     if (setupFilePaths()) {
@@ -246,7 +270,7 @@ void DataSaver::startRecording()
             csvStream[keys[i]] = new QTextStream(csvFile[keys[i]]);
             *csvStream[keys[i]] << "Frame Number,Time Stamp (ms),Buffer Index" << endl;
 
-            if (streamHeadOrientationState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr) {
+            if (headOrientationStreamState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr) {
                 headOriFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/headOrientation.csv");
                 headOriFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
                 headOriStream[keys[i]] = new QTextStream(headOriFile[keys[i]]);
@@ -279,15 +303,17 @@ void DataSaver::startRecording()
 
 void DataSaver::stopRecording()
 {
-    if (!m_recording)
+    if (!m_recording) {
+        sendMessage("Warning: External 'STOP' trigger detected but software is not recording.");
         return;
+    }
     m_recording = false;
     QStringList keys = videoWriter.keys();
     for (int i = 0; i < keys.length(); i++) {
         videoWriter[keys[i]]->release();
         csvFile[keys[i]]->close();
 
-        if (streamHeadOrientationState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr)
+        if (headOrientationStreamState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr)
             if (headOriFile[keys[i]]->isOpen())
                 headOriFile[keys[i]]->close();
     }
@@ -364,6 +390,11 @@ void DataSaver::setDataCompression(QString name, QString type)
 
 }
 
+void DataSaver::setROI(QString name, int *bbox)
+{
+    ROI[name] = bbox;
+}
+
 QJsonDocument DataSaver::constructBaseDirectoryMetaData()
 {
     QJsonObject metaData;
@@ -425,6 +456,14 @@ QJsonDocument DataSaver::constructDeviceMetaData(QString type, int idx)
     metaData["framesPerFile"] = deviceObj["framesPerFile"].toInt(1000);
     metaData["compression"] = deviceObj["compression"].toString("FFV1");
 
+    if (ROI.contains(deviceName)) {
+        QJsonObject jROI;
+        jROI["leftEdge"] = ROI[deviceName][0];
+        jROI["topEdge"] = ROI[deviceName][1];
+        jROI["width"] = ROI[deviceName][2];
+        jROI["height"] = ROI[deviceName][3];
+        metaData["ROI"] = jROI;
+    }
     // loop through device properties at the start of recording
     QStringList keys = deviceProperties[deviceName].keys();
     for (int i = 0; i < keys.length(); i++) {

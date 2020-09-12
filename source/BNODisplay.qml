@@ -14,6 +14,10 @@ Item {
     property double qy: 0
     property double qz: 0
 
+    property bool badData: false
+
+
+
     Image {
         id: bno
         height: 50
@@ -28,7 +32,21 @@ Item {
         fillMode: Image.PreserveAspectFit
         source: "img/Miniscope_Logo_BNO.png"
 
+        Text {
+            id: badDataNotice
+            color: "#ba0101"
+            text: qsTr("!")
+            visible: root.badData
+            anchors.bottomMargin: -3
+            anchors.bottom: parent.bottom
+            anchors.right: parent.right
+            font.bold: true
+            font.pixelSize: 15
         }
+
+    }
+
+
 
     transform: Matrix4x4 {
 //        property real a: Math.PI / 180

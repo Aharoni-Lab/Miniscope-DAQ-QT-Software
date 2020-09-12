@@ -10,7 +10,7 @@
     ],
     "animalName": "testMouse",
     "experimentName": "Linear Track Test",
-    "recordLengthinSeconds": 30,
+    "recordLengthinSeconds": 600,
     "experiment_Not_Implemented": {
         "type": "linearTrack",
         "units": "cm",
@@ -23,31 +23,11 @@
         "value": [0, 1]
     },
     "devices": {
-        "miniscopes": [
+       "cameras": [
             {
-                "deviceName": "Miniscope",
-                "deviceType": "Miniscope_V3",
-                "imageRegistration": "Off",
-                "streamHeadOrientation": false,
+                "deviceName": "MiniCAM0",
+                "deviceType": "Minicam-Mono-XGA",
                 "deviceID": 1,
-				"showSaturation": true,
-                "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
-                "compression": "FFV1",
-                "framesPerFile": 1000,
-                "windowScale": 0.75,
-                "windowX": 800,
-                "windowY": 100,
-                "gain": "Low",
-                "ewl": 50,
-                "led0": 30,
-                "frameRate": "30FPS"
-            }
-        ],
-        "cameras": [
-            {
-                "deviceName": "BehavCam 0",
-                "deviceType": "WebCam",
-                "deviceID": 0,
 				"showSaturation": true,
 				"ROI": {
 					"notes": "This defines the bounding box of the portion of the video that is saved to disk",
@@ -58,7 +38,27 @@
 				},
                 "cameraCalibrationFileLocation": "",
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
-                "compression": "FFV1",
+                "compression": "MJPG",
+                "framesPerFile": 1000,
+                "windowScale": 0.75,
+                "windowX": 800,
+                "windowY": 600
+            },
+            {
+                "deviceName": "MiniCAM1",
+                "deviceType": "Minicam-Mono-XGA",
+                "deviceID": 2,
+				"showSaturation": true,
+				"ROI": {
+					"notes": "This defines the bounding box of the portion of the video that is saved to disk",
+					"leftEdge": 10,
+					"topEdge": 20,
+					"width": 300,
+					"height": 200
+				},
+                "cameraCalibrationFileLocation": "",
+                "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
+                "compression": "MJPG",
                 "framesPerFile": 1000,
                 "windowScale": 0.75,
                 "windowX": 800,

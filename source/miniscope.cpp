@@ -24,20 +24,34 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     m_previousDisplayFrameNum(0),
     m_acqFrameNum(new QAtomicInt(0)),
     m_daqFrameNum(new QAtomicInt(0)),
-    m_streamHeadOrientationState(false),
+    m_headOrientationStreamState(false),
+    m_headOrientationFilterState(false),
     m_displatState("Raw"),
     baselineFrameBufWritePos(0),
-    baselinePreviousTimeStamp(0)
+    baselinePreviousTimeStamp(0),
+    m_extTriggerTrackingState(false)
 
 {
 
     m_ucMiniscope = ucMiniscope; // hold user config for this Miniscope
-//    qDebug() << m_ucMiniscope["deviceType"].toString();
     parseUserConfigMiniscope();
     getMiniscopeConfig(m_ucMiniscope["deviceType"].toString()); // holds specific Miniscope configuration
 
     // Checks to make sure user config and miniscope device type are supporting BNO streaming
-    m_streamHeadOrientationState = m_ucMiniscope["streamHeadOrientation"].toBool(false) && m_cMiniscopes["headOrientation"].toBool(false);
+    if (m_ucMiniscope.contains("headOrientation")) {
+        m_headOrientationStreamState = m_ucMiniscope["headOrientation"].toObject()["enable"].toBool(false);
+        m_headOrientationFilterState = m_ucMiniscope["headOrientation"].toObject()["filterBadData"].toBool(false);
+
+    }
+
+    // DEPRICATED
+    if (m_ucMiniscope.contains("streamHeadOrientation")) {
+        m_headOrientationStreamState = m_ucMiniscope["streamHeadOrientation"].toBool(false) && m_cMiniscopes["headOrientation"].toBool(false);
+        // TODO: Tell user this name/value is depricated
+    }
+    // ==========
+
+
 
 
     // Thread safe buffer stuff
@@ -47,10 +61,11 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
     // -------------------------
 
     // Setup OpenCV camera stream
-    miniscopeStream = new VideoStreamOCV(nullptr, m_cMiniscopes["width"].toInt(-1), m_cMiniscopes["height"].toInt(-1));
+    miniscopeStream = new VideoStreamOCV(nullptr, m_cMiniscopes["width"].toInt(-1), m_cMiniscopes["height"].toInt(-1), m_cMiniscopes["pixelClock"].toDouble(-1));
     miniscopeStream->setDeviceName(m_deviceName);
 
-    miniscopeStream->setStreamHeadOrientation(m_streamHeadOrientationState);
+    miniscopeStream->setHeadOrientationConfig(m_headOrientationStreamState, m_headOrientationFilterState);
+
     miniscopeStream->setIsColor(m_cMiniscopes["isColor"].toBool(false));
 
     m_camConnected = miniscopeStream->connect2Camera(m_ucMiniscope["deviceID"].toInt());
@@ -83,12 +98,22 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucMiniscope) :
         // Pass send message signal through
         QObject::connect(miniscopeStream, &VideoStreamOCV::sendMessage, this, &Miniscope::sendMessage);
 
+        // Handle request for reinitialization of commands
+        QObject::connect(miniscopeStream, &VideoStreamOCV::requestInitCommands, this, &Miniscope::handleInitCommandsRequest);
+
         // Handle external triggering passthrough
         QObject::connect(this, &Miniscope::setExtTriggerTrackingState, miniscopeStream, &VideoStreamOCV::setExtTriggerTrackingState);
         QObject::connect(miniscopeStream, &VideoStreamOCV::extTriggered, this, &Miniscope::extTriggered);
 
         QObject::connect(this, &Miniscope::startRecording, miniscopeStream, &VideoStreamOCV::startRecording);
         QObject::connect(this, &Miniscope::stopRecording, miniscopeStream, &VideoStreamOCV::stopRecording);
+        // ----------------------------------------------
+
+        // Signal/Slots for handling LED toggling during external trigger
+        // TODO: Should probably consolidate how these signals and slots interact and remove the above signal passthrough
+        QObject::connect(this, &Miniscope::setExtTriggerTrackingState, this, &Miniscope::handleSetExtTriggerTrackingState);
+        QObject::connect(this, &Miniscope::startRecording, this, &Miniscope::handleRecordStart);
+        QObject::connect(this, &Miniscope::stopRecording, this, &Miniscope::handleRecordStop);
         // ----------------------------------------------
 
     //    createView();
@@ -125,6 +150,9 @@ void Miniscope::createView()
         view->setX(m_ucMiniscope["windowX"].toInt(1));
         view->setY(m_ucMiniscope["windowY"].toInt(1));
 
+#ifdef Q_OS_WINDOWS
+        view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
+#endif
         view->show();
         // --------------------
 
@@ -136,18 +164,25 @@ void Miniscope::createView()
                              this, SLOT( handlePropChangedSignal(QString, double, double, double) ));
         QObject::connect(rootObject, SIGNAL( dFFSwitchChanged(bool) ),
                              this, SLOT( handleDFFSwitchChange(bool) ));
+        QObject::connect(rootObject, SIGNAL( saturationSwitchChanged(bool) ),
+                             this, SLOT( handleSaturationSwitchChanged(bool) ));
 
         configureMiniscopeControls();
         vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
         vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
+        vidDisplay->setWindowScaleValue(m_ucMiniscope["windowScale"].toDouble(1));
 
         // Turn on or off show saturation display
-        if (m_ucMiniscope["showSaturation"].toBool(true))
+        if (m_ucMiniscope["showSaturation"].toBool(false)) {
             vidDisplay->setShowSaturation(1);
-        else
+            rootObject->findChild<QQuickItem*>("saturationSwitch")->setProperty("checked", true);
+        }
+        else {
             vidDisplay->setShowSaturation(0);
+            rootObject->findChild<QQuickItem*>("saturationSwitch")->setProperty("checked", false);
+        }
 
-        if (m_streamHeadOrientationState)
+        if (m_headOrientationStreamState)
             bnoDisplay = rootObject->findChild<QQuickItem*>("bno");
 
         QObject::connect(view, &NewQuickView::closing, miniscopeStream, &VideoStreamOCV::stopSteam);
@@ -304,11 +339,16 @@ void Miniscope::configureMiniscopeControls() {
                             // sends signal on initial setup of controls
                             emit onPropertyChanged(m_deviceName, controlName[i], values["startValue"].toVariant());
                     }
-                    else {
+                    else { // remaining option is value is a double
                         controlItem->setProperty(keys[j].toLatin1().data(), values[keys[j]].toDouble());
-                        if (keys[j] == "startValue")
+                        if (keys[j] == "startValue") {
+                            if (controlName[i] == "led0") { // This is used to hold initial (and last known) LED value for toggling LED on and off using remote trigger
+                                m_lastLED0Value = values["startValue"].toDouble();
+                            }
                             // sends signal on initial setup of controls
                             emit onPropertyChanged(m_deviceName, controlName[i], values["startValue"].toVariant());
+
+                        }
                     }
                 }
             }
@@ -443,7 +483,9 @@ void Miniscope::sendNewFrame(){
 
         if (m_displatState == "Raw") {
 
-            vidDisplay->setDisplayFrame(tempFrame2.copy());
+//            vidDisplay->setDisplayFrame(tempFrame2.copy());
+            // TODO: Check to see if we can get rid of .copy() here
+            vidDisplay->setDisplayFrame(tempFrame2);
         }
         else if (m_displatState == "dFF") {
             // TODO: Implement this better. I am sure it can be sped up a lot. Maybe do most of it in a shader
@@ -462,15 +504,30 @@ void Miniscope::sendNewFrame(){
             vidDisplay->setAcqFPS(timeStampBuffer[f] - timeStampBuffer[f-1]); // TODO: consider changing name as this is now interframeinterval
         vidDisplay->setDroppedFrameCount(*m_daqFrameNum - *m_acqFrameNum);
 
-        if (m_streamHeadOrientationState) {
+        if (m_headOrientationStreamState) {
 //            bnoDisplay->setProperty("heading", bnoBuffer[f*3+0]);
 //            bnoDisplay->setProperty("roll", bnoBuffer[f*3+1]);
 //            bnoDisplay->setProperty("pitch", bnoBuffer[f*3+2]);
 //            if (bnoBuffer[f*4+0] != -1/16384.0 && bnoBuffer[f*4+1] != -1/16384.0 && bnoBuffer[f*4+2] != -1/16384.0 && bnoBuffer[f*4+3] != -1/16384.0) {
-                bnoDisplay->setProperty("qw", bnoBuffer[f*4+0]);
-                bnoDisplay->setProperty("qx", bnoBuffer[f*4+1]);
-                bnoDisplay->setProperty("qy", bnoBuffer[f*4+2]);
-                bnoDisplay->setProperty("qz", bnoBuffer[f*4+3]);
+//            if (bnoBuffer[f*5+4] >= 0.05) {
+//                sendMessage("Quat w: " + QString::number( bnoBuffer[f*5+0]));
+//                sendMessage("Quat x: " + QString::number( bnoBuffer[f*5+1]));
+//                sendMessage("Quat y: " + QString::number( bnoBuffer[f*5+2]));
+//                sendMessage("Quat z: " + QString::number( bnoBuffer[f*5+3]));
+//                sendMessage("n = " + QString::number( bnoBuffer[f*5+4]));
+//            }
+            if (bnoBuffer[f*5+4] < 0.05) { // Checks to see if norm of quat differs from 1 by 0.05
+                // good data
+                bnoDisplay->setProperty("badData", false);
+                bnoDisplay->setProperty("qw", bnoBuffer[f*5+0]);
+                bnoDisplay->setProperty("qx", bnoBuffer[f*5+1]);
+                bnoDisplay->setProperty("qy", bnoBuffer[f*5+2]);
+                bnoDisplay->setProperty("qz", bnoBuffer[f*5+3]);
+            }
+            else {
+                // bad BNO data
+                bnoDisplay->setProperty("badData", true);
+            }
 //            }
         }
 //        qDebug() << bnoBuffer[f*3+0] << bnoBuffer[f*3+1] << bnoBuffer[f*3+2];
@@ -500,7 +557,17 @@ void Miniscope::handlePropChangedSignal(QString type, double displayValue, doubl
 
         // TODO: maybe add a check to make sure property successfully updates before signallng it has changed
     //    qDebug() << "Sending updated prop signal to backend";
-        emit onPropertyChanged(m_deviceName, type, QVariant(displayValue));
+
+
+        if (type == "led0") {// This will update the last known LED value for use when toggling LED on and off using external trigger
+            if (m_extTriggerTrackingState == false || (m_extTriggerTrackingState == true && displayValue > 0)) {
+                m_lastLED0Value = displayValue;
+                emit onPropertyChanged(m_deviceName, type, QVariant(displayValue)); // This sends the change to the datasaver
+            }
+        }
+        else {
+            emit onPropertyChanged(m_deviceName, type, QVariant(displayValue)); // This sends the change to the datasaver
+        }
 
         // TODO: Handle int values greater than 8 bits
         for (int i = 0; i < m_controlSendCommand[type].length(); i++) {
@@ -569,6 +636,54 @@ void Miniscope::handleDFFSwitchChange(bool checked)
     else
         m_displatState = "Raw";
 }
+
+void Miniscope::handleSaturationSwitchChanged(bool checked)
+{
+    vidDisplay->setShowSaturation(checked);
+}
+
+void Miniscope::handleSetExtTriggerTrackingState(bool state)
+{
+     m_extTriggerTrackingState = state;
+     if (m_extTriggerTrackingState == true) {
+         // Let's turn off the led0
+         QQuickItem *controlItem; // Pointer to VideoPropertyControl in qml for each objectName
+         controlItem = rootObject->findChild<QQuickItem*>("led0");
+         controlItem->setProperty("startValue", 0);
+     }
+     else {
+         // Let's turn led0 back on
+         QQuickItem *controlItem; // Pointer to VideoPropertyControl in qml for each objectName
+         controlItem = rootObject->findChild<QQuickItem*>("led0");
+         controlItem->setProperty("startValue", m_lastLED0Value);
+     }
+}
+void Miniscope::handleRecordStart()
+{
+    // Turns on led0 if software is in external trigger configuration
+    if (m_extTriggerTrackingState) {
+        QQuickItem *controlItem; // Pointer to VideoPropertyControl in qml for each objectName
+        controlItem = rootObject->findChild<QQuickItem*>("led0");
+        controlItem->setProperty("startValue", m_lastLED0Value);
+    }
+}
+
+void Miniscope::handleRecordStop()
+{
+    // Turns off led0 if software is in external trigger configuration
+    if (m_extTriggerTrackingState) {
+        QQuickItem *controlItem; // Pointer to VideoPropertyControl in qml for each objectName
+        controlItem = rootObject->findChild<QQuickItem*>("led0");
+        controlItem->setProperty("startValue", 0);
+    }
+}
+
+void Miniscope::handleInitCommandsRequest()
+{
+    qDebug() << "Reinitializing device.";
+    sendInitCommands();
+}
+
 
 void Miniscope::close()
 {

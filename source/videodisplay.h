@@ -17,9 +17,9 @@ class VideoDisplayRenderer : public QObject, protected QOpenGLFunctions
 public:
     VideoDisplayRenderer() :
         m_t(0),
-        m_displayFrame(0),
-        m_program(0),
-        m_texture(0),
+        m_displayFrame(nullptr),
+        m_program(nullptr),
+        m_texture(nullptr),
         m_newFrame(false),
         m_alpha(1),
         m_beta(0),
@@ -28,12 +28,15 @@ public:
     ~VideoDisplayRenderer();
 
     void setT(qreal t) { m_t = t; }
-    void setDisplayFrame(QImage frame) { m_displayFrame = frame; m_newFrame = true;}
+    void setDisplayFrame(QImage frame) {m_displayFrame = frame.copy(); m_newFrame = true;}
     void setViewportSize(const QSize &size) { m_viewportSize = size; }
     void setWindow(QQuickWindow *window) { m_window = window; }
     void setAlpha(double a) {m_alpha = a;}
     void setBeta(double b) {m_beta = b;}
     void setShowSaturation(double value) {m_showStaturation = value; }
+
+
+    bool m_newFrame;
 
 signals:
     void requestNewFrame();
@@ -48,7 +51,7 @@ private:
     QOpenGLShaderProgram *m_program;
     QOpenGLTexture *m_texture;
     QQuickWindow *m_window;
-    bool m_newFrame;
+
 
     double m_alpha;
     double m_beta;
@@ -67,7 +70,10 @@ class VideoDisplay : public QQuickItem
     Q_PROPERTY(int bufferUsed READ bufferUsed WRITE setBufferUsed NOTIFY bufferUsedChanged)
     Q_PROPERTY(int maxBuffer READ maxBuffer WRITE setMaxBuffer NOTIFY maxBufferChanged)
     Q_PROPERTY(qreal t READ t WRITE setT NOTIFY tChanged)
-    Q_PROPERTY(QImage displayFrame READ displayFrame WRITE setDisplayFrame NOTIFY displayFrameChanged)
+//    Q_PROPERTY(QImage displayFrame READ displayFrame WRITE setDisplayFrame NOTIFY displayFrameChanged)
+
+    // For visualizing ROI
+    Q_PROPERTY(QList<int> ROI READ ROI WRITE setROI NOTIFY roiChanged)
 
 public:
     VideoDisplay();
@@ -77,14 +83,15 @@ public:
 
     qreal t() const { return m_t; }
     double acqFPS() const { return m_acqFPS; }
+    QList<int> ROI() const { return m_ROI; }
     int maxBuffer() const {return m_maxBuffer; }
     int bufferUsed() const { return m_bufferUsed; }
     int droppedFrameCount() const {return m_droppedFrameCount; }
 
-    QImage displayFrame() { return m_displayFrame2; }
-//    QImage displayFrame() {return m_displayFrame;}
+//    QImage displayFrame() { return m_displayFrame2; }
     void setT(qreal t);
     void setAcqFPS(double acqFPS) { m_acqFPS = acqFPS; acqFPSChanged();}
+    void setROI(QList<int> roi);
     void setBufferUsed(int bufUsed) { m_bufferUsed = bufUsed; }
     void setMaxBuffer(int maxBuf) { m_maxBuffer = maxBuf; }
 
@@ -93,15 +100,19 @@ public:
     void setAlpha(double a) {m_renderer->setAlpha(a);}
     void setBeta(double b) {m_renderer->setBeta(b);}
     void setShowSaturation(double value);
+    void setROISelectionState(bool state) { m_roiSelectionActive = state; }
+    void setWindowScaleValue(double scale) { m_windowScaleValue = scale; }
 
 signals:
     void tChanged();
     void acqFPSChanged();
+    void roiChanged();
     void maxBufferChanged();
     void bufferUsedChanged();
     void droppedFrameCountChanged();
 
     void displayFrameChanged();
+    void newROISignal(int leftEdge, int topEdge, int width, int height);
 
 public slots:
     void sync();
@@ -116,10 +127,15 @@ private:
     int m_bufferUsed;
     int m_maxBuffer;
     int m_droppedFrameCount;
-    QImage m_displayFrame2;
+//    QImage m_displayFrame2;
     VideoDisplayRenderer *m_renderer;
 
     double m_showSaturation;
+    bool m_roiSelectionActive;
+    double m_windowScaleValue;
+    QList<int> m_ROI;
+    QMouseEvent *lastMouseClickEvent;
+    QMouseEvent *lastMouseReleaseEvent;
 };
 //! [2]
 

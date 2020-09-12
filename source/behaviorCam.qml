@@ -1,5 +1,6 @@
 import QtQuick 2.12
 import VideoDisplay 1.0
+import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.3
 
@@ -15,6 +16,13 @@ Item {
     signal takeScreenShotSignal()
 
     signal camPropsClicked()
+    signal setRoiClicked()
+
+    signal calibrateCameraClicked()
+    signal calibrateCameraStart()
+    signal calibrateCameraQuit()
+
+    signal saturationSwitchChanged(bool value)
 
     Keys.onPressed: {
         if (event.key === Qt.Key_H) {
@@ -29,6 +37,93 @@ Item {
         }
     }
 
+    Window {
+        id: camCalibWindow
+        width: 600
+        height: 200
+        visible: false
+        title: "Camera Calibration"
+        ColumnLayout {
+            anchors.fill: parent
+
+            TextArea {
+                text: "Camera Calibration " + "<br/>" +
+                      "Directions go here"
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignHCenter
+                Layout.margins: 5
+                Layout.fillWidth: true
+                textFormat: Text.RichText
+                onLinkActivated: Qt.openUrlExternally(link)
+                font.pointSize: 12
+                font.family: "Arial"
+                wrapMode: Text.WordWrap
+                MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.NoButton // we don't want to eat clicks on the Text
+                        cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    }
+            }
+
+            ProgressBar {
+                id: camCalibProgressBar
+                width: parent.width
+                value: 0.5
+            }
+
+            RowLayout {
+                id: camCalibRow
+                objectName: "camCalibRow"
+                width: parent.width
+                height: 100
+                spacing: 0
+//                anchors.verticalCenter: parent.verticalCenter
+
+                Button {
+                    text: "Begin"
+                    font.family: "Arial"
+                    font.pointSize: 12
+                    font.bold: true
+                    font.weight: Font.Normal
+                    background: Rectangle {
+                        id: startRect
+                        border.width: 1
+                        color: "#a8a7fd"
+                    }
+                    Layout.margins: 5
+                    Layout.fillWidth: true
+                    onClicked: {
+                        root.calibrateCameraStart()
+                    }
+
+                    onHoveredChanged: hovered ? startRect.color = "#f8a7fd" : startRect.color = "#a8a7fd"
+                }
+
+                Button {
+                    text: "Quit"
+                    font.family: "Arial"
+                    font.pointSize: 12
+                    font.bold: true
+                    font.weight: Font.Normal
+                    background: Rectangle {
+                        id: quitRect
+                        border.width: 1
+                        color: "#a8a7fd"
+                    }
+                    Layout.margins: 5
+                    Layout.fillWidth: true
+                    onClicked: {
+                        root.calibrateCameraQuit()
+                        camCalibWindow.visible = false
+                    }
+                    onHoveredChanged: hovered ? quitRect.color = "#f8a7fd" : quitRect.color = "#a8a7fd"
+                }
+            }
+
+
+        }
+    }
+
     VideoDisplay {
         id: videoDisplay
         //            Layout.fillHeight: true
@@ -39,6 +134,7 @@ Item {
         anchors.fill: parent
 
         property var sumAcqFPS: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+//        property variant roiArray: [0,0,100,100,0]
         property var idx: 0
         onAcqFPSChanged: {
 
@@ -48,6 +144,24 @@ Item {
             if (idx >= 20)
                 idx = 0;
         }
+        onRoiChanged: {
+            if (videoDisplay.ROI[4] === 1) {
+                rectROI.visible = true;
+                rectROI.color = "#40ffffff"; //"e38787";
+                rectROI.x = videoDisplay.ROI[0];
+                rectROI.y = videoDisplay.ROI[1];
+                rectROI.width = videoDisplay.ROI[2];
+                rectROI.height = videoDisplay.ROI[3];
+            }
+            else {
+                rectROI.visible = true;
+                rectROI.color = "#00000000";
+                rectROI.x = videoDisplay.ROI[0];
+                rectROI.y = videoDisplay.ROI[1];
+                rectROI.width = videoDisplay.ROI[2];
+                rectROI.height = videoDisplay.ROI[3];
+            }
+        }
 
         SequentialAnimation on t {
             NumberAnimation { to: 1; duration: 2500; easing.type: Easing.InQuad }
@@ -55,7 +169,21 @@ Item {
             loops: Animation.Infinite
             running: true
                 }
+
+        Rectangle {
+            id: rectROI
+            x: 0
+            y: 0
+            width: videoDisplay.ROI[2]
+            height: videoDisplay.ROI[3]
+            visible: false
+
+            border.color: "red"
+            border.width: 2
+//            radius: 10
+        }
     }
+
     TopMenu{
         id: topMenu
         anchors.top: parent.top
@@ -88,6 +216,8 @@ Item {
                 enabled: false
                 Layout.column: 0
                 Layout.row: 0
+                // TODO: Make hovering color change work.
+                hoverEnabled: false
                 background: Rectangle {
                     id: calibrateRect
                     radius: calibrateCamera.radius
@@ -95,7 +225,43 @@ Item {
                     color: "#a8a7fd"
                 }
                 onHoveredChanged: hovered ? calibrateRect.color = "#f8a7fd" : calibrateRect.color = "#a8a7fd"
+                onClicked: {
 
+                    root.calibrateCameraClicked()
+                    camCalibWindow.visible = true
+                }
+            }
+
+            Switch {
+                id: saturationSwitch
+                objectName: "saturationSwitch"
+                text: qsTr("Show Saturation")
+                hoverEnabled: false
+
+                font.bold: true
+                font.family: "Arial"
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
+                Layout.column: 2
+                Layout.row: 0
+            }
+
+            Text{
+                id: droppedFrameCount
+                objectName: "droppedFrameCount"
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignBottom
+                text: "--"
+                font.pointSize: 10
+                font.family: "Arial"
+                Layout.column: 0
+                Layout.row: 1
+                Timer{
+                    interval: 100
+                    repeat: true
+                    running: true
+                    onTriggered: {
+                        droppedFrameCount.text = "Dropped Frames: " + videoDisplay.droppedFrameCount;
+                      }
+                }
             }
 
             Text{
@@ -152,6 +318,7 @@ Item {
         }
     }
 
+
     ColumnLayout {
         id: controlColumn
         objectName: "controlColumn"
@@ -171,6 +338,7 @@ Item {
             font.weight: Font.Normal
             radius: 4
             enabled: true
+            visible: false
             background: Rectangle {
                 id: camPropsRect
                 radius: camProps.radius
@@ -180,6 +348,54 @@ Item {
             onHoveredChanged: hovered ? camPropsRect.color = "#f8a7fd" : camPropsRect.color = "#a8a7fd"
             onClicked: root.camPropsClicked()
 
+        }
+
+        RoundButton {
+            id: setRoi
+            objectName: "setRoi"
+            text: "Set ROI"
+            font.family: "Arial"
+            font.pointSize: 10
+            font.bold: true
+            font.weight: Font.Normal
+            radius: 4
+            enabled: true
+            background: Rectangle {
+                id: setRoiRect
+                radius: setRoi.radius
+                border.width: 1
+                color: "#a8a7fd"
+            }
+            onHoveredChanged: hovered ? setRoiRect.color = "#f8a7fd" : setRoiRect.color = "#a8a7fd"
+            onClicked: root.setRoiClicked()
+
+        }
+
+        VideoSliderControl {
+            id: led0
+            objectName: "led0"
+            max: 100
+            startValue: 0
+            iconPath: "img/icon/led.png"
+            textColor: "black"
+            visible: false
+        }
+
+        VideoSpinBoxControl{
+            id: frameRate
+            objectName: "frameRate"
+            iconPath: "img/icon/fps.png"
+            visible: false
+        }
+        VideoSpinBoxControl{
+            id: gain
+            objectName: "gain"
+            iconPath: "img/icon/gain.png"
+            visible: false
+        }
+
+        ToolSeparator {
+            id: toolSeparator
         }
 
         VideoSliderControl{
@@ -208,6 +424,18 @@ Item {
 
 
     Connections{
+        target: led0
+        onValueChangedSignal: vidPropChangedSignal(led0.objectName, displayValue, i2cValue, i2cValue2)
+    }
+    Connections{
+        target: gain
+        onValueChangedSignal: vidPropChangedSignal(gain.objectName, displayValue, i2cValue, i2cValue2)
+    }
+    Connections{
+        target: frameRate
+        onValueChangedSignal: vidPropChangedSignal(frameRate.objectName, displayValue, i2cValue, i2cValue2)
+    }
+    Connections{
         target: alpha
         onValueChangedSignal: vidPropChangedSignal(alpha.objectName, displayValue, i2cValue, i2cValue2)
     }
@@ -215,6 +443,11 @@ Item {
         target: beta
         onValueChangedSignal: vidPropChangedSignal(beta.objectName, displayValue, i2cValue, i2cValue2)
     }
+    Connections{
+        target: saturationSwitch
+        onClicked: saturationSwitchChanged(saturationSwitch.checked)
+    }
+
 
     states: [
         State{

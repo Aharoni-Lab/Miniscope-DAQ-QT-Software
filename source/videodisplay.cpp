@@ -11,7 +11,11 @@
 VideoDisplay::VideoDisplay()
     : m_t(0),
       m_acqFPS(0),
-      m_renderer(nullptr)
+      m_renderer(nullptr),
+      m_roiSelectionActive(false),
+      m_ROI({0,0,10,10,0}),
+      lastMouseClickEvent(nullptr),
+      lastMouseReleaseEvent(nullptr)
 {
 //    m_displayFrame2.load("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png");
     setAcceptedMouseButtons(Qt::AllButtons);
@@ -31,9 +35,15 @@ void VideoDisplay::setT(qreal t)
         window()->update();
 }
 void VideoDisplay::setDisplayFrame(QImage frame) {
-    m_displayFrame2 = frame;
-    if (m_renderer)
-        m_renderer->setDisplayFrame(m_displayFrame2.copy());
+//    m_displayFrame2 = frame;
+    // Checking to see if there is already a new frame waiting has solved a
+    // consistent source of crash.
+    // This crash was due to the texture data of the next frame in the queue to be displayed
+    // changing before it is moved to GPU memory I think.
+    if (m_renderer && !m_renderer->m_newFrame)
+        m_renderer->setDisplayFrame(frame);
+//    else
+//        qDebug() << "New frame available before last frame was displayed";
 }
 
 void VideoDisplay::setShowSaturation(double value)
@@ -96,15 +106,54 @@ void VideoDisplay::sync()
 //! [9]
 
 void VideoDisplay::mousePressEvent(QMouseEvent *event){
-    qDebug() << "Mouse Press" << event;
+    if (m_roiSelectionActive && event->button() == Qt::LeftButton) {
+        // TODO: Send info to shader to draw rectangle
+        lastMouseClickEvent = new QMouseEvent(*event);
+    }
+//        qDebug() << "Mouse Press" << event;
 }
 
 void VideoDisplay::mouseMoveEvent(QMouseEvent *event) {
-    qDebug() << "Mouse Move" << event;
+
+    if (m_roiSelectionActive /*&& event->button() == Qt::LeftButton*/ && lastMouseClickEvent != nullptr) {
+        int leftEdge = (lastMouseClickEvent->x() < event->x()) ? (lastMouseClickEvent->x()) : (event->x());
+        int topEdge = (lastMouseClickEvent->y() < event->y()) ? (lastMouseClickEvent->y()) : (event->y());
+        int width = abs(lastMouseClickEvent->x() - event->x());
+        int height = abs(lastMouseClickEvent->y() - event->y());
+
+        setROI({leftEdge,topEdge,width,height,m_roiSelectionActive});
+        qDebug() << "Mouse Move" << event;
+    }
 }
 
 void VideoDisplay::mouseReleaseEvent(QMouseEvent *event) {
-    qDebug() << "Mouse Release" << event;
+    if (m_roiSelectionActive && event->button() == Qt::LeftButton && lastMouseClickEvent != nullptr) {
+        lastMouseReleaseEvent = event;
+
+        // Calculate ROI properties
+        int leftEdge = (lastMouseClickEvent->x() < lastMouseReleaseEvent->x()) ? (lastMouseClickEvent->x()) : (lastMouseReleaseEvent->x());
+        int topEdge = (lastMouseClickEvent->y() < lastMouseReleaseEvent->y()) ? (lastMouseClickEvent->y()) : (lastMouseReleaseEvent->y());
+        int width = abs(lastMouseClickEvent->x() - lastMouseReleaseEvent->x());
+        int height = abs(lastMouseClickEvent->y() - lastMouseReleaseEvent->y());
+
+        m_roiSelectionActive = false;
+        // Send new ROI to behavior camera class
+        emit newROISignal(leftEdge, topEdge, width, height);
+        setROI({leftEdge,topEdge,width,height,m_roiSelectionActive});
+
+        // Reset these Mouse events
+        lastMouseClickEvent = nullptr;
+        lastMouseReleaseEvent = nullptr;
+
+
+    }
+}
+
+void VideoDisplay::setROI(QList<int> roi)
+{
+    m_ROI = roi;
+
+    roiChanged();
 }
 //! [4]
 void VideoDisplayRenderer::paint()
@@ -185,10 +234,12 @@ void VideoDisplayRenderer::paint()
 
     if (m_newFrame) {
 //        qDebug() << "Set new texture QImage";
-        m_newFrame = false;
+
         m_texture->destroy();
         m_texture->create();
-        m_texture->setData(m_displayFrame.copy());
+        m_texture->setData(m_displayFrame);
+        m_newFrame = false;
     }
+
 }
 //! [5]

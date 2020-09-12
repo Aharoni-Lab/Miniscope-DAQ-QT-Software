@@ -28,8 +28,9 @@ public:
     bool setupFilePaths();
     void setRecord(bool input) {m_recording = input;}
     void setFrameBufferParameters(QString name, cv::Mat* frameBuf, qint64 *tsBuffer, float *bnoBuf, int bufSize, QSemaphore* freeFrames, QSemaphore* usedFrames, QAtomicInt* acqFrame);
-    void setHeadOrientationStreamingState(QString name, bool streamState) {streamHeadOrientationState[name] = streamState; }
+    void setHeadOrientationConfig(QString name, bool enable, bool filter) {headOrientationStreamState[name] = enable; headOrientationStreamState[name] = filter; }
     void setupBaseDirectory();
+    void setROI(QString name, int *bbox);
 
 signals:
     void sendMessage(QString msg);
@@ -62,7 +63,8 @@ private:
     QMap<QString, quint32> savedFrameCount;
     QMap<QString, quint32> frameCount;
     QMap<QString, float*> bnoBuffer;
-    QMap<QString, bool> streamHeadOrientationState;
+    QMap<QString, bool> headOrientationStreamState;
+    QMap<QString, bool> headOrientationFilterState;
     QMap<QString, qint64*> timeStampBuffer;
     QMap<QString, QSemaphore*> freeCount;
     QMap<QString, QSemaphore*> usedCount;
@@ -74,6 +76,8 @@ private:
 
     QMap<QString, QFile*> headOriFile;
     QMap<QString, QTextStream*> headOriStream;
+
+    QMap<QString, int*> ROI;
 
     QFile* noteFile;
     QTextStream* noteStream;

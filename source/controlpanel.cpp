@@ -43,6 +43,10 @@ void ControlPanel::createView()
     view->setTitle("Control Panel");
     view->setX(1);
     view->setY(50);
+
+#ifdef Q_OS_WINDOWS
+        view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
+#endif
     view->show();
 
     rootObject = view->rootObject();
@@ -103,6 +107,7 @@ void ControlPanel::onRecordActivated()
 void ControlPanel::onStopActivated()
 {
     recordStop();
+    receiveMessage("Recording Stopped.");
     m_recording = false;
     rootObject->setProperty("recording", false);
     if (recordTimer->isActive())
@@ -136,19 +141,24 @@ void ControlPanel::extTriggerSwitchToggled2(bool checkedState)
     emit setExtTriggerTrackingState(checkedState);
     if (checkedState == true) {
         rootObject->setProperty("ucRecordLength", 0);
+
     }
     else {
         rootObject->setProperty("ucRecordLength", m_ucRecordLengthinSeconds);
+
     }
 }
 
 void ControlPanel::extTriggerTriggered(bool state)
 {
     if (state == true) {
+        receiveMessage("Trigger: HIGH");
         onRecordActivated();
     }
     else {
+        receiveMessage("Trigger: LOW");
         onStopActivated();
+
     }
 }
 

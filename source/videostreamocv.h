@@ -18,14 +18,14 @@ class VideoStreamOCV : public QObject
 {
     Q_OBJECT
 public:
-    explicit VideoStreamOCV(QObject *parent = nullptr, int width = 0, int height = 0);
+    explicit VideoStreamOCV(QObject *parent = nullptr, int width = 0, int height = 0, double pixelClock = 0);
     ~VideoStreamOCV();
 //    void setCameraID(int cameraID);
     void setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf,
                              int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS,
                              QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber);
     int connect2Camera(int cameraID);
-    void setStreamHeadOrientation(bool streamState) { m_streamHeadOrientationState = streamState; }
+    void setHeadOrientationConfig(bool enableState, bool filterState) { m_headOrientationStreamState = enableState; m_headOrientationFilterState = filterState; }
     void setIsColor(bool isColor) { m_isColor = isColor; }
     void setDeviceName(QString name) { m_deviceName = name; }
 
@@ -33,6 +33,7 @@ signals:
     void sendMessage(QString msg);
     void newFrameAvailable(QString name, int frameNum);
     void extTriggered(bool triggerState);
+    void requestInitCommands();
 
 public slots:
     void startStream();
@@ -51,7 +52,8 @@ private:
     cv::VideoCapture *cam;
     bool m_isStreaming;
     bool m_stopStreaming;
-    bool m_streamHeadOrientationState;
+    bool m_headOrientationStreamState;
+    bool m_headOrientationFilterState;
     bool m_isColor;
     cv::Mat *frameBuffer;
     qint64 *timeStampBuffer;
@@ -70,6 +72,7 @@ private:
 
     int m_expectedWidth;
     int m_expectedHeight;
+    double m_pixelClock;
 
     QString m_connectionType;
 

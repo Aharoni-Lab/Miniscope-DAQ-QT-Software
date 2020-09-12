@@ -14,6 +14,7 @@ Item {
     signal vidPropChangedSignal(string name, double displayValue, double i2cValue, double i2cValue2)
     signal takeScreenShotSignal()
     signal dFFSwitchChanged(bool value)
+    signal saturationSwitchChanged(bool value)
 
     Keys.onPressed: {
         if (event.key === Qt.Key_H) {
@@ -89,6 +90,20 @@ Item {
                 Layout.row: 0
             }
 
+            Switch {
+                id: saturationSwitch
+                objectName: "saturationSwitch"
+                text: qsTr("Show Saturation")
+                hoverEnabled: false
+
+                font.bold: true
+                font.family: "Arial"
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
+                Layout.column: 2
+                Layout.row: 0
+
+            }
+
             Text{
                 id: droppedFrameCount
                 objectName: "droppedFrameCount"
@@ -106,8 +121,6 @@ Item {
                         droppedFrameCount.text = "Dropped Frames: " + videoDisplay.droppedFrameCount;
                       }
                 }
-
-
             }
 
             Text{
@@ -275,6 +288,10 @@ Item {
     Connections{
         target: dFFSwitch
         onClicked: dFFSwitchChanged(dFFSwitch.checked)
+    }
+    Connections{
+        target: saturationSwitch
+        onClicked: saturationSwitchChanged(saturationSwitch.checked)
     }
 
     states: [
