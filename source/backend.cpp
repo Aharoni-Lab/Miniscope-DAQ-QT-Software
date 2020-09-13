@@ -166,11 +166,54 @@ backEnd::backEnd(QObject *parent) :
     }
 #endif
 #ifdef USE_PYTHON
-//    Py_SetProgramName(argv[0]);  /* optional but recommended */
-      Py_Initialize();
-      PyRun_SimpleString("from time import time,ctime\n"
-                         "print('Hello World')\n");
-      Py_Finalize();
+    //    PyRun_SimpleFileEx(fopen("C:/Users/dbaha/Documents/Projects/Miniscope-DAQ-QT-Software/source/pythonTest.py", "rt"), "pythonTest.py", true);
+
+    PyObject *pName, *pModule, *pFunc;
+    PyObject *pArgs, *pValue;
+    Py_SetPythonHome(L"C:/Users/dbaha/.conda/envs/dlc-live");
+    Py_Initialize();
+
+    PyObject* sysPath = PySys_GetObject((char*)"path");
+    PyObject* programName = PyUnicode_FromString("C:/Users/dbaha/Documents/Projects/Miniscope-DAQ-QT-Software/source/");
+    PyList_Append(sysPath, programName);
+    Py_DECREF(programName);
+    Py_DECREF(sysPath);
+
+    pName = PyUnicode_DecodeFSDefault("pythonTest");
+    pModule = PyImport_Import(pName);
+    Py_DECREF(pName);
+    if (pModule != NULL) {
+        pFunc = PyObject_GetAttrString(pModule, "getInteger");
+        if (pFunc && PyCallable_Check(pFunc)) {
+            pArgs = PyTuple_New(1);
+            pValue = PyLong_FromLong(123);
+            PyTuple_SetItem(pArgs, 0, pValue);
+
+            pValue = PyObject_CallObject(pFunc, pArgs);
+            Py_DECREF(pArgs);
+            if (pValue != NULL) {
+                qDebug() << "Result of call:" << PyLong_AsLong(pValue);
+                Py_DECREF(pValue);
+            }
+            else {
+                Py_DECREF(pFunc);
+                Py_DECREF(pModule);
+                qDebug() << "Call failed";
+            }
+        }
+        else {
+            if (PyErr_Occurred())
+                PyErr_Print();
+            qDebug() << "Cannot find function";
+        }
+        Py_XDECREF(pFunc);
+        Py_DECREF(pModule);
+    }
+    else {
+        PyErr_Print();
+        qDebug() << "Failed to load";
+    }
+    Py_Finalize();
 #endif
     testCodecSupport();
     QString tempStr;

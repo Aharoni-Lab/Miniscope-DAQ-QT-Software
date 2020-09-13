@@ -7,8 +7,10 @@ CONFIG += c++11
 # deprecated API to know how to port your code away from it.
 DEFINES += QT_DEPRECATED_WARNINGS
 
+#DEFINES += DEBUG
 #DEFINES += USE_USB
-#DEFINES += USE_PYTHON
+DEFINES += USE_PYTHON
+
 # You can also make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
@@ -73,8 +75,11 @@ win32 {
 #    INCLUDEPATH += C:/libusb-1.0.23/include/libusb-1.0
 
     # For Python
-    INCLUDEPATH += C:/Python38/include
-    LIBS += -LC:/Python38/libs -lpython38
+#    INCLUDEPATH += C:/Python38/include
+#    LIBS += -LC:/Python38/libs -lpython38
+
+    INCLUDEPATH += C:/Users/dbaha/.conda/envs/dlc-live/include
+    LIBS += -LC:/Users/dbaha/.conda/envs/dlc-live/libs -lpython37
 
 } else {
     CONFIG += link_pkgconfig

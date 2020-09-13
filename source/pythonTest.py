@@ -1,4 +1,12 @@
-# This Python file uses the following encoding: utf-8
+import numpy as np
+#import dlclive
+x = 1000
+print('Hello!')
 
-# if __name__ == "__main__":
-#     pass
+def func1():
+    print(x)
+
+def getInteger(vv):
+    print('Python function getInteger() called')
+    c = 100*50/30 + vv + x
+    return c
