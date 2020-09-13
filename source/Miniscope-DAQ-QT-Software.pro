@@ -81,6 +81,9 @@ win32 {
     INCLUDEPATH += C:/Users/dbaha/.conda/envs/dlc-live/include
     LIBS += -LC:/Users/dbaha/.conda/envs/dlc-live/libs -lpython37
 
+    # For numpy
+    INCLUDEPATH += C:/Users/dbaha/.conda/envs/dlc-live/Lib/site-packages/numpy/core/include
+
 } else {
     CONFIG += link_pkgconfig
     PKGCONFIG += opencv4

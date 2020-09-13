@@ -30,12 +30,6 @@
  #include <libusb.h>
 #endif
 
-#ifdef USE_PYTHON
- #undef slots
- #include <Python.h>
- #define slots
-#endif
-
 backEnd::backEnd(QObject *parent) :
     QObject(parent),
     m_versionNumber(""),
@@ -165,56 +159,6 @@ backEnd::backEnd(QObject *parent) :
         }
     }
 #endif
-#ifdef USE_PYTHON
-    //    PyRun_SimpleFileEx(fopen("C:/Users/dbaha/Documents/Projects/Miniscope-DAQ-QT-Software/source/pythonTest.py", "rt"), "pythonTest.py", true);
-
-    PyObject *pName, *pModule, *pFunc;
-    PyObject *pArgs, *pValue;
-    Py_SetPythonHome(L"C:/Users/dbaha/.conda/envs/dlc-live");
-    Py_Initialize();
-
-    PyObject* sysPath = PySys_GetObject((char*)"path");
-    PyObject* programName = PyUnicode_FromString("C:/Users/dbaha/Documents/Projects/Miniscope-DAQ-QT-Software/source/");
-    PyList_Append(sysPath, programName);
-    Py_DECREF(programName);
-    Py_DECREF(sysPath);
-
-    pName = PyUnicode_DecodeFSDefault("pythonTest");
-    pModule = PyImport_Import(pName);
-    Py_DECREF(pName);
-    if (pModule != NULL) {
-        pFunc = PyObject_GetAttrString(pModule, "getInteger");
-        if (pFunc && PyCallable_Check(pFunc)) {
-            pArgs = PyTuple_New(1);
-            pValue = PyLong_FromLong(123);
-            PyTuple_SetItem(pArgs, 0, pValue);
-
-            pValue = PyObject_CallObject(pFunc, pArgs);
-            Py_DECREF(pArgs);
-            if (pValue != NULL) {
-                qDebug() << "Result of call:" << PyLong_AsLong(pValue);
-                Py_DECREF(pValue);
-            }
-            else {
-                Py_DECREF(pFunc);
-                Py_DECREF(pModule);
-                qDebug() << "Call failed";
-            }
-        }
-        else {
-            if (PyErr_Occurred())
-                PyErr_Print();
-            qDebug() << "Cannot find function";
-        }
-        Py_XDECREF(pFunc);
-        Py_DECREF(pModule);
-    }
-    else {
-        PyErr_Print();
-        qDebug() << "Failed to load";
-    }
-    Py_Finalize();
-#endif
     testCodecSupport();
     QString tempStr;
     for (int i = 0; i < m_availableCodec.length(); i++)
@@ -341,10 +285,9 @@ void backEnd::connectSnS()
 
         QObject::connect(this, SIGNAL( closeAll()), behavCam[i], SLOT (close()));
 
-        if (behavTracker) {
-            QObject::connect(behavCam[i], SIGNAL(newFrameAvailable(QString, int)), behavTracker, SLOT( handleNewFrameAvailable(QString, int)));
-
-        }
+//        if (behavTracker) {
+//            QObject::connect(behavCam[i], SIGNAL(newFrameAvailable(QString, int)), behavTracker, SLOT( handleNewFrameAvailable(QString, int)));
+//        }
     }
     if (behavTracker)
         QObject::connect(this, SIGNAL( closeAll()), behavTracker, SLOT (close()));
@@ -463,6 +406,15 @@ void backEnd::setupBehaviorTracker()
                                                      behavCam[i]->getBufferSize(),
                                                      behavCam[i]->getAcqFrameNumPointer());
     }
+
+    // Start behavior tracker thread
+    behavTrackerThread = new QThread;
+    behavTracker->moveToThread(behavTrackerThread);
+
+    QObject::connect(behavTrackerThread, SIGNAL (started()), behavTracker, SLOT (startRunning()));
+    // TODO: setup start connections
+
+    behavTrackerThread->start();
 }
 
 bool backEnd::checkForUniqueDeviceNames()
@@ -522,8 +474,6 @@ void backEnd::constructUserConfigGUI()
     controlPanel = new ControlPanel(this, m_userConfig);
     QObject::connect(this, SIGNAL (sendMessage(QString) ), controlPanel, SLOT( receiveMessage(QString)));
 
-
-
     for (idx = 0; idx < ucMiniscopes.size(); idx++) {
         miniscope.append(new Miniscope(this, ucMiniscopes[idx].toObject()));
         QObject::connect(miniscope.last(),
@@ -552,7 +502,7 @@ void backEnd::constructUserConfigGUI()
         // Construct experiment interface
     }
     if (!ucBehaviorTracker.isEmpty()) {
-        behavTracker = new BehaviorTracker(this, m_userConfig);
+        behavTracker = new BehaviorTracker(NULL, ucBehaviorTracker);
         setupBehaviorTracker();
     }
 

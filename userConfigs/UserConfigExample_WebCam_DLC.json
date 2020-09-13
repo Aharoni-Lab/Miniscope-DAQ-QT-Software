@@ -1,0 +1,49 @@
+{
+    "researcherName": "Dr_Miniscope",
+    "dataDirectory": "C:/Users/dbaha/Documents/Data",
+    "directoryStructure": [
+        "researcherName",
+        "experimentName",
+        "animalName",
+        "date",
+        "time"
+    ],
+    "animalName": "testMouse",
+    "experimentName": "Linear Track Test",
+    "recordLengthinSeconds": 600,
+    "experiment_Not_Implemented": {
+        "type": "linearTrack",
+        "units": "cm",
+        "trackLength": 200
+    },
+    "behaviorTracker": {
+        "type": "DeppLabCut-Live",
+        "modelPath": "C:/Users/dbaha/Documents/Data/DLC/DLC_Dog_resnet_50_iteration-0_shuffle-0",
+        "resize": 0.5
+    },
+    "devices": {
+       "cameras": [
+            {
+                "deviceName": "BehavCam 0",
+                "deviceType": "WebCam-1280x720",
+                "deviceID": 0,
+				"showSaturation": true,
+				"ROI": {
+                    "notes": "This defines the bounding box of the portion of the video that is saved to disk",
+                    "note3": "Edge values are zero indexed",
+					"leftEdge": 0,
+					"topEdge": 0,
+					"width": 640,
+					"height": 480
+				},
+                "cameraCalibrationFileLocation": "",
+                "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
+                "compression": "MJPG",
+                "framesPerFile": 1000,
+                "windowScale": 0.75,
+                "windowX": 800,
+                "windowY": 600
+            }
+        ]
+    }
+}

@@ -103,6 +103,7 @@ private:
     QThread *dataSaverThread;
 
     BehaviorTracker *behavTracker;
+    QThread *behavTrackerThread;
 
     QVector<QString> m_availableCodec;
     QString m_availableCodecList;

@@ -1,12 +1,14 @@
 import numpy as np
-#import dlclive
-x = 1000
-print('Hello!')
+from dlclive import DLCLive, Processor
 
-def func1():
-    print(x)
+def setModelPath(modelPath, resizeVal):
+    global dlc_live
+    dlc_live = DLCLive(modelPath, resize=resizeVal, display=True)
+    print(dlc_live.path)
+    return 0
 
-def getInteger(vv):
-    print('Python function getInteger() called')
-    c = 100*50/30 + vv + x
-    return c
+def initInference(image):
+    dlc_live.init_inference(image)
+
+def getPose(image):
+    return dlc_live.get_pose(image)

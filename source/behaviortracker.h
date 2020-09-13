@@ -24,13 +24,16 @@ public:
     void cameraCalibration();
     void createView();
     void connectSnS();
+    void setUpDLCLive();
+    QList<double> getDLCLivePose(cv::Mat frame);
+
 
 signals:
     void sendMessage(QString msg);
 
 public slots:
-    void handleNewFrameAvailable(QString name, int frameNum);
     void testSlot(QString msg) { qDebug() << msg; }
+    void startRunning(); // Slot gets called when thread starts
     void close();
 
 private:
@@ -48,6 +51,8 @@ private:
     // For GUI
     NewQuickView *view;
     QObject *rootObject;
+
+    bool m_trackingRunning;
 
 };
 
