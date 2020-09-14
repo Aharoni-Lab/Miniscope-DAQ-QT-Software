@@ -13,6 +13,12 @@
 #include <QDebug>
 #include <QQuickItem>
 
+#ifdef USE_PYTHON
+ #undef slots
+ #include <Python.h>
+ #define slots
+#endif
+
 class BehaviorTracker : public QObject
 {
     Q_OBJECT
@@ -37,6 +43,7 @@ public slots:
     void close();
 
 private:
+    int initNumpy();
     QString m_trackerType;
     int numberOfCameras;
     // Info from behavior cameras
@@ -53,7 +60,15 @@ private:
     QObject *rootObject;
 
     bool m_trackingRunning;
+    bool m_DLCInitInfDone;
 
+    // For DLC python class
+    PyObject *pInstance;
+    PyObject *pClass;
+    PyObject *pModule;
+    PyObject *pDict;
+    PyObject *pArgs;
+    PyObject *pValue;
 };
 
 #endif // BEHAVIORTRACKER_H
