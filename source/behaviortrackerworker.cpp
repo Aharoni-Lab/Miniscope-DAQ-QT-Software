@@ -1,0 +1,185 @@
+#include "behaviortrackerworker.h"
+
+#include <QObject>
+#include <QAtomicInt>
+#include <QVector>
+#include <QMap>
+#include <QDebug>
+#include <QString>
+#include <QGuiApplication>
+#include <QThread>
+
+#ifdef USE_PYTHON
+ #undef slots
+ #include <Python.h>
+ #include <numpy/arrayobject.h>
+ #define slots
+#endif
+
+BehaviorTrackerWorker::BehaviorTrackerWorker(QObject *parent, QJsonObject behavTrackerConfig):
+    QObject(parent),
+    numberOfCameras(0)
+{
+    m_btConfig = behavTrackerConfig;
+}
+
+void BehaviorTrackerWorker::initPython()
+{
+    // All the Python init stuff below needed to happen once the thread was running for some reason?!?!?!
+#ifdef USE_PYTHON
+    // TODO: Set parameters in user config file
+    Py_SetPythonHome(L"C:/Users/dbaha/.conda/envs/dlc-live");
+    Py_Initialize();
+
+    // Adds .exe's directory to path to find py file
+    PyObject* sysPath = PySys_GetObject((char*)"path");
+    // TODO: Don't hard code this directory!
+    PyObject* programName = PyUnicode_FromString("C:/Users/dbaha/Documents/Projects/Miniscope-DAQ-QT-Software/source/");
+    PyList_Append(sysPath, programName);
+    Py_DECREF(programName);
+    Py_DECREF(sysPath);
+#endif
+}
+
+int BehaviorTrackerWorker::initNumpy()
+{
+    import_array1(-1);
+}
+
+void BehaviorTrackerWorker::setUpDLCLive()
+{
+#ifdef USE_PYTHON
+    PyObject *pName;
+
+    pName = PyUnicode_DecodeFSDefault("pythonTest");
+    pModule = PyImport_Import(pName);
+    Py_DECREF(pName);
+    pDict = PyModule_GetDict(pModule);
+
+    pClass = PyDict_GetItemString(pDict, "MiniDLC");
+
+    pArgs = PyTuple_New(2);
+    pValue = PyUnicode_FromString(m_btConfig["modelPath"].toString().toUtf8());
+    PyTuple_SetItem(pArgs, 0, pValue);
+
+    pValue = PyFloat_FromDouble(m_btConfig["resize"].toDouble(1));
+    PyTuple_SetItem(pArgs, 1, pValue);
+
+    pInstance = PyObject_CallObject(pClass,pArgs);
+
+//    pValue = PyObject_CallMethod(pInstance,"initInference",NULL);
+
+//    Py_DECREF(pValue);
+//    Py_DECREF(pArgs);
+//    Py_DECREF(pClass);
+//    Py_DECREF(pDict);
+//    Py_DECREF(pModule);
+#endif
+}
+
+QVector<float> BehaviorTrackerWorker::getDLCLivePose(cv::Mat frame)
+{
+
+#ifdef USE_PYTHON
+    PyObject *mat;
+
+    uchar* m = frame.ptr(0);
+    npy_intp mdim[] = { frame.rows, frame.cols, frame.channels()};
+
+    if (frame.channels() == 1)
+        mat = PyArray_SimpleNewFromData(2, mdim, NPY_UINT8, m);
+    else
+        mat = PyArray_SimpleNewFromData(3, mdim, NPY_UINT8, m);
+
+    if (m_DLCInitInfDone == false) {
+        pValue = PyObject_CallMethod(pInstance,"initInference", "(O)", mat);
+        m_DLCInitInfDone = true;
+    }
+    else
+        pValue = PyObject_CallMethod(pInstance,"getPose", "(O)", mat);
+
+    PyArrayObject *np_ret = reinterpret_cast<PyArrayObject*>(pValue);
+
+    // Convert back to C++ array and print.
+
+    npy_intp *arraySize = PyArray_SHAPE(np_ret);
+    QVector<float> pose(arraySize[0] * arraySize[1]);
+
+    float *c_out;
+    c_out = reinterpret_cast<float*>(PyArray_DATA(np_ret));
+
+    for (int i = 0; i < arraySize[1]; i++){
+        for (int j = 0; j < arraySize[0]; j++) {
+            pose[i * arraySize[0] + j] = c_out[i * arraySize[0] + j];
+        }
+    }
+    qDebug() << pose;
+    QThread::msleep(1000);
+
+
+
+//    Py_DECREF(pValue);
+    Py_DECREF(mat);
+//    Py_DECREF(pArgs);
+
+#endif
+    return pose;
+}
+
+void BehaviorTrackerWorker::setParameters(QString name, cv::Mat *frameBuf, int bufSize, QAtomicInt *acqFrameNum)
+{
+    frameBuffer[name] = frameBuf;
+    bufferSize[name] = bufSize;
+    m_acqFrameNum[name] = acqFrameNum;
+
+    currentFrameNumberProcessed[name] = 0;
+    numberOfCameras++;
+}
+
+void BehaviorTrackerWorker::setPoseBufferParameters(QVector<float> *poseBuf, int *poseFrameNumBuf, QAtomicInt *btPoseFrameNum, QSemaphore *free, QSemaphore *used)
+{
+    poseBuffer = poseBuf;
+    poseFrameNumBuffer = poseFrameNumBuf;
+    m_btPoseFrameNum = btPoseFrameNum;
+    freePoses = free;
+    usedPoses = used;
+}
+
+void BehaviorTrackerWorker::startRunning()
+{
+    // Gets called when thread starts running
+
+    initPython();
+
+    initNumpy(); // Inits import_array() and handles the return of it
+
+    setUpDLCLive();
+    // Will try using DLC's viewer before using our own
+
+    m_trackingRunning = true;
+    int acqFrameNum;
+    int frameIdx;
+    QList<QString> camNames = frameBuffer.keys();
+    while (m_trackingRunning) {
+        for (int camNum = 0; camNum < camNames.length(); camNum++) {
+            // Loops through cameras to see if new frames are ready
+            acqFrameNum = *m_acqFrameNum[camNames[camNum]];
+            if (acqFrameNum > currentFrameNumberProcessed[camNames[camNum]]) {
+                // New frame ready for behavior tracking
+                frameIdx = (acqFrameNum - 1) % bufferSize[camNames[camNum]];
+                getDLCLivePose(frameBuffer[camNames[camNum]][frameIdx]);
+                currentFrameNumberProcessed[camNames[camNum]] = acqFrameNum;
+            }
+        }
+        QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices
+    }
+
+}
+
+void BehaviorTrackerWorker::close()
+{
+    m_trackingRunning = false;
+#ifdef USE_PYTHON
+    Py_Finalize();
+#endif
+}

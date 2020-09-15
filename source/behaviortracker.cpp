@@ -1,5 +1,6 @@
 #include "behaviortracker.h"
 #include "newquickview.h"
+#include "behaviortrackerworker.h"
 
 #include <opencv2/opencv.hpp>
 
@@ -23,11 +24,21 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig) :
     QObject(parent),
     numberOfCameras(0),
     m_trackingRunning(false),
-    m_DLCInitInfDone(false)
+    m_btPoseFrameNum(new QAtomicInt(0)),
+    m_previousBtPoseFrameNum(0),
+    usedPoses(new QSemaphore),
+    freePoses(new QSemaphore)
 {
+
+    freePoses->release(POSE_BUFFER_SIZE);
+
     m_userConfig = userConfig;
     parseUserConfigTracker();
 
+
+    behavTrackWorker = new BehaviorTrackerWorker(NULL, m_userConfig["behaviorTracker"].toObject());
+    behavTrackWorker->setPoseBufferParameters(poseBuffer, poseFrameNumBuffer, m_btPoseFrameNum, freePoses, usedPoses);
+    workerThread = new QThread();
 
 //    createView();
 }
@@ -52,6 +63,10 @@ void BehaviorTracker::setBehaviorCamBufferParameters(QString name, cv::Mat *fram
 
     currentFrameNumberProcessed[name] = 0;
     numberOfCameras++;
+
+    // Set values/pointers for worker too
+    behavTrackWorker->setParameters(name, frameBuf, bufSize, acqFrameNum);
+
 }
 
 void BehaviorTracker::cameraCalibration()
@@ -96,254 +111,26 @@ void BehaviorTracker::connectSnS()
 void BehaviorTracker::setUpDLCLive()
 {
 
-#ifdef USE_PYTHON
-    PyObject *pName;
 
-    pName = PyUnicode_DecodeFSDefault("pythonTest");
-    pModule = PyImport_Import(pName);
-    Py_DECREF(pName);
-    pDict = PyModule_GetDict(pModule);
-
-    pClass = PyDict_GetItemString(pDict, "MiniDLC");
-
-    pArgs = PyTuple_New(2);
-    pValue = PyUnicode_FromString(m_userConfig["modelPath"].toString().toUtf8());
-    PyTuple_SetItem(pArgs, 0, pValue);
-
-    pValue = PyFloat_FromDouble(m_userConfig["resize"].toDouble(1));
-    PyTuple_SetItem(pArgs, 1, pValue);
-
-    pInstance = PyObject_CallObject(pClass,pArgs);
-
-//    pValue = PyObject_CallMethod(pInstance,"initInference",NULL);
-
-//    Py_DECREF(pValue);
-//    Py_DECREF(pArgs);
-//    Py_DECREF(pClass);
-//    Py_DECREF(pDict);
-//    Py_DECREF(pModule);
-/*
-    PyObject *pName, *pModule, *pFunc;
-    PyObject *pArgs, *pValue;
-
-    // Setup module and function(s)
-    pName = PyUnicode_DecodeFSDefault("pythonTest");
-    pModule = PyImport_Import(pName);
-    Py_DECREF(pName);
-    if (pModule != NULL) {
-        pFunc = PyObject_GetAttrString(pModule, "setModelPath");
-        if (pFunc && PyCallable_Check(pFunc)) {
-            pArgs = PyTuple_New(2); // Number of args for function args
-            pValue = PyUnicode_FromString(m_userConfig["modelPath"].toString().toUtf8());
-            PyTuple_SetItem(pArgs, 0, pValue);
-
-            pValue = PyFloat_FromDouble(m_userConfig["resize"].toDouble(1));
-            PyTuple_SetItem(pArgs, 1, pValue);
-
-            pValue = PyObject_CallObject(pFunc, pArgs);
-            Py_DECREF(pArgs);
-            if (pValue != NULL) {
-                qDebug() << "Result of call:" << PyLong_AsLong(pValue);
-                Py_DECREF(pValue);
-            }
-            else {
-                Py_DECREF(pFunc);
-                Py_DECREF(pModule);
-                qDebug() << "Call failed";
-            }
-        }
-        else {
-            if (PyErr_Occurred())
-                PyErr_Print();
-            qDebug() << "Cannot find function";
-        }
-        Py_XDECREF(pFunc);
-        Py_DECREF(pModule);
-    }
-    else {
-        PyErr_Print();
-        qDebug() << "Failed to load";
-    }
-
-    */
-#endif
 }
 
-QList<double> BehaviorTracker::getDLCLivePose(cv::Mat frame)
+void BehaviorTracker::startThread()
 {
-    qDebug() << "In getDLCPose_C";
-    QList<double> returnPose;
+    behavTrackWorker->moveToThread(workerThread);
 
-#ifdef USE_PYTHON
-    PyObject *mat;
+    QObject::connect(workerThread, SIGNAL (started()), behavTrackWorker, SLOT (startRunning()));
+    QObject::connect(this, SIGNAL( closeWorker()), behavTrackWorker, SLOT (close()));
+    // TODO: setup start connections
 
-    uchar* m = frame.ptr(0);
-    npy_intp mdim[] = { frame.rows, frame.cols, frame.channels()};
-
-    if (frame.channels() == 1)
-        mat = PyArray_SimpleNewFromData(2, mdim, NPY_UINT8, m);
-    else
-        mat = PyArray_SimpleNewFromData(3, mdim, NPY_UINT8, m);
-
-//    pArgs = PyTuple_New (1);
-//    PyTuple_SetItem (pArgs, 0, mat);
-//    pArgs = Py_BuildValue("(O)", mat);
-
-//    pValue = PyObject_CallMethod(pInstance,"sayHi",NULL);
-
-    if (m_DLCInitInfDone == false) {
-        pValue = PyObject_CallMethod(pInstance,"initInference", "(O)", mat);
-        m_DLCInitInfDone = true;
-    }
-    else
-        pValue = PyObject_CallMethod(pInstance,"getPose", "(O)", mat);
-
-    PyArrayObject *np_ret = reinterpret_cast<PyArrayObject*>(pValue);
-
-    // Convert back to C++ array and print.
-
-    npy_intp *arraySize = PyArray_SHAPE(np_ret);
-    QVector<QVector<float>> pose(arraySize[0], QVector<float>(arraySize[1]));
-    float *c_out;
-    c_out = reinterpret_cast<float*>(PyArray_DATA(np_ret));
-    for (int i = 0; i < arraySize[1]; i++){
-        for (int j = 0; j < arraySize[0]; j++) {
-            pose[j][i] = c_out[i * arraySize[0] + j];
-        }
-    }
-    qDebug() << pose;
-    QThread::msleep(500);
-
-
-
-//    Py_DECREF(pValue);
-    Py_DECREF(mat);
-//    Py_DECREF(pArgs);
-
-
-
-
-//    // Handle converstion from cv:Mat to numpy array
-//    int numChannels = frame.channels();
-////    int numElem = frame.cols * frame.rows * numChannels;
-
-//    // TODO: Maybe make a copy of the frame to avoid any pointer/memory issues
-//    uchar temp[300] = {0};
-//    uchar* m = temp; //frame.ptr(0); // new uchar(numElem);
-////    memcpy(m, frame.data, numElem * sizeof(uchar));
-
-////    npy_intp mdim[] = { frame.rows, frame.cols, frame.channels()};
-//    npy_intp mdim[] = {10,10,3};
-//    PyObject *mat;
-//    if (numChannels == 1)
-//        mat = PyArray_SimpleNewFromData(2, mdim, NPY_UINT8, m);
-//    else
-//        mat = PyArray_SimpleNewFromData(3, mdim, NPY_UINT8, m);
-
-//        ;
-
-//    PyObject *pArgs; // = Py_BuildValue("(O)", mat);
-//    PyObject *pName, *pModule, *pFunc;
-//    PyObject *pValue;
-
-//    pArgs = PyTuple_New (1);
-//    PyTuple_SetItem (pArgs, 0, mat);
-
-//    // Setup module and function(s)
-//    pName = PyUnicode_DecodeFSDefault("pythonTest");
-//    pModule = PyImport_Import(pName);
-//    Py_DECREF(pName);
-//    if (pModule != NULL) {
-
-//        if (m_DLCInitInfDone == false) {
-//            // Handles the first frame sent to DLC to init inference
-//            pFunc = PyObject_GetAttrString(pModule, "initInference");
-//            m_DLCInitInfDone = true;
-//        }
-//        else {
-//            pFunc = PyObject_GetAttrString(pModule, "getPose");
-//        }
-
-//        if (pFunc && PyCallable_Check(pFunc)) {
-////            qDebug() << "11111111";
-//            pValue = PyObject_CallObject(pFunc, pArgs);
-////            qDebug() << "2222222222";
-//            if (pValue != NULL) {
-//                qDebug() << "Result of call:"; //<< PyLong_AsLong(pValue);
-//                Py_DECREF(pValue);
-//            }
-//            else {
-//                Py_DECREF(pFunc);
-//                Py_DECREF(pModule);
-//                qDebug() << "Call failed";
-//            }
-//        }
-//        else {
-//            if (PyErr_Occurred())
-//                PyErr_Print();
-//            qDebug() << "Cannot find function";
-//        }
-//        Py_XDECREF(pFunc);
-//        Py_DECREF(pModule);
-//    }
-//    else {
-//        PyErr_Print();
-//        qDebug() << "Failed to load";
-//    }
-//    Py_DECREF(mat);
-//    Py_DECREF(pArgs);
-
-#endif
-    return returnPose;
+    workerThread->start();
 }
 
 void BehaviorTracker::startRunning()
 {
-    // Gets called when thread starts running
-
-    // All the Python init stuff below needed to happen once the thread was running for some reason?!?!?!
-#ifdef USE_PYTHON
-    // TODO: Set parameters in user config file
-    Py_SetPythonHome(L"C:/Users/dbaha/.conda/envs/dlc-live");
-    Py_Initialize();
-
-    // Adds .exe's directory to path to find py file
-    PyObject* sysPath = PySys_GetObject((char*)"path");
-    // TODO: Don't hard code this directory!
-    PyObject* programName = PyUnicode_FromString("C:/Users/dbaha/Documents/Projects/Miniscope-DAQ-QT-Software/source/");
-    PyList_Append(sysPath, programName);
-    Py_DECREF(programName);
-    Py_DECREF(sysPath);
-
-    initNumpy(); // Inits import_array() and handles the return of it
-
-#endif
-
-    setUpDLCLive();
-    // Will try using DLC's viewer before using our own
-
-    m_trackingRunning = true;
-    int acqFrameNum;
-    int frameIdx;
-    QList<QString> camNames = frameBuffer.keys();
-    while (m_trackingRunning) {
-        for (int camNum = 0; camNum < camNames.length(); camNum++) {
-            // Loops through cameras to see if new frames are ready
-            acqFrameNum = *m_acqFrameNum[camNames[camNum]];
-            if (acqFrameNum > currentFrameNumberProcessed[camNames[camNum]]) {
-                // New frame ready for behavior tracking
-                frameIdx = (acqFrameNum - 1) % bufferSize[camNames[camNum]];
-                getDLCLivePose(frameBuffer[camNames[camNum]][frameIdx]);
-                currentFrameNumberProcessed[camNames[camNum]] = acqFrameNum;
-            }
-        }
-        QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices
-
-    }
 
 }
 void BehaviorTracker::close()
 {
-    Py_Finalize();
+    emit closeWorker();
 //    view->close();
 }

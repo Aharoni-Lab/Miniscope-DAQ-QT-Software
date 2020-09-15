@@ -18,7 +18,7 @@
     },
     "behaviorTracker": {
         "type": "DeepLabCut-Live",
-        "modelPath": "C:/Users/dbaha/Documents/Data/DLC/DLC_Dog_resnet_50_iteration-0_shuffle-0",
+        "modelPath": "C:/Users/dbaha/Documents/Data/DLC/DLC_human_dancing_resnet_101_iteration-0_shuffle-1",
         "resize": 0.1
     },
     "devices": {

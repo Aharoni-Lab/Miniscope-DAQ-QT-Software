@@ -2,6 +2,7 @@
 #define BEHAVIORTRACKER_H
 
 #include "newquickview.h"
+#include "behaviortrackerworker.h"
 
 #include <opencv2/opencv.hpp>
 
@@ -12,12 +13,17 @@
 #include <QString>
 #include <QDebug>
 #include <QQuickItem>
+#include <QThread>
+#include <QSemaphore>
 
 #ifdef USE_PYTHON
  #undef slots
  #include <Python.h>
  #define slots
 #endif
+
+#define POSE_BUFFER_SIZE    128
+// TODO: Move a bunch of stuff into structs across the whole project
 
 class BehaviorTracker : public QObject
 {
@@ -27,23 +33,29 @@ public:
     void parseUserConfigTracker();
     void loadCamCalibration(QString name);
     void setBehaviorCamBufferParameters(QString name, cv::Mat* frameBuf, int bufSize, QAtomicInt* acqFrameNum);
+
     void cameraCalibration();
     void createView();
     void connectSnS();
     void setUpDLCLive();
-    QList<double> getDLCLivePose(cv::Mat frame);
+    void startThread();
 
 
 signals:
     void sendMessage(QString msg);
+    void closeWorker();
 
 public slots:
     void testSlot(QString msg) { qDebug() << msg; }
+
     void startRunning(); // Slot gets called when thread starts
     void close();
 
 private:
     int initNumpy();
+    BehaviorTrackerWorker *behavTrackWorker;
+    QThread *workerThread;
+
     QString m_trackerType;
     int numberOfCameras;
     // Info from behavior cameras
@@ -55,20 +67,22 @@ private:
     QMap<QString, int> currentFrameNumberProcessed;
     QJsonObject m_userConfig;
 
+    // For holding pose data
+    QSemaphore *freePoses;
+    QSemaphore *usedPoses;
+    QVector<float> poseBuffer[POSE_BUFFER_SIZE];
+    int poseFrameNumBuffer[POSE_BUFFER_SIZE];
+    QAtomicInt *m_btPoseFrameNum;
+    // TODO: THink about where to generate timestamps for pose?
+
+    int m_previousBtPoseFrameNum;
+
     // For GUI
     NewQuickView *view;
     QObject *rootObject;
 
+    // Tracking states
     bool m_trackingRunning;
-    bool m_DLCInitInfDone;
-
-    // For DLC python class
-    PyObject *pInstance;
-    PyObject *pClass;
-    PyObject *pModule;
-    PyObject *pDict;
-    PyObject *pArgs;
-    PyObject *pValue;
 };
 
 #endif // BEHAVIORTRACKER_H

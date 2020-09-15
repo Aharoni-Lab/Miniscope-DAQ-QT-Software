@@ -408,13 +408,7 @@ void backEnd::setupBehaviorTracker()
     }
 
     // Start behavior tracker thread
-    behavTrackerThread = new QThread;
-    behavTracker->moveToThread(behavTrackerThread);
-
-    QObject::connect(behavTrackerThread, SIGNAL (started()), behavTracker, SLOT (startRunning()));
-    // TODO: setup start connections
-
-    behavTrackerThread->start();
+    behavTracker->startThread();
 }
 
 bool backEnd::checkForUniqueDeviceNames()
@@ -502,7 +496,7 @@ void backEnd::constructUserConfigGUI()
         // Construct experiment interface
     }
     if (!ucBehaviorTracker.isEmpty()) {
-        behavTracker = new BehaviorTracker(NULL, ucBehaviorTracker);
+        behavTracker = new BehaviorTracker(NULL, m_userConfig);
         setupBehaviorTracker();
     }
 

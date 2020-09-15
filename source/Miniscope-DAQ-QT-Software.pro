@@ -20,6 +20,7 @@ SOURCES += \
         backend.cpp \
         behaviorcam.cpp \
         behaviortracker.cpp \
+        behaviortrackerworker.cpp \
         controlpanel.cpp \
         datasaver.cpp \
         main.cpp \
@@ -48,6 +49,7 @@ HEADERS += \
     backend.h \
     behaviorcam.h \
     behaviortracker.h \
+    behaviortrackerworker.h \
     controlpanel.h \
     datasaver.h \
     miniscope.h \
