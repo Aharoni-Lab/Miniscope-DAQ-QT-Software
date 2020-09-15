@@ -38,7 +38,7 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig) :
 
 
     behavTrackWorker = new BehaviorTrackerWorker(NULL, m_userConfig["behaviorTracker"].toObject());
-    behavTrackWorker->setPoseBufferParameters(poseBuffer, poseFrameNumBuffer, POSE_BUFFER_SIZE, m_btPoseCount, freePoses, usedPoses);
+    behavTrackWorker->setPoseBufferParameters(poseBuffer, poseFrameNumBuffer, POSE_BUFFER_SIZE, m_btPoseCount, freePoses, usedPoses, colors);
     workerThread = new QThread();
 
 }
@@ -148,15 +148,15 @@ void BehaviorTracker::sendNewFrame()
 
         }
         // TODO: Shouldn't hardcore pose vector size/shape
-        QVector<float> pose;
+        QVector<float> pose = poseBuffer[(poseNum - 1) % POSE_BUFFER_SIZE];
         int w, h, l;
         for (int i = 0; i < 20; i++) {
-            pose = poseBuffer[(poseNum - 1) % POSE_BUFFER_SIZE];
+
             w = pose[i];
             h = pose[i + 20];
             l = pose[i + 40];
 //            if (l > 0.01)
-                cv::circle(cvFrame, cv::Point(w,h),5,cv::Scalar(20,20,255),cv::FILLED);
+                cv::circle(cvFrame, cv::Point(w,h),3,cv::Scalar(colors[i*3],colors[i*3+1],colors[i*3+2]),cv::FILLED);
         }
         qFrame = QImage(cvFrame.data, cvFrame.cols, cvFrame.rows, cvFrame.step, QImage::Format_RGB888);
         vidDisplay->setDisplayFrame(qFrame);

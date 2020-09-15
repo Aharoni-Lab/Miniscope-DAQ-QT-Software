@@ -134,7 +134,7 @@ void BehaviorTrackerWorker::setParameters(QString name, cv::Mat *frameBuf, int b
     numberOfCameras++;
 }
 
-void BehaviorTrackerWorker::setPoseBufferParameters(QVector<float> *poseBuf, int *poseFrameNumBuf, int poseBufSize, QAtomicInt *btPoseFrameNum, QSemaphore *free, QSemaphore *used)
+void BehaviorTrackerWorker::setPoseBufferParameters(QVector<float> *poseBuf, int *poseFrameNumBuf, int poseBufSize, QAtomicInt *btPoseFrameNum, QSemaphore *free, QSemaphore *used, uint8_t *pColors)
 {
     poseBuffer = poseBuf;
     poseFrameNumBuffer = poseFrameNumBuf;
@@ -142,6 +142,30 @@ void BehaviorTrackerWorker::setPoseBufferParameters(QVector<float> *poseBuf, int
     m_btPoseCount = btPoseFrameNum;
     freePoses = free;
     usedPoses = used;
+
+    colors = pColors;
+}
+
+void BehaviorTrackerWorker::getColors()
+{
+    // TODO: Currently number of colors is hardcoded. Change this
+    pValue = PyObject_CallMethod(pInstance,"getColors", NULL);
+
+    PyArrayObject *np_ret = reinterpret_cast<PyArrayObject*>(pValue);
+
+    // Convert back to C++ array and print.
+
+//    npy_intp *arraySize = PyArray_SHAPE(np_ret);
+//    uint8_t colors[20][3];
+
+    uint8_t *c_out;
+    c_out = reinterpret_cast<uint8_t*>(PyArray_DATA(np_ret));
+
+    for (int i = 0; i < 20; i++){
+            colors[i*3] = c_out[i*3];
+            colors[i*3+1] = c_out[i*3+1];
+            colors[i*3+2] = c_out[i*3+2];
+     }
 }
 
 void BehaviorTrackerWorker::startRunning()
@@ -153,6 +177,8 @@ void BehaviorTrackerWorker::startRunning()
     initNumpy(); // Inits import_array() and handles the return of it
 
     setUpDLCLive();
+
+    getColors();
     // Will try using DLC's viewer before using our own
 
     m_trackingRunning = true;

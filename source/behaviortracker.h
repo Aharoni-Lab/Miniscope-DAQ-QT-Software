@@ -82,6 +82,7 @@ private:
     NewQuickView *view;
     QObject *rootObject;
     VideoDisplay *vidDisplay;
+    uint8_t colors[20*3]; // TODO: Shouldn't be hardcoding this!
 
     // Tracking states
     bool m_trackingRunning;
