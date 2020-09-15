@@ -6,7 +6,7 @@ class MiniDLC:
     def __init__(self, modelPath, resizeVal):
         print("In init")
         self.modelPath = modelPath
-        self.resize = .25 #resizeVal
+        self.resize = resizeVal
         self.dlcLive = DLCLive(modelPath, resize=resizeVal, display=False)
 
     def sayHi(self):

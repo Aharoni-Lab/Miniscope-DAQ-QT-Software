@@ -112,7 +112,7 @@ QVector<float> BehaviorTrackerWorker::getDLCLivePose(cv::Mat frame)
             pose[i] = c_out[i];
     }
 //    qDebug() << pose;
-    QThread::msleep(50);
+//    QThread::msleep(50);
 
 
 

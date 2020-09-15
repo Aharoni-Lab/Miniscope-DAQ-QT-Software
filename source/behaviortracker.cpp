@@ -142,11 +142,23 @@ void BehaviorTracker::sendNewFrame()
         int frameIdx = frameNum % bufferSize.first();
         if (frameBuffer.first()[frameIdx].channels() == 1) {
             cv::cvtColor(frameBuffer.first()[frameIdx], cvFrame, cv::COLOR_GRAY2BGR);
-            qFrame = QImage(cvFrame.data, cvFrame.cols, cvFrame.rows, cvFrame.step, QImage::Format_RGB888);
         }
-        else
-            qFrame = QImage(frameBuffer.first()[frameIdx].data, frameBuffer.first()[frameIdx].cols, frameBuffer.first()[frameIdx].rows, frameBuffer.first()[frameIdx].step, QImage::Format_RGB888);
+        else {
+            cvFrame = frameBuffer.first()[frameIdx].clone();
 
+        }
+        // TODO: Shouldn't hardcore pose vector size/shape
+        QVector<float> pose;
+        int w, h, l;
+        for (int i = 0; i < 20; i++) {
+            pose = poseBuffer[(poseNum - 1) % POSE_BUFFER_SIZE];
+            w = pose[i];
+            h = pose[i + 20];
+            l = pose[i + 40];
+//            if (l > 0.01)
+                cv::circle(cvFrame, cv::Point(w,h),5,cv::Scalar(20,20,255),cv::FILLED);
+        }
+        qFrame = QImage(cvFrame.data, cvFrame.cols, cvFrame.rows, cvFrame.step, QImage::Format_RGB888);
         vidDisplay->setDisplayFrame(qFrame);
     }
     // TODO: Move QSemaphores to dataSaver
