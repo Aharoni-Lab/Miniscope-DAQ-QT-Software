@@ -72,7 +72,7 @@ private:
     QSemaphore *usedPoses;
     QVector<float> poseBuffer[POSE_BUFFER_SIZE];
     int poseFrameNumBuffer[POSE_BUFFER_SIZE];
-    QAtomicInt *m_btPoseFrameNum;
+    QAtomicInt *m_btPoseCount;
     // TODO: THink about where to generate timestamps for pose?
 
     int m_previousBtPoseFrameNum;

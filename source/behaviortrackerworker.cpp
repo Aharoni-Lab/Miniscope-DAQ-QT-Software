@@ -108,13 +108,11 @@ QVector<float> BehaviorTrackerWorker::getDLCLivePose(cv::Mat frame)
     float *c_out;
     c_out = reinterpret_cast<float*>(PyArray_DATA(np_ret));
 
-    for (int i = 0; i < arraySize[1]; i++){
-        for (int j = 0; j < arraySize[0]; j++) {
-            pose[i * arraySize[0] + j] = c_out[i * arraySize[0] + j];
-        }
+    for (int i = 0; i < arraySize[0] * arraySize[1]; i++){
+            pose[i] = c_out[i];
     }
-    qDebug() << pose;
-    QThread::msleep(1000);
+//    qDebug() << pose;
+    QThread::msleep(50);
 
 
 
@@ -136,11 +134,12 @@ void BehaviorTrackerWorker::setParameters(QString name, cv::Mat *frameBuf, int b
     numberOfCameras++;
 }
 
-void BehaviorTrackerWorker::setPoseBufferParameters(QVector<float> *poseBuf, int *poseFrameNumBuf, QAtomicInt *btPoseFrameNum, QSemaphore *free, QSemaphore *used)
+void BehaviorTrackerWorker::setPoseBufferParameters(QVector<float> *poseBuf, int *poseFrameNumBuf, int poseBufSize, QAtomicInt *btPoseFrameNum, QSemaphore *free, QSemaphore *used)
 {
     poseBuffer = poseBuf;
     poseFrameNumBuffer = poseFrameNumBuf;
-    m_btPoseFrameNum = btPoseFrameNum;
+    poseBufferSize = poseBufSize;
+    m_btPoseCount = btPoseFrameNum;
     freePoses = free;
     usedPoses = used;
 }
@@ -159,6 +158,7 @@ void BehaviorTrackerWorker::startRunning()
     m_trackingRunning = true;
     int acqFrameNum;
     int frameIdx;
+    int idx = 0;
     QList<QString> camNames = frameBuffer.keys();
     while (m_trackingRunning) {
         for (int camNum = 0; camNum < camNames.length(); camNum++) {
@@ -167,8 +167,23 @@ void BehaviorTrackerWorker::startRunning()
             if (acqFrameNum > currentFrameNumberProcessed[camNames[camNum]]) {
                 // New frame ready for behavior tracking
                 frameIdx = (acqFrameNum - 1) % bufferSize[camNames[camNum]];
-                getDLCLivePose(frameBuffer[camNames[camNum]][frameIdx]);
+                poseBuffer[idx % poseBufferSize] = getDLCLivePose(frameBuffer[camNames[camNum]][frameIdx]);
+                poseFrameNumBuffer[idx % poseBufferSize] = (acqFrameNum - 1);
                 currentFrameNumberProcessed[camNames[camNum]] = acqFrameNum;
+//                qDebug() << acqFrameNum;
+                if (!freePoses->tryAcquire()) {
+                    // Failed to acquire
+                    // Pose will be thrown away
+                    if (freePoses->available() == 0) {
+                        sendMessage("Warning: Pose buffer full");
+                        QThread::msleep(100);
+                    }
+                }
+                else {
+                    idx++;
+                    m_btPoseCount->operator++();
+                    usedPoses->release();
+                }
             }
         }
         QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices

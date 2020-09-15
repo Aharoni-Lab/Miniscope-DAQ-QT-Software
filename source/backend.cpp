@@ -497,6 +497,8 @@ void backEnd::constructUserConfigGUI()
     }
     if (!ucBehaviorTracker.isEmpty()) {
         behavTracker = new BehaviorTracker(NULL, m_userConfig);
+        QObject::connect(behavTracker, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+
         setupBehaviorTracker();
     }
 

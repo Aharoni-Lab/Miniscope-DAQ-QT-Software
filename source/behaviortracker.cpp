@@ -24,10 +24,10 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig) :
     QObject(parent),
     numberOfCameras(0),
     m_trackingRunning(false),
-    m_btPoseFrameNum(new QAtomicInt(0)),
+    m_btPoseCount(new QAtomicInt(0)),
     m_previousBtPoseFrameNum(0),
-    usedPoses(new QSemaphore),
-    freePoses(new QSemaphore)
+    usedPoses(new QSemaphore()),
+    freePoses(new QSemaphore())
 {
 
     freePoses->release(POSE_BUFFER_SIZE);
@@ -37,7 +37,7 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig) :
 
 
     behavTrackWorker = new BehaviorTrackerWorker(NULL, m_userConfig["behaviorTracker"].toObject());
-    behavTrackWorker->setPoseBufferParameters(poseBuffer, poseFrameNumBuffer, m_btPoseFrameNum, freePoses, usedPoses);
+    behavTrackWorker->setPoseBufferParameters(poseBuffer, poseFrameNumBuffer, POSE_BUFFER_SIZE, m_btPoseCount, freePoses, usedPoses);
     workerThread = new QThread();
 
 //    createView();
@@ -120,6 +120,8 @@ void BehaviorTracker::startThread()
 
     QObject::connect(workerThread, SIGNAL (started()), behavTrackWorker, SLOT (startRunning()));
     QObject::connect(this, SIGNAL( closeWorker()), behavTrackWorker, SLOT (close()));
+    QObject::connect(behavTrackWorker, &BehaviorTrackerWorker::sendMessage, this, &BehaviorTracker::sendMessage);
+
     // TODO: setup start connections
 
     workerThread->start();

@@ -28,7 +28,7 @@ public:
     void setUpDLCLive();
     QVector<float> getDLCLivePose(cv::Mat frame);
     void setParameters(QString name, cv::Mat *frameBuf, int bufSize, QAtomicInt *acqFrameNum);
-    void setPoseBufferParameters(QVector<float> *poseBuf, int *poseFrameNumBuf, QAtomicInt *btPoseFrameNum, QSemaphore *free, QSemaphore *used);
+    void setPoseBufferParameters(QVector<float> *poseBuf, int *poseFrameNumBuf, int poseBufSize, QAtomicInt *btPoseFrameNum, QSemaphore *free, QSemaphore *used);
 
 signals:
     void sendMessage(QString msg);
@@ -59,7 +59,7 @@ private:
     QSemaphore *usedPoses;
     QVector<float> *poseBuffer;
     int *poseFrameNumBuffer;
-    QAtomicInt *m_btPoseFrameNum;
+    QAtomicInt *m_btPoseCount;
 
     // For DLC python class
     PyObject *pInstance;
