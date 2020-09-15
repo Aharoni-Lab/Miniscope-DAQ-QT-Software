@@ -176,7 +176,7 @@ void BehaviorTrackerWorker::startRunning()
                     // Pose will be thrown away
                     if (freePoses->available() == 0) {
                         sendMessage("Warning: Pose buffer full");
-                        QThread::msleep(100);
+                        QThread::msleep(500);
                     }
                 }
                 else {

@@ -1,5 +1,6 @@
 #include "behaviortracker.h"
 #include "newquickview.h"
+#include "videodisplay.h"
 #include "behaviortrackerworker.h"
 
 #include <opencv2/opencv.hpp>
@@ -40,7 +41,6 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig) :
     behavTrackWorker->setPoseBufferParameters(poseBuffer, poseFrameNumBuffer, POSE_BUFFER_SIZE, m_btPoseCount, freePoses, usedPoses);
     workerThread = new QThread();
 
-//    createView();
 }
 
 int BehaviorTracker::initNumpy()
@@ -82,25 +82,28 @@ void BehaviorTracker::cameraCalibration()
 
 void BehaviorTracker::createView()
 {
-    QScreen *screen = QGuiApplication::primaryScreen();
-    QRect  screenGeometry = screen->geometry();
-    int height = screenGeometry.height();
-    int width = screenGeometry.width();
+    QJsonObject btConfig = m_userConfig["behaviorTracker"].toObject();
 
-    const QUrl url(QStringLiteral("qrc:/behaviorTracker.qml"));
+    qmlRegisterType<VideoDisplay>("VideoDisplay", 1, 0, "VideoDisplay");
+    const QUrl url("qrc:/behaviorTracker.qml");
     view = new NewQuickView(url);
 
-    view->setWidth(400);
-    view->setHeight(200);
+    // TODO: Probably should grab this from the behavior cam size...
+    view->setWidth(btConfig["windowWidth"].toInt(640) * btConfig["windowScale"].toDouble(1));
+    view->setHeight(btConfig["windowHeight"].toInt(480) * btConfig["windowScale"].toDouble(1));
+
     view->setTitle("Behavior Tracker");
-    view->setX(400);
-    view->setY(50);
+    view->setX(btConfig["windowX"].toInt(1));
+    view->setY(btConfig["windowY"].toInt(1));
+
+#ifdef Q_OS_WINDOWS
+    view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
+#endif
     view->show();
 
     rootObject = view->rootObject();
-//    messageTextArea = rootObject->findChild<QQuickItem*>("messageTextArea");
-
-    connectSnS();
+    vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
+    QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &BehaviorTracker::sendNewFrame);
 }
 
 void BehaviorTracker::connectSnS()
@@ -125,6 +128,32 @@ void BehaviorTracker::startThread()
     // TODO: setup start connections
 
     workerThread->start();
+}
+
+void BehaviorTracker::sendNewFrame()
+{
+    // TODO: currently writen to handle only 1 camera
+    int poseNum = *m_btPoseCount;
+    if (poseNum > m_previousBtPoseFrameNum) {
+        m_previousBtPoseFrameNum = poseNum;
+        cv::Mat cvFrame;
+        QImage qFrame;
+        int frameNum = poseFrameNumBuffer[(poseNum - 1) % POSE_BUFFER_SIZE];
+        int frameIdx = frameNum % bufferSize.first();
+        if (frameBuffer.first()[frameIdx].channels() == 1) {
+            cv::cvtColor(frameBuffer.first()[frameIdx], cvFrame, cv::COLOR_GRAY2BGR);
+            qFrame = QImage(cvFrame.data, cvFrame.cols, cvFrame.rows, cvFrame.step, QImage::Format_RGB888);
+        }
+        else
+            qFrame = QImage(frameBuffer.first()[frameIdx].data, frameBuffer.first()[frameIdx].cols, frameBuffer.first()[frameIdx].rows, frameBuffer.first()[frameIdx].step, QImage::Format_RGB888);
+
+        vidDisplay->setDisplayFrame(qFrame);
+    }
+    // TODO: Move QSemaphores to dataSaver
+    usedPoses->tryAcquire();
+    freePoses->release();
+
+
 }
 
 void BehaviorTracker::startRunning()

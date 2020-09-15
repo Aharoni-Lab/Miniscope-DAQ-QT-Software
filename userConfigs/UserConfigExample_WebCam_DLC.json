@@ -19,13 +19,17 @@
     "behaviorTracker": {
         "type": "DeepLabCut-Live",
         "modelPath": "C:/Users/dbaha/Documents/Data/DLC/DLC_human_dancing_resnet_101_iteration-0_shuffle-1",
-        "resize": 0.1
+        "resize": 0.1,
+        "windowWidth": 640,
+        "windowHeight": 480,
+        "windowX": 100,
+        "windowY": 100
     },
     "devices": {
        "cameras": [
             {
                 "deviceName": "BehavCam 0",
-                "deviceType": "WebCam-1280x720",
+                "deviceType": "WebCam-640x480",
                 "deviceID": 0,
 				"showSaturation": true,
 				"ROI": {

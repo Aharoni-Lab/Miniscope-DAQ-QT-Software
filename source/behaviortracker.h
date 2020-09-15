@@ -2,6 +2,7 @@
 #define BEHAVIORTRACKER_H
 
 #include "newquickview.h"
+#include "videodisplay.h"
 #include "behaviortrackerworker.h"
 
 #include <opencv2/opencv.hpp>
@@ -47,7 +48,7 @@ signals:
 
 public slots:
     void testSlot(QString msg) { qDebug() << msg; }
-
+    void sendNewFrame();
     void startRunning(); // Slot gets called when thread starts
     void close();
 
@@ -80,6 +81,7 @@ private:
     // For GUI
     NewQuickView *view;
     QObject *rootObject;
+    VideoDisplay *vidDisplay;
 
     // Tracking states
     bool m_trackingRunning;
