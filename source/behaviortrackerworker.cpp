@@ -28,15 +28,16 @@ void BehaviorTrackerWorker::initPython()
     // All the Python init stuff below needed to happen once the thread was running for some reason?!?!?!
 #ifdef USE_PYTHON
     // TODO: Set parameters in user config file
-    Py_SetPythonHome(L"C:/Users/dbaha/.conda/envs/dlc-live");
+    Py_SetPythonHome(m_btConfig["pyEnvPath"].toString().toStdWString().c_str());
     Py_Initialize();
 
     // Adds .exe's directory to path to find py file
     PyObject* sysPath = PySys_GetObject((char*)"path");
+    PyList_Append(sysPath, PyUnicode_FromString(".")); // appends path with current dir
     // TODO: Don't hard code this directory!
-    PyObject* programName = PyUnicode_FromString("C:/Users/dbaha/Documents/Projects/Miniscope-DAQ-QT-Software/source/");
-    PyList_Append(sysPath, programName);
-    Py_DECREF(programName);
+//    PyObject* programName = PyUnicode_FromString("C:/Users/dbaha/Documents/Projects/Miniscope-DAQ-QT-Software/source/");
+//    PyList_Append(sysPath, programName);
+//    Py_DECREF(programName);
     Py_DECREF(sysPath);
 #endif
 }
@@ -51,7 +52,7 @@ void BehaviorTrackerWorker::setUpDLCLive()
 #ifdef USE_PYTHON
     PyObject *pName;
 
-    pName = PyUnicode_DecodeFSDefault("pythonTest");
+    pName = PyUnicode_DecodeFSDefault("Scripts.DLCwrapper");
     pModule = PyImport_Import(pName);
     Py_DECREF(pName);
     pDict = PyModule_GetDict(pModule);

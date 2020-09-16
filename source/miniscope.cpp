@@ -279,7 +279,7 @@ void Miniscope::getMiniscopeConfig(QString deviceType) {
     QFile file;
     m_deviceType = deviceType;
 //    file.setFileName(":/deviceConfigs/miniscopes.json");
-    file.setFileName("./deviceConfigs/miniscopes.json");
+    file.setFileName("deviceConfigs/miniscopes.json");
     file.open(QIODevice::ReadOnly | QIODevice::Text);
     jsonFile = file.readAll();
     file.close();

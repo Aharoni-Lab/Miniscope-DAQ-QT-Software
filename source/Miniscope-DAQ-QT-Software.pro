@@ -58,7 +58,10 @@ HEADERS += \
     videostreamocv.h
 
 DISTFILES += \
-    pythonTest.py
+    ../Python/DLCwrapper.py \
+    ../Scripts/DLCwrapper.py \
+    ../deviceConfigs/behaviorCams.json \
+    ../deviceConfigs/miniscopes.json
 
 win32 {
     # Path to your openCV .lib file(s)
@@ -92,11 +95,13 @@ win32 {
 }
 
 # Move user and device configs to build directory
-copydata.commands = $(COPY_DIR) \"$$shell_path($$PWD\\..\\deviceConfigs)\" \"$$shell_path($$OUT_PWD\\deviceConfigs)\"
-copydata2.commands = $(COPY_DIR) \"$$shell_path($$PWD\\..\\userConfigs)\" \"$$shell_path($$OUT_PWD\\userConfigs)\"
-first.depends = $(first) copydata copydata2
+copydata.commands = $(COPY_DIR) \"$$shell_path($$PWD\\..\\deviceConfigs)\" \"$$shell_path($$OUT_PWD\\release\\deviceConfigs)\"
+copydata2.commands = $(COPY_DIR) \"$$shell_path($$PWD\\..\\userConfigs)\" \"$$shell_path($$OUT_PWD\\release\\userConfigs)\"
+copydata3.commands = $(COPY_DIR) \"$$shell_path($$PWD\\..\\Scripts)\" \"$$shell_path($$OUT_PWD\\release\\Scripts)\"
+first.depends = $(first) copydata copydata2 copydata3
 export(first.depends)
 export(copydata.commands)
 export(copydata2.commands)
+export(copydata3.commands)
 
-QMAKE_EXTRA_TARGETS += first copydata copydata2
+QMAKE_EXTRA_TARGETS += first copydata copydata2 copydata3

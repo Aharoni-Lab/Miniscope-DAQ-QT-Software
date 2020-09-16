@@ -119,6 +119,13 @@ void BehaviorTracker::setUpDLCLive()
 
 void BehaviorTracker::startThread()
 {
+    //TODO: Stop thread and working if missing path to py env.
+    if (m_userConfig["behaviorTracker"].toObject().contains("pyEnvPath"))
+        sendMessage("Using \"" + m_userConfig["behaviorTracker"].toObject()["pyEnvPath"].toString() + "\" as Python Environment.");
+    else
+        // Py environment path missing
+        sendMessage("Error: Path to Python Environment (\"pyEnvPath:\") missing from user config file!");
+
     behavTrackWorker->moveToThread(workerThread);
 
     QObject::connect(workerThread, SIGNAL (started()), behavTrackWorker, SLOT (startRunning()));
@@ -149,14 +156,15 @@ void BehaviorTracker::sendNewFrame()
         }
         // TODO: Shouldn't hardcore pose vector size/shape
         QVector<float> pose = poseBuffer[(poseNum - 1) % POSE_BUFFER_SIZE];
-        int w, h, l;
+        float w, h, l;
         for (int i = 0; i < 20; i++) {
-
+//            if ((i < 5) || ((i >=8) && (i <= 15))) {
             w = pose[i];
             h = pose[i + 20];
             l = pose[i + 40];
-//            if (l > 0.01)
-                cv::circle(cvFrame, cv::Point(w,h),3,cv::Scalar(colors[i*3],colors[i*3+1],colors[i*3+2]),cv::FILLED);
+            if (l > 0.35)
+                cv::circle(cvFrame, cv::Point(w,h),3,cv::Scalar(colors[i*3]*1.5,colors[i*3+1]*1.5,colors[i*3+2]*1.5),cv::FILLED);
+//        }
         }
         qFrame = QImage(cvFrame.data, cvFrame.cols, cvFrame.rows, cvFrame.step, QImage::Format_RGB888);
         vidDisplay->setDisplayFrame(qFrame);

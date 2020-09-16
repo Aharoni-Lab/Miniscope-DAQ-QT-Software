@@ -281,8 +281,7 @@ void BehaviorCam::getBehavCamConfig(QString deviceType) {
     QString jsonFile;
     QFile file;
     m_deviceType = deviceType;
-//    file.setFileName(":/deviceConfigs/behaviorCams.json");
-    file.setFileName("./deviceConfigs/behaviorCams.json");
+    file.setFileName("deviceConfigs/behaviorCams.json");
     file.open(QIODevice::ReadOnly | QIODevice::Text);
     jsonFile = file.readAll();
     file.close();
