@@ -21,7 +21,7 @@
         "pyEnvPath": "C:/Users/dbaha/.conda/envs/dlc-live",
         "modelPath": "C:/Users/dbaha/Documents/Data/DLC/DLC_Dog_resnet_50_iteration-0_shuffle-0",
         "modelPathHuman": "C:/Users/dbaha/Documents/Data/DLC/DLC_human_dancing_resnet_101_iteration-0_shuffle-1",
-        "resize": 0.6,
+        "resize": 1,
         "windowWidth": 640,
         "windowHeight": 480,
         "windowX": 100,

@@ -2,13 +2,25 @@ import numpy as np
 import cv2
 import colorcet as cc
 from dlclive import DLCLive, Processor
+import tensorflow as tf
 
 class MiniDLC:
     def __init__(self, modelPath, resizeVal):
         print("In init")
         self.modelPath = modelPath
         self.resize = resizeVal
-        self.dlcLive = DLCLive(modelPath, resize=resizeVal, display=False)
+
+        # Some Notes:
+        # Need to install CUDA from NVidia. I had to use v10.1 and move all needed .dll's to C:Windows\System32
+        # Need to install cuDNN from NVidia. Follow install instructions and still move .dll to System32 folder
+        # Was still getting a CUDNN_STATUS_ALLOC_FAILED error so added the "allow_growth" code below to get it to work
+
+        # If having error: Could not create cudnn handle: CUDNN_STATUS_ALLOC_FAILED uncomment below
+        config = tf.compat.v1.ConfigProto()
+        config.gpu_options.allow_growth = True
+        self.dlcLive = DLCLive(modelPath, resize=resizeVal, tf_config=config)
+        # otherwise use:
+#        self.dlcLive = DLCLive(modelPath, resize=resizeVal)
 
     def sayHi(self):
         print(self.resize)
