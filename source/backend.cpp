@@ -327,6 +327,15 @@ void backEnd::setupDataSaver()
         dataSaver->setROI(behavCam[i]->getDeviceName(), behavCam[i]->getROI());
     }
 
+    if (!ucBehaviorTracker.isEmpty()) {
+        dataSaver->setPoseBufferParameters(behavTracker->getPoseBufferPointer(),
+                                           behavTracker->getPoseFrameNumBufferPointer(),
+                                           behavTracker->getPoseBufferSize(),
+                                           behavTracker->getFreePosePointer(),
+                                           behavTracker->getUsedPosePointer());
+
+    }
+
     dataSaverThread = new QThread;
     dataSaver->moveToThread(dataSaverThread);
 

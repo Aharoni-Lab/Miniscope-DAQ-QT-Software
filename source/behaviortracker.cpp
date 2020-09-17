@@ -28,7 +28,8 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig) :
     m_btPoseCount(new QAtomicInt(0)),
     m_previousBtPoseFrameNum(0),
     usedPoses(new QSemaphore()),
-    freePoses(new QSemaphore())
+    freePoses(new QSemaphore()),
+    m_pCutoffDisplay(0)
 {
 
     freePoses->release(POSE_BUFFER_SIZE);
@@ -50,8 +51,10 @@ int BehaviorTracker::initNumpy()
 
 void BehaviorTracker::parseUserConfigTracker()
 {
+    m_btConfig = m_userConfig["behaviorTracker"].toObject();
 //    QJsonObject jTracker = m_userConfig["behaviorTracker"].toObject();
 //    m_trackerType = jTracker["type"].toString("None");
+    m_pCutoffDisplay = m_btConfig["pCutoffDisplay"].toDouble(0);
 
 }
 
@@ -162,7 +165,7 @@ void BehaviorTracker::sendNewFrame()
             w = pose[i];
             h = pose[i + 20];
             l = pose[i + 40];
-            if (l > 0.35)
+            if (l > m_pCutoffDisplay)
                 cv::circle(cvFrame, cv::Point(w,h),3,cv::Scalar(colors[i*3]*1.5,colors[i*3+1]*1.5,colors[i*3+2]*1.5),cv::FILLED);
 //        }
         }
@@ -170,8 +173,8 @@ void BehaviorTracker::sendNewFrame()
         vidDisplay->setDisplayFrame(qFrame);
     }
     // TODO: Move QSemaphores to dataSaver
-    usedPoses->tryAcquire();
-    freePoses->release();
+//    usedPoses->tryAcquire();
+//    freePoses->release();
 
 
 }

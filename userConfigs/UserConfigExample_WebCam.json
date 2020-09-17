@@ -39,7 +39,7 @@
 				},
                 "cameraCalibrationFileLocation": "",
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
-                "compression": "MJPG",
+                "compression": "FFV1",
                 "framesPerFile": 1000,
                 "windowScale": 0.75,
                 "windowX": 800,

@@ -41,6 +41,12 @@ public:
     void setUpDLCLive();
     void startThread();
 
+    QVector<float>* getPoseBufferPointer() { return poseBuffer;}
+    int* getPoseFrameNumBufferPointer() {return poseFrameNumBuffer; }
+    int getPoseBufferSize() { return POSE_BUFFER_SIZE; }
+    QSemaphore* getFreePosePointer() { return freePoses; }
+    QSemaphore* getUsedPosePointer() { return usedPoses; }
+
 
 signals:
     void sendMessage(QString msg);
@@ -86,6 +92,9 @@ private:
 
     // Tracking states
     bool m_trackingRunning;
+
+    double m_pCutoffDisplay;
+    QJsonObject m_btConfig;
 };
 
 #endif // BEHAVIORTRACKER_H

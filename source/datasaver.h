@@ -32,6 +32,8 @@ public:
     void setupBaseDirectory();
     void setROI(QString name, int *bbox);
 
+    void setPoseBufferParameters(QVector<float>* poseBuf, int* poseFrameNumBuf, int poseBufSize, QSemaphore* freePos, QSemaphore* usedPos);
+
 signals:
     void sendMessage(QString msg);
 
@@ -77,10 +79,21 @@ private:
     QMap<QString, QFile*> headOriFile;
     QMap<QString, QTextStream*> headOriStream;
 
+    QFile* behavTrackerFile;
+    QTextStream* behavTrackerStream;
+
     QMap<QString, int*> ROI;
 
     QFile* noteFile;
     QTextStream* noteStream;
+
+    // Pose pointers (turn into struct!!!!!)
+    QVector<float>* poseBuffer;
+    int* poseFrameNumBuffer;
+    int poseBufferSize;
+    int btPoseCount;
+    QSemaphore* freePoses;
+    QSemaphore* usedPoses;
 
     bool m_recording;
     bool m_running;

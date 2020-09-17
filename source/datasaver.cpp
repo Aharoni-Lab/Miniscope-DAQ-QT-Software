@@ -72,6 +72,11 @@ bool DataSaver::setupFilePaths()
         deviceDirectory[tempString] = baseDirectory + "/" + tempString2;
         QDir().mkdir(deviceDirectory[tempString]);
     }
+
+    if (!m_userConfig["behaviorTracker"].toObject().isEmpty()) {
+        QDir().mkdir(baseDirectory + "/behaviorTracker");
+    }
+
     // Experiment Directory
     QDir().mkdir(baseDirectory + "/experiment");
     return true;
@@ -141,13 +146,32 @@ void DataSaver::startRunning()
     }
 
     m_running = true;
-    int i;
+    int i, j;
     int bufPosition;
+    int poseBufPosition;
     int fileNum;
     bool isColor;
+
+    QString poseData;
+
     QString tempStr;
     QStringList names;
     while(m_running) {
+        // For Behavior Tracker
+        while (usedPoses->tryAcquire()) {
+            if (m_recording) {
+                poseBufPosition = btPoseCount % poseBufferSize;
+                poseData.clear();
+                poseData.append(QString::number(poseFrameNumBuffer[poseBufPosition]) + ",");
+
+                for (j = 0; j < poseBuffer[poseBufPosition].length(); j++)
+                    poseData.append(QString::number(poseBuffer[poseBufPosition][j], 'g', 3) + ",");
+                *behavTrackerStream << poseData << endl;
+            }
+            btPoseCount++;
+            freePoses->release(1);
+        }
+
         // for video streams
         names = frameBuffer.keys();
         for (i = 0; i < frameBuffer.size(); i++) {
@@ -218,15 +242,6 @@ void DataSaver::startRunning()
 
 void DataSaver::startRecording()
 {
-    // setupBaseDirectory() is called within setupFilePaths() right after recording start time is set. This initial call to setupBaseDir shouldn't be needed.
-//    if (baseDirectory.isEmpty()) {
-//        setupBaseDirectory();
-//        // give up if a base directory still can not be found
-//        if (baseDirectory.isEmpty()) {
-//            qWarning() << "Could not start recording since the base directory is empty.";
-//            return;
-//        }
-//    }
 
     if (m_recording) {
         // Data saver is already recording. This likely happens if there is a manual record and then an external trig record
@@ -260,7 +275,21 @@ void DataSaver::startRecording()
             framesPerFile[deviceName] = m_userConfig["devices"].toObject()["cameras"].toArray()[i].toObject()["framesPerFile"].toInt(1000);
         }
 
-        // TODO: Create data files
+        // For Behavior Tracker
+        if (!m_userConfig["behaviorTracker"].toObject().isEmpty()) {
+            // TODO: Add behavior camera name(s) that are used in behaviorTracker
+            jDoc.setObject(m_userConfig["behaviorTracker"].toObject());
+            saveJson(jDoc, baseDirectory + "/behaviorTracker/metaData.json");
+
+            // Create pose data file
+            behavTrackerFile = new QFile(baseDirectory + "/behaviorTracker/pose.csv");
+            behavTrackerFile->open(QFile::WriteOnly | QFile::Truncate);
+            behavTrackerStream = new QTextStream(behavTrackerFile);
+
+            // TODO: Add header info for behav tracker csv file here
+            *behavTrackerStream << "DLC-Live Pose Data." << endl;
+        }
+
         QString tempStr;
         QStringList keys = frameBuffer.keys();
         for (int i = 0; i < keys.length(); i++) {
@@ -317,6 +346,10 @@ void DataSaver::stopRecording()
             if (headOriFile[keys[i]]->isOpen())
                 headOriFile[keys[i]]->close();
     }
+    if (!m_userConfig["behaviorTracker"].toObject().isEmpty()) {
+        if (behavTrackerFile->isOpen())
+            behavTrackerFile->close();
+    }
     noteFile->close();
 }
 
@@ -365,34 +398,26 @@ void DataSaver::takeNote(QString note)
 
 void DataSaver::setDataCompression(QString name, QString type)
 {
-//    if (type == "MJPG")
-//        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('M','J','P','G');
-//    else if (type == "uncompressed" || type == "None")
-//        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('D','I','B',' ');
-//    else if (type == "MJ2C")
-//        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('M','J','2','C');
-//    else if (type == "XVID")
-//        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('X','V','I','D');
-//    else if (type == "FFV1")
-//        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('F','F','V','1');
-////    else if (type == "LAGS")
-////        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('L','A',G','S');
-//    else
-//        dataCompressionFourCC[name] = cv::VideoWriter::fourcc('F','F','V','1');
-
     dataCompressionFourCC[name] =cv::VideoWriter::fourcc(type.toStdString()[0],type.toStdString()[1],type.toStdString()[2],type.toStdString()[3]);
 
 
     qDebug() << name << type << dataCompressionFourCC[name];
-
-//    cv::VideoWriter test;
-//    test.open("hi.avi",-1,30,cv::Size(100,100));
 
 }
 
 void DataSaver::setROI(QString name, int *bbox)
 {
     ROI[name] = bbox;
+}
+
+void DataSaver::setPoseBufferParameters(QVector<float> *poseBuf, int *poseFrameNumBuf, int poseBufSize, QSemaphore *freePos, QSemaphore *usedPos)
+{
+    poseBuffer = poseBuf;
+    poseFrameNumBuffer = poseFrameNumBuf;
+    poseBufferSize = poseBufSize;
+    freePoses = freePos;
+    usedPoses = usedPos;
+    btPoseCount = 0;
 }
 
 QJsonDocument DataSaver::constructBaseDirectoryMetaData()
@@ -436,6 +461,10 @@ QJsonDocument DataSaver::constructBaseDirectoryMetaData()
     for (int i = 0; i < m_userConfig["devices"].toObject()["cameras"].toArray().size(); i++)
         list.append(m_userConfig["devices"].toObject()["cameras"].toArray()[i].toObject()["deviceName"].toString());
     metaData["cameras"] = QJsonArray().fromStringList(list);
+
+    list.clear();
+    if (!m_userConfig["behaviorTracker"].toObject().isEmpty())
+        metaData["behaviorTracker"] = m_userConfig["behaviorTracker"].toObject();
 
     jDoc.setObject(metaData);
     return jDoc;
