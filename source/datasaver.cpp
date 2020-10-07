@@ -24,7 +24,9 @@ DataSaver::DataSaver(QObject *parent) :
     QObject(parent),
     baseDirectory(""),
     m_recording(false),
+    behaviorTrackerEnabled(false),
     m_running(false)
+
 {
 
 }
@@ -158,18 +160,20 @@ void DataSaver::startRunning()
     QStringList names;
     while(m_running) {
         // For Behavior Tracker
-        while (usedPoses->tryAcquire()) {
-            if (m_recording) {
-                poseBufPosition = btPoseCount % poseBufferSize;
-                poseData.clear();
-                poseData.append(QString::number(poseFrameNumBuffer[poseBufPosition]) + ",");
+        if (behaviorTrackerEnabled) {
+            while (usedPoses->tryAcquire()) {
+                if (m_recording) {
+                    poseBufPosition = btPoseCount % poseBufferSize;
+                    poseData.clear();
+                    poseData.append(QString::number(poseFrameNumBuffer[poseBufPosition]) + ",");
 
-                for (j = 0; j < poseBuffer[poseBufPosition].length(); j++)
-                    poseData.append(QString::number(poseBuffer[poseBufPosition][j], 'g', 3) + ",");
-                *behavTrackerStream << poseData << endl;
+                    for (j = 0; j < poseBuffer[poseBufPosition].length(); j++)
+                        poseData.append(QString::number(poseBuffer[poseBufPosition][j], 'g', 3) + ",");
+                    *behavTrackerStream << poseData << endl;
+                }
+                btPoseCount++;
+                freePoses->release(1);
             }
-            btPoseCount++;
-            freePoses->release(1);
         }
 
         // for video streams
@@ -418,6 +422,7 @@ void DataSaver::setPoseBufferParameters(QVector<float> *poseBuf, int *poseFrameN
     freePoses = freePos;
     usedPoses = usedPos;
     btPoseCount = 0;
+    behaviorTrackerEnabled = true;
 }
 
 QJsonDocument DataSaver::constructBaseDirectoryMetaData()

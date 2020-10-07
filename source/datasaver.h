@@ -94,6 +94,7 @@ private:
     int btPoseCount;
     QSemaphore* freePoses;
     QSemaphore* usedPoses;
+    bool behaviorTrackerEnabled;
 
     bool m_recording;
     bool m_running;
