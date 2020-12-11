@@ -63,7 +63,8 @@ DISTFILES += \
     ../Python/DLCwrapper.py \
     ../Scripts/DLCwrapper.py \
     ../deviceConfigs/behaviorCams.json \
-    ../deviceConfigs/miniscopes.json
+    ../deviceConfigs/miniscopes.json \
+    ../deviceConfigs/videoDevices.json
 
 win32 {
     # Path to your openCV .lib file(s)
