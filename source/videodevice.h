@@ -52,15 +52,15 @@ public:
     QString getCompressionType();
     cv::Mat* getFrameBufferPointer(){return frameBuffer;}
     qint64* getTimeStampBufferPointer(){return timeStampBuffer;}
-    float* getBNOBufferPointer() { return bnoBuffer; }
     int getBufferSize() {return FRAME_BUFFER_SIZE;}
     QSemaphore* getFreeFramesPointer(){return freeFrames;}
     QSemaphore* getUsedFramesPointer(){return usedFrames;}
     QAtomicInt* getAcqFrameNumPointer(){return m_acqFrameNum;}
     QAtomicInt* getDAQFrameNumPointer() { return m_daqFrameNum; }
     QString getDeviceName(){return m_deviceName;}
-    bool getHeadOrienataionStreamState() { return m_headOrientationStreamState;}
-    bool getHeadOrienataionFilterState() { return m_headOrientationFilterState;}
+
+    // Adding ROI control for behav and miniscopes
+    int* getROI() { return m_roiBoundingBox; }
 
 signals:
     // TODO: setup signals to configure camera in thread
@@ -78,7 +78,7 @@ public slots:
     void testSlot(QString, double);
     void handlePropChangedSignal(QString type, double displayValue, double i2cValue, double i2cValue2);
     void handleTakeScreenShotSignal();
-    void handleDFFSwitchChange(bool checked);
+
     void handleSaturationSwitchChanged(bool checked);
     void handleSetExtTriggerTrackingState(bool state);
     void handleRecordStart(); // Currently used to toggle LED on and off
@@ -86,12 +86,16 @@ public slots:
     void handleInitCommandsRequest();
     void close();
 
+    // Adding ROI control for behav and miniscopes
+    void handleSetRoiClicked();
+    void handleNewROI(int leftEdge, int topEdge, int width, int height);
+
 private:
     void getDeviceConfig(QString deviceType);
     void configureDeviceControls();
     QVector<QMap<QString, int>> parseSendCommand(QJsonArray sendCommand);
     int processString2Int(QString s);
-    QMap<QString,quint16> deviceAddr;
+    QMap<QString,quint16> deviceAddr; //only used with Miniscopes???
 
     int m_camConnected;
     NewQuickView *view;
@@ -100,20 +104,15 @@ private:
     cv::Mat frameBuffer[FRAME_BUFFER_SIZE];
     cv::Mat tempFrame;
     qint64 timeStampBuffer[FRAME_BUFFER_SIZE];
-//    float bnoBuffer[FRAME_BUFFER_SIZE*3];
     float bnoBuffer[FRAME_BUFFER_SIZE*5]; //w,x,y,z,norm
     QSemaphore *freeFrames;
     QSemaphore *usedFrames;
     QObject *rootObject;
     VideoDisplay *vidDisplay;
-    QQuickItem *bnoDisplay;
     QTimer *timer;
-//    QImage testImage;
     int m_previousDisplayFrameNum;
     QAtomicInt *m_acqFrameNum;
     QAtomicInt *m_daqFrameNum;
-
-//    QAtomicInt *m_DAQTimeStamp;
 
     // User Config parameters
     QJsonObject m_ucDevice;
@@ -125,17 +124,14 @@ private:
 
     QJsonObject m_cDevice; // Consider renaming to not confuse with ucMiniscopes
     QMap<QString,QVector<QMap<QString, int>>> m_controlSendCommand;
-    QMap<QString, int> m_sendCommand;
 
-    bool m_headOrientationStreamState;
-    bool m_headOrientationFilterState;
     QString m_compressionType;
-    QString m_displatState;
+    QString m_displatState; // only used with Miniscopes???
 
-    cv::Mat baselineFrameBuffer[BASELINE_FRAME_BUFFER_SIZE];
-    cv::Mat baselineFrame;
-    int baselineFrameBufWritePos;
-    qint64 baselinePreviousTimeStamp;
+    // ROI
+    bool m_roiIsDefined;
+    int m_roiBoundingBox[4]; // left, top, width, height
+
 
     double m_lastLED0Value;
     bool m_extTriggerTrackingState;

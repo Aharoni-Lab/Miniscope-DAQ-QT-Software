@@ -41,7 +41,6 @@ public:
     void parseUserConfigBehavCam();
     void sendInitCommands();
     QString getCompressionType();
-//    void sendInitCommands();
     cv::Mat* getFrameBufferPointer(){return frameBuffer;}
     qint64* getTimeStampBufferPointer(){return timeStampBuffer;}
     int getBufferSize() {return FRAME_BUFFER_SIZE;}
@@ -60,7 +59,11 @@ signals:
     void onPropertyChanged(QString devieName, QString propName, QVariant propValue);
     void sendMessage(QString msg);
     void takeScreenShot(QString type);
+
+    // THINK THIS IS UNUSED!!
     void newFrameAvailable(QString name, int frameNum);
+
+    // THIS STAYS WITH BEHAV CLASS!!
     void openCamPropsDialog();
 
 public slots:
@@ -71,17 +74,20 @@ public slots:
     void close();
     void handleInitCommandsRequest();
     void handleSaturationSwitchChanged(bool checked);
-
-    void handleCamPropsClicked() { emit openCamPropsDialog();}
     void handleSetRoiClicked();
+    // Setting new ROI
+    void handleNewROI(int leftEdge, int topEdge, int width, int height);
 
+
+    // LEAVE THIS!!!!
+    void handleCamPropsClicked() { emit openCamPropsDialog();}
+
+    // NOT SURE WHAT TO DO WITH THESE!!
     // Camera calibration slots
     void handleCamCalibClicked();
     void handleCamCalibStart();
     void handleCamCalibQuit();
 
-    // Setting new ROI
-    void handleNewROI(int leftEdge, int topEdge, int width, int height);
 
 private:
     void getBehavCamConfig(QString deviceType);
@@ -105,8 +111,6 @@ private:
     QAtomicInt *m_acqFrameNum;
     QAtomicInt *m_daqFrameNum;
 
-//    QAtomicInt *m_DAQTimeStamp;
-
     // User Config parameters
     QJsonObject m_ucBehavCam;
     int m_deviceID;
@@ -116,21 +120,26 @@ private:
 
     QJsonObject m_cBehavCam; // Consider renaming to not confuse with ucMiniscopes
     QMap<QString,QVector<QMap<QString, int>>> m_controlSendCommand;
-//    QMap<QString, int> m_sendCommand;
 
-    bool m_streamHeadOrientationState;
+//    bool m_streamHeadOrientationState;
     QString m_compressionType;
+
+    // Handle MiniCAM stuff
+    bool isMiniCAM;
+
+
 
     // Camera Calibration Vars
     bool m_camCalibWindowOpen;
     bool m_camCalibRunning;
 
+
+    // CAN GET RID OF ONCE IN VIDEODEVICE!!!
     // ROI
     bool m_roiIsDefined;
     int m_roiBoundingBox[4]; // left, top, width, height
 
-    // Handle MiniCAM stuff
-    bool isMiniCAM;
+
 };
 
 #endif // BEHAVIORCAM_H
