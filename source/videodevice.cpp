@@ -25,32 +25,12 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice) :
     m_daqFrameNum(new QAtomicInt(0)),
     m_headOrientationStreamState(false),
     m_headOrientationFilterState(false),
-    m_displatState("Raw"),
-    baselineFrameBufWritePos(0),
-    baselinePreviousTimeStamp(0),
     m_extTriggerTrackingState(false)
 
 {
     m_ucDevice = ucDevice; // hold user config for this device
     parseUserConfigDevice();
-    getDeviceConfig(m_ucDevice["deviceType"].toString()); // holds specific Miniscope configuration
-
-    // Checks to make sure user config and miniscope device type are supporting BNO streaming
-    if (m_ucDevice.contains("headOrientation")) {
-        m_headOrientationStreamState = m_ucDevice["headOrientation"].toObject()["enable"].toBool(false);
-        m_headOrientationFilterState = m_ucDevice["headOrientation"].toObject()["filterBadData"].toBool(false);
-
-    }
-
-    // DEPRICATED
-    if (m_ucDevice.contains("streamHeadOrientation")) {
-        m_headOrientationStreamState = m_ucDevice["streamHeadOrientation"].toBool(false) && m_cDevice["headOrientation"].toBool(false);
-        // TODO: Tell user this name/value is depricated
-    }
-    // ==========
-
-
-
+    m_cDevice = getDeviceConfig(m_ucDevice["deviceType"].toString()); // holds specific Miniscope configuration
 
     // Thread safe buffer stuff
     freeFrames = new QSemaphore;
@@ -62,6 +42,17 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice) :
     deviceStream = new VideoStreamOCV(nullptr, m_cDevice["width"].toInt(-1), m_cDevice["height"].toInt(-1), m_cDevice["pixelClock"].toDouble(-1));
     deviceStream->setDeviceName(m_deviceName);
 
+    // Checks to make sure user config and miniscope device type are supporting BNO streaming
+    if (m_ucDevice.contains("headOrientation")) {
+        m_headOrientationStreamState = m_ucDevice["headOrientation"].toObject()["enable"].toBool(false);
+        m_headOrientationFilterState = m_ucDevice["headOrientation"].toObject()["filterBadData"].toBool(false);
+    }
+    // DEPRICATED
+    if (m_ucDevice.contains("streamHeadOrientation")) {
+        m_headOrientationStreamState = m_ucDevice["streamHeadOrientation"].toBool(false) && m_cDevice["headOrientation"].toBool(false);
+        // TODO: Tell user this name/value is depricated
+    }
+    // ==========
     deviceStream->setHeadOrientationConfig(m_headOrientationStreamState, m_headOrientationFilterState);
 
     deviceStream->setIsColor(m_cDevice["isColor"].toBool(false));
@@ -180,14 +171,13 @@ void VideoDevice::createView()
             vidDisplay->setShowSaturation(0);
             rootObject->findChild<QQuickItem*>("saturationSwitch")->setProperty("checked", false);
         }
-
-        if (m_headOrientationStreamState)
-            bnoDisplay = rootObject->findChild<QQuickItem*>("bno");
-
         QObject::connect(view, &NewQuickView::closing, deviceStream, &VideoStreamOCV::stopSteam);
         QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &VideoDevice::sendNewFrame);
 
         sendMessage(m_deviceName + " is connected.");
+
+        setupDisplayObjectPointers();
+        emit displayCreated(); // signal to classes inherating this class
     }
     else {
         sendMessage("Error: " + m_deviceName + " cannot connect to camera. Check deviceID.");
@@ -273,18 +263,17 @@ QString VideoDevice::getCompressionType()
     return m_compressionType;
 }
 
-void VideoDevice::getDeviceConfig(QString deviceType) {
+QJsonObject VideoDevice::getDeviceConfig(QString deviceType) {
     QString jsonFile;
     QFile file;
     m_deviceType = deviceType;
-//    file.setFileName(":/deviceConfigs/miniscopes.json");
-    file.setFileName("deviceConfigs/miniscopes.json");
+    file.setFileName("deviceConfigs/videoDevicess.json");
     file.open(QIODevice::ReadOnly | QIODevice::Text);
     jsonFile = file.readAll();
     file.close();
     QJsonDocument d = QJsonDocument::fromJson(jsonFile.toUtf8());
     QJsonObject jObj = d.object();
-    m_cDevice = jObj[deviceType].toObject();
+    return jObj[deviceType].toObject();
 
 }
 
@@ -625,15 +614,6 @@ void VideoDevice::handleTakeScreenShotSignal()
 {
     // Is called when signal from qml GUI is triggered
     takeScreenShot(m_deviceName);
-}
-
-void VideoDevice::handleDFFSwitchChange(bool checked)
-{
-    qDebug() << "Switch" << checked;
-    if (checked)
-        m_displatState = "dFF";
-    else
-        m_displatState = "Raw";
 }
 
 void VideoDevice::handleSaturationSwitchChanged(bool checked)

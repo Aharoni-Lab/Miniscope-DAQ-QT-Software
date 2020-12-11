@@ -20,7 +20,7 @@
 
 #include <opencv2/opencv.hpp>
 
-
+// ----- Used for dF/F display ---------
 #define BASELINE_FRAME_BUFFER_SIZE  128
 
 
@@ -29,6 +29,30 @@ class Miniscope : public VideoDevice
 
 public:
     explicit Miniscope(QObject *parent = nullptr, QJsonObject ucMiniscope = QJsonObject());
+    void setupDisplayObjectPointers(); //overrides parents function
+    float* getBNOBufferPointer() { return bnoBuffer; }
+
+
+public slots:
+//    void displayHasBeenCreated();
+    void handleDFFSwitchChange(bool checked);
+
+private:
+    QJsonObject m_ucDevice;
+    QJsonObject m_cDevice;
+
+    QObject* rootDistplayObject;
+
+    float bnoBuffer[FRAME_BUFFER_SIZE*5]; //w,x,y,z,norm
+    QQuickItem *bnoDisplay;
+
+
+    cv::Mat baselineFrameBuffer[BASELINE_FRAME_BUFFER_SIZE];
+    cv::Mat baselineFrame;
+    int baselineFrameBufWritePos;
+    qint64 baselinePreviousTimeStamp;
+
+    QString m_displatState; // holds raw of dff view state
 };
 
 

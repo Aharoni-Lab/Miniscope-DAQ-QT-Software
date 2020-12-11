@@ -44,6 +44,12 @@ class VideoDevice : public QObject
     Q_OBJECT
 public:
     explicit VideoDevice(QObject *parent = nullptr, QJsonObject ucDevice = QJsonObject());
+    QJsonObject getDeviceConfig(QString deviceType);
+    QObject* getRootDisplayObject() { return rootObject; }
+    QQuickItem* getRootDisplayChild(QString childName) { return rootObject->findChild<QQuickItem*>(childName); }
+    void setupDisplayObjectPointers() { }; // Child class should override this!
+    bool getHeadOrienataionStreamState() { return m_headOrientationStreamState;}
+    bool getHeadOrienataionFilterState() { return m_headOrientationFilterState;}
     void createView();
     void connectSnS();
     void defineDeviceAddrs();
@@ -64,6 +70,7 @@ public:
 
 signals:
     // TODO: setup signals to configure camera in thread
+    void displayCreated();
     void setPropertyI2C(long preambleKey, QVector<quint8> packet);
     void onPropertyChanged(QString devieName, QString propName, QVariant propValue);
     void sendMessage(QString msg);
@@ -91,7 +98,7 @@ public slots:
     void handleNewROI(int leftEdge, int topEdge, int width, int height);
 
 private:
-    void getDeviceConfig(QString deviceType);
+
     void configureDeviceControls();
     QVector<QMap<QString, int>> parseSendCommand(QJsonArray sendCommand);
     int processString2Int(QString s);
@@ -126,7 +133,11 @@ private:
     QMap<QString,QVector<QMap<QString, int>>> m_controlSendCommand;
 
     QString m_compressionType;
-    QString m_displatState; // only used with Miniscopes???
+
+    // Don't like this being in videodevice class but not sure what else to do
+    bool m_headOrientationStreamState;
+    bool m_headOrientationFilterState;
+    // -----------------
 
     // ROI
     bool m_roiIsDefined;
