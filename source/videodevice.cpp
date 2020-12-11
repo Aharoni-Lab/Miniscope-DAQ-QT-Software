@@ -430,98 +430,45 @@ void VideoDevice::testSlot(QString type, double value)
 {
     qDebug() << "IN SLOT!!!!! " << type << " is " << value;
 }
+
 void VideoDevice::sendNewFrame(){
 //    vidDisplay->setProperty("displayFrame", QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
     int f = *m_acqFrameNum;
-    cv::Mat tempMat1, tempMat2;
+
     if (f > m_previousDisplayFrameNum) {
         m_previousDisplayFrameNum = f;
-        QImage tempFrame2;
+
 //        qDebug() << "Send frame = " << f;
         f = (f - 1)%FRAME_BUFFER_SIZE;
 
-        // TODO: Think about where color to gray and vise versa should take place.
-        if (frameBuffer[f].channels() == 1) {
-            cv::cvtColor(frameBuffer[f], tempFrame, cv::COLOR_GRAY2BGR);
-            tempFrame2 = QImage(tempFrame.data, tempFrame.cols, tempFrame.rows, tempFrame.step, QImage::Format_RGB888);
-        }
-        else
-            tempFrame2 = QImage(frameBuffer[f].data, frameBuffer[f].cols, frameBuffer[f].rows, frameBuffer[f].step, QImage::Format_RGB888);
-
-        // Generate moving average baseline frame
-        if ((timeStampBuffer[f] - baselinePreviousTimeStamp) > 100) {
-            // update baseline frame buffer every ~500ms
-            tempMat1 = frameBuffer[f].clone();
-            tempMat1.convertTo(tempMat1, CV_32F);
-            tempMat1 = tempMat1/(BASELINE_FRAME_BUFFER_SIZE);
-            if (baselineFrameBufWritePos == 0) {
-                baselineFrame = tempMat1;
-            }
-            else if (baselineFrameBufWritePos < BASELINE_FRAME_BUFFER_SIZE) {
-                baselineFrame += tempMat1;
-            }
-            else {
-                baselineFrame += tempMat1;
-                baselineFrame -= baselineFrameBuffer[baselineFrameBufWritePos%BASELINE_FRAME_BUFFER_SIZE];
-            }
-            baselineFrameBuffer[baselineFrameBufWritePos % BASELINE_FRAME_BUFFER_SIZE] = tempMat1.clone();
-            baselinePreviousTimeStamp = timeStampBuffer[f];
-            baselineFrameBufWritePos++;
-        }
-
-        if (m_displatState == "Raw") {
-
-//            vidDisplay->setDisplayFrame(tempFrame2.copy());
-            // TODO: Check to see if we can get rid of .copy() here
-            vidDisplay->setDisplayFrame(tempFrame2);
-        }
-        else if (m_displatState == "dFF") {
-            // TODO: Implement this better. I am sure it can be sped up a lot. Maybe do most of it in a shader
-            tempMat2 = frameBuffer[f].clone();
-            tempMat2.convertTo(tempMat2, CV_32F);
-            cv::divide(tempMat2,baselineFrame,tempMat2);
-            tempMat2 = ((tempMat2 - 1.0) + 0.5) * 255;
-            tempMat2.convertTo(tempMat2, CV_8U);
-            cv::cvtColor(tempMat2, tempFrame, cv::COLOR_GRAY2BGR);
-            tempFrame2 = QImage(tempFrame.data, tempFrame.cols, tempFrame.rows, tempFrame.step, QImage::Format_RGB888);
-            vidDisplay->setDisplayFrame(tempFrame2.copy());
-        }
+        // This function can be overridden by child class to add additional functionality
+        handleNewDisplayFrame(timeStampBuffer[f], frameBuffer[f], f, vidDisplay);
 
         vidDisplay->setBufferUsed(usedFrames->available());
+
         if (f > 0) // This is just a quick cheat so I don't have to wrap around for (f-1)
             vidDisplay->setAcqFPS(timeStampBuffer[f] - timeStampBuffer[f-1]); // TODO: consider changing name as this is now interframeinterval
-        vidDisplay->setDroppedFrameCount(*m_daqFrameNum - *m_acqFrameNum);
 
-        if (m_headOrientationStreamState) {
-//            bnoDisplay->setProperty("heading", bnoBuffer[f*3+0]);
-//            bnoDisplay->setProperty("roll", bnoBuffer[f*3+1]);
-//            bnoDisplay->setProperty("pitch", bnoBuffer[f*3+2]);
-//            if (bnoBuffer[f*4+0] != -1/16384.0 && bnoBuffer[f*4+1] != -1/16384.0 && bnoBuffer[f*4+2] != -1/16384.0 && bnoBuffer[f*4+3] != -1/16384.0) {
-//            if (bnoBuffer[f*5+4] >= 0.05) {
-//                sendMessage("Quat w: " + QString::number( bnoBuffer[f*5+0]));
-//                sendMessage("Quat x: " + QString::number( bnoBuffer[f*5+1]));
-//                sendMessage("Quat y: " + QString::number( bnoBuffer[f*5+2]));
-//                sendMessage("Quat z: " + QString::number( bnoBuffer[f*5+3]));
-//                sendMessage("n = " + QString::number( bnoBuffer[f*5+4]));
-//            }
-            if (bnoBuffer[f*5+4] < 0.05) { // Checks to see if norm of quat differs from 1 by 0.05
-                // good data
-                bnoDisplay->setProperty("badData", false);
-                bnoDisplay->setProperty("qw", bnoBuffer[f*5+0]);
-                bnoDisplay->setProperty("qx", bnoBuffer[f*5+1]);
-                bnoDisplay->setProperty("qy", bnoBuffer[f*5+2]);
-                bnoDisplay->setProperty("qz", bnoBuffer[f*5+3]);
-            }
-            else {
-                // bad BNO data
-                bnoDisplay->setProperty("badData", true);
-            }
-//            }
-        }
-//        qDebug() << bnoBuffer[f*3+0] << bnoBuffer[f*3+1] << bnoBuffer[f*3+2];
+        // TODO: figure out what to do with webcams for dropped frames
+        vidDisplay->setDroppedFrameCount(*m_daqFrameNum - *m_acqFrameNum);
     }
 }
 
+void VideoDevice::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufIdx, VideoDisplay* vidDisp)
+{
+//    cv::Mat tempMat1, tempMat2;
+    QImage tempFrame2;
+    cv::Mat tempFrame;
+    // TODO: Think about where color to gray and vise versa should take place.
+    if (frame.channels() == 1) {
+        cv::cvtColor(frame, tempFrame, cv::COLOR_GRAY2BGR);
+        tempFrame2 = QImage(tempFrame.data, tempFrame.cols, tempFrame.rows, tempFrame.step, QImage::Format_RGB888);
+    }
+    else
+        tempFrame2 = QImage(frame.data, frame.cols, frame.rows, frame.step, QImage::Format_RGB888);
+
+    vidDisp->setDisplayFrame(tempFrame2);
+}
 
 void VideoDevice::handlePropChangedSignal(QString type, double displayValue, double i2cValue, double i2cValue2)
 {

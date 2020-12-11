@@ -31,7 +31,8 @@ public:
     explicit Miniscope(QObject *parent = nullptr, QJsonObject ucMiniscope = QJsonObject());
     void setupDisplayObjectPointers(); //overrides parents function
     float* getBNOBufferPointer() { return bnoBuffer; }
-
+//    void sendNewFrame(); // overrides parent function
+    void handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufIdx, VideoDisplay* vidDisp); //overrides
 
 public slots:
 //    void displayHasBeenCreated();

@@ -65,6 +65,8 @@ public:
     QAtomicInt* getDAQFrameNumPointer() { return m_daqFrameNum; }
     QString getDeviceName(){return m_deviceName;}
 
+    void handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int f, VideoDisplay* vidDisp);
+
     // Adding ROI control for behav and miniscopes
     int* getROI() { return m_roiBoundingBox; }
 
@@ -109,7 +111,6 @@ private:
     VideoStreamOCV *deviceStream;
     QThread *videoStreamThread;
     cv::Mat frameBuffer[FRAME_BUFFER_SIZE];
-    cv::Mat tempFrame;
     qint64 timeStampBuffer[FRAME_BUFFER_SIZE];
     float bnoBuffer[FRAME_BUFFER_SIZE*5]; //w,x,y,z,norm
     QSemaphore *freeFrames;
