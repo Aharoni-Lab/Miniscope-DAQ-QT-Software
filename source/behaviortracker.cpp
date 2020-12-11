@@ -123,21 +123,22 @@ void BehaviorTracker::setUpDLCLive()
 void BehaviorTracker::startThread()
 {
     //TODO: Stop thread and working if missing path to py env.
-    if (m_userConfig["behaviorTracker"].toObject().contains("pyEnvPath"))
+    if (m_userConfig["behaviorTracker"].toObject().contains("pyEnvPath")) {
         sendMessage("Using \"" + m_userConfig["behaviorTracker"].toObject()["pyEnvPath"].toString() + "\" as Python Environment.");
+
+        behavTrackWorker->moveToThread(workerThread);
+
+        QObject::connect(workerThread, SIGNAL (started()), behavTrackWorker, SLOT (startRunning()));
+        QObject::connect(this, SIGNAL( closeWorker()), behavTrackWorker, SLOT (close()));
+        QObject::connect(behavTrackWorker, &BehaviorTrackerWorker::sendMessage, this, &BehaviorTracker::sendMessage);
+
+        workerThread->start();
+    }
     else
         // Py environment path missing
         sendMessage("Error: Path to Python Environment (\"pyEnvPath:\") missing from user config file!");
 
-    behavTrackWorker->moveToThread(workerThread);
 
-    QObject::connect(workerThread, SIGNAL (started()), behavTrackWorker, SLOT (startRunning()));
-    QObject::connect(this, SIGNAL( closeWorker()), behavTrackWorker, SLOT (close()));
-    QObject::connect(behavTrackWorker, &BehaviorTrackerWorker::sendMessage, this, &BehaviorTracker::sendMessage);
-
-    // TODO: setup start connections
-
-    workerThread->start();
 }
 
 void BehaviorTracker::sendNewFrame()

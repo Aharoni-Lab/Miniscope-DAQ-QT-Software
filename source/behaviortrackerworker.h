@@ -70,6 +70,8 @@ private:
     PyObject *pDict;
     PyObject *pArgs;
     PyObject *pValue;
+
+    bool m_PythonInitialized;
 };
 
 #endif // BEHAVIORTRACKERWORKER_H

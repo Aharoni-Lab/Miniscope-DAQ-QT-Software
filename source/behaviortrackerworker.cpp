@@ -8,6 +8,7 @@
 #include <QString>
 #include <QGuiApplication>
 #include <QThread>
+#include <QDir>
 
 #ifdef USE_PYTHON
  #undef slots
@@ -18,7 +19,8 @@
 
 BehaviorTrackerWorker::BehaviorTrackerWorker(QObject *parent, QJsonObject behavTrackerConfig):
     QObject(parent),
-    numberOfCameras(0)
+    numberOfCameras(0),
+    m_PythonInitialized(false)
 {
     m_btConfig = behavTrackerConfig;
 }
@@ -27,18 +29,23 @@ void BehaviorTrackerWorker::initPython()
 {
     // All the Python init stuff below needed to happen once the thread was running for some reason?!?!?!
 #ifdef USE_PYTHON
-    // TODO: Set parameters in user config file
-    Py_SetPythonHome(m_btConfig["pyEnvPath"].toString().toStdWString().c_str());
-    Py_Initialize();
 
-    // Adds .exe's directory to path to find py file
-    PyObject* sysPath = PySys_GetObject((char*)"path");
-    PyList_Append(sysPath, PyUnicode_FromString(".")); // appends path with current dir
-    // TODO: Don't hard code this directory!
-//    PyObject* programName = PyUnicode_FromString("C:/Users/dbaha/Documents/Projects/Miniscope-DAQ-QT-Software/source/");
-//    PyList_Append(sysPath, programName);
-//    Py_DECREF(programName);
-    Py_DECREF(sysPath);
+    // Check to see if environment path goes to a likely python env with dlc
+    if (QDir(m_btConfig["pyEnvPath"].toString() + "/Lib/site-packages/dlclive").exists()) {
+        // likely a correct path
+        Py_SetPythonHome(m_btConfig["pyEnvPath"].toString().toStdWString().c_str());
+        qDebug() << "0000" << m_PythonInitialized;
+        Py_Initialize();
+        m_PythonInitialized = true;
+        PyObject* sysPath = PySys_GetObject((char*)"path");
+        PyList_Append(sysPath, PyUnicode_FromString(".")); // appends path with current dir
+        Py_DECREF(sysPath);
+    }
+    else {
+        // couldn't find dlclive in expected location. Possibly a bad path
+        m_PythonInitialized = false;
+    }
+
 #endif
 }
 
@@ -174,48 +181,50 @@ void BehaviorTrackerWorker::startRunning()
     // Gets called when thread starts running
 
     initPython();
+    if (m_PythonInitialized == false)
+        sendMessage("ERROR: Python not initialized. Check Python env path!");
+    else {
+        initNumpy(); // Inits import_array() and handles the return of it
 
-    initNumpy(); // Inits import_array() and handles the return of it
+        setUpDLCLive();
 
-    setUpDLCLive();
+        getColors();
+        // Will try using DLC's viewer before using our own
 
-    getColors();
-    // Will try using DLC's viewer before using our own
-
-    m_trackingRunning = true;
-    int acqFrameNum;
-    int frameIdx;
-    int idx = 0;
-    QList<QString> camNames = frameBuffer.keys();
-    while (m_trackingRunning) {
-        for (int camNum = 0; camNum < camNames.length(); camNum++) {
-            // Loops through cameras to see if new frames are ready
-            acqFrameNum = *m_acqFrameNum[camNames[camNum]];
-            if (acqFrameNum > currentFrameNumberProcessed[camNames[camNum]]) {
-                // New frame ready for behavior tracking
-                frameIdx = (acqFrameNum - 1) % bufferSize[camNames[camNum]];
-                poseBuffer[idx % poseBufferSize] = getDLCLivePose(frameBuffer[camNames[camNum]][frameIdx]);
-                poseFrameNumBuffer[idx % poseBufferSize] = (acqFrameNum - 1);
-                currentFrameNumberProcessed[camNames[camNum]] = acqFrameNum;
-//                qDebug() << acqFrameNum;
-                if (!freePoses->tryAcquire()) {
-                    // Failed to acquire
-                    // Pose will be thrown away
-                    if (freePoses->available() == 0) {
-                        sendMessage("Warning: Pose buffer full");
-                        QThread::msleep(500);
+        m_trackingRunning = true;
+        int acqFrameNum;
+        int frameIdx;
+        int idx = 0;
+        QList<QString> camNames = frameBuffer.keys();
+        while (m_trackingRunning) {
+            for (int camNum = 0; camNum < camNames.length(); camNum++) {
+                // Loops through cameras to see if new frames are ready
+                acqFrameNum = *m_acqFrameNum[camNames[camNum]];
+                if (acqFrameNum > currentFrameNumberProcessed[camNames[camNum]]) {
+                    // New frame ready for behavior tracking
+                    frameIdx = (acqFrameNum - 1) % bufferSize[camNames[camNum]];
+                    poseBuffer[idx % poseBufferSize] = getDLCLivePose(frameBuffer[camNames[camNum]][frameIdx]);
+                    poseFrameNumBuffer[idx % poseBufferSize] = (acqFrameNum - 1);
+                    currentFrameNumberProcessed[camNames[camNum]] = acqFrameNum;
+    //                qDebug() << acqFrameNum;
+                    if (!freePoses->tryAcquire()) {
+                        // Failed to acquire
+                        // Pose will be thrown away
+                        if (freePoses->available() == 0) {
+                            sendMessage("Warning: Pose buffer full");
+                            QThread::msleep(500);
+                        }
+                    }
+                    else {
+                        idx++;
+                        m_btPoseCount->operator++();
+                        usedPoses->release();
                     }
                 }
-                else {
-                    idx++;
-                    m_btPoseCount->operator++();
-                    usedPoses->release();
-                }
             }
+            QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices
         }
-        QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices
     }
-
 }
 
 void BehaviorTrackerWorker::close()
