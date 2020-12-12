@@ -34,6 +34,10 @@
 #define SEND_COMMAND_ERROR      -20
 // ---------------------------------------------------------
 
+// ------------- ERRORS ----------------
+#define VIDEODEVICES_JSON_LOAD_FAIL     1
+// -------------------------------------
+
 // ----- Size of frame buffer in RAM for each device -------
 #define FRAME_BUFFER_SIZE   128
 #define BASELINE_FRAME_BUFFER_SIZE  128
@@ -65,6 +69,7 @@ public:
     QAtomicInt* getAcqFrameNumPointer(){return m_acqFrameNum;}
     QAtomicInt* getDAQFrameNumPointer() { return m_daqFrameNum; }
     QString getDeviceName(){return m_deviceName;}
+    int getErrors() { return m_errors; }
 
     void handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int f, VideoDisplay* vidDisp);
 
@@ -149,6 +154,9 @@ private:
     // USED WITH MINISCOPE NOT WITH WEBCAM. MAYBE MOVE!
     double m_lastLED0Value;
     bool m_extTriggerTrackingState;
+
+    // holds possible error states
+    int m_errors;
 };
 
 #endif // VIDEODEVICE_H

@@ -38,6 +38,14 @@
                 "streamHeadOrientation_OLD": true,
                 "deviceID": 0,
 				"showSaturation": true,
+				"ROI": {
+                    "notes": "This defines the bounding box of the portion of the video that is saved to disk",
+                    "note3": "Edge values are zero indexed",
+					"leftEdge": 0,
+					"topEdge": 0,
+					"width": 600,
+					"height": 600
+				},
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
                 "compression": "FFV1",
                 "framesPerFile": 1000,

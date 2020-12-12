@@ -26,7 +26,8 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice) :
     m_headOrientationStreamState(false),
     m_headOrientationFilterState(false),
     m_roiIsDefined(false),
-    m_extTriggerTrackingState(false)
+    m_extTriggerTrackingState(false),
+    m_errors(0)
 
 {
     m_ucDevice = ucDevice; // hold user config for this device
@@ -305,14 +306,22 @@ QString VideoDevice::getCompressionType()
 QJsonObject VideoDevice::getDeviceConfig(QString deviceType) {
     QString jsonFile;
     QFile file;
+    QJsonObject jObj;
+    bool status = false;
     m_deviceType = deviceType;
     file.setFileName("deviceConfigs/videoDevices.json");
-    file.open(QIODevice::ReadOnly | QIODevice::Text);
-    jsonFile = file.readAll();
-    file.close();
-    QJsonDocument d = QJsonDocument::fromJson(jsonFile.toUtf8());
-    QJsonObject jObj = d.object();
-    return jObj[deviceType].toObject();
+    status = file.open(QIODevice::ReadOnly | QIODevice::Text);
+    if (status == true) {
+        jsonFile = file.readAll();
+        file.close();
+        QJsonDocument d = QJsonDocument::fromJson(jsonFile.toUtf8());
+        jObj = d.object();
+        return jObj[deviceType].toObject();
+    }
+    else {
+        m_errors |= VIDEODEVICES_JSON_LOAD_FAIL;
+        return jObj; // empty json object
+    }
 
 }
 

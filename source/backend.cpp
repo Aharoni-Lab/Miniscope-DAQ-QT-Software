@@ -486,8 +486,12 @@ void backEnd::constructUserConfigGUI()
 
         // Connect send and receive message to textbox in controlPanel
         QObject::connect(miniscope.last(), SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
-
-        miniscope.last()->createView();
+        if (miniscope.last()->getErrors() != 0) {
+            // Errors have occured in creating this object
+            sendMessage("ERROR: " + miniscope.last()->getDeviceName() + " has error: " + QString::number(miniscope.last()->getErrors()));
+        }
+        else
+            miniscope.last()->createView();
     }
     for (idx = 0; idx < ucBehaviorCams.size(); idx++) {
         behavCam.append(new BehaviorCam(this, ucBehaviorCams[idx].toObject()));
@@ -499,7 +503,12 @@ void backEnd::constructUserConfigGUI()
         // Connect send and receive message to textbox in controlPanel
         QObject::connect(behavCam.last(), SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
 
-        behavCam.last()->createView();
+        if (behavCam.last()->getErrors() != 0) {
+            // Errors have occured in creating this object
+            sendMessage("ERROR: " + behavCam.last()->getDeviceName() + " has error: " + QString::number(behavCam.last()->getErrors()));
+        }
+        else
+            behavCam.last()->createView();
     }
     if (!ucExperiment.isEmpty()){
         // Construct experiment interface
