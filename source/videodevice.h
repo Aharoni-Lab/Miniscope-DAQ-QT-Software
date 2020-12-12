@@ -47,6 +47,7 @@ public:
     QJsonObject getDeviceConfig(QString deviceType);
     QObject* getRootDisplayObject() { return rootObject; }
     QQuickItem* getRootDisplayChild(QString childName) { return rootObject->findChild<QQuickItem*>(childName); }
+    VideoStreamOCV* getDeviceStream() { return deviceStream; }
     void setupDisplayObjectPointers() { }; // Child class should override this!
     bool getHeadOrienataionStreamState() { return m_headOrientationStreamState;}
     bool getHeadOrienataionFilterState() { return m_headOrientationFilterState;}
@@ -145,6 +146,7 @@ private:
     int m_roiBoundingBox[4]; // left, top, width, height
 
 
+    // USED WITH MINISCOPE NOT WITH WEBCAM. MAYBE MOVE!
     double m_lastLED0Value;
     bool m_extTriggerTrackingState;
 };

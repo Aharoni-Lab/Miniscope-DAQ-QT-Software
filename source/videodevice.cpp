@@ -25,6 +25,7 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice) :
     m_daqFrameNum(new QAtomicInt(0)),
     m_headOrientationStreamState(false),
     m_headOrientationFilterState(false),
+    m_roiIsDefined(false),
     m_extTriggerTrackingState(false)
 
 {
@@ -62,6 +63,7 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice) :
         qDebug() << "Not able to connect and open " << m_ucDevice["deviceName"].toString();
     }
     else {
+        // TODO: bnoBuffer isn't used for behavior cams. Think about how to get rid of it
         deviceStream->setBufferParameters(frameBuffer,
                                              timeStampBuffer,
                                              bnoBuffer,
@@ -90,6 +92,7 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice) :
         // Handle request for reinitialization of commands
         QObject::connect(deviceStream, &VideoStreamOCV::requestInitCommands, this, &VideoDevice::handleInitCommandsRequest);
 
+        // --- USED ONLY FOR MINISCOPE INITIALLY -------------------------------
         // Handle external triggering passthrough
         QObject::connect(this, &VideoDevice::setExtTriggerTrackingState, deviceStream, &VideoStreamOCV::setExtTriggerTrackingState);
         QObject::connect(deviceStream, &VideoStreamOCV::extTriggered, this, &VideoDevice::extTriggered);
@@ -105,9 +108,11 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice) :
         QObject::connect(this, &VideoDevice::stopRecording, this, &VideoDevice::handleRecordStop);
         // ----------------------------------------------
 
-    //    createView();
+        // ---------------------------------------------------------------------
+
         connectSnS();
 
+        // THIS SHOULD ONLY BE SENT TO MINISCOPE AND MINICAM DEVICES. USE TO US AN if isMiniCAM statement here
         sendInitCommands();
 
         videoStreamThread->start();
@@ -127,9 +132,8 @@ void VideoDevice::createView()
             sendMessage(m_deviceName + " couldn't connect using Direct Show. Using computer's default backend.");
         qmlRegisterType<VideoDisplay>("VideoDisplay", 1, 0, "VideoDisplay");
 
-        // Setup Miniscope window
-        // TODO: Check deviceType and log correct qml file
-    //    const QUrl url("qrc:/" + m_deviceType + ".qml");
+        // Setup device window
+//        const QUrl url(m_cBehavCam["qmlFile"].toString("qrc:/behaviorCam.qml"));
         const QUrl url(m_cDevice["qmlFile"].toString());
         view = new NewQuickView(url);
 
@@ -152,8 +156,11 @@ void VideoDevice::createView()
                              this, SLOT( handleTakeScreenShotSignal() ));
         QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double, double) ),
                              this, SLOT( handlePropChangedSignal(QString, double, double, double) ));
+
+        // Maybe move this to miniscope class
         QObject::connect(rootObject, SIGNAL( dFFSwitchChanged(bool) ),
                              this, SLOT( handleDFFSwitchChange(bool) ));
+
         QObject::connect(rootObject, SIGNAL( saturationSwitchChanged(bool) ),
                              this, SLOT( handleSaturationSwitchChanged(bool) ));
 
@@ -171,10 +178,25 @@ void VideoDevice::createView()
             vidDisplay->setShowSaturation(0);
             rootObject->findChild<QQuickItem*>("saturationSwitch")->setProperty("checked", false);
         }
+
+        // Set ROI Stuff
+        QObject::connect(rootObject, SIGNAL( setRoiClicked() ), this, SLOT( handleSetRoiClicked()));
+
+        // Link up ROI signal and slot
+        QObject::connect(vidDisplay, &VideoDisplay::newROISignal, this, &VideoDevice::handleNewROI);
+
         QObject::connect(view, &NewQuickView::closing, deviceStream, &VideoStreamOCV::stopSteam);
         QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &VideoDevice::sendNewFrame);
 
         sendMessage(m_deviceName + " is connected.");
+
+        if (m_ucDevice.contains("ROI")) {
+            vidDisplay->setROI({(int)round(m_roiBoundingBox[0] * m_ucDevice["windowScale"].toDouble(1)),
+                                (int)round(m_roiBoundingBox[1] * m_ucDevice["windowScale"].toDouble(1)),
+                                (int)round(m_roiBoundingBox[2] * m_ucDevice["windowScale"].toDouble(1)),
+                                (int)round(m_roiBoundingBox[3] * m_ucDevice["windowScale"].toDouble(1)),
+                                0});
+        }
 
         setupDisplayObjectPointers();
         emit displayCreated(); // signal to classes inherating this class
@@ -187,6 +209,7 @@ void VideoDevice::createView()
 
 void VideoDevice::connectSnS(){
 
+    // Only used for MS devices
     QObject::connect(this, SIGNAL( setPropertyI2C(long, QVector<quint8>) ), deviceStream, SLOT( setPropertyI2C(long, QVector<quint8>) ));
 
 }
@@ -212,8 +235,24 @@ void VideoDevice::defineDeviceAddrs()
 
 void VideoDevice::parseUserConfigDevice() {
     // Currently not needed. If arrays get added into JSON config then this might
-    m_deviceName = m_ucDevice["deviceName"].toString("Miniscope " + QString::number(m_ucDevice["deviceID"].toInt()));
+    m_deviceName = m_ucDevice["deviceName"].toString("VideoDevice " + QString::number(m_ucDevice["deviceID"].toInt()));
     m_compressionType = m_ucDevice["compression"].toString("None");
+
+    if (m_ucDevice.contains("ROI")) {
+        // User Config defines ROI Bounding Box
+        m_roiIsDefined = true;
+        m_roiBoundingBox[0] = m_ucDevice["ROI"].toObject()["leftEdge"].toInt(-1);
+        m_roiBoundingBox[1] = m_ucDevice["ROI"].toObject()["topEdge"].toInt(-1);
+        m_roiBoundingBox[2] = m_ucDevice["ROI"].toObject()["width"].toInt(-1);
+        m_roiBoundingBox[3] = m_ucDevice["ROI"].toObject()["height"].toInt(-1);
+        // TODO: Throw error is values are incorrect or missing
+    }
+    else {
+        m_roiBoundingBox[0] = 0;
+        m_roiBoundingBox[1] = 0;
+        m_roiBoundingBox[2] = m_cDevice["width"].toInt(-1);
+        m_roiBoundingBox[3] = m_cDevice["height"].toInt(-1);
+    }
 }
 
 void VideoDevice::sendInitCommands()
@@ -441,6 +480,9 @@ void VideoDevice::sendNewFrame(){
 //        qDebug() << "Send frame = " << f;
         f = (f - 1)%FRAME_BUFFER_SIZE;
 
+        // TODO: figure out what to do with webcams for dropped frames
+        vidDisplay->setDroppedFrameCount(*m_daqFrameNum - *m_acqFrameNum);
+
         // This function can be overridden by child class to add additional functionality
         handleNewDisplayFrame(timeStampBuffer[f], frameBuffer[f], f, vidDisplay);
 
@@ -449,8 +491,7 @@ void VideoDevice::sendNewFrame(){
         if (f > 0) // This is just a quick cheat so I don't have to wrap around for (f-1)
             vidDisplay->setAcqFPS(timeStampBuffer[f] - timeStampBuffer[f-1]); // TODO: consider changing name as this is now interframeinterval
 
-        // TODO: figure out what to do with webcams for dropped frames
-        vidDisplay->setDroppedFrameCount(*m_daqFrameNum - *m_acqFrameNum);
+
     }
 }
 
@@ -610,6 +651,49 @@ void VideoDevice::handleInitCommandsRequest()
     sendInitCommands();
 }
 
+void VideoDevice::handleSetRoiClicked()
+{
+    // TODO: Don't allow this if recording is active!!!!
+
+    // We probably should reset video display to full resolution here before user input of ROI????
+
+    // Tell videodisplay that we will need mouse actions and will need to draw ROI rectangle
+    vidDisplay->setROISelectionState(true);
+
+
+    // TODO: disable ROI Button
+
+}
+
+void VideoDevice::handleNewROI(int leftEdge, int topEdge, int width, int height)
+{
+    m_roiIsDefined = true;
+    // First scale the local position values to pixel values
+    m_roiBoundingBox[0] = round(leftEdge/m_ucDevice["windowScale"].toDouble(1));
+    m_roiBoundingBox[1] = round(topEdge/m_ucDevice["windowScale"].toDouble(1));
+    m_roiBoundingBox[2] = round(width/m_ucDevice["windowScale"].toDouble(1));
+    m_roiBoundingBox[3] = round(height/m_ucDevice["windowScale"].toDouble(1));
+
+    if ((m_roiBoundingBox[0] + m_roiBoundingBox[2]) > m_cDevice["width"].toInt(-1)) {
+        // Edge is off screen
+        m_roiBoundingBox[2] = m_cDevice["width"].toInt(-1) - m_roiBoundingBox[0];
+        sendMessage("Warning: Right edge of ROI drawn beyond right edge of video. If this is incorrect you can change the width and height values in deviceCnfigs/behaviorCams.json");
+    }
+    if ((m_roiBoundingBox[1] + m_roiBoundingBox[3]) > m_cDevice["height"].toInt(-1)) {
+        // Edge is off screen
+        m_roiBoundingBox[3] = m_cDevice["height"].toInt(-1) - m_roiBoundingBox[1];
+        sendMessage("Warning: Bottm edge of ROI drawn beyond bottom edge of video. If this is incorrect you can change the width and height values in deviceCnfigs/behaviorCams.json");
+
+    }
+
+    sendMessage("ROI Set to [" + QString::number(m_roiBoundingBox[0]) + ", " +
+            QString::number(m_roiBoundingBox[1]) + ", " +
+            QString::number(m_roiBoundingBox[2]) + ", " +
+            QString::number(m_roiBoundingBox[3]) + "]");
+
+    // TODO: Correct ROI if out of bounds
+
+}
 
 void VideoDevice::close()
 {
