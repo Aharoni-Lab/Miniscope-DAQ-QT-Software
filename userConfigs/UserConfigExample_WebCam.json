@@ -1,6 +1,7 @@
 {
     "researcherName": "Dr_Miniscope",
     "dataDirectory": "C:/Users/dbaha/Documents/Data",
+    "reserved terms for directoryStructure": ["time", "date"],
     "directoryStructure": [
         "researcherName",
         "experimentName",

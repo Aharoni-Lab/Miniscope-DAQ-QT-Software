@@ -22,7 +22,7 @@
 
 class BehaviorCam : public VideoDevice
 {
-
+    Q_OBJECT
 public:
     explicit BehaviorCam(QObject *parent = nullptr, QJsonObject ucMiniscope = QJsonObject());
     void setupDisplayObjectPointers(); //overrides parents function

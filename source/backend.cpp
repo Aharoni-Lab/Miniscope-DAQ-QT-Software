@@ -279,7 +279,7 @@ void backEnd::connectSnS()
         QObject::connect(controlPanel, &ControlPanel::recordStop, miniscope[i], &Miniscope::stopRecording);
     }
     for (int i = 0; i < behavCam.length(); i++) {
-        QObject::connect(behavCam[i], SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+//        QObject::connect(behavCam[i], SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
         // For triggering screenshots
         QObject::connect(behavCam[i], SIGNAL(takeScreenShot(QString)), dataSaver, SLOT( takeScreenShot(QString)));
 
@@ -311,7 +311,7 @@ void backEnd::setupDataSaver()
                                             miniscope[i]->getAcqFrameNumPointer());
 
         dataSaver->setHeadOrientationConfig(miniscope[i]->getDeviceName(), miniscope[i]->getHeadOrienataionStreamState(), miniscope[i]->getHeadOrienataionFilterState());
-
+        dataSaver->setROI(miniscope[i]->getDeviceName(), miniscope[i]->getROI());
     }
     for (int i = 0; i < behavCam.length(); i++) {
         dataSaver->setDataCompression(behavCam[i]->getDeviceName(), behavCam[i]->getCompressionType());

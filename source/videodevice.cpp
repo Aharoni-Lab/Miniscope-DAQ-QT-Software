@@ -306,7 +306,7 @@ QJsonObject VideoDevice::getDeviceConfig(QString deviceType) {
     QString jsonFile;
     QFile file;
     m_deviceType = deviceType;
-    file.setFileName("deviceConfigs/videoDevicess.json");
+    file.setFileName("deviceConfigs/videoDevices.json");
     file.open(QIODevice::ReadOnly | QIODevice::Text);
     jsonFile = file.readAll();
     file.close();

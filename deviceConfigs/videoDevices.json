@@ -1,5 +1,6 @@
 {
     "WebCam": {
+        "qmlFile": "qrc:/behaviorCam.qml",
         "sensor": "",
         "frameRate": 30,
         "width": 640,
@@ -9,6 +10,7 @@
         }
     },
     "WebCam-320x240": {
+        "qmlFile": "qrc:/behaviorCam.qml",
         "sensor": "",
         "frameRate": 30,
         "width": 320,
@@ -18,6 +20,7 @@
         }
     },
 	"WebCam-640x480": {
+        "qmlFile": "qrc:/behaviorCam.qml",
         "sensor": "",
         "frameRate": 30,
         "width": 640,
@@ -27,6 +30,7 @@
         }
     },
     "WebCam-1280x720": {
+        "qmlFile": "qrc:/behaviorCam.qml",
         "sensor": "",
         "frameRate": 30,
         "width": 1280,

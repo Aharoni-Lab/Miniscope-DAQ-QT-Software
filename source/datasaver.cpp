@@ -195,6 +195,7 @@ void DataSaver::startRunning()
                         // TODO: Add compression options here
                         if (ROI.contains(names[i])) {
                             // Need to trim frame to ROI
+//                            qDebug() << ROI[names[i]][0] << ROI[names[i]][1] << ROI[names[i]][2] << ROI[names[i]][3];
                             videoWriter[names[i]]->open(tempStr.toUtf8().constData(),
                                     dataCompressionFourCC[names[i]], 60,
                                     cv::Size(ROI[names[i]][2], ROI[names[i]][3]), isColor); // color should be set to false?

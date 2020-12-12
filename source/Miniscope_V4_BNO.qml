@@ -16,6 +16,8 @@ Item {
     signal dFFSwitchChanged(bool value)
     signal saturationSwitchChanged(bool value)
 
+    signal setRoiClicked()
+
     Keys.onPressed: {
         if (event.key === Qt.Key_H) {
             if (root.state == "controlsShown")
@@ -31,8 +33,6 @@ Item {
 
     VideoDisplay {
         id: videoDisplay
-        //            Layout.fillHeight: true
-        //            Layout.fillWidth: true
         Layout.minimumHeight: 480
         Layout.minimumWidth: 640
         objectName: "vD"
@@ -49,12 +49,44 @@ Item {
                 idx = 0;
         }
 
+        onRoiChanged: {
+            if (videoDisplay.ROI[4] === 1) {
+                rectROI.visible = true;
+                rectROI.color = "#40ffffff"; //"e38787";
+                rectROI.x = videoDisplay.ROI[0];
+                rectROI.y = videoDisplay.ROI[1];
+                rectROI.width = videoDisplay.ROI[2];
+                rectROI.height = videoDisplay.ROI[3];
+            }
+            else {
+                rectROI.visible = true;
+                rectROI.color = "#00000000";
+                rectROI.x = videoDisplay.ROI[0];
+                rectROI.y = videoDisplay.ROI[1];
+                rectROI.width = videoDisplay.ROI[2];
+                rectROI.height = videoDisplay.ROI[3];
+            }
+        }
+
         SequentialAnimation on t {
             NumberAnimation { to: 1; duration: 2500; easing.type: Easing.InQuad }
             NumberAnimation { to: 0; duration: 2500; easing.type: Easing.OutQuad }
             loops: Animation.Infinite
             running: true
                 }
+
+        Rectangle {
+            id: rectROI
+            x: 0
+            y: 0
+            width: videoDisplay.ROI[2]
+            height: videoDisplay.ROI[3]
+            visible: false
+
+            border.color: "red"
+            border.width: 2
+//            radius: 10
+        }
     }
     TopMenu{
         id: topMenu
@@ -184,6 +216,27 @@ Item {
         height: 100
         spacing: 0
         anchors.verticalCenter: parent.verticalCenter
+
+        RoundButton {
+            id: setRoi
+            objectName: "setRoi"
+            text: "Set ROI"
+            font.family: "Arial"
+            font.pointSize: 10
+            font.bold: true
+            font.weight: Font.Normal
+            radius: 4
+            enabled: true
+            background: Rectangle {
+                id: setRoiRect
+                radius: setRoi.radius
+                border.width: 1
+                color: "#a8a7fd"
+            }
+            onHoveredChanged: hovered ? setRoiRect.color = "#f8a7fd" : setRoiRect.color = "#a8a7fd"
+            onClicked: root.setRoiClicked()
+
+        }
 
         VideoSliderControl {
             id: led0

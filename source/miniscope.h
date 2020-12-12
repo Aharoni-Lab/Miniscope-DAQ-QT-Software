@@ -26,7 +26,7 @@
 
 class Miniscope : public VideoDevice
 {
-
+    Q_OBJECT
 public:
     explicit Miniscope(QObject *parent = nullptr, QJsonObject ucMiniscope = QJsonObject());
     void setupDisplayObjectPointers(); //overrides parents function

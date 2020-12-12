@@ -126,8 +126,6 @@ Item {
 
     VideoDisplay {
         id: videoDisplay
-        //            Layout.fillHeight: true
-        //            Layout.fillWidth: true
         Layout.minimumHeight: 480
         Layout.minimumWidth: 640
         objectName: "vD"
