@@ -29,5 +29,6 @@
         <file>img/icon/gain.png</file>
         <file>img/icon/led.png</file>
         <file>Miniscope_V3.qml</file>
+        <file>TraceDisplayWindow.qml</file>
     </qresource>
 </RCC>

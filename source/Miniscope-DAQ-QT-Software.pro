@@ -26,6 +26,7 @@ SOURCES += \
         main.cpp \
         miniscope.cpp \
         newquickview.cpp \
+        tracedisplay.cpp \
         videodevice.cpp \
         videodisplay.cpp \
         videostreamocv.cpp
@@ -55,6 +56,7 @@ HEADERS += \
     datasaver.h \
     miniscope.h \
     newquickview.h \
+    tracedisplay.h \
     videodevice.h \
     videodisplay.h \
     videostreamocv.h
