@@ -1,17 +1,59 @@
 #include "tracedisplay.h"
+#include "newquickview.h"
+
+#include <QObject>
+#include <QGuiApplication>
+#include <QScreen>
 
 #include <QtQuick/qquickwindow.h>
 #include <QtGui/QOpenGLShaderProgram>
 #include <QtGui/QOpenGLContext>
 #include <QtGui/QOpenGLTexture>
 
+TraceDisplayBackend::TraceDisplayBackend(QObject *parent, QJsonObject ucTraceDisplay):
+    QObject(parent)
+{
+    m_ucTraceDisplay = ucTraceDisplay;
+
+    // Create Window
+    createView();
+}
+
+void TraceDisplayBackend::createView()
+{
+//    QScreen *screen = QGuiApplication::primaryScreen();
+//    QRect  screenGeometry = screen->geometry();
+//    int height = screenGeometry.height();
+//    int width = screenGeometry.width();
+
+    qmlRegisterType<TraceDisplay>("TraceDisplay", 1, 0, "TraceDisplay");
+
+    const QUrl url(QStringLiteral("qrc:/TraceDisplayWindow.qml"));
+    view = new NewQuickView(url);
+
+//    view->setWidth(400);
+//    view->setHeight(height*0.9);
+    view->setTitle("Trace Window");
+
+    view->setWidth(m_ucTraceDisplay["width"].toInt(640));
+    view->setHeight(m_ucTraceDisplay["height"].toInt(480));
+
+    view->setX(m_ucTraceDisplay["windowX"].toInt(1));
+    view->setY(m_ucTraceDisplay["windowY"].toInt(1));
+
+#ifdef Q_OS_WINDOWS
+    view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
+#endif
+    view->show();
+}
+
 TraceDisplay::TraceDisplay()
     : m_t(0)
 {
     setAcceptedMouseButtons(Qt::AllButtons);
     connect(this, &QQuickItem::windowChanged, this, &TraceDisplay::handleWindowChanged);
-
 }
+
 
 void TraceDisplay::setT(qreal t)
 {
@@ -42,7 +84,7 @@ void TraceDisplay::sync()
         m_renderer = new TraceDisplayRenderer();
 //        m_renderer->setShowSaturation(m_showSaturation);
 //        m_renderer->setDisplayFrame(QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
-        connect(window(), &QQuickWindow::beforeRendering, m_renderer, &VideoDisplayRenderer::paint, Qt::DirectConnection);
+        connect(window(), &QQuickWindow::beforeRendering, m_renderer, &TraceDisplayRenderer::paint, Qt::DirectConnection);
     }
     m_renderer->setViewportSize(window()->size() * window()->devicePixelRatio());
 //    m_renderer->setT(m_t);
@@ -117,9 +159,9 @@ void TraceDisplayRenderer::paint()
     };
     m_program->setAttributeArray(0, GL_FLOAT, position, 2);
     m_program->setAttributeArray(1, GL_FLOAT, texcoord, 2);
-    m_program->setUniformValue("alpha", (float) m_alpha);
-    m_program->setUniformValue("beta", (float) m_beta);
-    m_program->setUniformValue("showSaturation", (float) m_showStaturation);
+//    m_program->setUniformValue("alpha", (float) m_alpha);
+//    m_program->setUniformValue("beta", (float) m_beta);
+//    m_program->setUniformValue("showSaturation", (float) m_showStaturation);
 
     glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
 
@@ -141,13 +183,13 @@ void TraceDisplayRenderer::paint()
     // mixing with raw OpenGL.
     m_window->resetOpenGLState();
 
-    if (m_newFrame) {
-//        qDebug() << "Set new texture QImage";
+//    if (m_newFrame) {
+////        qDebug() << "Set new texture QImage";
 
-        m_texture->destroy();
-        m_texture->create();
-        m_texture->setData(m_displayFrame);
-        m_newFrame = false;
-    }
+//        m_texture->destroy();
+//        m_texture->create();
+//        m_texture->setData(m_displayFrame);
+//        m_newFrame = false;
+//    }
 
 }

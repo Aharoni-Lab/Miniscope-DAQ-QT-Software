@@ -25,6 +25,7 @@
 #include "controlpanel.h"
 #include "datasaver.h"
 #include "behaviortracker.h"
+#include "tracedisplay.h"
 
 #ifdef USE_USB
  #include <libusb.h>
@@ -35,6 +36,7 @@ backEnd::backEnd(QObject *parent) :
     m_versionNumber(""),
     m_userConfigFileName(""),
     m_userConfigOK(false),
+    traceDisplay(nullptr),
     behavTracker(nullptr)
 {
 #ifdef DEBUG
@@ -59,6 +61,7 @@ backEnd::backEnd(QObject *parent) :
     ucMiniscopes = {"None"};
     ucBehaviorCams = {"None"};
     ucBehaviorTracker["type"] = "None";
+    ucTraceDisplay["type"] = "None";
 
     dataSaver = new DataSaver();
 
@@ -403,6 +406,7 @@ void backEnd::parseUserConfig()
     ucMiniscopes = devices["miniscopes"].toArray();
     ucBehaviorCams = devices["cameras"].toArray();
     ucBehaviorTracker = m_userConfig["behaviorTracker"].toObject();
+    ucTraceDisplay = m_userConfig["traceDisplay"].toObject();
 
 
 }
@@ -520,6 +524,10 @@ void backEnd::constructUserConfigGUI()
         setupBehaviorTracker();
     }
 
+    if (!ucTraceDisplay.isEmpty()) {
+
+        traceDisplay = new TraceDisplayBackend(NULL, ucTraceDisplay);
+    }
 
     connectSnS();
 }

@@ -1,10 +1,27 @@
 #ifndef TRACEDISPLAY_H
 #define TRACEDISPLAY_H
 
+#include "newquickview.h"
+
 #include <QtQuick/QQuickItem>
 #include <QtGui/QOpenGLShaderProgram>
 #include <QtGui/QOpenGLFunctions>
 #include <QtGui/QOpenGLTexture>
+
+#include <QJsonObject>
+
+
+class TraceDisplayBackend : public QObject
+{
+    Q_OBJECT
+public:
+    TraceDisplayBackend(QObject *parent = nullptr, QJsonObject ucTraceDisplay = QJsonObject());
+    void createView();
+
+private:
+    NewQuickView *view;
+    QJsonObject m_ucTraceDisplay;
+};
 
 class TraceDisplayRenderer : public QObject, protected QOpenGLFunctions
 {
