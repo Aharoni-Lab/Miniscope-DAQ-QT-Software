@@ -106,71 +106,100 @@ void TraceDisplay::cleanup()
     }
 }
 
+TraceDisplayRenderer::TraceDisplayRenderer() :
+    m_program(nullptr),
+    m_texture(nullptr),
+    m_t(0),
+    m_programGridV(nullptr),
+    m_programGridH(nullptr)
+{
+    windowSize = 5; // in seconds. Consider having this defined in user config!
+    gridSpacingV = 0.25; // in seconds
+
+    pan[0] = 0; pan[1] = 0;
+    scale[0] = 1; scale[1] = 1;
+    magnify[0] = 1; magnify[1] = 1;
+
+    initPrograms();
+}
 
 TraceDisplayRenderer::~TraceDisplayRenderer()
 {
     delete m_program;
     delete m_texture;
 
-    delete m_programGrid;
+    delete m_programGridV;
+    delete m_programGridH;
 }
 
-void TraceDisplayRenderer::paint()
+void TraceDisplayRenderer::initPrograms()
 {
-    qDebug() << "1111111";
-    if (!m_programGrid) {
+    if (!m_programGridV) {
 
         initializeOpenGLFunctions();
 
-        m_programGrid = new QOpenGLShaderProgram();
-        m_programGrid->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,":/shaders/grid.vert");
-        m_programGrid->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/grid.frag");
-//        m_programGrid->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,":/shaders/imageBasic.vert");
-//        m_programGrid->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/imageSaturationScaling.frag");
-//        m_programGrid->bindAttributeLocation("position", 0);
-//        m_programGrid->bindAttributeLocation("texcoord", 1);
-        m_programGrid->link();
+        m_programGridV = new QOpenGLShaderProgram();
+        m_programGridV->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,":/shaders/grid.vert");
+        m_programGridV->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/grid.frag");
+
+        m_programGridV->link();
     }
-//    qDebug() << "22222222";
-    m_programGrid->bind();
+}
 
-//    float pan[] = {0.0, 0.0};
-//    float scale[] = {1.0, 1.0};
-//    float magnify[] = {1.0, 1.0};
-//    float spacing = 1.0;
+void TraceDisplayRenderer::updateGridV()
+{
+    float spacing = 0.25f;
 
-//    m_programGrid->setUniformValueArray("u_pan", pan, 1, 2);
-//    m_programGrid->setUniformValueArray("u_scale", scale, 1, 2);
-//    m_programGrid->setUniformValueArray("u_magnify", magnify, 1, 2);
-//    m_programGrid->setUniformValue("u_spacing", spacing);
+    m_programGridV->bind();
 
-    m_programGrid->enableAttributeArray("a_position");
-    m_programGrid->enableAttributeArray("a_color");
-//    m_programGrid->enableAttributeArray("a_index");
+    // These will be moved to mouse and keyboard slots
+    m_programGridV->setUniformValueArray("u_pan", pan, 1, 2);
+    m_programGridV->setUniformValueArray("u_scale", scale, 1, 2);
+    m_programGridV->setUniformValueArray("u_magnify", magnify, 1, 2);
+    m_programGridV->setUniformValue("u_spacing", spacing);
+    // ----------------------------------------------------------
 
-    float position[] = {
-        -1, -1,
-        0, 0,
-        1, 1
-    };
+//    self.VGridSpacing = 0.25  # in seconds
+//    self.numVGridLines = int((self.windowSize/self.VGridSpacing) + 1)
+//    gridX = np.repeat(np.linspace(-1, 1, self.numVGridLines, dtype=np.float32), 2)
+//    gridY = np.tile(np.array([-1., 1.], dtype=np.float32), self.numVGridLines)
+//    self.programGridV["a_position"] = np.stack((gridX, gridY), axis=-1)
+//    self.programGridV["a_color"] = np.tile(np.array([0.7, 0.7, 0.7], dtype=np.float32), (self.numVGridLines*2, 1))
+//    self.programGridV["a_index"] = np.repeat(np.arange(self.numVGridLines, dtype=np.float32) * self.VGridSpacing, 2)
+//    self.programGridV["u_spacing"] = self.VGridSpacing
 
-    float color[] = {
-        0.7, 0.7, 0.7,
-        0.7, 0.7, 0.7,
-        0.7, 0.7, 0.7
-    };
-    float index[] = {
-        0,
-        1,
-        2
-    };
+    int numVGridLines = (int)((windowSize / gridSpacingV) + 1);
+    float gridLineStep = 2.0 / (float)numVGridLines;
 
-    m_programGrid->setAttributeArray("a_position", GL_FLOAT, position, 2);
-    m_programGrid->setAttributeArray("a_color", GL_FLOAT, color, 3);
-//    m_programGrid->setAttributeArray("a_index", GL_FLOAT, index, 1);
+    position.clear();
+    index.clear();
+    color.clear();
 
+    float idx = 0;
+    for (float x = -1; x <= 1; x+= (gridLineStep) ) {
+        position.append({x, -1.0f, x, 1.0f});
 
-//    qDebug() << m_viewportSize.width() <<  m_viewportSize.height();
+        color.append({0.9f, 0.9f, 0.9f, 0.9f, 0.9f, 0.9f});
+
+        index.append({idx, idx});
+        idx += gridSpacingV;
+    }
+
+    m_programGridV->setAttributeArray("a_position", GL_FLOAT, &position[0], 2);
+    m_programGridV->setAttributeArray("a_color", GL_FLOAT, &color[0], 3);
+    m_programGridV->setAttributeArray("a_index", GL_FLOAT, &index[0], 1);
+
+    m_programGridV->release();
+}
+
+void TraceDisplayRenderer::drawGridV()
+{
+    m_programGridV->bind();
+
+    m_programGridV->enableAttributeArray("a_position");
+    m_programGridV->enableAttributeArray("a_color");
+    m_programGridV->enableAttributeArray("a_index");
+
     glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
 
     glDisable(GL_DEPTH_TEST);
@@ -181,14 +210,25 @@ void TraceDisplayRenderer::paint()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
-    glDrawArrays(GL_LINE_STRIP, 0, 3);
+    glLineWidth(3);
+    glDrawArrays(GL_LINE_STRIP, 0, index.length());
+    qDebug() << (index.length());
+
 //    glDrawArrays(GL_TRIANGLE_STRIP, 0, 3);
 
-    m_programGrid->disableAttributeArray("a_position");
-    m_programGrid->disableAttributeArray("a_color");
-    m_programGrid->disableAttributeArray("a_index");
-    m_programGrid->release();
+    m_programGridV->disableAttributeArray("a_position");
+    m_programGridV->disableAttributeArray("a_color");
+    m_programGridV->disableAttributeArray("a_index");
 
+    m_programGridV->release();
+
+}
+void TraceDisplayRenderer::paint()
+{
+
+    updateGridV();
+
+    drawGridV();
 //    // Not strictly needed for this example, but generally useful for when
 //    // mixing with raw OpenGL.
     m_window->resetOpenGLState();

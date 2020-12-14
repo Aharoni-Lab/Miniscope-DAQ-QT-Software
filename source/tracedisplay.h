@@ -9,6 +9,7 @@
 #include <QtGui/QOpenGLTexture>
 
 #include <QJsonObject>
+#include <QVector>
 
 
 class TraceDisplayBackend : public QObject
@@ -30,17 +31,28 @@ class TraceDisplayRenderer : public QObject, protected QOpenGLFunctions
 {
     Q_OBJECT
 public:
-    TraceDisplayRenderer() :
-        m_program(nullptr),
-        m_texture(nullptr),
-        m_t(0),
-        m_programGrid(nullptr)
-    { }
+    TraceDisplayRenderer();
     ~TraceDisplayRenderer();
 
     void setT(qreal t) { m_t = t; }
     void setViewportSize(const QSize &size) { m_viewportSize = size; }
     void setWindow(QQuickWindow *window) { m_window = window; }
+
+    void initPrograms();
+
+    // Display update funtions
+    void updateGridV();
+    void drawGridV();
+    QVector<float> position;
+    QVector<float> color;
+    QVector<float> index;
+
+    float pan[2];
+    float scale[2];
+    float magnify[2];
+
+    float windowSize; // in seconds
+    float gridSpacingV;
 
 //signals:
 
@@ -55,8 +67,12 @@ private:
 
     qreal m_t;
 
+    // Vars for display
+
+
     // Programs used for trace display
-    QOpenGLShaderProgram *m_programGrid;
+    QOpenGLShaderProgram *m_programGridV;
+    QOpenGLShaderProgram *m_programGridH;
 
 };
 
