@@ -18,6 +18,9 @@ public:
     TraceDisplayBackend(QObject *parent = nullptr, QJsonObject ucTraceDisplay = QJsonObject());
     void createView();
 
+public slots:
+    void close();
+
 private:
     NewQuickView *view;
     QJsonObject m_ucTraceDisplay;
@@ -30,7 +33,8 @@ public:
     TraceDisplayRenderer() :
         m_program(nullptr),
         m_texture(nullptr),
-        m_t(0)
+        m_t(0),
+        m_programGrid(nullptr)
     { }
     ~TraceDisplayRenderer();
 
@@ -50,6 +54,9 @@ private:
     QQuickWindow *m_window;
 
     qreal m_t;
+
+    // Programs used for trace display
+    QOpenGLShaderProgram *m_programGrid;
 
 };
 

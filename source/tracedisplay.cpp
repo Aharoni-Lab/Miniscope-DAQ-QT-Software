@@ -47,10 +47,16 @@ void TraceDisplayBackend::createView()
     view->show();
 }
 
-TraceDisplay::TraceDisplay()
-    : m_t(0)
+void TraceDisplayBackend::close()
 {
-    setAcceptedMouseButtons(Qt::AllButtons);
+    view->close();
+}
+
+TraceDisplay::TraceDisplay()
+    : m_t(0),
+      m_renderer(nullptr)
+{
+//    setAcceptedMouseButtons(Qt::AllButtons);
     connect(this, &QQuickItem::windowChanged, this, &TraceDisplay::handleWindowChanged);
 }
 
@@ -105,64 +111,66 @@ TraceDisplayRenderer::~TraceDisplayRenderer()
 {
     delete m_program;
     delete m_texture;
+
+    delete m_programGrid;
 }
 
 void TraceDisplayRenderer::paint()
 {
-//    qDebug() << "Painting!";
-    if (!m_program) {
+    qDebug() << "1111111";
+    if (!m_programGrid) {
+
         initializeOpenGLFunctions();
 
-        m_program = new QOpenGLShaderProgram();
-        m_program->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,":/shaders/imageBasic.vert");
-        m_program->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/imageSaturationScaling.frag");
-
-
-        m_program->bindAttributeLocation("position", 0);
-        m_program->bindAttributeLocation("texcoord", 1);
-        m_program->link();
-
-        m_texture = new QOpenGLTexture(QImage(":/img/MiniscopeLogo.png").rgbSwapped());
-        m_texture->bind(0);
-
-
-
+        m_programGrid = new QOpenGLShaderProgram();
+        m_programGrid->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,":/shaders/grid.vert");
+        m_programGrid->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/grid.frag");
+//        m_programGrid->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,":/shaders/imageBasic.vert");
+//        m_programGrid->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/imageSaturationScaling.frag");
+//        m_programGrid->bindAttributeLocation("position", 0);
+//        m_programGrid->bindAttributeLocation("texcoord", 1);
+        m_programGrid->link();
     }
-//! [4] //! [5]
+//    qDebug() << "22222222";
+    m_programGrid->bind();
 
-    m_texture->bind(0);
+//    float pan[] = {0.0, 0.0};
+//    float scale[] = {1.0, 1.0};
+//    float magnify[] = {1.0, 1.0};
+//    float spacing = 1.0;
 
-    m_program->bind();
+//    m_programGrid->setUniformValueArray("u_pan", pan, 1, 2);
+//    m_programGrid->setUniformValueArray("u_scale", scale, 1, 2);
+//    m_programGrid->setUniformValueArray("u_magnify", magnify, 1, 2);
+//    m_programGrid->setUniformValue("u_spacing", spacing);
 
-    m_program->setUniformValue( "texture", 0 ); // <----- texture unit
-
-    m_program->enableAttributeArray(0);
-    m_program->enableAttributeArray(1);
+    m_programGrid->enableAttributeArray("a_position");
+    m_programGrid->enableAttributeArray("a_color");
+//    m_programGrid->enableAttributeArray("a_index");
 
     float position[] = {
         -1, -1,
-        1, -1,
-        -1, 1,
-        1, 1
-
-    };
-    float texcoord[] = {
-//        1, 1,
-//        1, 0,
-//        0, 1,
-//        0, 0
-        0, 1,
-        1, 1,
         0, 0,
-        1, 0
-
+        1, 1
     };
-    m_program->setAttributeArray(0, GL_FLOAT, position, 2);
-    m_program->setAttributeArray(1, GL_FLOAT, texcoord, 2);
-//    m_program->setUniformValue("alpha", (float) m_alpha);
-//    m_program->setUniformValue("beta", (float) m_beta);
-//    m_program->setUniformValue("showSaturation", (float) m_showStaturation);
 
+    float color[] = {
+        0.7, 0.7, 0.7,
+        0.7, 0.7, 0.7,
+        0.7, 0.7, 0.7
+    };
+    float index[] = {
+        0,
+        1,
+        2
+    };
+
+    m_programGrid->setAttributeArray("a_position", GL_FLOAT, position, 2);
+    m_programGrid->setAttributeArray("a_color", GL_FLOAT, color, 3);
+//    m_programGrid->setAttributeArray("a_index", GL_FLOAT, index, 1);
+
+
+//    qDebug() << m_viewportSize.width() <<  m_viewportSize.height();
     glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
 
     glDisable(GL_DEPTH_TEST);
@@ -173,23 +181,16 @@ void TraceDisplayRenderer::paint()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glDrawArrays(GL_LINE_STRIP, 0, 3);
+//    glDrawArrays(GL_TRIANGLE_STRIP, 0, 3);
 
-    m_program->disableAttributeArray(0);
-    m_program->disableAttributeArray(1);
-    m_program->release();
+    m_programGrid->disableAttributeArray("a_position");
+    m_programGrid->disableAttributeArray("a_color");
+    m_programGrid->disableAttributeArray("a_index");
+    m_programGrid->release();
 
-    // Not strictly needed for this example, but generally useful for when
-    // mixing with raw OpenGL.
+//    // Not strictly needed for this example, but generally useful for when
+//    // mixing with raw OpenGL.
     m_window->resetOpenGLState();
-
-//    if (m_newFrame) {
-////        qDebug() << "Set new texture QImage";
-
-//        m_texture->destroy();
-//        m_texture->create();
-//        m_texture->setData(m_displayFrame);
-//        m_newFrame = false;
-//    }
 
 }
