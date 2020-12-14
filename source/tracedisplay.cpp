@@ -111,10 +111,11 @@ TraceDisplayRenderer::TraceDisplayRenderer() :
     m_texture(nullptr),
     m_t(0),
     m_programGridV(nullptr),
-    m_programGridH(nullptr)
+    m_programGridH(nullptr),
+    m_programMovingBar(nullptr)
 {
     windowSize = 5; // in seconds. Consider having this defined in user config!
-    gridSpacingV = 0.25; // in seconds
+    gridSpacingV = .25; // in seconds
 
     pan[0] = 0; pan[1] = 0;
     scale[0] = 1; scale[1] = 1;
@@ -130,66 +131,90 @@ TraceDisplayRenderer::~TraceDisplayRenderer()
 
     delete m_programGridV;
     delete m_programGridH;
+    delete m_programMovingBar;
 }
 
 void TraceDisplayRenderer::initPrograms()
 {
-    if (!m_programGridV) {
 
-        initializeOpenGLFunctions();
+    initializeOpenGLFunctions();
 
-        m_programGridV = new QOpenGLShaderProgram();
-        m_programGridV->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,":/shaders/grid.vert");
-        m_programGridV->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/grid.frag");
+    // Vertical lines program
+    m_programGridV = new QOpenGLShaderProgram();
+    m_programGridV->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,":/shaders/grid.vert");
+    m_programGridV->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/grid.frag");
+    m_programGridV->link();
 
-        m_programGridV->link();
-    }
+    // Moving bar program
+    m_programMovingBar = new QOpenGLShaderProgram();
+    m_programMovingBar->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,":/shaders/movingBar.vert");
+    m_programMovingBar->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/movingBar.frag");
+    m_programMovingBar->link();
+
+    updateMovingBar();
+
+
 }
 
 void TraceDisplayRenderer::updateGridV()
 {
-    float spacing = 0.25f;
 
     m_programGridV->bind();
 
-    // These will be moved to mouse and keyboard slots
+    // ------ These will be moved to mouse and keyboard slots
     m_programGridV->setUniformValueArray("u_pan", pan, 1, 2);
     m_programGridV->setUniformValueArray("u_scale", scale, 1, 2);
     m_programGridV->setUniformValueArray("u_magnify", magnify, 1, 2);
-    m_programGridV->setUniformValue("u_spacing", spacing);
+    m_programGridV->setUniformValue("u_spacing", gridSpacingV);
     // ----------------------------------------------------------
 
-//    self.VGridSpacing = 0.25  # in seconds
-//    self.numVGridLines = int((self.windowSize/self.VGridSpacing) + 1)
-//    gridX = np.repeat(np.linspace(-1, 1, self.numVGridLines, dtype=np.float32), 2)
-//    gridY = np.tile(np.array([-1., 1.], dtype=np.float32), self.numVGridLines)
-//    self.programGridV["a_position"] = np.stack((gridX, gridY), axis=-1)
-//    self.programGridV["a_color"] = np.tile(np.array([0.7, 0.7, 0.7], dtype=np.float32), (self.numVGridLines*2, 1))
-//    self.programGridV["a_index"] = np.repeat(np.arange(self.numVGridLines, dtype=np.float32) * self.VGridSpacing, 2)
-//    self.programGridV["u_spacing"] = self.VGridSpacing
-
     int numVGridLines = (int)((windowSize / gridSpacingV) + 1);
-    float gridLineStep = 2.0 / (float)numVGridLines;
+    float gridLineStep = 2.0 / ((float)numVGridLines - 1);
 
-    position.clear();
-    index.clear();
-    color.clear();
+    gridVPosition.clear();
+    girdVIndex.clear();
+    gridVColor.clear();
 
     float idx = 0;
     for (float x = -1; x <= 1; x+= (gridLineStep) ) {
-        position.append({x, -1.0f, x, 1.0f});
+        gridVPosition.append({x, -1.0f,
+                         x, 1.0f});
 
-        color.append({0.9f, 0.9f, 0.9f, 0.9f, 0.9f, 0.9f});
+        gridVColor.append({0.9f, 0.9f, 0.9f,
+                      0.9f, 0.9f, 0.9f});
 
-        index.append({idx, idx});
+        girdVIndex.append({idx,
+                      idx});
         idx += gridSpacingV;
     }
 
-    m_programGridV->setAttributeArray("a_position", GL_FLOAT, &position[0], 2);
-    m_programGridV->setAttributeArray("a_color", GL_FLOAT, &color[0], 3);
-    m_programGridV->setAttributeArray("a_index", GL_FLOAT, &index[0], 1);
+    m_programGridV->setAttributeArray("a_position", GL_FLOAT, &gridVPosition[0], 2);
+    m_programGridV->setAttributeArray("a_color", GL_FLOAT, &gridVColor[0], 3);
+    m_programGridV->setAttributeArray("a_index", GL_FLOAT, &girdVIndex[0], 1);
 
     m_programGridV->release();
+}
+
+void TraceDisplayRenderer::updateMovingBar()
+{
+    currentTime = 0;
+    startTime = 0;
+    m_programMovingBar->bind();
+
+    // ------ These will be moved to mouse and keyboard slots
+    m_programMovingBar->setUniformValueArray("u_pan", pan, 1, 2);
+    m_programMovingBar->setUniformValueArray("u_scale", scale, 1, 2);
+    m_programMovingBar->setUniformValueArray("u_magnify", magnify, 1, 2);
+    m_programMovingBar->setUniformValue("u_time", currentTime - startTime);
+    m_programMovingBar->setUniformValue("u_windowSize", windowSize);
+    // ----------------------------------------------------------
+
+    movingBarPosition = {0.0f, -1.0f, 0.0f, 1.0f};
+    movingBarColor = {0.9f, 0.9f, 0.9f, 0.9f, 0.9f, 0.9f};
+    m_programMovingBar->setAttributeArray("a_position", GL_FLOAT, &movingBarPosition[0], 2);
+    m_programMovingBar->setAttributeArray("a_color", GL_FLOAT, &movingBarColor[0], 3);
+
+    m_programMovingBar->release();
 }
 
 void TraceDisplayRenderer::drawGridV()
@@ -199,6 +224,41 @@ void TraceDisplayRenderer::drawGridV()
     m_programGridV->enableAttributeArray("a_position");
     m_programGridV->enableAttributeArray("a_color");
     m_programGridV->enableAttributeArray("a_index");
+
+
+
+    glLineWidth(3);
+    glDrawArrays(GL_LINE_STRIP, 0, girdVIndex.length());
+//    qDebug() << (index.length());
+
+//    glDrawArrays(GL_TRIANGLE_STRIP, 0, 3);
+
+    m_programGridV->disableAttributeArray("a_position");
+    m_programGridV->disableAttributeArray("a_color");
+    m_programGridV->disableAttributeArray("a_index");
+
+    m_programGridV->release();
+
+}
+
+void TraceDisplayRenderer::drawMovingBar()
+{
+    m_programMovingBar->bind();
+    currentTime+= 0.06;
+    m_programMovingBar->setUniformValue("u_time", currentTime);
+    m_programMovingBar->enableAttributeArray("a_position");
+    m_programMovingBar->enableAttributeArray("a_color");
+
+    glLineWidth(10);
+    glDrawArrays(GL_LINE_STRIP, 0, girdVIndex.length());
+
+    m_programMovingBar->disableAttributeArray("a_position");
+    m_programMovingBar->disableAttributeArray("a_color");
+    m_programMovingBar->release();
+}
+
+void TraceDisplayRenderer::paint()
+{
 
     glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
 
@@ -210,25 +270,10 @@ void TraceDisplayRenderer::drawGridV()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
-    glLineWidth(3);
-    glDrawArrays(GL_LINE_STRIP, 0, index.length());
-    qDebug() << (index.length());
-
-//    glDrawArrays(GL_TRIANGLE_STRIP, 0, 3);
-
-    m_programGridV->disableAttributeArray("a_position");
-    m_programGridV->disableAttributeArray("a_color");
-    m_programGridV->disableAttributeArray("a_index");
-
-    m_programGridV->release();
-
-}
-void TraceDisplayRenderer::paint()
-{
-
     updateGridV();
 
     drawGridV();
+    drawMovingBar();
 //    // Not strictly needed for this example, but generally useful for when
 //    // mixing with raw OpenGL.
     m_window->resetOpenGLState();

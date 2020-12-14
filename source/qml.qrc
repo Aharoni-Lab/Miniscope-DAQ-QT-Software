@@ -32,5 +32,7 @@
         <file>TraceDisplayWindow.qml</file>
         <file>shaders/grid.vert</file>
         <file>shaders/grid.frag</file>
+        <file>shaders/movingBar.vert</file>
+        <file>shaders/movingBar.frag</file>
     </qresource>
 </RCC>

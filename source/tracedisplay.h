@@ -43,9 +43,14 @@ public:
     // Display update funtions
     void updateGridV();
     void drawGridV();
-    QVector<float> position;
-    QVector<float> color;
-    QVector<float> index;
+    QVector<float> gridVPosition;
+    QVector<float> gridVColor;
+    QVector<float> girdVIndex;
+
+    void updateMovingBar();
+    void drawMovingBar();
+    QVector<float> movingBarPosition;
+    QVector<float> movingBarColor;
 
     float pan[2];
     float scale[2];
@@ -53,6 +58,9 @@ public:
 
     float windowSize; // in seconds
     float gridSpacingV;
+
+    float startTime;
+    float currentTime;
 
 //signals:
 
@@ -73,6 +81,7 @@ private:
     // Programs used for trace display
     QOpenGLShaderProgram *m_programGridV;
     QOpenGLShaderProgram *m_programGridH;
+    QOpenGLShaderProgram *m_programMovingBar;
 
 };
 
