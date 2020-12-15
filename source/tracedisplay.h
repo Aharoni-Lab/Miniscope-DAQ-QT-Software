@@ -7,6 +7,7 @@
 #include <QtGui/QOpenGLShaderProgram>
 #include <QtGui/QOpenGLFunctions>
 #include <QtGui/QOpenGLTexture>
+#include <QtGui/QOpenGLBuffer>
 
 #include <QJsonObject>
 #include <QVector>
@@ -41,14 +42,16 @@ public:
     void initPrograms();
 
     // Display update funtions
+    void initGridV();
     void updateGridV();
     void drawGridV();
-    QVector<float> gridVPosition;
-    QVector<float> gridVColor;
-    QVector<float> girdVIndex;
+    QOpenGLBuffer gridVVOB;
 
+    void initMovingBar();
     void updateMovingBar();
     void drawMovingBar();
+
+    QOpenGLBuffer movingBarVBO;
     QVector<float> movingBarPosition;
     QVector<float> movingBarColor;
 
