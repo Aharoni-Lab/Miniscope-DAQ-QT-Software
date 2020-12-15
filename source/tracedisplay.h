@@ -39,7 +39,10 @@ public:
     void setViewportSize(const QSize &size) { m_viewportSize = size; }
     void setWindow(QQuickWindow *window) { m_window = window; }
 
+
     void initPrograms();
+
+
 
     // Display update funtions
     void initGridV();
@@ -76,6 +79,7 @@ private:
     QOpenGLTexture *m_texture;
     QQuickWindow *m_window;
 
+
     qreal m_t;
 
     // Vars for display
@@ -91,15 +95,20 @@ private:
 class TraceDisplay : public QQuickItem
 {
     Q_OBJECT
+    // FOr updating xlabel values
+    Q_PROPERTY(QList<QVariant > xLabel READ xLabel WRITE setXLabel NOTIFY xLabelChanged)
     Q_PROPERTY(qreal t READ t WRITE setT NOTIFY tChanged)
 
 public:
     TraceDisplay();
+    QList<QVariant > xLabel() { return m_xLabel; }
+    void setXLabel(QList<QVariant > label) {m_xLabel = label; xLabelChanged();}
     qreal t() const { return m_t; }
     void setT(qreal t);
 
 
 signals:
+    void xLabelChanged();
     void tChanged();
 
 public slots:
@@ -111,6 +120,7 @@ private slots:
 
 private:
     qreal m_t;
+    QList<QVariant > m_xLabel;
     TraceDisplayRenderer *m_renderer;
 
 };

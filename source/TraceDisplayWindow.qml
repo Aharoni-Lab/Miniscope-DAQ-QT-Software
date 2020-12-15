@@ -24,5 +24,58 @@ Item {
             running: true
         }
     }
+
+    RowLayout {
+        id: bottomText
+        objectName: "bottomText"
+        width: parent.width
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+
+
+        Text {
+            id: xLabel0
+            objectName: "xLabel0"
+            color: "#969696"
+            text: traceDisplay.xLabel[0]
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+            font.family: "Helvetica"
+            font.pointSize: 10
+        }
+
+        Text {
+            objectName: "xLabel1"
+            text: traceDisplay.xLabel[1]
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+            font: xLabel0.font
+            color: xLabel0.color
+        }
+
+        Text {
+            objectName: "xLabel2"
+            text: traceDisplay.xLabel[2]
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+            font: xLabel0.font
+            color: xLabel0.color
+        }
+
+        Text {
+            objectName: "xLabel3"
+            text: traceDisplay.xLabel[3]
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+            font: xLabel0.font
+            color: xLabel0.color
+        }
+
+        Text {
+            objectName: "xLabel4"
+            text: traceDisplay.xLabel[4]
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+            font: xLabel0.font
+            color: xLabel0.color
+        }
+    }
+
+
 }
 

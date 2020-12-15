@@ -54,8 +54,10 @@ void TraceDisplayBackend::close()
 
 TraceDisplay::TraceDisplay()
     : m_t(0),
+      m_xLabel({0,0,0,0,0}),
       m_renderer(nullptr)
 {
+
 //    setAcceptedMouseButtons(Qt::AllButtons);
     connect(this, &QQuickItem::windowChanged, this, &TraceDisplay::handleWindowChanged);
 }
@@ -69,6 +71,7 @@ void TraceDisplay::setT(qreal t)
     emit tChanged();
     if (window())
         window()->update();
+    setXLabel({"0.0","1.0","2.0","3.0","4.0"});
 }
 
 void TraceDisplay::handleWindowChanged(QQuickWindow *win)
@@ -257,8 +260,6 @@ void TraceDisplayRenderer::updateMovingBar()
     m_programMovingBar->setUniformValue("u_time", currentTime - startTime);
     m_programMovingBar->release();
 }
-
-
 
 void TraceDisplayRenderer::drawMovingBar()
 {
