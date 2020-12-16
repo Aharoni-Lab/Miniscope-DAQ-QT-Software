@@ -85,7 +85,9 @@ public:
     void initTraces();
     void updateTraces();
     void drawTraces();
-//    QOpenGLBuffer tracesVBO;
+
+    // Handle mouse events
+    void updatePan(float deltaX, float deltaY);
 
     // User controls to change trace display view
     float pan[2];
@@ -146,11 +148,19 @@ class TraceDisplay : public QQuickItem
 
 public:
     TraceDisplay();
+
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
+    void hoverMoveEvent(QHoverEvent *event) override;
+
     QList<QVariant > xLabel() { return m_xLabel; }
     void setXLabel(QList<QVariant > label) {m_xLabel = label; xLabelChanged();}
     qreal t() const { return m_t; }
     void setT(qreal t);
     void addNewTrace(trace_t newTrace);
+
 
 signals:
     void xLabelChanged();
@@ -169,6 +179,10 @@ private:
     TraceDisplayRenderer *m_renderer;
 
     QVector<trace_t> m_tempTraces;
+
+    QMouseEvent* lastMouseClickEvent;
+    QMouseEvent* lastMouseReleaseEvent;
+    QMouseEvent* lastMouseMoveEvent;
 
 
 };

@@ -68,11 +68,64 @@ void TraceDisplayBackend::close()
 TraceDisplay::TraceDisplay()
     : m_t(0),
       m_xLabel({"0.0","1.0","2.0","3.0","4.0"}),
-      m_renderer(nullptr)
+      m_renderer(nullptr),
+      lastMouseClickEvent(nullptr),
+      lastMouseReleaseEvent(nullptr),
+      lastMouseMoveEvent(nullptr)
 {
 
-//    setAcceptedMouseButtons(Qt::AllButtons);
+    setAcceptedMouseButtons(Qt::AllButtons);
+    setAcceptHoverEvents(true);
     connect(this, &QQuickItem::windowChanged, this, &TraceDisplay::handleWindowChanged);
+}
+
+void TraceDisplay::mousePressEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        lastMouseClickEvent = new QMouseEvent(*event);
+    }
+    qDebug() << "Mouse Press" << event;
+}
+
+void TraceDisplay::mouseMoveEvent(QMouseEvent *event)
+{
+    // Drag event:
+    float deltaX, deltaY;
+    if (event->buttons() == Qt::LeftButton) {
+        if (lastMouseMoveEvent) {
+            deltaX = lastMouseMoveEvent->x() - event->x();
+            deltaY = lastMouseMoveEvent->y() - event->y();
+        }
+        else {
+            deltaX = lastMouseClickEvent->x() - event->x();
+            deltaY = lastMouseClickEvent->y() - event->y();
+        }
+        lastMouseMoveEvent = new QMouseEvent(*event);
+
+        m_renderer->updatePan(deltaX, deltaY);
+
+
+    }
+    qDebug() << "Mouse Move" << event;
+}
+
+void TraceDisplay::mouseReleaseEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        lastMouseReleaseEvent = new QMouseEvent(*event);
+        lastMouseMoveEvent = nullptr;
+    }
+    qDebug() << "Mouse Release" << event;
+}
+
+void TraceDisplay::wheelEvent(QWheelEvent *event)
+{
+    qDebug() << "Wheel" << event;
+}
+
+void TraceDisplay::hoverMoveEvent(QHoverEvent *event)
+{
+    qDebug() << "Hover" << event->pos();
 }
 
 
@@ -253,7 +306,6 @@ void TraceDisplayRenderer::updateTraceOffsets()
 
     for (int num=0; num < numTraces; num++) {
         traces[num].offset = -1 + ((num + 1) * offsetStep);
-        qDebug() << "Offset:" << traces[num].offset;
     }
 }
 
@@ -541,7 +593,7 @@ void TraceDisplayRenderer::drawTraces()
 //            }
 //        }
         if (traces[num].numDataInBuffer[!*traces[num].displayBufferNumber] > 1) {
-            qDebug() << "In Plotter";
+
             // Switches the display buffer number and reset data count
             if (*traces[num].displayBufferNumber == 0) {
                     traces[num].dataT[traces[num].bufferSize] = traces[num].dataT[traces[num].numDataInBuffer[0] - 1];
@@ -587,6 +639,21 @@ void TraceDisplayRenderer::drawTraces()
 
     m_programTraces->release();
 
+}
+
+void TraceDisplayRenderer::updatePan(float deltaX, float deltaY)
+{
+    float dX, dY;
+
+    dX = 2.0 * deltaX / (float)m_window->width();
+    dY = 2.0 * deltaY / (float)m_window->height();
+
+    qDebug() << dX << dY;
+    pan[0] = pan[0];
+    pan[1] = pan[1] + dY/scale[1];
+    qDebug() << "Pan" << pan[1];
+//    m_programTraces->setUniformValueArray("u_pan", pan, 1, 2);
+//    (pan_x + dx / scale_x, pan_y + dy / scale_y)
 }
 
 void TraceDisplayRenderer::paint()

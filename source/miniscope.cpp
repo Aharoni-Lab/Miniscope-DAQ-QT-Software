@@ -70,7 +70,6 @@ void Miniscope::handleDFFSwitchChange(bool checked)
 
 void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufIdx, VideoDisplay *vidDisp)
 {
-    qDebug() << "MSMSMSMS";
     QImage tempFrame2;
     cv::Mat tempFrame, tempMat1, tempMat2;
     // TODO: Think about where color to gray and vise versa should take place.

@@ -18,6 +18,8 @@ uniform float u_windowSize;
 
 uniform float u_traceSelected;
 
+
+
 //const float scrollBarPos = 2.0 * mod(u_time,u_windowSize)/u_windowSize - 1.0; // From -1 to 1
 //const float windowLeftTime = u_time - mod(u_time,u_windowSize);
 

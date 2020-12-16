@@ -16,6 +16,7 @@ Item {
         Layout.minimumHeight: 480
         Layout.minimumWidth: 640
         objectName: "traceDisplay"
+        anchors.fill: parent
 
         SequentialAnimation on t {
             NumberAnimation { to: 1; duration: 2500; easing.type: Easing.InQuad }
