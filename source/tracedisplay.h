@@ -46,7 +46,7 @@ class TraceDisplayRenderer : public QObject, protected QOpenGLFunctions
 {
     Q_OBJECT
 public:
-    TraceDisplayRenderer();
+    TraceDisplayRenderer(QObject *parent = nullptr, QSize displayWindowSize = QSize());
     ~TraceDisplayRenderer();
 
     void setT(qreal t) { m_t = t; }
@@ -59,7 +59,9 @@ public:
     void addNewTrace(trace_t newTrace);
     void updateTraceOffsets();
 
-    void createFBO();
+    // Display function for rendered texture
+    void initTextureProgram();
+    void drawRenderTexture();
 
     // Display funtions for vertical grid lines
     void initGridV();
@@ -120,6 +122,7 @@ private:
     // Frame Buffer
     QOpenGLFramebufferObject* m_fbo;
     // Programs used for trace display
+    QOpenGLShaderProgram *m_programTexture;
     QOpenGLShaderProgram *m_programGridV;
     QOpenGLShaderProgram *m_programGridH;
     QOpenGLShaderProgram *m_programMovingBar;
@@ -129,6 +132,8 @@ private:
     QAtomicInt numData[2];
     qint64 dataT[2][10];
     float dataY[2][10];
+
+    qint64 m_lastTimeDisplayed;
 
 };
 

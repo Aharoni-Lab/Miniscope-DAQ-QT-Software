@@ -140,8 +140,8 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
                 dataCount  = bnoNumDataInBuf[bnoIdx][bufNum];
                 if (dataCount < bnoTraceDisplayBufSize[bnoIdx]) {
                     // There is space for more data
-                    bnoTraceDisplayY[bnoIdx][dataCount] = bnoBuffer[bufIdx*5 + 1 + bnoIdx];
-                    bnoTraceDisplayT[bnoIdx][dataCount] = timeStamp;
+                    bnoTraceDisplayY[bnoIdx][bufNum][dataCount] = bnoBuffer[bufIdx*5 + 1 + bnoIdx];
+                    bnoTraceDisplayT[bnoIdx][bufNum][dataCount] = timeStamp;
                     bnoNumDataInBuf[bnoIdx][bufNum]++;
                 }
             }
@@ -163,8 +163,8 @@ void Miniscope::setupTraceDisplay()
                              &bnoDisplayBufNum[i],
                              bnoNumDataInBuf[i],
                              bnoTraceDisplayBufSize[i],
-                             bnoTraceDisplayT[i],
-                             bnoTraceDisplayY[i]);
+                             bnoTraceDisplayT[i][0],
+                             bnoTraceDisplayY[i][0]);
     }
 }
 

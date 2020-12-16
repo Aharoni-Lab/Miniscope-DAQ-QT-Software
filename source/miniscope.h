@@ -63,8 +63,8 @@ private:
     QAtomicInt bnoDisplayBufNum[3];
     QAtomicInt bnoNumDataInBuf[3][2];
     int bnoTraceDisplayBufSize[3];
-    float bnoTraceDisplayY[3][256];
-    qint64 bnoTraceDisplayT[3][256];
+    float bnoTraceDisplayY[3][2][256];
+    qint64 bnoTraceDisplayT[3][2][256];
 
 };
 

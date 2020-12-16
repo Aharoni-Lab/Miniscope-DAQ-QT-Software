@@ -5,6 +5,7 @@
 #include <QGuiApplication>
 #include <QScreen>
 #include <QDateTime>
+#include <QImage>
 
 #include <QtQuick/qquickwindow.h>
 #include <QtGui/QOpenGLShaderProgram>
@@ -114,9 +115,7 @@ void TraceDisplay::handleWindowChanged(QQuickWindow *win)
 void TraceDisplay::sync()
 {
     if (!m_renderer) {
-        m_renderer = new TraceDisplayRenderer();
-        m_renderer->setViewportSize(window()->size() * window()->devicePixelRatio());
-        m_renderer->createFBO();
+        m_renderer = new TraceDisplayRenderer(nullptr, window()->size() * window()->devicePixelRatio());
 //        m_renderer->setShowSaturation(m_showSaturation);
 //        m_renderer->setDisplayFrame(QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
         connect(window(), &QQuickWindow::beforeRendering, m_renderer, &TraceDisplayRenderer::paint, Qt::DirectConnection);
@@ -139,18 +138,21 @@ void TraceDisplay::cleanup()
     }
 }
 
-TraceDisplayRenderer::TraceDisplayRenderer() :
+TraceDisplayRenderer::TraceDisplayRenderer(QObject *parent, QSize displayWindowSize) :
+    QObject(parent),
     m_program(nullptr),
     m_texture(nullptr),
     m_t(0),
     m_numTraces(2),
     m_fbo(nullptr),
+    m_programTexture(nullptr),
     m_programGridV(nullptr),
     m_programGridH(nullptr),
     m_programMovingBar(nullptr),
     m_programTraces(nullptr)
 {
-    windowSize = 5; // in seconds. Consider having this defined in user config!
+    m_viewportSize = displayWindowSize;
+    windowSize = 10; // in seconds. Consider having this defined in user config!
     gridSpacingV = .25; // in seconds
 
     pan[0] = 0.0f; pan[1] = 0.0f;
@@ -158,6 +160,7 @@ TraceDisplayRenderer::TraceDisplayRenderer() :
     magnify[0] = 1.0f; magnify[1] = 1.0f;
 
     startTime =  QDateTime().currentMSecsSinceEpoch(); //time software started up
+    m_lastTimeDisplayed = startTime;
 
     initPrograms();
     float c[] = {0.5,0.7,1.0};
@@ -171,7 +174,8 @@ TraceDisplayRenderer::TraceDisplayRenderer() :
 //        dataT[1][a] = ((float)a)/10;
 //    }
 
-    traces.append(trace_t(c, .1, &bufNum, numData, 10, &dataT[0][0], &dataY[0][0]));
+//    traces.append(trace_t(c, 1, &bufNum, numData, 10, &dataT[0][0], &dataY[0][0]));
+//    updateTraceOffsets();
 
 }
 
@@ -182,6 +186,7 @@ TraceDisplayRenderer::~TraceDisplayRenderer()
     delete m_program;
     delete m_texture;
 
+    delete m_programTexture;
     delete m_programGridV;
     delete m_programGridH;
     delete m_programMovingBar;
@@ -192,6 +197,13 @@ void TraceDisplayRenderer::initPrograms()
 {
 
     initializeOpenGLFunctions();
+
+    // Texture program
+    m_programTexture = new QOpenGLShaderProgram();
+    m_programTexture->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,":/shaders/texture.vert");
+    m_programTexture->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/texture.frag");
+    m_programTexture->link();
+    initTextureProgram();
 
     // Vertical lines program
     m_programGridV = new QOpenGLShaderProgram();
@@ -230,6 +242,7 @@ void TraceDisplayRenderer::addNewTrace(trace_t newTrace)
     traces.append(newTrace);
 
     updateTraceOffsets();
+    initGridH();
 }
 
 void TraceDisplayRenderer::updateTraceOffsets()
@@ -240,12 +253,65 @@ void TraceDisplayRenderer::updateTraceOffsets()
 
     for (int num=0; num < numTraces; num++) {
         traces[num].offset = -1 + ((num + 1) * offsetStep);
+        qDebug() << "Offset:" << traces[num].offset;
     }
 }
 
-void TraceDisplayRenderer::createFBO()
+void TraceDisplayRenderer::initTextureProgram()
 {
-    m_fbo = new QOpenGLFramebufferObject(m_viewportSize.width(), m_viewportSize.height());
+
+    // Need to make global or us vertex buff for these to only be setup once!
+//    float position[] = {-1.0f, -1.0f,
+//                        1.0f, -1.0f,
+//                        -1.0f, 1.0f,
+//                        1.0f, 1.0f};
+//    float textcoord[] = {0.0f, 0.0f,
+//                        1.0f, 0.0f,
+//                        0.0f, 1.0f,
+//                        1.0f, 1.0f};
+//    m_programTexture->setAttributeArray("a_position", GL_FLOAT, position,2);
+//    m_programTexture->setAttributeArray("a_texcoord", GL_FLOAT, textcoord,2);
+
+//    QOpenGLFramebufferObjectFormat format;
+    m_fbo = new QOpenGLFramebufferObject(m_viewportSize);
+    m_texture = new QOpenGLTexture(QOpenGLTexture::Target2D);
+
+}
+
+void TraceDisplayRenderer::drawRenderTexture()
+{
+//    m_texture->bind(m_fbo->takeTexture());
+    GLuint textUnit = m_fbo->texture();
+    glBindTexture(GL_TEXTURE_2D, textUnit);
+//    m_texture = new QOpenGLTexture(QImage(":/img/MiniscopeLogo.png").rgbSwapped());
+//    qDebug() << "Texture num" << m_fbo->texture();
+//    m_texture->bind(m_fbo->takeTexture());
+    m_programTexture->bind();
+    m_programTexture->setUniformValue("u_texture1", 0);
+
+    m_programTexture->enableAttributeArray("a_position");
+    m_programTexture->enableAttributeArray("a_texcoord");
+
+    float position[] = {-1.0f, -1.0f,
+                        1.0f, -1.0f,
+                        -1.0f, 1.0f,
+                        1.0f, 1.0f};
+    float textcoord[] = {0.0f, 0.0f,
+                        1.0f, 0.0f,
+                        0.0f, 1.0f,
+                        1.0f, 1.0f};
+    m_programTexture->setAttributeArray("a_position", GL_FLOAT, position, 2);
+    m_programTexture->setAttributeArray("a_texcoord", GL_FLOAT, textcoord, 2);
+
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    m_programTexture->disableAttributeArray("a_position");
+    m_programTexture->disableAttributeArray("a_texcoord");
+    m_programTexture->release();
+//    m_texture->release();
+
+
 }
 
 void TraceDisplayRenderer::initGridV()
@@ -319,9 +385,10 @@ void TraceDisplayRenderer::drawGridV()
 void TraceDisplayRenderer::initGridH()
 {
     // Holds position, color, index for horizontal grid vertex
+    gridHVOB.destroy();
     QVector<float> gridHData;
 
-    int numHGridLines = m_numTraces;
+    int numHGridLines = traces.length();
     float gridLineStep = 2 / ((float)numHGridLines + 1);
 
     float idx = 0;
@@ -336,7 +403,6 @@ void TraceDisplayRenderer::initGridH()
         idx += 1;
     }
 
-    qDebug() << gridHData;
     gridHVOB.create();
     gridHVOB.bind();
     gridHVOB.allocate(&gridHData[0], gridHData.length() * sizeof(float));
@@ -463,38 +529,39 @@ void TraceDisplayRenderer::drawTraces()
     m_programTraces->setUniformValue("u_time", (float)(currentTime - startTime)/1000.0f);
 
     for (int num = 0; num < traces.length(); num++) {
-        if (num == 0) {
-            // Test trace
-            traces[num].numDataInBuffer[0] = 10;
-            traces[num].numDataInBuffer[1] = 10;
-            for (int a=0; a < 10; a++) {
-                dataY[0][a] = (float)a/5.0 - 1.0;
-                dataY[1][a] = (float)a/5.0 - 1.0;
-                dataT[0][a] = currentTime - (float)a/5.0 * 1000;
-                dataT[1][a] = currentTime - (float)a/5.0 * 1000;
-            }
-        }
-        if (traces[num].numDataInBuffer[*traces[num].displayBufferNumber] > 0) {
+//        if (num == 0) {
+//            // Test trace
+//            traces[num].numDataInBuffer[0] = 10;
+//            traces[num].numDataInBuffer[1] = 10;
+//            for (int a=0; a < 10; a++) {
+//                dataY[0][a] = (float)a/5.0 - 1.0;
+//                dataY[1][a] = (float)a/5.0 - 1.0;
+//                dataT[0][a] = currentTime - (float)a/5.0 * 1000;
+//                dataT[1][a] = currentTime - (float)a/5.0 * 1000;
+//            }
+//        }
+        if (traces[num].numDataInBuffer[!*traces[num].displayBufferNumber] > 1) {
+            qDebug() << "In Plotter";
             // Switches the display buffer number and reset data count
             if (*traces[num].displayBufferNumber == 0) {
+                    traces[num].dataT[traces[num].bufferSize] = traces[num].dataT[traces[num].numDataInBuffer[0] - 1];
+                    traces[num].dataY[traces[num].bufferSize] = traces[num].dataY[traces[num].numDataInBuffer[0] - 1];
                     traces[num].numDataInBuffer[0] = 1;
-                    traces[num].dataT[0] = traces[num].dataT[traces[num].bufferSize + traces[num].numDataInBuffer[1]];
-                    traces[num].dataY[0] = traces[num].dataY[traces[num].bufferSize + traces[num].numDataInBuffer[1]];
                     *traces[num].displayBufferNumber = 1;
                     arrayOffset = traces[num].bufferSize;
             }
             else {
+                    traces[num].dataT[0] = traces[num].dataT[traces[num].bufferSize + traces[num].numDataInBuffer[1] - 1];
+                    traces[num].dataY[0] = traces[num].dataY[traces[num].bufferSize + traces[num].numDataInBuffer[1] - 1];
                     traces[num].numDataInBuffer[1] = 1;
-                    traces[num].dataT[traces[num].bufferSize] = traces[num].dataT[traces[num].numDataInBuffer[1]];
-                    traces[num].dataY[traces[num].bufferSize] = traces[num].dataY[traces[num].numDataInBuffer[1]];
                     *traces[num].displayBufferNumber = 0;
                     arrayOffset = 0;
             }
 
             // Update uniforms for specific trace
             m_programTraces->setUniformValueArray("u_color", traces[num].color, 1, 3);
-            m_programTraces->setUniformValue("u_scaleTrace", traces[num].scale);
-            m_programTraces->setUniformValue("u_offset", traces[num].offset + (float)(num * 0.5f - 1.0f));
+            m_programTraces->setUniformValue("u_scaleTrace", traces[num].scale * 0.4f);
+            m_programTraces->setUniformValue("u_offset", traces[num].offset);
             m_programTraces->setUniformValue("u_traceSelected", 0.0f);
 
             // Set the data for the trace
@@ -509,9 +576,9 @@ void TraceDisplayRenderer::drawTraces()
             m_programTraces->setAttributeArray("a_dataY", GL_FLOAT, &traces[num].dataY[arrayOffset], 1);
 
 
-            glLineWidth(10);
+            glLineWidth(3);
             glDrawArrays(GL_LINE_STRIP, 0, traces[num].numDataInBuffer[*traces[num].displayBufferNumber]);
-            qDebug() << traces[num].numDataInBuffer[*traces[num].displayBufferNumber];
+
 
             m_programTraces->disableAttributeArray("a_dataTime");
             m_programTraces->disableAttributeArray("a_dataY");
@@ -525,6 +592,41 @@ void TraceDisplayRenderer::drawTraces()
 void TraceDisplayRenderer::paint()
 {
     currentTime =  QDateTime().currentMSecsSinceEpoch();
+
+//    m_texture->bind();
+    m_fbo->bind();
+    glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
+    glDisable(GL_DEPTH_TEST);
+
+    int pastScrollBarPos = m_viewportSize.width() * std::fmod((m_lastTimeDisplayed - startTime)/1000.0f, windowSize) / windowSize;
+    int clearWidth = ((currentTime - m_lastTimeDisplayed)/1000.0) / windowSize * m_viewportSize.width();
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(pastScrollBarPos, 0, clearWidth * 5, 10000);
+    glClearColor(0, 0, 0, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glScissor(0, 0, 10000, 10000);
+//    scrollBarPos = self.physical_size[0] * (self.programLine["u_time"]%self.windowSize)/self.windowSize
+//    clearWidth = 0.5/self.windowSize * self.physical_size[0]  # first number is in seconds
+//    gloo.set_scissor(scrollBarPos-clearWidth, 0.0, clearWidth, 10000)
+//    gloo.clear(color=(0.0, 0.0, 0.0, 0.0))
+//    gloo.set_scissor(0.0, 0.0, 10000, 10000)
+
+//    glClearColor(0, 0, 0, 1);
+//    glClear(GL_COLOR_BUFFER_BIT);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+    // Draws traces
+    updateTraces();
+    drawTraces();
+
+    m_fbo->release();
+//    QImage fboImage(m_fbo->toImage());
+//    fboImage.save("fboImage.png");
+//    m_texture->release();
+//    m_texture = new QOpenGLTexture(fboImage);
+
     glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
 
     glDisable(GL_DEPTH_TEST);
@@ -534,6 +636,9 @@ void TraceDisplayRenderer::paint()
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+    // Draw rendered texture
+    drawRenderTexture();
 
     // Draw vertical grid lines
     updateGridV();
@@ -547,9 +652,9 @@ void TraceDisplayRenderer::paint()
     updateMovingBar();
     drawMovingBar();
 
-    // Draws traces
-    updateTraces();
-    drawTraces();
+    m_lastTimeDisplayed = currentTime;
+
+
 
 //    // Not strictly needed for this example, but generally useful for when
 //    // mixing with raw OpenGL.
