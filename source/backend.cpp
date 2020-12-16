@@ -13,6 +13,7 @@
 #include <QVector>
 #include <QUrl>
 #include <QString>
+#include <QDateTime>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -47,8 +48,7 @@ backEnd::backEnd(QObject *parent) :
 
 //    setUserConfigOK(true);
 #endif
-
-//    m_userConfigOK = false;
+    m_softwareStartTime = QDateTime().currentMSecsSinceEpoch();
 
     // User Config default values
     researcherName = "";
@@ -483,12 +483,12 @@ void backEnd::constructUserConfigGUI()
 
     // Make trace display
     if (!ucTraceDisplay.isEmpty()) {
-        traceDisplay = new TraceDisplayBackend(NULL, ucTraceDisplay);
+        traceDisplay = new TraceDisplayBackend(NULL, ucTraceDisplay, m_softwareStartTime);
     }
 
     // Make Minsicope displays
     for (idx = 0; idx < ucMiniscopes.size(); idx++) {
-        miniscope.append(new Miniscope(this, ucMiniscopes[idx].toObject()));
+        miniscope.append(new Miniscope(this, ucMiniscopes[idx].toObject(), m_softwareStartTime));
         QObject::connect(miniscope.last(),
                          SIGNAL (onPropertyChanged(QString, QString, QVariant)),
                          dataSaver,
@@ -509,7 +509,7 @@ void backEnd::constructUserConfigGUI()
 
     // Make Behav Cam displays
     for (idx = 0; idx < ucBehaviorCams.size(); idx++) {
-        behavCam.append(new BehaviorCam(this, ucBehaviorCams[idx].toObject()));
+        behavCam.append(new BehaviorCam(this, ucBehaviorCams[idx].toObject(), m_softwareStartTime));
         QObject::connect(behavCam.last(),
                          SIGNAL (onPropertyChanged(QString, QString, QVariant)),
                          dataSaver,
@@ -533,7 +533,7 @@ void backEnd::constructUserConfigGUI()
 
     // Make behavior tracker interface
     if (!ucBehaviorTracker.isEmpty()) {
-        behavTracker = new BehaviorTracker(NULL, m_userConfig);
+        behavTracker = new BehaviorTracker(NULL, m_userConfig, m_softwareStartTime);
         QObject::connect(behavTracker, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
         behavTracker->createView();
         setupBehaviorTracker();

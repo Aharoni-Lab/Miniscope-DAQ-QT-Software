@@ -15,10 +15,11 @@
 #include <QVector>
 #include <QVariant>
 
-BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucDevice) :
-    VideoDevice(parent, ucDevice),
+BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime) :
+    VideoDevice(parent, ucDevice, softwareStartTime),
     m_camCalibWindowOpen(false),
-    m_camCalibRunning(false)
+    m_camCalibRunning(false),
+    m_softwareStartTime(softwareStartTime)
 {
     m_ucDevice = ucDevice; // hold user config for this device
     m_cDevice = getDeviceConfig(m_ucDevice["deviceType"].toString());

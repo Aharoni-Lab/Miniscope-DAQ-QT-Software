@@ -30,7 +30,7 @@ class BehaviorTracker : public QObject
 {
     Q_OBJECT
 public:
-    explicit BehaviorTracker(QObject *parent = nullptr, QJsonObject userConfig = QJsonObject());
+    explicit BehaviorTracker(QObject *parent = nullptr, QJsonObject userConfig = QJsonObject(), qint64 softwareStartTime = 0);
     void parseUserConfigTracker();
     void loadCamCalibration(QString name);
     void setBehaviorCamBufferParameters(QString name, cv::Mat* frameBuf, int bufSize, QAtomicInt* acqFrameNum);
@@ -95,6 +95,8 @@ private:
 
     double m_pCutoffDisplay;
     QJsonObject m_btConfig;
+
+    qint64 m_softwareStartTime;
 };
 
 #endif // BEHAVIORTRACKER_H

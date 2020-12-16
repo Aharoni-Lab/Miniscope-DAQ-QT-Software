@@ -24,7 +24,7 @@ class BehaviorCam : public VideoDevice
 {
     Q_OBJECT
 public:
-    explicit BehaviorCam(QObject *parent = nullptr, QJsonObject ucMiniscope = QJsonObject());
+    explicit BehaviorCam(QObject *parent = nullptr, QJsonObject ucMiniscope = QJsonObject(), qint64 softwareStartTime = 0);
     void setupDisplayObjectPointers(); //overrides parents function
     void handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufIdx, VideoDisplay* vidDisp); //overrides
 
@@ -58,6 +58,8 @@ private:
     // Camera Calibration Vars
     bool m_camCalibWindowOpen;
     bool m_camCalibRunning;
+
+    qint64 m_softwareStartTime;
 
 
 };

@@ -16,7 +16,7 @@
 
 typedef struct Traces{
 
-    Traces(float colors[3], float scale, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, qint64 *dataT, float *dataY):
+    Traces(float colors[3], float scale, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY):
         scale(scale),
         bufferSize(bufSize),
         displayBufferNumber(displayBufNum),
@@ -36,7 +36,7 @@ typedef struct Traces{
 
     QAtomicInt* displayBufferNumber;
     QAtomicInt* numDataInBuffer;
-    qint64* dataT;
+    float* dataT;
     float* dataY;
 } trace_t;
 
@@ -46,7 +46,7 @@ class TraceDisplayRenderer : public QObject, protected QOpenGLFunctions
 {
     Q_OBJECT
 public:
-    TraceDisplayRenderer(QObject *parent = nullptr, QSize displayWindowSize = QSize());
+    TraceDisplayRenderer(QObject *parent = nullptr, QSize displayWindowSize = QSize(), qint64 softwareStartTime = 0);
     ~TraceDisplayRenderer();
 
     void setT(qreal t) { m_t = t; }
@@ -99,6 +99,7 @@ public:
 
     qint64 startTime;
     qint64 currentTime;
+    qint64 m_softwareStartTime;
 
 //signals:
 
@@ -161,6 +162,8 @@ public:
     void setT(qreal t);
     void addNewTrace(trace_t newTrace);
 
+    void setSoftwareStartTime(qint64 time) { m_softwareStartTime = time; }
+
 
 signals:
     void xLabelChanged();
@@ -184,6 +187,8 @@ private:
     QMouseEvent* lastMouseReleaseEvent;
     QMouseEvent* lastMouseMoveEvent;
 
+    qint64 m_softwareStartTime;
+
 
 };
 
@@ -191,17 +196,19 @@ class TraceDisplayBackend : public QObject
 {
     Q_OBJECT
 public:
-    TraceDisplayBackend(QObject *parent = nullptr, QJsonObject ucTraceDisplay = QJsonObject());
+    TraceDisplayBackend(QObject *parent = nullptr, QJsonObject ucTraceDisplay = QJsonObject(), qint64 softwareStartTime = 0);
     void createView();
 
 public slots:
-    void addNewTrace(float color[3], float scale, QAtomicInt* displayBufNum, QAtomicInt* numDataInBuf, int bufSize, qint64* dataT, float* dataY);
+    void addNewTrace(float color[3], float scale, QAtomicInt* displayBufNum, QAtomicInt* numDataInBuf, int bufSize, float* dataT, float* dataY);
     void close();
 
 private:
     NewQuickView *view;
     TraceDisplay* m_traceDisplay;
     QJsonObject m_ucTraceDisplay;
+
+    qint64 m_softwareStartTime;
 };
 
 #endif // TRACEDISPLAY_H

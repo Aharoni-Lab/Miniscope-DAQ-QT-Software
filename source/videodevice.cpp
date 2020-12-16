@@ -14,7 +14,7 @@
 #include <QQmlApplicationEngine>
 #include <QVector>
 
-VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice) :
+VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime) :
     QObject(parent),
     m_camConnected(false),
     deviceStream(nullptr),
@@ -27,7 +27,8 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice) :
     m_headOrientationFilterState(false),
     m_roiIsDefined(false),
     m_extTriggerTrackingState(false),
-    m_errors(0)
+    m_errors(0),
+    m_softwareStartTime(softwareStartTime)
 
 {
     m_ucDevice = ucDevice; // hold user config for this device

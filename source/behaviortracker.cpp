@@ -21,7 +21,7 @@
  #define slots
 #endif
 
-BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig) :
+BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64 softwareStartTime) :
     QObject(parent),
     numberOfCameras(0),
     m_trackingRunning(false),
@@ -29,7 +29,8 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig) :
     m_previousBtPoseFrameNum(0),
     usedPoses(new QSemaphore()),
     freePoses(new QSemaphore()),
-    m_pCutoffDisplay(0)
+    m_pCutoffDisplay(0),
+    m_softwareStartTime(softwareStartTime)
 {
 
     freePoses->release(POSE_BUFFER_SIZE);

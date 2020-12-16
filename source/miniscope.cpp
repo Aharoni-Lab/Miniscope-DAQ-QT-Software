@@ -16,11 +16,12 @@
 #include <QVector>
 
 
-Miniscope::Miniscope(QObject *parent, QJsonObject ucDevice) :
-    VideoDevice(parent, ucDevice),
+Miniscope::Miniscope(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime) :
+    VideoDevice(parent, ucDevice, softwareStartTime),
     baselineFrameBufWritePos(0),
     baselinePreviousTimeStamp(0),
-    m_displatState("Raw")
+    m_displatState("Raw"),
+    m_softwareStartTime(softwareStartTime)
 {
     // TODO: Maybe move to own function
     // For BNO display ----
@@ -140,7 +141,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
                 if (dataCount < bnoTraceDisplayBufSize[bnoIdx]) {
                     // There is space for more data
                     bnoTraceDisplayY[bnoIdx][bufNum][dataCount] = bnoBuffer[bufIdx*5 + 1 + bnoIdx];
-                    bnoTraceDisplayT[bnoIdx][bufNum][dataCount] = timeStamp;
+                    bnoTraceDisplayT[bnoIdx][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
                     bnoNumDataInBuf[bnoIdx][bufNum]++;
                 }
             }

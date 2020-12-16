@@ -47,7 +47,7 @@ class VideoDevice : public QObject
 {
     Q_OBJECT
 public:
-    explicit VideoDevice(QObject *parent = nullptr, QJsonObject ucDevice = QJsonObject());
+    explicit VideoDevice(QObject *parent = nullptr, QJsonObject ucDevice = QJsonObject(), qint64 softwareStartTime = 0);
     QJsonObject getDeviceConfig(QString deviceType);
     QObject* getRootDisplayObject() { return rootObject; }
     QQuickItem* getRootDisplayChild(QString childName) { return rootObject->findChild<QQuickItem*>(childName); }
@@ -91,7 +91,7 @@ signals:
     void extTriggered(bool state);
     void startRecording();
     void stopRecording();
-    void addTraceDisplay(float c[3], float, QAtomicInt*, QAtomicInt*, int , qint64*, float*);
+    void addTraceDisplay(float c[3], float, QAtomicInt*, QAtomicInt*, int , float*, float*);
 
 public slots:
     void sendNewFrame();
@@ -162,6 +162,8 @@ private:
 
     // holds possible error states
     int m_errors;
+
+    qint64 m_softwareStartTime;
 };
 
 #endif // VIDEODEVICE_H

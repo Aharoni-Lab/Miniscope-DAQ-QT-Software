@@ -28,7 +28,7 @@ class Miniscope : public VideoDevice
 {
     Q_OBJECT
 public:
-    explicit Miniscope(QObject *parent = nullptr, QJsonObject ucMiniscope = QJsonObject());
+    explicit Miniscope(QObject *parent = nullptr, QJsonObject ucMiniscope = QJsonObject(), qint64 softwareStartTime = 0);
     void setupDisplayObjectPointers() override; //overrides parents function
     float* getBNOBufferPointer() { return bnoBuffer; }
 //    void sendNewFrame(); // overrides parent function
@@ -64,7 +64,9 @@ private:
     QAtomicInt bnoNumDataInBuf[3][2];
     int bnoTraceDisplayBufSize[3];
     float bnoTraceDisplayY[3][2][256];
-    qint64 bnoTraceDisplayT[3][2][256];
+    float bnoTraceDisplayT[3][2][256];
+
+    qint64 m_softwareStartTime;
 
 };
 

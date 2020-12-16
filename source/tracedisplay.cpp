@@ -13,12 +13,12 @@
 #include <QtGui/QOpenGLTexture>
 #include <QtGui/QOpenGLFramebufferObject>
 
-TraceDisplayBackend::TraceDisplayBackend(QObject *parent, QJsonObject ucTraceDisplay):
+TraceDisplayBackend::TraceDisplayBackend(QObject *parent, QJsonObject ucTraceDisplay, qint64 softwareStartTime):
     QObject(parent),
-    m_traceDisplay(nullptr)
+    m_traceDisplay(nullptr),
+    m_softwareStartTime(softwareStartTime)
 {
     m_ucTraceDisplay = ucTraceDisplay;
-
     // Create Window
     createView();
 }
@@ -51,9 +51,10 @@ void TraceDisplayBackend::createView()
     view->show();
 
     m_traceDisplay = view->rootObject()->findChild<TraceDisplay*>("traceDisplay");
+    m_traceDisplay->setSoftwareStartTime(m_softwareStartTime);
 }
 
-void TraceDisplayBackend::addNewTrace(float color[3], float scale, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, qint64 *dataT, float *dataY)
+void TraceDisplayBackend::addNewTrace(float color[3], float scale, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY)
 {
 
     trace_t newTrace = trace_t(color, scale, displayBufNum, numDataInBuf, bufSize, dataT, dataY);
@@ -71,7 +72,8 @@ TraceDisplay::TraceDisplay()
       m_renderer(nullptr),
       lastMouseClickEvent(nullptr),
       lastMouseReleaseEvent(nullptr),
-      lastMouseMoveEvent(nullptr)
+      lastMouseMoveEvent(nullptr),
+      m_softwareStartTime(0)
 {
 
     setAcceptedMouseButtons(Qt::AllButtons);
@@ -168,7 +170,7 @@ void TraceDisplay::handleWindowChanged(QQuickWindow *win)
 void TraceDisplay::sync()
 {
     if (!m_renderer) {
-        m_renderer = new TraceDisplayRenderer(nullptr, window()->size() * window()->devicePixelRatio());
+        m_renderer = new TraceDisplayRenderer(nullptr, window()->size() * window()->devicePixelRatio(), m_softwareStartTime);
 //        m_renderer->setShowSaturation(m_showSaturation);
 //        m_renderer->setDisplayFrame(QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
         connect(window(), &QQuickWindow::beforeRendering, m_renderer, &TraceDisplayRenderer::paint, Qt::DirectConnection);
@@ -191,8 +193,9 @@ void TraceDisplay::cleanup()
     }
 }
 
-TraceDisplayRenderer::TraceDisplayRenderer(QObject *parent, QSize displayWindowSize) :
+TraceDisplayRenderer::TraceDisplayRenderer(QObject *parent, QSize displayWindowSize, qint64 softwareStartTime) :
     QObject(parent),
+    m_softwareStartTime(softwareStartTime),
     m_program(nullptr),
     m_texture(nullptr),
     m_t(0),
@@ -531,7 +534,7 @@ void TraceDisplayRenderer::updateMovingBar()
 
     m_programMovingBar->setUniformValue("u_windowSize", windowSize);
     // ----------------------------------------------------------
-    m_programMovingBar->setUniformValue("u_time", (float)(currentTime - startTime)/1000.0f);
+    m_programMovingBar->setUniformValue("u_time", (float)(currentTime - m_softwareStartTime)/1000.0f);
     m_programMovingBar->release();
 }
 
@@ -578,7 +581,7 @@ void TraceDisplayRenderer::drawTraces()
     int arrayOffset;
     m_programTraces->bind();
 
-    m_programTraces->setUniformValue("u_time", (float)(currentTime - startTime)/1000.0f);
+    m_programTraces->setUniformValue("u_time", (float)(currentTime - m_softwareStartTime)/1000.0f);
 
     for (int num = 0; num < traces.length(); num++) {
 //        if (num == 0) {
@@ -621,10 +624,10 @@ void TraceDisplayRenderer::drawTraces()
             m_programTraces->enableAttributeArray("a_dataY");
 
             tempTime.clear();
-            for (int idx=0; idx < traces[num].numDataInBuffer[*traces[num].displayBufferNumber]; idx++) {
-                tempTime.append((traces[num].dataT[arrayOffset + idx] - startTime)/1000.0f);
-            }
-            m_programTraces->setAttributeArray("a_dataTime", GL_FLOAT, &tempTime[0], 1);
+//            for (int idx=0; idx < traces[num].numDataInBuffer[*traces[num].displayBufferNumber]; idx++) {
+//                tempTime.append((traces[num].dataT[arrayOffset + idx] - m_softwareStartTime)/1000.0f);
+//            }
+            m_programTraces->setAttributeArray("a_dataTime", GL_FLOAT, &traces[num].dataT[arrayOffset], 1);
             m_programTraces->setAttributeArray("a_dataY", GL_FLOAT, &traces[num].dataY[arrayOffset], 1);
 
 
@@ -648,12 +651,10 @@ void TraceDisplayRenderer::updatePan(float deltaX, float deltaY)
     dX = 2.0 * deltaX / (float)m_window->width();
     dY = 2.0 * deltaY / (float)m_window->height();
 
-    qDebug() << dX << dY;
-    pan[0] = pan[0];
+    pan[0] = pan[0] - dX/scale[0];
     pan[1] = pan[1] + dY/scale[1];
-    qDebug() << "Pan" << pan[1];
-//    m_programTraces->setUniformValueArray("u_pan", pan, 1, 2);
-//    (pan_x + dx / scale_x, pan_y + dy / scale_y)
+
+
 }
 
 void TraceDisplayRenderer::paint()
@@ -665,7 +666,7 @@ void TraceDisplayRenderer::paint()
     glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
     glDisable(GL_DEPTH_TEST);
 
-    int pastScrollBarPos = m_viewportSize.width() * std::fmod((m_lastTimeDisplayed - startTime)/1000.0f, windowSize) / windowSize;
+    int pastScrollBarPos = m_viewportSize.width() * std::fmod((m_lastTimeDisplayed - m_softwareStartTime)/1000.0f, windowSize) / windowSize;
     int clearWidth = ((currentTime - m_lastTimeDisplayed)/1000.0) / windowSize * m_viewportSize.width();
     glEnable(GL_SCISSOR_TEST);
     glScissor(pastScrollBarPos, 0, clearWidth * 5, 10000);

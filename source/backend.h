@@ -111,6 +111,8 @@ private:
     QString m_availableCodecList;
     QVector<QString> unAvailableCodec;
 
+    qint64 m_softwareStartTime;
+
 };
 
 #endif // BACKEND_H
