@@ -1,6 +1,6 @@
 attribute vec2 a_position;
 
-attribute vec3 a_color;
+uniform vec3 u_color;
 varying vec3 v_color;
 
 uniform vec2 u_pan;
@@ -17,5 +17,5 @@ void main() {
     pos.x = scrollBarPos;
     pos.x = u_scale.x * (u_magnify.x * pos.x + u_pan.x);
     gl_Position = vec4(pos, 0.0, 1.0);
-    v_color = a_color;
+    v_color = u_color;
 }

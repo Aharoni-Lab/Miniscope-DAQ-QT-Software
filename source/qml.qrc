@@ -34,5 +34,7 @@
         <file>shaders/grid.frag</file>
         <file>shaders/movingBar.vert</file>
         <file>shaders/movingBar.frag</file>
+        <file>shaders/trace.frag</file>
+        <file>shaders/trace.vert</file>
     </qresource>
 </RCC>
