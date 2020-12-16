@@ -1,0 +1,69 @@
+{
+    "researcherName": "Dr_Miniscope",
+    "dataDirectory": "C:/Users/dbaha/Documents/Data",
+	"reserved terms for directoryStructure": ["time", "date"],
+    "directoryStructure": [
+        "researcherName",
+        "experimentName",
+        "animalID",
+        "date",
+        "time"
+    ],
+    "animalName": "testMouse",
+	"animalID": "ID42",
+    "experimentName": "Linear Track Test",
+	"test": "TEST",
+    "recordLengthinSeconds": 0,
+    "experiment_Not_Implemented": {
+        "type": "linearTrack",
+        "units": "cm",
+        "trackLength": 200
+    },
+    "behaviorTracker_Not_Implemented": {
+        "type": "HSV",
+        "hue": [0, 1],
+        "saturation": [0, 1],
+        "value": [0, 1]
+    },    
+    "traceDisplay": {
+        "type": "scrolling",
+        "windowX": 100,
+        "windowY": 100,
+        "width": 600,
+        "height": 400
+    },
+    "devices": {
+        "miniscopes": [
+            {
+                "deviceName": "Miniscope",
+                "deviceType": "Miniscope_V4_BNO",
+                "imageRegistration": "Off",
+				"headOrientation": {
+					"enable": true,
+					"filterBadData": true
+				},
+                "streamHeadOrientation_OLD": true,
+                "deviceID": 1,
+				"showSaturation": true,
+				"ROI": {
+                    "notes": "This defines the bounding box of the portion of the video that is saved to disk",
+                    "note3": "Edge values are zero indexed",
+					"leftEdge": 0,
+					"topEdge": 0,
+					"width": 600,
+					"height": 600
+				},
+                "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
+                "compression": "FFV1",
+                "framesPerFile": 1000,
+                "windowScale": 0.75,
+                "windowX": 800,
+                "windowY": 100,
+                "gain": "Low",
+                "ewl": 50,
+                "led0": 10,
+                "frameRate": "30FPS"
+            }
+        ]
+    }
+}

@@ -481,6 +481,12 @@ void backEnd::constructUserConfigGUI()
     controlPanel = new ControlPanel(this, m_userConfig);
     QObject::connect(this, SIGNAL (sendMessage(QString) ), controlPanel, SLOT( receiveMessage(QString)));
 
+    // Make trace display
+    if (!ucTraceDisplay.isEmpty()) {
+        traceDisplay = new TraceDisplayBackend(NULL, ucTraceDisplay);
+    }
+
+    // Make Minsicope displays
     for (idx = 0; idx < ucMiniscopes.size(); idx++) {
         miniscope.append(new Miniscope(this, ucMiniscopes[idx].toObject()));
         QObject::connect(miniscope.last(),
@@ -490,13 +496,18 @@ void backEnd::constructUserConfigGUI()
 
         // Connect send and receive message to textbox in controlPanel
         QObject::connect(miniscope.last(), SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+        QObject::connect(miniscope.last(), &Miniscope::addTraceDisplay, traceDisplay, &TraceDisplayBackend::addNewTrace);
         if (miniscope.last()->getErrors() != 0) {
             // Errors have occured in creating this object
             sendMessage("ERROR: " + miniscope.last()->getDeviceName() + " has error: " + QString::number(miniscope.last()->getErrors()));
         }
-        else
+        else {
             miniscope.last()->createView();
+            miniscope.last()->setupTraceDisplay();
+        }
     }
+
+    // Make Behav Cam displays
     for (idx = 0; idx < ucBehaviorCams.size(); idx++) {
         behavCam.append(new BehaviorCam(this, ucBehaviorCams[idx].toObject()));
         QObject::connect(behavCam.last(),
@@ -514,19 +525,18 @@ void backEnd::constructUserConfigGUI()
         else
             behavCam.last()->createView();
     }
+
+    // Create experiment interface
     if (!ucExperiment.isEmpty()){
         // Construct experiment interface
     }
+
+    // Make behavior tracker interface
     if (!ucBehaviorTracker.isEmpty()) {
         behavTracker = new BehaviorTracker(NULL, m_userConfig);
         QObject::connect(behavTracker, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
         behavTracker->createView();
         setupBehaviorTracker();
-    }
-
-    if (!ucTraceDisplay.isEmpty()) {
-
-        traceDisplay = new TraceDisplayBackend(NULL, ucTraceDisplay);
     }
 
     connectSnS();

@@ -4,14 +4,17 @@
 #include <QObject>
 #include <QGuiApplication>
 #include <QScreen>
+#include <QDateTime>
 
 #include <QtQuick/qquickwindow.h>
 #include <QtGui/QOpenGLShaderProgram>
 #include <QtGui/QOpenGLContext>
 #include <QtGui/QOpenGLTexture>
+#include <QtGui/QOpenGLFramebufferObject>
 
 TraceDisplayBackend::TraceDisplayBackend(QObject *parent, QJsonObject ucTraceDisplay):
-    QObject(parent)
+    QObject(parent),
+    m_traceDisplay(nullptr)
 {
     m_ucTraceDisplay = ucTraceDisplay;
 
@@ -45,6 +48,15 @@ void TraceDisplayBackend::createView()
     view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
 #endif
     view->show();
+
+    m_traceDisplay = view->rootObject()->findChild<TraceDisplay*>("traceDisplay");
+}
+
+void TraceDisplayBackend::addNewTrace(float color[3], float scale, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, qint64 *dataT, float *dataY)
+{
+
+    trace_t newTrace = trace_t(color, scale, displayBufNum, numDataInBuf, bufSize, dataT, dataY);
+    m_traceDisplay->addNewTrace(newTrace);
 }
 
 void TraceDisplayBackend::close()
@@ -71,7 +83,19 @@ void TraceDisplay::setT(qreal t)
     emit tChanged();
     if (window())
         window()->update();
-//    setXLabel({"0.0","1.0","2.0","3.0","4.0"});
+    //    setXLabel({"0.0","1.0","2.0","3.0","4.0"});
+}
+
+void TraceDisplay::addNewTrace(trace_t newTrace)
+{
+
+    if(m_renderer) {
+        m_renderer->addNewTrace(newTrace);
+    }
+    else {
+        // renderer hasn't been created yet. Store trace info till it is.
+        m_tempTraces.append(newTrace);
+    }
 }
 
 void TraceDisplay::handleWindowChanged(QQuickWindow *win)
@@ -91,9 +115,15 @@ void TraceDisplay::sync()
 {
     if (!m_renderer) {
         m_renderer = new TraceDisplayRenderer();
+        m_renderer->setViewportSize(window()->size() * window()->devicePixelRatio());
+        m_renderer->createFBO();
 //        m_renderer->setShowSaturation(m_showSaturation);
 //        m_renderer->setDisplayFrame(QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
         connect(window(), &QQuickWindow::beforeRendering, m_renderer, &TraceDisplayRenderer::paint, Qt::DirectConnection);
+
+        for (int i=0; i < m_tempTraces.length(); i++) {
+            m_renderer->addNewTrace(m_tempTraces[i]);
+        }
     }
     m_renderer->setViewportSize(window()->size() * window()->devicePixelRatio());
 //    m_renderer->setT(m_t);
@@ -114,6 +144,7 @@ TraceDisplayRenderer::TraceDisplayRenderer() :
     m_texture(nullptr),
     m_t(0),
     m_numTraces(2),
+    m_fbo(nullptr),
     m_programGridV(nullptr),
     m_programGridH(nullptr),
     m_programMovingBar(nullptr),
@@ -126,8 +157,7 @@ TraceDisplayRenderer::TraceDisplayRenderer() :
     scale[0] = 1.0f; scale[1] = 1.0f;
     magnify[0] = 1.0f; magnify[1] = 1.0f;
 
-    currentTime = 0;
-    startTime = 0;
+    startTime =  QDateTime().currentMSecsSinceEpoch(); //time software started up
 
     initPrograms();
     float c[] = {0.5,0.7,1.0};
@@ -141,7 +171,8 @@ TraceDisplayRenderer::TraceDisplayRenderer() :
 //        dataT[1][a] = ((float)a)/10;
 //    }
 
-    traces.append(trace_t(c, 1.0, &bufNum, numData, 10, &dataT[0][0], &dataY[0][0]));
+    traces.append(trace_t(c, .1, &bufNum, numData, 10, &dataT[0][0], &dataY[0][0]));
+
 }
 
 TraceDisplayRenderer::~TraceDisplayRenderer()
@@ -193,9 +224,28 @@ void TraceDisplayRenderer::initPrograms()
 
 }
 
-void TraceDisplayRenderer::addNewTrace(float color[3], float scale, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY)
+void TraceDisplayRenderer::addNewTrace(trace_t newTrace)
 {
-    traces.append(trace_t(color, scale, displayBufNum, numDataInBuf, bufSize, dataT, dataY));
+    newTrace.offset = 0.0f;
+    traces.append(newTrace);
+
+    updateTraceOffsets();
+}
+
+void TraceDisplayRenderer::updateTraceOffsets()
+{
+    int numTraces = traces.length();
+
+    float offsetStep = 2 / ((float)numTraces + 1);
+
+    for (int num=0; num < numTraces; num++) {
+        traces[num].offset = -1 + ((num + 1) * offsetStep);
+    }
+}
+
+void TraceDisplayRenderer::createFBO()
+{
+    m_fbo = new QOpenGLFramebufferObject(m_viewportSize.width(), m_viewportSize.height());
 }
 
 void TraceDisplayRenderer::initGridV()
@@ -363,8 +413,7 @@ void TraceDisplayRenderer::updateMovingBar()
 
     m_programMovingBar->setUniformValue("u_windowSize", windowSize);
     // ----------------------------------------------------------
-    currentTime += 0.06f;
-    m_programMovingBar->setUniformValue("u_time", currentTime - startTime);
+    m_programMovingBar->setUniformValue("u_time", (float)(currentTime - startTime)/1000.0f);
     m_programMovingBar->release();
 }
 
@@ -407,52 +456,66 @@ void TraceDisplayRenderer::updateTraces()
 
 void TraceDisplayRenderer::drawTraces()
 {
+    QVector<float> tempTime;
     int arrayOffset;
     m_programTraces->bind();
 
-    m_programTraces->setUniformValue("u_time", currentTime - startTime);
+    m_programTraces->setUniformValue("u_time", (float)(currentTime - startTime)/1000.0f);
 
     for (int num = 0; num < traces.length(); num++) {
-
-        for (int a=0; a < 10; a++) {
-            dataY[0][a] = (float)a/5.0 - 1.0;
-            dataY[1][a] = (float)a/5.0 - 1.0;
-            dataT[0][a] = (currentTime - startTime) - (float)a/5.0;
-            dataT[1][a] = (currentTime - startTime) - (float)a/5.0 - 1;
+        if (num == 0) {
+            // Test trace
+            traces[num].numDataInBuffer[0] = 10;
+            traces[num].numDataInBuffer[1] = 10;
+            for (int a=0; a < 10; a++) {
+                dataY[0][a] = (float)a/5.0 - 1.0;
+                dataY[1][a] = (float)a/5.0 - 1.0;
+                dataT[0][a] = currentTime - (float)a/5.0 * 1000;
+                dataT[1][a] = currentTime - (float)a/5.0 * 1000;
+            }
         }
+        if (traces[num].numDataInBuffer[*traces[num].displayBufferNumber] > 0) {
+            // Switches the display buffer number and reset data count
+            if (*traces[num].displayBufferNumber == 0) {
+                    traces[num].numDataInBuffer[0] = 1;
+                    traces[num].dataT[0] = traces[num].dataT[traces[num].bufferSize + traces[num].numDataInBuffer[1]];
+                    traces[num].dataY[0] = traces[num].dataY[traces[num].bufferSize + traces[num].numDataInBuffer[1]];
+                    *traces[num].displayBufferNumber = 1;
+                    arrayOffset = traces[num].bufferSize;
+            }
+            else {
+                    traces[num].numDataInBuffer[1] = 1;
+                    traces[num].dataT[traces[num].bufferSize] = traces[num].dataT[traces[num].numDataInBuffer[1]];
+                    traces[num].dataY[traces[num].bufferSize] = traces[num].dataY[traces[num].numDataInBuffer[1]];
+                    *traces[num].displayBufferNumber = 0;
+                    arrayOffset = 0;
+            }
 
-        // Switches the display buffer number and reset data count
-        if (*traces[num].displayBufferNumber == 0) {
-//            traces[num].numDataInBuffer[0] = 0;
-            *traces[num].displayBufferNumber = 1;
-            arrayOffset = traces[num].bufferSize;
+            // Update uniforms for specific trace
+            m_programTraces->setUniformValueArray("u_color", traces[num].color, 1, 3);
+            m_programTraces->setUniformValue("u_scaleTrace", traces[num].scale);
+            m_programTraces->setUniformValue("u_offset", traces[num].offset + (float)(num * 0.5f - 1.0f));
+            m_programTraces->setUniformValue("u_traceSelected", 0.0f);
+
+            // Set the data for the trace
+            m_programTraces->enableAttributeArray("a_dataTime");
+            m_programTraces->enableAttributeArray("a_dataY");
+
+            tempTime.clear();
+            for (int idx=0; idx < traces[num].numDataInBuffer[*traces[num].displayBufferNumber]; idx++) {
+                tempTime.append((traces[num].dataT[arrayOffset + idx] - startTime)/1000.0f);
+            }
+            m_programTraces->setAttributeArray("a_dataTime", GL_FLOAT, &tempTime[0], 1);
+            m_programTraces->setAttributeArray("a_dataY", GL_FLOAT, &traces[num].dataY[arrayOffset], 1);
+
+
+            glLineWidth(10);
+            glDrawArrays(GL_LINE_STRIP, 0, traces[num].numDataInBuffer[*traces[num].displayBufferNumber]);
+            qDebug() << traces[num].numDataInBuffer[*traces[num].displayBufferNumber];
+
+            m_programTraces->disableAttributeArray("a_dataTime");
+            m_programTraces->disableAttributeArray("a_dataY");
         }
-        else {
-//            traces[num].numDataInBuffer[1] = 0;
-            *traces[num].displayBufferNumber = 0;
-            arrayOffset = 0;
-        }
-
-        // Update uniforms for specific trace
-        m_programTraces->setUniformValueArray("u_color", traces[num].color, 1, 3);
-        m_programTraces->setUniformValue("u_scaleTrace", traces[num].scale);
-        m_programTraces->setUniformValue("u_offset", traces[num].offset);
-        m_programTraces->setUniformValue("u_traceSelected", 0.0f);
-
-        // Set the data for the trace
-        m_programTraces->enableAttributeArray("a_dataTime");
-        m_programTraces->enableAttributeArray("a_dataY");
-
-        m_programTraces->setAttributeArray("a_dataTime", GL_FLOAT, &traces[num].dataT[arrayOffset], 1);
-        m_programTraces->setAttributeArray("a_dataY", GL_FLOAT, &traces[num].dataY[arrayOffset], 1);
-
-
-        glLineWidth(10);
-        glDrawArrays(GL_LINE_STRIP, 0, 10);//traces[num].numDataInBuffer[*traces[num].displayBufferNumber]);
-
-
-        m_programTraces->disableAttributeArray("a_dataTime");
-        m_programTraces->disableAttributeArray("a_dataY");
     }
 
     m_programTraces->release();
@@ -461,6 +524,7 @@ void TraceDisplayRenderer::drawTraces()
 
 void TraceDisplayRenderer::paint()
 {
+    currentTime =  QDateTime().currentMSecsSinceEpoch();
     glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
 
     glDisable(GL_DEPTH_TEST);

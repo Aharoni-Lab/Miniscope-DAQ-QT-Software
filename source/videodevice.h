@@ -52,7 +52,7 @@ public:
     QObject* getRootDisplayObject() { return rootObject; }
     QQuickItem* getRootDisplayChild(QString childName) { return rootObject->findChild<QQuickItem*>(childName); }
     VideoStreamOCV* getDeviceStream() { return deviceStream; }
-    void setupDisplayObjectPointers() { }; // Child class should override this!
+    virtual void setupDisplayObjectPointers() { }; // Child class should override this!
     bool getHeadOrienataionStreamState() { return m_headOrientationStreamState;}
     bool getHeadOrienataionFilterState() { return m_headOrientationFilterState;}
     void createView();
@@ -71,10 +71,14 @@ public:
     QString getDeviceName(){return m_deviceName;}
     int getErrors() { return m_errors; }
 
-    void handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int f, VideoDisplay* vidDisp);
+    virtual void handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int f, VideoDisplay* vidDisp);
 
     // Adding ROI control for behav and miniscopes
     int* getROI() { return m_roiBoundingBox; }
+
+    virtual void setupTraceDisplay() {} // Override
+
+    float bnoBuffer[FRAME_BUFFER_SIZE*5]; //w,x,y,z,norm
 
 signals:
     // TODO: setup signals to configure camera in thread
@@ -87,6 +91,7 @@ signals:
     void extTriggered(bool state);
     void startRecording();
     void stopRecording();
+    void addTraceDisplay(float c[3], float, QAtomicInt*, QAtomicInt*, int , qint64*, float*);
 
 public slots:
     void sendNewFrame();
@@ -118,7 +123,7 @@ private:
     QThread *videoStreamThread;
     cv::Mat frameBuffer[FRAME_BUFFER_SIZE];
     qint64 timeStampBuffer[FRAME_BUFFER_SIZE];
-    float bnoBuffer[FRAME_BUFFER_SIZE*5]; //w,x,y,z,norm
+    // float bnoBuffer[FRAME_BUFFER_SIZE*5]; //w,x,y,z,norm
     QSemaphore *freeFrames;
     QSemaphore *usedFrames;
     QObject *rootObject;

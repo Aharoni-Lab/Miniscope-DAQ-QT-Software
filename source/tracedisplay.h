@@ -8,6 +8,7 @@
 #include <QtGui/QOpenGLFunctions>
 #include <QtGui/QOpenGLTexture>
 #include <QtGui/QOpenGLBuffer>
+#include <QtGui/QOpenGLFramebufferObject>
 
 #include <QJsonObject>
 #include <QVector>
@@ -15,7 +16,7 @@
 
 typedef struct Traces{
 
-    Traces(float colors[3], float scale, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY):
+    Traces(float colors[3], float scale, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, qint64 *dataT, float *dataY):
         scale(scale),
         bufferSize(bufSize),
         displayBufferNumber(displayBufNum),
@@ -35,24 +36,11 @@ typedef struct Traces{
 
     QAtomicInt* displayBufferNumber;
     QAtomicInt* numDataInBuffer;
-    float* dataT;
+    qint64* dataT;
     float* dataY;
 } trace_t;
 
-class TraceDisplayBackend : public QObject
-{
-    Q_OBJECT
-public:
-    TraceDisplayBackend(QObject *parent = nullptr, QJsonObject ucTraceDisplay = QJsonObject());
-    void createView();
 
-public slots:
-    void close();
-
-private:
-    NewQuickView *view;
-    QJsonObject m_ucTraceDisplay;
-};
 
 class TraceDisplayRenderer : public QObject, protected QOpenGLFunctions
 {
@@ -68,7 +56,10 @@ public:
 
     void initPrograms();
 
-    void addNewTrace(float color[3], float scale, QAtomicInt* displayBufNum, QAtomicInt* numDataInBuf, int bufSize, float* dataT, float* dataY);
+    void addNewTrace(trace_t newTrace);
+    void updateTraceOffsets();
+
+    void createFBO();
 
     // Display funtions for vertical grid lines
     void initGridV();
@@ -102,8 +93,8 @@ public:
     float windowSize; // in seconds
     float gridSpacingV;
 
-    float startTime;
-    float currentTime;
+    qint64 startTime;
+    qint64 currentTime;
 
 //signals:
 
@@ -119,12 +110,15 @@ private:
 
     qreal m_t;
 
+
     // Vars for display
     int m_numTraces;
 
     // holds everything about traces
     QVector<trace_t> traces;
 
+    // Frame Buffer
+    QOpenGLFramebufferObject* m_fbo;
     // Programs used for trace display
     QOpenGLShaderProgram *m_programGridV;
     QOpenGLShaderProgram *m_programGridH;
@@ -133,7 +127,7 @@ private:
 
     QAtomicInt bufNum;
     QAtomicInt numData[2];
-    float dataT[2][10];
+    qint64 dataT[2][10];
     float dataY[2][10];
 
 };
@@ -151,7 +145,7 @@ public:
     void setXLabel(QList<QVariant > label) {m_xLabel = label; xLabelChanged();}
     qreal t() const { return m_t; }
     void setT(qreal t);
-
+    void addNewTrace(trace_t newTrace);
 
 signals:
     void xLabelChanged();
@@ -169,6 +163,26 @@ private:
     QList<QVariant > m_xLabel;
     TraceDisplayRenderer *m_renderer;
 
+    QVector<trace_t> m_tempTraces;
+
+
+};
+
+class TraceDisplayBackend : public QObject
+{
+    Q_OBJECT
+public:
+    TraceDisplayBackend(QObject *parent = nullptr, QJsonObject ucTraceDisplay = QJsonObject());
+    void createView();
+
+public slots:
+    void addNewTrace(float color[3], float scale, QAtomicInt* displayBufNum, QAtomicInt* numDataInBuf, int bufSize, qint64* dataT, float* dataY);
+    void close();
+
+private:
+    NewQuickView *view;
+    TraceDisplay* m_traceDisplay;
+    QJsonObject m_ucTraceDisplay;
 };
 
 #endif // TRACEDISPLAY_H

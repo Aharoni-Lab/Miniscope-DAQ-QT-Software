@@ -29,11 +29,13 @@ class Miniscope : public VideoDevice
     Q_OBJECT
 public:
     explicit Miniscope(QObject *parent = nullptr, QJsonObject ucMiniscope = QJsonObject());
-    void setupDisplayObjectPointers(); //overrides parents function
+    void setupDisplayObjectPointers() override; //overrides parents function
     float* getBNOBufferPointer() { return bnoBuffer; }
 //    void sendNewFrame(); // overrides parent function
-    void handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufIdx, VideoDisplay* vidDisp); //overrides
+    void handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufIdx, VideoDisplay* vidDisp) override; //overrides
 
+
+    void setupTraceDisplay() override; // overrides parent
 public slots:
 //    void displayHasBeenCreated();
     void handleDFFSwitchChange(bool checked);
@@ -42,9 +44,9 @@ private:
     QJsonObject m_ucDevice;
     QJsonObject m_cDevice;
 
-    QObject* rootDistplayObject;
+    QObject* rootDisplayObject;
 
-    float bnoBuffer[FRAME_BUFFER_SIZE*5]; //w,x,y,z,norm
+//    float bnoBuffer[FRAME_BUFFER_SIZE*5]; //w,x,y,z,norm
     QQuickItem *bnoDisplay;
 
 
@@ -54,6 +56,16 @@ private:
     qint64 baselinePreviousTimeStamp;
 
     QString m_displatState; // holds raw of dff view state
+
+    // For BNO trace display
+    float bnoTraceColor[3][3];
+    float bnoScale[3];
+    QAtomicInt bnoDisplayBufNum[3];
+    QAtomicInt bnoNumDataInBuf[3][2];
+    int bnoTraceDisplayBufSize[3];
+    float bnoTraceDisplayY[3][256];
+    qint64 bnoTraceDisplayT[3][256];
+
 };
 
 
