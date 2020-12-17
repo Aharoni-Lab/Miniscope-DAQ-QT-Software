@@ -14,6 +14,7 @@
 #include <QVector>
 #include <QQuickItem>
 #include <QVariant>
+#include <QString>
 
 #include "videostreamocv.h"
 #include "videodisplay.h"
@@ -91,7 +92,7 @@ signals:
     void extTriggered(bool state);
     void startRecording();
     void stopRecording();
-    void addTraceDisplay(float c[3], float, QAtomicInt*, QAtomicInt*, int , float*, float*);
+    void addTraceDisplay(QString, float c[3], float, QAtomicInt*, QAtomicInt*, int , float*, float*);
 
 public slots:
     void sendNewFrame();

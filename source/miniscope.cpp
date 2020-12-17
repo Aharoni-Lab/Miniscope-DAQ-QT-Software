@@ -14,6 +14,7 @@
 #include <QJsonArray>
 #include <QQmlApplicationEngine>
 #include <QVector>
+#include <QString>
 
 
 Miniscope::Miniscope(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime) :
@@ -157,8 +158,16 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
 void Miniscope::setupTraceDisplay()
 {
     // Setup 3 traces for BNO data
+    QString name;
     for (int i=0; i < 3; i++) {
-        emit addTraceDisplay(bnoTraceColor[i],
+        if (i ==0)
+            name = "Roll";
+        else if (i == 1)
+            name = "Pitch";
+        else if (i == 2)
+            name = "Yaw";
+        emit addTraceDisplay(name,
+                             bnoTraceColor[i],
                              bnoScale[i],
                              &bnoDisplayBufNum[i],
                              bnoNumDataInBuf[i],

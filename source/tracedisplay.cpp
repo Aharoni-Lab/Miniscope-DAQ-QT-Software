@@ -6,6 +6,7 @@
 #include <QScreen>
 #include <QDateTime>
 #include <QImage>
+#include <QString>
 
 #include <QtQuick/qquickwindow.h>
 #include <QtGui/QOpenGLShaderProgram>
@@ -54,10 +55,10 @@ void TraceDisplayBackend::createView()
     m_traceDisplay->setSoftwareStartTime(m_softwareStartTime);
 }
 
-void TraceDisplayBackend::addNewTrace(float color[3], float scale, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY)
+void TraceDisplayBackend::addNewTrace(QString name, float color[3], float scale, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY)
 {
 
-    trace_t newTrace = trace_t(color, scale, displayBufNum, numDataInBuf, bufSize, dataT, dataY);
+    trace_t newTrace = trace_t(name, color, scale, displayBufNum, numDataInBuf, bufSize, dataT, dataY);
     m_traceDisplay->addNewTrace(newTrace);
 }
 
@@ -68,7 +69,6 @@ void TraceDisplayBackend::close()
 
 TraceDisplay::TraceDisplay()
     : m_t(0),
-      m_xLabel({"0.0","1.0","2.0","3.0","4.0"}),
       m_renderer(nullptr),
       lastMouseClickEvent(nullptr),
       lastMouseReleaseEvent(nullptr),
@@ -79,6 +79,8 @@ TraceDisplay::TraceDisplay()
     setAcceptedMouseButtons(Qt::AllButtons);
     setAcceptHoverEvents(true);
     connect(this, &QQuickItem::windowChanged, this, &TraceDisplay::handleWindowChanged);
+
+
 }
 
 void TraceDisplay::mousePressEvent(QMouseEvent *event)
@@ -86,7 +88,7 @@ void TraceDisplay::mousePressEvent(QMouseEvent *event)
     if (event->button() == Qt::LeftButton) {
         lastMouseClickEvent = new QMouseEvent(*event);
     }
-    qDebug() << "Mouse Press" << event;
+//    qDebug() << "Mouse Press" << event;
 }
 
 void TraceDisplay::mouseMoveEvent(QMouseEvent *event)
@@ -108,7 +110,7 @@ void TraceDisplay::mouseMoveEvent(QMouseEvent *event)
 
 
     }
-    qDebug() << "Mouse Move" << event;
+//    qDebug() << "Mouse Move" << event;
 }
 
 void TraceDisplay::mouseReleaseEvent(QMouseEvent *event)
@@ -117,17 +119,20 @@ void TraceDisplay::mouseReleaseEvent(QMouseEvent *event)
         lastMouseReleaseEvent = new QMouseEvent(*event);
         lastMouseMoveEvent = nullptr;
     }
-    qDebug() << "Mouse Release" << event;
+//    qDebug() << "Mouse Release" << event;
 }
 
 void TraceDisplay::wheelEvent(QWheelEvent *event)
 {
-    qDebug() << "Wheel" << event;
+    int scrollAmount = event->angleDelta().y();
+    m_renderer->updateWindowSize(scrollAmount);
+
+//    qDebug() << "Wheel" << event;
 }
 
 void TraceDisplay::hoverMoveEvent(QHoverEvent *event)
 {
-    qDebug() << "Hover" << event->pos();
+//    qDebug() << "Hover" << event->pos();
 }
 
 
@@ -139,7 +144,8 @@ void TraceDisplay::setT(qreal t)
     emit tChanged();
     if (window())
         window()->update();
-    //    setXLabel({"0.0","1.0","2.0","3.0","4.0"});
+    setXLabel({"0.0","1.0","2.0","3.0","4.0","5","6","7","8","9"});
+
 }
 
 void TraceDisplay::addNewTrace(trace_t newTrace)
@@ -152,6 +158,9 @@ void TraceDisplay::addNewTrace(trace_t newTrace)
         // renderer hasn't been created yet. Store trace info till it is.
         m_tempTraces.append(newTrace);
     }
+
+    m_traceNames.append(newTrace.name);
+    emit traceNamesChanged();
 }
 
 void TraceDisplay::handleWindowChanged(QQuickWindow *win)
@@ -207,6 +216,7 @@ TraceDisplayRenderer::TraceDisplayRenderer(QObject *parent, QSize displayWindowS
     m_programMovingBar(nullptr),
     m_programTraces(nullptr)
 {
+    m_clearDisplayOnNextDraw = false;
     m_viewportSize = displayWindowSize;
     windowSize = 10; // in seconds. Consider having this defined in user config!
     gridSpacingV = .25; // in seconds
@@ -299,6 +309,8 @@ void TraceDisplayRenderer::addNewTrace(trace_t newTrace)
 
     updateTraceOffsets();
     initGridH();
+
+
 }
 
 void TraceDisplayRenderer::updateTraceOffsets()
@@ -308,7 +320,7 @@ void TraceDisplayRenderer::updateTraceOffsets()
     float offsetStep = 2 / ((float)numTraces + 1);
 
     for (int num=0; num < numTraces; num++) {
-        traces[num].offset = -1 + ((num + 1) * offsetStep);
+        traces[num].offset = 1 - ((num + 1) * offsetStep);
     }
 }
 
@@ -374,6 +386,7 @@ void TraceDisplayRenderer::initGridV()
     // Holds position, color, index for vertical grid vertex
     QVector<float> gridVData;
 
+    gridVVOB.destroy();
     int numVGridLines = (int)((windowSize / gridSpacingV) + 1);
     float gridLineStep = 2.0 / ((float)numVGridLines - 1);
 
@@ -653,8 +666,21 @@ void TraceDisplayRenderer::updatePan(float deltaX, float deltaY)
 
     pan[0] = pan[0] - dX/scale[0];
     pan[1] = pan[1] + dY/scale[1];
+    m_clearDisplayOnNextDraw = true;
 
 
+}
+
+void TraceDisplayRenderer::updateWindowSize(int scrollAmount)
+{
+
+    windowSize += (float)scrollAmount/10.0f;
+    if (windowSize < 1)
+        windowSize = 1;
+    if (windowSize > 120)
+        windowSize = 120;
+    m_clearDisplayOnNextDraw = true;
+//    initGridV();
 }
 
 void TraceDisplayRenderer::paint()
@@ -668,11 +694,20 @@ void TraceDisplayRenderer::paint()
 
     int pastScrollBarPos = m_viewportSize.width() * std::fmod((m_lastTimeDisplayed - m_softwareStartTime)/1000.0f, windowSize) / windowSize;
     int clearWidth = ((currentTime - m_lastTimeDisplayed)/1000.0) / windowSize * m_viewportSize.width();
-    glEnable(GL_SCISSOR_TEST);
-    glScissor(pastScrollBarPos, 0, clearWidth * 5, 10000);
-    glClearColor(0, 0, 0, 0);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glScissor(0, 0, 10000, 10000);
+
+    if (m_clearDisplayOnNextDraw == true) {
+        m_clearDisplayOnNextDraw = false;
+        glClearColor(0, 0, 0, 0);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
+    else {
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(pastScrollBarPos, 0, clearWidth * 5, 10000);
+        glClearColor(0, 0, 0, 0);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glScissor(0, 0, 10000, 10000);
+    }
+
 //    scrollBarPos = self.physical_size[0] * (self.programLine["u_time"]%self.windowSize)/self.windowSize
 //    clearWidth = 0.5/self.windowSize * self.physical_size[0]  # first number is in seconds
 //    gloo.set_scissor(scrollBarPos-clearWidth, 0.0, clearWidth, 10000)

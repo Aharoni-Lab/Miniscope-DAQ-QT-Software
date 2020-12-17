@@ -25,6 +25,32 @@ Item {
             running: true
         }
     }
+    ColumnLayout {
+        id: columnL
+        height: parent.height * (traceDisplay.traceNames.length - 1)/traceDisplay.traceNames.length
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.left: parent.left
+        Repeater { id: repeater
+            model: traceDisplay.traceNames.length
+            Rectangle {
+                id: rectangle
+                width: 100
+                height:15
+                color: "transparent"
+                Text { text: traceDisplay.traceNames[index]
+                    anchors.verticalCenterOffset: -7
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.left: parent.left
+                    anchors.leftMargin: 5
+                    font.family: "Helvetica"
+                    font.pointSize: 10
+                    color: "#969696"
+                   }
+            }
+
+        }
+    }
 
     RowLayout {
         id: bottomText
@@ -34,49 +60,33 @@ Item {
         anchors.bottom: parent.bottom
 
 
-        Text {
-            id: xLabel0
-            objectName: "xLabel0"
-            color: "#969696"
-            text: traceDisplay.xLabel[0]
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-            font.family: "Helvetica"
-            font.pointSize: 10
+        Repeater { id: repeaterXLabel
+            model: traceDisplay.xLabel.length
+            Rectangle {
+                id: rectangleXLabel
+                width:50
+                height:15
+                color: "transparent"
+                Text { text: traceDisplay.xLabel[index]
+                    Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                    font.family: "Helvetica"
+                    font.pointSize: 10
+                    color: "#969696"
+                   }
+            }
+
         }
 
-        Text {
-            objectName: "xLabel1"
-            text: traceDisplay.xLabel[1]
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-            font: xLabel0.font
-            color: xLabel0.color
-        }
-
-        Text {
-            objectName: "xLabel2"
-            text: traceDisplay.xLabel[2]
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-            font: xLabel0.font
-            color: xLabel0.color
-        }
-
-        Text {
-            objectName: "xLabel3"
-            text: traceDisplay.xLabel[3]
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-            font: xLabel0.font
-            color: xLabel0.color
-        }
-
-        Text {
-            objectName: "xLabel4"
-            text: traceDisplay.xLabel[4]
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-            font: xLabel0.font
-            color: xLabel0.color
-        }
     }
 
 
 }
 
+
+
+
+/*##^##
+Designer {
+    D{i:2;anchors_height:480}
+}
+##^##*/

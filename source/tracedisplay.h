@@ -13,10 +13,12 @@
 #include <QJsonObject>
 #include <QVector>
 #include <QAtomicInt>
+#include <QString>
 
 typedef struct Traces{
 
-    Traces(float colors[3], float scale, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY):
+    Traces(QString name, float colors[3], float scale, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY):
+        name(name),
         scale(scale),
         bufferSize(bufSize),
         displayBufferNumber(displayBufNum),
@@ -28,7 +30,7 @@ typedef struct Traces{
         color[1] = colors[1];
         color[2] = colors[2];
     }
-
+    QString name = "";
     float color[3];
     float offset = 0.0f;
     float scale;
@@ -88,6 +90,7 @@ public:
 
     // Handle mouse events
     void updatePan(float deltaX, float deltaY);
+    void updateWindowSize(int scrollAmount);
 
     // User controls to change trace display view
     float pan[2];
@@ -138,6 +141,8 @@ private:
 
     qint64 m_lastTimeDisplayed;
 
+    bool m_clearDisplayOnNextDraw;
+
 };
 
 class TraceDisplay : public QQuickItem
@@ -145,6 +150,7 @@ class TraceDisplay : public QQuickItem
     Q_OBJECT
     // FOr updating xlabel values
     Q_PROPERTY(QList<QVariant > xLabel READ xLabel WRITE setXLabel NOTIFY xLabelChanged)
+    Q_PROPERTY(QList<QVariant > traceNames READ traceNames WRITE setTraceNames NOTIFY traceNamesChanged)
     Q_PROPERTY(qreal t READ t WRITE setT NOTIFY tChanged)
 
 public:
@@ -157,7 +163,9 @@ public:
     void hoverMoveEvent(QHoverEvent *event) override;
 
     QList<QVariant > xLabel() { return m_xLabel; }
+    QList<QVariant > traceNames() { return m_traceNames; }
     void setXLabel(QList<QVariant > label) {m_xLabel = label; xLabelChanged();}
+    void setTraceNames(QList<QVariant > names) {m_traceNames = names; traceNamesChanged();}
     qreal t() const { return m_t; }
     void setT(qreal t);
     void addNewTrace(trace_t newTrace);
@@ -167,6 +175,7 @@ public:
 
 signals:
     void xLabelChanged();
+    void traceNamesChanged();
     void tChanged();
 
 public slots:
@@ -179,15 +188,18 @@ private slots:
 private:
     qreal m_t;
     QList<QVariant > m_xLabel;
+    QList<QVariant> m_traceNames;
     TraceDisplayRenderer *m_renderer;
 
     QVector<trace_t> m_tempTraces;
+
 
     QMouseEvent* lastMouseClickEvent;
     QMouseEvent* lastMouseReleaseEvent;
     QMouseEvent* lastMouseMoveEvent;
 
     qint64 m_softwareStartTime;
+
 
 
 };
@@ -200,7 +212,7 @@ public:
     void createView();
 
 public slots:
-    void addNewTrace(float color[3], float scale, QAtomicInt* displayBufNum, QAtomicInt* numDataInBuf, int bufSize, float* dataT, float* dataY);
+    void addNewTrace(QString name, float color[3], float scale, QAtomicInt* displayBufNum, QAtomicInt* numDataInBuf, int bufSize, float* dataT, float* dataY);
     void close();
 
 private:
@@ -209,6 +221,7 @@ private:
     QJsonObject m_ucTraceDisplay;
 
     qint64 m_softwareStartTime;
+
 };
 
 #endif // TRACEDISPLAY_H
