@@ -446,6 +446,8 @@ QJsonDocument DataSaver::constructBaseDirectoryMetaData()
     QJsonDocument jDoc;
     QString tempString;
 
+    QJsonObject startTimeObject;
+
     QJsonArray directoryStructure = m_userConfig["directoryStructure"].toArray();
     for (int i = 0; i < directoryStructure.size(); i++) {
         tempString = directoryStructure[i].toString();
@@ -462,14 +464,16 @@ QJsonDocument DataSaver::constructBaseDirectoryMetaData()
     metaData["baseDirectory"] = baseDirectory;
 
     // Start time
-    metaData["year"] = recordStartDateTime.date().year();
-    metaData["month"] = recordStartDateTime.date().month();
-    metaData["day"] = recordStartDateTime.date().day();
-    metaData["hour"] = recordStartDateTime.time().hour();
-    metaData["minute"] = recordStartDateTime.time().minute();
-    metaData["second"] = recordStartDateTime.time().second();
-    metaData["msec"] = recordStartDateTime.time().msec();
-    metaData["msecSinceEpoch"] = recordStartDateTime.toMSecsSinceEpoch();
+    startTimeObject["year"] = recordStartDateTime.date().year();
+    startTimeObject["month"] = recordStartDateTime.date().month();
+    startTimeObject["day"] = recordStartDateTime.date().day();
+    startTimeObject["hour"] = recordStartDateTime.time().hour();
+    startTimeObject["minute"] = recordStartDateTime.time().minute();
+    startTimeObject["second"] = recordStartDateTime.time().second();
+    startTimeObject["msec"] = recordStartDateTime.time().msec();
+    startTimeObject["msecSinceEpoch"] = recordStartDateTime.toMSecsSinceEpoch();
+
+    metaData["recordingStartTime"] = startTimeObject;
 
     //Device info
     QStringList list;
