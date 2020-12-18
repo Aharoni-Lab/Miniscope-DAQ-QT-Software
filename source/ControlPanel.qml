@@ -216,6 +216,7 @@ Item {
                                     font.pointSize: 12
                                     font.family: "Arial"
                                     color: "green"
+                                    enabled: !root.recording
                                     validator: if(root.ucIsNumber[index]) {validNumber} else {validAll}
 
                                     onTextChanged: {

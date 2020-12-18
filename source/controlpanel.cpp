@@ -186,6 +186,7 @@ void ControlPanel::recordTimerTick()
         recordTimer->stop();
         recordStop();
         receiveMessage("Recording Stopped.");
+        rootObject->setProperty("recording", false);
         currentRecordTime = 0;
     }
 
