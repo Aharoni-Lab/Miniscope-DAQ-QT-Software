@@ -80,7 +80,12 @@ TraceDisplay::TraceDisplay()
     setAcceptHoverEvents(true);
     connect(this, &QQuickItem::windowChanged, this, &TraceDisplay::handleWindowChanged);
 
-
+    // Initially sets x labels
+    QList<QVariant> tempLabels;
+    for (int i=0;i < 5; i++) {
+        tempLabels.append(QString::number(i ,'f',1) + "s");
+    }
+    setXLabel(tempLabels);
 }
 
 void TraceDisplay::mousePressEvent(QMouseEvent *event)
@@ -127,6 +132,11 @@ void TraceDisplay::wheelEvent(QWheelEvent *event)
     int scrollAmount = event->angleDelta().y();
     m_renderer->updateWindowSize(scrollAmount);
 
+    QList<QVariant> tempLabels;
+    for (int i=0;i < 5; i++) {
+        tempLabels.append(QString::number(i * m_renderer->windowSize/5,'f',1) + "s");
+    }
+    setXLabel(tempLabels);
 //    qDebug() << "Wheel" << event;
 }
 
@@ -144,7 +154,7 @@ void TraceDisplay::setT(qreal t)
     emit tChanged();
     if (window())
         window()->update();
-    setXLabel({"0.0","1.0","2.0","3.0","4.0","5","6","7","8","9"});
+//    setXLabel({"0.0","1.0","2.0","3.0","4.0"});
 
 }
 
@@ -219,7 +229,7 @@ TraceDisplayRenderer::TraceDisplayRenderer(QObject *parent, QSize displayWindowS
     m_clearDisplayOnNextDraw = false;
     m_viewportSize = displayWindowSize;
     windowSize = 10; // in seconds. Consider having this defined in user config!
-    gridSpacingV = .25; // in seconds
+
 
     pan[0] = 0.0f; pan[1] = 0.0f;
     scale[0] = 1.0f; scale[1] = 1.0f;
@@ -386,8 +396,9 @@ void TraceDisplayRenderer::initGridV()
     // Holds position, color, index for vertical grid vertex
     QVector<float> gridVData;
 
+    gridSpacingV = .25; // Used for shader to change color of lines
     gridVVOB.destroy();
-    int numVGridLines = (int)((windowSize / gridSpacingV) + 1);
+    int numVGridLines = 21;
     float gridLineStep = 2.0 / ((float)numVGridLines - 1);
 
     float idx = 0;
@@ -680,6 +691,7 @@ void TraceDisplayRenderer::updateWindowSize(int scrollAmount)
     if (windowSize > 120)
         windowSize = 120;
     m_clearDisplayOnNextDraw = true;
+
 //    initGridV();
 }
 

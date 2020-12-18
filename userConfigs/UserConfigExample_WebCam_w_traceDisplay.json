@@ -12,6 +12,14 @@
     "animalName": "testMouse",
     "experimentName": "Linear Track Test",
     "recordLengthinSeconds": 600,
+    "executableOnStart": {
+        "filePath": "C:/Fiji.app/ImageJ-win64.exe",
+        "arguments": ["hi", "hi2"]
+    },
+    "executableOnStop": {
+        "filePath": "C:/Fiji.app/ImageJ-win64.exe",
+        "arguments": ["hi", "hi2"]
+    },
     "experiment_Not_Implemented": {
         "type": "linearTrack",
         "units": "cm",

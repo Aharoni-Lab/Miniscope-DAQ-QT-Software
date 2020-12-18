@@ -13,6 +13,8 @@
 #include <QTimer>
 #include <QTime>
 #include <QMetaObject>
+#include <QProcess>
+#include <QJsonArray>
 
 ControlPanel::ControlPanel(QObject *parent, QJsonObject userConfig) :
     QObject(parent),
@@ -96,6 +98,18 @@ void ControlPanel::receiveMessage(QString msg)
 
 void ControlPanel::onRecordActivated()
 {
+    QJsonObject exeInfo;
+    QStringList argList;
+    QJsonArray argArray;
+    if (m_userConfig.contains("executableOnStartRecording")) {
+        // Lets setup a exe to execute
+        exeInfo = m_userConfig["executableOnStartRecording"].toObject();
+        argArray = m_userConfig["arguments"].toArray();
+        for (int i=0; i < argArray.size(); i++) {
+            argList.append(argArray[i].toString());
+        }
+        QProcess::startDetached(exeInfo["filePath"].toString(""), argList);
+    }
     recordStart();
     m_recording = true;
     rootObject->setProperty("recording", true);
@@ -106,6 +120,19 @@ void ControlPanel::onRecordActivated()
 
 void ControlPanel::onStopActivated()
 {
+    QJsonObject exeInfo;
+    QStringList argList;
+    QJsonArray argArray;
+    if (m_userConfig.contains("executableOnStopRecording")) {
+        // Lets setup a exe to execute
+        exeInfo = m_userConfig["executableOnStopRecording"].toObject();
+        argArray = m_userConfig["arguments"].toArray();
+        for (int i=0; i < argArray.size(); i++) {
+            argList.append(argArray[i].toString());
+        }
+        QProcess::startDetached(exeInfo["filePath"].toString(""), argList);
+    }
+
     recordStop();
     receiveMessage("Recording Stopped.");
     m_recording = false;
