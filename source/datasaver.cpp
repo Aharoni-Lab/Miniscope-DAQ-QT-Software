@@ -245,8 +245,22 @@ void DataSaver::startRunning()
     }
 }
 
-void DataSaver::startRecording()
+void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
 {
+
+    // Update user config json object with any new info from control panel GUI
+    QStringList keys = ucInfo.keys();
+    for (int i=0; i < keys.size(); i++) {
+
+//        if (ucInfo[keys[i]].canConvert(QMetaType::Int)) {
+//            m_userConfig[keys[i]] = ucInfo[keys[i]].toInt();
+//            qDebug() << keys[i] << ucInfo[keys[i]].toInt();
+//        }
+//        else {
+            m_userConfig[keys[i]] = ucInfo[keys[i]].toString();
+            qDebug() << keys[i] << ucInfo[keys[i]].toString();
+//        }
+    }
 
     if (m_recording) {
         // Data saver is already recording. This likely happens if there is a manual record and then an external trig record

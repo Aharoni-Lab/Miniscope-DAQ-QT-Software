@@ -6,12 +6,14 @@
         "researcherName",
         "experimentName",
         "animalName",
+        "testSlot",
         "date",
         "time"
     ],
     "animalName": "testMouse",
+    "testSlot": "TESTING!!",
     "experimentName": "Linear Track Test",
-    "recordLengthinSeconds": 600,
+    "recordLengthinSeconds": 6,
     "experiment_Not_Implemented": {
         "type": "linearTrack",
         "units": "cm",

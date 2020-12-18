@@ -39,7 +39,7 @@ signals:
 
 public slots:
     void startRunning();
-    void startRecording();
+    void startRecording(QMap<QString,QVariant> ucInfo);
     void stopRecording();
     void devicePropertyChanged(QString deviceName, QString propName, QVariant propValue);
     void takeScreenShot(QString type);

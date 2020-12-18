@@ -62,7 +62,7 @@
                 "gain": "Low",
                 "ewl": 50,
                 "led0": 10,
-                "frameRate": "30FPS"
+                "frameRate": "20FPS"
             }
         ]
     }

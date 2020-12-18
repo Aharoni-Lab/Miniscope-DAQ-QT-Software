@@ -14,6 +14,7 @@ Item {
 
     property var ucProps: []
     property var ucValues: []
+    property var ucIsNumber: []
 
     signal submitNoteSignal(string note)
     signal extTriggerSwitchToggled(bool checkedState)
@@ -204,6 +205,8 @@ Item {
 
                                 }
                                 TextField {
+                                    property var validNumber : IntValidator { bottom:0;}
+                                    property var validAll : RegExpValidator{}
                                     width: parent.width - 10
                                     height:30
                                     text: root.ucValues[index]
@@ -213,14 +216,20 @@ Item {
                                     font.pointSize: 12
                                     font.family: "Arial"
                                     color: "green"
-                                    onFocusChanged: {
-                                        if (focus == true)
+                                    validator: if(root.ucIsNumber[index]) {validNumber} else {validAll}
+
+                                    onTextChanged: {
+                                        if (focus)
                                             color = "red"
                                     }
 
                                     onEditingFinished: {
                                         color = "green"
                                         root.ucValues[index] = text;
+                                        if (root.ucProps[index] === "recordLengthinSeconds") {
+                                            root.ucRecordLength = text;
+                                            ucRecordLengthChanged();
+                                        }
 //                                        ucPropsChanged();
                                     }
                                 }
