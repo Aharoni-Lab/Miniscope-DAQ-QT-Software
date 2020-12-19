@@ -503,7 +503,7 @@ void backEnd::constructUserConfigGUI()
         }
         else {
             miniscope.last()->createView();
-            miniscope.last()->setupTraceDisplay();
+            miniscope.last()->setupBNOTraceDisplay();
         }
     }
 

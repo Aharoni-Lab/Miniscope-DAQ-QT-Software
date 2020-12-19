@@ -23,6 +23,8 @@
 // ----- Used for dF/F display ---------
 #define BASELINE_FRAME_BUFFER_SIZE  128
 
+#define TRACE_DISPLAY_BUFFER_SIZE         256
+#define NUM_MAX_NEURON_TRACES      16
 
 class Miniscope : public VideoDevice
 {
@@ -35,10 +37,11 @@ public:
     void handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufIdx, VideoDisplay* vidDisp) override; //overrides
 
 
-    void setupTraceDisplay() override; // overrides parent
+    void setupBNOTraceDisplay() override; // overrides parent
 public slots:
 //    void displayHasBeenCreated();
     void handleDFFSwitchChange(bool checked);
+    void handleAddNewTraceROI(int leftEdge, int topEdge, int width, int height) override;
 
 private:
     QJsonObject m_ucDevice;
@@ -62,9 +65,19 @@ private:
     float bnoScale[3];
     QAtomicInt bnoDisplayBufNum[3];
     QAtomicInt bnoNumDataInBuf[3][2];
-    int bnoTraceDisplayBufSize[3];
-    float bnoTraceDisplayY[3][2][256];
-    float bnoTraceDisplayT[3][2][256];
+    float bnoTraceDisplayY[3][2][TRACE_DISPLAY_BUFFER_SIZE];
+    float bnoTraceDisplayT[2][TRACE_DISPLAY_BUFFER_SIZE];
+
+    // For Neuron Trace Display
+
+    int m_numTraces;
+    int m_traceROIs[NUM_MAX_NEURON_TRACES][4];
+    float m_traceColors[NUM_MAX_NEURON_TRACES][3];
+    QAtomicInt m_traceDisplayBufNum[NUM_MAX_NEURON_TRACES];
+    QAtomicInt m_traceNumDataInBuf[NUM_MAX_NEURON_TRACES][2];
+    float m_traceDisplayY[NUM_MAX_NEURON_TRACES][2][TRACE_DISPLAY_BUFFER_SIZE];
+    float m_traceDisplayT[2][TRACE_DISPLAY_BUFFER_SIZE];
+
 
     qint64 m_softwareStartTime;
 

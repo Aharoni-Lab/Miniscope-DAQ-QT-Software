@@ -17,6 +17,9 @@ Item {
     signal saturationSwitchChanged(bool value)
 
     signal setRoiClicked()
+    signal addTraceRoiClicked()
+
+
 
     Keys.onPressed: {
         if (event.key === Qt.Key_H) {
@@ -37,6 +40,14 @@ Item {
         Layout.minimumWidth: 640
         objectName: "vD"
         anchors.fill: parent
+
+        // For Trace ROIs
+        property var traceROIx: []
+        property var traceROIy: []
+        property var traceROIw: []
+        property var traceROIh: []
+        property int numTraceROIs: 0
+
 
         property var sumAcqFPS: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
         property var idx: 0
@@ -65,6 +76,44 @@ Item {
                 rectROI.y = videoDisplay.ROI[1];
                 rectROI.width = videoDisplay.ROI[2];
                 rectROI.height = videoDisplay.ROI[3];
+
+            }
+        }
+        Repeater{
+            id: repeater0
+            model: videoDisplay.numTraceROIs
+            Rectangle {
+                x: videoDisplay.traceROIx[index]
+                y: videoDisplay.traceROIy[index]
+                width: videoDisplay.traceROIw[index]
+                height: videoDisplay.traceROIh[index]
+                visible: true
+
+                border.color: "yellow"
+                color: "transparent"
+                border.width: 1
+            }
+
+        }
+        onAddTraceROIChanged: {
+            if (videoDisplay.addTraceROI[4] === 1) {
+                rectAddTraceROI.visible = true;
+//                rectAddTraceROI.color = "#40ffffff"; //"e38787";
+                rectAddTraceROI.x = videoDisplay.addTraceROI[0];
+                rectAddTraceROI.y = videoDisplay.addTraceROI[1];
+                rectAddTraceROI.width = videoDisplay.addTraceROI[2];
+                rectAddTraceROI.height = videoDisplay.addTraceROI[3];
+            }
+            else {
+                // New trace ROI has been selected
+                rectAddTraceROI.visible = false;
+                videoDisplay.traceROIx.push(videoDisplay.addTraceROI[0]);
+                videoDisplay.traceROIy.push(videoDisplay.addTraceROI[1]);
+                videoDisplay.traceROIw.push(videoDisplay.addTraceROI[2]);
+                videoDisplay.traceROIh.push(videoDisplay.addTraceROI[3]);
+                videoDisplay.numTraceROIs++;
+
+
             }
         }
 
@@ -87,6 +136,20 @@ Item {
             border.width: 2
 //            radius: 10
         }
+        Rectangle {
+            id: rectAddTraceROI
+            x: 0
+            y: 0
+            width: videoDisplay.addTraceROI[2]
+            height: videoDisplay.addTraceROI[3]
+            visible: false
+
+            border.color: "red"
+            border.width: 2
+//            radius: 10
+        }
+
+
     }
     TopMenu{
         id: topMenu
@@ -216,6 +279,27 @@ Item {
         height: 100
         spacing: 0
         anchors.verticalCenter: parent.verticalCenter
+
+        RoundButton {
+            id: addTraceRoi
+            objectName: "addTraceRoi"
+            text: "Add Neurotrace ROI"
+            font.family: "Arial"
+            font.pointSize: 10
+            font.bold: true
+            font.weight: Font.Normal
+            radius: 4
+            enabled: true
+            background: Rectangle {
+                id: addTraceRoiRect
+                radius: addTraceRoi.radius
+                border.width: 1
+                color: "#a8a7fd"
+            }
+            onHoveredChanged: hovered ? addTraceRoiRect.color = "#f8a7fd" : addTraceRoiRect.color = "#a8a7fd"
+            onClicked: root.addTraceRoiClicked()
+
+        }
 
         RoundButton {
             id: setRoi

@@ -184,8 +184,14 @@ void VideoDevice::createView()
         // Set ROI Stuff
         QObject::connect(rootObject, SIGNAL( setRoiClicked() ), this, SLOT( handleSetRoiClicked()));
 
+        // Add Trace ROI Stuff
+        QObject::connect(rootObject, SIGNAL( addTraceRoiClicked() ), this, SLOT( handleAddTraceRoiClicked()));
+
         // Link up ROI signal and slot
         QObject::connect(vidDisplay, &VideoDisplay::newROISignal, this, &VideoDevice::handleNewROI);
+
+        // Link up Add Trace ROI signal and slot
+        QObject::connect(vidDisplay, &VideoDisplay::newAddTraceROISignal, this, &VideoDevice::handleAddNewTraceROI);
 
         QObject::connect(view, &NewQuickView::closing, deviceStream, &VideoStreamOCV::stopSteam);
         QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &VideoDevice::sendNewFrame);
@@ -676,6 +682,11 @@ void VideoDevice::handleSetRoiClicked()
 
 }
 
+void VideoDevice::handleAddTraceRoiClicked()
+{
+    vidDisplay->addTraceROISelectionState(true);
+}
+
 void VideoDevice::handleNewROI(int leftEdge, int topEdge, int width, int height)
 {
     m_roiIsDefined = true;
@@ -703,6 +714,11 @@ void VideoDevice::handleNewROI(int leftEdge, int topEdge, int width, int height)
             QString::number(m_roiBoundingBox[3]) + "]");
 
     // TODO: Correct ROI if out of bounds
+
+}
+
+void VideoDevice::handleAddNewTraceROI(int leftEdge, int topEdge, int width, int height)
+{
 
 }
 

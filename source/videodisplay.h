@@ -74,6 +74,7 @@ class VideoDisplay : public QQuickItem
 
     // For visualizing ROI
     Q_PROPERTY(QList<int> ROI READ ROI WRITE setROI NOTIFY roiChanged)
+    Q_PROPERTY(QList<int> addTraceROI READ addTraceROI WRITE setAddTraceROI NOTIFY addTraceROIChanged)
 
 public:
     VideoDisplay();
@@ -84,6 +85,7 @@ public:
     qreal t() const { return m_t; }
     double acqFPS() const { return m_acqFPS; }
     QList<int> ROI() const { return m_ROI; }
+    QList<int> addTraceROI() const { return m_addTraceROI; }
     int maxBuffer() const {return m_maxBuffer; }
     int bufferUsed() const { return m_bufferUsed; }
     int droppedFrameCount() const {return m_droppedFrameCount; }
@@ -92,6 +94,7 @@ public:
     void setT(qreal t);
     void setAcqFPS(double acqFPS) { m_acqFPS = acqFPS; acqFPSChanged();}
     void setROI(QList<int> roi);
+    void setAddTraceROI(QList<int> roi);
     void setBufferUsed(int bufUsed) { m_bufferUsed = bufUsed; }
     void setMaxBuffer(int maxBuf) { m_maxBuffer = maxBuf; }
 
@@ -101,18 +104,21 @@ public:
     void setBeta(double b) {m_renderer->setBeta(b);}
     void setShowSaturation(double value);
     void setROISelectionState(bool state) { m_roiSelectionActive = state; }
+    void addTraceROISelectionState(bool state) { m_addTraceRoiSelectionActive = state; }
     void setWindowScaleValue(double scale) { m_windowScaleValue = scale; }
 
 signals:
     void tChanged();
     void acqFPSChanged();
     void roiChanged();
+    void addTraceROIChanged();
     void maxBufferChanged();
     void bufferUsedChanged();
     void droppedFrameCountChanged();
 
     void displayFrameChanged();
     void newROISignal(int leftEdge, int topEdge, int width, int height);
+    void newAddTraceROISignal(int leftEdge, int topEdge, int width, int height);
 
 public slots:
     void sync();
@@ -132,8 +138,10 @@ private:
 
     double m_showSaturation;
     bool m_roiSelectionActive;
+    bool m_addTraceRoiSelectionActive;
     double m_windowScaleValue;
     QList<int> m_ROI;
+    QList<int> m_addTraceROI;
     QMouseEvent *lastMouseClickEvent;
     QMouseEvent *lastMouseReleaseEvent;
 };

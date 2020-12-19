@@ -77,7 +77,7 @@ public:
     // Adding ROI control for behav and miniscopes
     int* getROI() { return m_roiBoundingBox; }
 
-    virtual void setupTraceDisplay() {} // Override
+    virtual void setupBNOTraceDisplay() {} // Override
 
     float bnoBuffer[FRAME_BUFFER_SIZE*5]; //w,x,y,z,norm
 
@@ -109,7 +109,9 @@ public slots:
 
     // Adding ROI control for behav and miniscopes
     void handleSetRoiClicked();
+    void handleAddTraceRoiClicked();
     void handleNewROI(int leftEdge, int topEdge, int width, int height);
+    virtual void handleAddNewTraceROI(int leftEdge, int topEdge, int width, int height);
 
 private:
 

@@ -36,14 +36,18 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucDevice, qint64 softwareStart
         bnoTraceColor[1][i] = c1[i];
         bnoTraceColor[2][i] = c2[i];
     }
+
     for (int i=0; i < 3; i++) {
         bnoScale[i] = 1.0f;
         bnoDisplayBufNum[i] = 1;
         bnoNumDataInBuf[i][0] = 0;
         bnoNumDataInBuf[i][1] = 0;
-        bnoTraceDisplayBufSize[i] = 256;
-    }
 
+    }
+    // --------------------
+
+    // For Neuron Trace Display
+    m_numTraces = 0;
     // --------------------
 
     m_ucDevice = ucDevice; // hold user config for this device
@@ -67,6 +71,37 @@ void Miniscope::handleDFFSwitchChange(bool checked)
         m_displatState = "dFF";
     else
         m_displatState = "Raw";
+}
+
+void Miniscope::handleAddNewTraceROI(int leftEdge, int topEdge, int width, int height)
+{
+    if (m_numTraces < NUM_MAX_NEURON_TRACES) {
+
+        m_traceROIs[m_numTraces][0] = leftEdge;
+        m_traceROIs[m_numTraces][1] = topEdge;
+        m_traceROIs[m_numTraces][2] = width;
+        m_traceROIs[m_numTraces][3] = height;
+
+
+        m_traceColors[m_numTraces][0] = 1.0f;
+        m_traceColors[m_numTraces][1] = 1.0f;
+        m_traceColors[m_numTraces][2] = 0.3f;
+
+        m_traceDisplayBufNum[m_numTraces] = 1;
+        m_traceNumDataInBuf[m_numTraces][0] = 0;
+        m_traceNumDataInBuf[m_numTraces][1] = 0;
+
+        emit addTraceDisplay("Neuron" + QString::number(m_numTraces),
+                             m_traceColors[m_numTraces],
+                             1.0/255.0f,
+                             &m_traceDisplayBufNum[m_numTraces],
+                             m_traceNumDataInBuf[m_numTraces],
+                             TRACE_DISPLAY_BUFFER_SIZE,
+                             m_traceDisplayT[0],
+                             m_traceDisplayY[m_numTraces][0]);
+
+        m_numTraces++;
+    }
 }
 
 
@@ -139,10 +174,10 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
                 else
                     bufNum = 0;
                 dataCount  = bnoNumDataInBuf[bnoIdx][bufNum];
-                if (dataCount < bnoTraceDisplayBufSize[bnoIdx]) {
+                if (dataCount < TRACE_DISPLAY_BUFFER_SIZE) {
                     // There is space for more data
                     bnoTraceDisplayY[bnoIdx][bufNum][dataCount] = bnoBuffer[bufIdx*5 + 1 + bnoIdx];
-                    bnoTraceDisplayT[bnoIdx][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
+                    bnoTraceDisplayT[bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
                     bnoNumDataInBuf[bnoIdx][bufNum]++;
                 }
             }
@@ -153,9 +188,39 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
             bnoDisplay->setProperty("badData", true);
         }
     }
+    if (m_numTraces > 0) {
+        int bufNum;
+        int dataCount;
+        float meanIntensity;
+
+        for (int i=0; i < m_numTraces; i++) {
+//            m_traceROIs[m_numTraces][0] = leftEdge;
+//            m_traceROIs[m_numTraces][1] = topEdge;
+//            m_traceROIs[m_numTraces][2] = width;
+//            m_traceROIs[m_numTraces][3] = height;
+            cv::Rect roiRect(m_traceROIs[i][0],
+                            m_traceROIs[i][1],
+                            m_traceROIs[i][2],
+                            m_traceROIs[i][3]);
+
+            if (m_traceDisplayBufNum[i] == 0)
+                bufNum = 1;
+            else
+                bufNum = 0;
+            dataCount  = m_traceNumDataInBuf[i][bufNum];
+            if (dataCount < TRACE_DISPLAY_BUFFER_SIZE) {
+                // There is space for more data
+                meanIntensity = cv::mean(frame(roiRect))[0];
+
+                m_traceDisplayY[i][bufNum][dataCount] = meanIntensity;
+                m_traceDisplayT[bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
+                m_traceNumDataInBuf[i][bufNum]++;
+            }
+        }
+    }
 }
 
-void Miniscope::setupTraceDisplay()
+void Miniscope::setupBNOTraceDisplay()
 {
     // Setup 3 traces for BNO data
     QString name;
@@ -171,8 +236,8 @@ void Miniscope::setupTraceDisplay()
                              bnoScale[i],
                              &bnoDisplayBufNum[i],
                              bnoNumDataInBuf[i],
-                             bnoTraceDisplayBufSize[i],
-                             bnoTraceDisplayT[i][0],
+                             TRACE_DISPLAY_BUFFER_SIZE,
+                             bnoTraceDisplayT[0],
                              bnoTraceDisplayY[i][0]);
     }
 }

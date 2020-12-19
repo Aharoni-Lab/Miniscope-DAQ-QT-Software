@@ -318,7 +318,10 @@ void TraceDisplayRenderer::addNewTrace(trace_t newTrace)
     traces.append(newTrace);
 
     updateTraceOffsets();
-    initGridH();
+
+
+    m_clearDisplayOnNextDraw = true;
+
 
 
 }
@@ -464,10 +467,11 @@ void TraceDisplayRenderer::drawGridV()
 void TraceDisplayRenderer::initGridH()
 {
     // Holds position, color, index for horizontal grid vertex
-    gridHVOB.destroy();
+//    gridHVOB.destroy();
     QVector<float> gridHData;
 
     int numHGridLines = traces.length();
+
     float gridLineStep = 2 / ((float)numHGridLines + 1);
 
     float idx = 0;
@@ -482,9 +486,14 @@ void TraceDisplayRenderer::initGridH()
         idx += 1;
     }
 
-    gridHVOB.create();
+
+    if (!gridHVOB.isCreated())
+        gridHVOB.create();
     gridHVOB.bind();
     gridHVOB.allocate(&gridHData[0], gridHData.length() * sizeof(float));
+
+    qDebug() << numHGridLines << gridHData.length() << gridHVOB.size();
+
     gridHVOB.release();
 }
 
@@ -619,23 +628,27 @@ void TraceDisplayRenderer::drawTraces()
 //                dataT[1][a] = currentTime - (float)a/5.0 * 1000;
 //            }
 //        }
+
         if (traces[num].numDataInBuffer[!*traces[num].displayBufferNumber] > 1) {
 
             // Switches the display buffer number and reset data count
             if (*traces[num].displayBufferNumber == 0) {
-                    traces[num].dataT[traces[num].bufferSize] = traces[num].dataT[traces[num].numDataInBuffer[0] - 1];
-                    traces[num].dataY[traces[num].bufferSize] = traces[num].dataY[traces[num].numDataInBuffer[0] - 1];
-                    traces[num].numDataInBuffer[0] = 1;
-                    *traces[num].displayBufferNumber = 1;
-                    arrayOffset = traces[num].bufferSize;
+
+                traces[num].dataT[traces[num].bufferSize] = traces[num].dataT[traces[num].numDataInBuffer[0] - 1];
+                traces[num].dataY[traces[num].bufferSize] = traces[num].dataY[traces[num].numDataInBuffer[0] - 1];
+                traces[num].numDataInBuffer[0] = 1;
+                *traces[num].displayBufferNumber = 1;
+                arrayOffset = traces[num].bufferSize;
             }
             else {
-                    traces[num].dataT[0] = traces[num].dataT[traces[num].bufferSize + traces[num].numDataInBuffer[1] - 1];
-                    traces[num].dataY[0] = traces[num].dataY[traces[num].bufferSize + traces[num].numDataInBuffer[1] - 1];
-                    traces[num].numDataInBuffer[1] = 1;
-                    *traces[num].displayBufferNumber = 0;
-                    arrayOffset = 0;
+
+                traces[num].dataT[0] = traces[num].dataT[traces[num].bufferSize + traces[num].numDataInBuffer[1] - 1];
+                traces[num].dataY[0] = traces[num].dataY[traces[num].bufferSize + traces[num].numDataInBuffer[1] - 1];
+                traces[num].numDataInBuffer[1] = 1;
+                *traces[num].displayBufferNumber = 0;
+                arrayOffset = 0;
             }
+
 
             // Update uniforms for specific trace
             m_programTraces->setUniformValueArray("u_color", traces[num].color, 1, 3);
@@ -647,10 +660,6 @@ void TraceDisplayRenderer::drawTraces()
             m_programTraces->enableAttributeArray("a_dataTime");
             m_programTraces->enableAttributeArray("a_dataY");
 
-            tempTime.clear();
-//            for (int idx=0; idx < traces[num].numDataInBuffer[*traces[num].displayBufferNumber]; idx++) {
-//                tempTime.append((traces[num].dataT[arrayOffset + idx] - m_softwareStartTime)/1000.0f);
-//            }
             m_programTraces->setAttributeArray("a_dataTime", GL_FLOAT, &traces[num].dataT[arrayOffset], 1);
             m_programTraces->setAttributeArray("a_dataY", GL_FLOAT, &traces[num].dataY[arrayOffset], 1);
 
@@ -699,12 +708,14 @@ void TraceDisplayRenderer::paint()
 {
     currentTime =  QDateTime().currentMSecsSinceEpoch();
 
+    if (m_clearDisplayOnNextDraw)
+        initGridH();
 //    m_texture->bind();
     m_fbo->bind();
     glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
     glDisable(GL_DEPTH_TEST);
 
-    int pastScrollBarPos = m_viewportSize.width() * std::fmod((m_lastTimeDisplayed - m_softwareStartTime)/1000.0f, windowSize) / windowSize;
+    int pastScrollBarPos = m_viewportSize.width() * std::fmod((currentTime - m_softwareStartTime)/1000.0f, windowSize) / windowSize;
     int clearWidth = ((currentTime - m_lastTimeDisplayed)/1000.0) / windowSize * m_viewportSize.width();
 
     if (m_clearDisplayOnNextDraw == true) {
@@ -714,7 +725,7 @@ void TraceDisplayRenderer::paint()
     }
     else {
         glEnable(GL_SCISSOR_TEST);
-        glScissor(pastScrollBarPos, 0, clearWidth * 5, 10000);
+        glScissor(pastScrollBarPos, 0, clearWidth * 20, 10000);
         glClearColor(0, 0, 0, 0);
         glClear(GL_COLOR_BUFFER_BIT);
         glScissor(0, 0, 10000, 10000);
