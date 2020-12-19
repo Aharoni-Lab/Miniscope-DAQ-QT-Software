@@ -36,7 +36,7 @@
 					"filterBadData": true
 				},
                 "streamHeadOrientation_OLD": true,
-                "deviceID": 0,
+                "deviceID": 1,
 				"showSaturation": true,
 				"ROI": {
                     "notes": "This defines the bounding box of the portion of the video that is saved to disk",
@@ -55,7 +55,7 @@
                 "gain": "Low",
                 "ewl": 50,
                 "led0": 10,
-                "frameRate": "30FPS"
+                "frameRate": "25FPS"
             }
         ]
     }

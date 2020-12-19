@@ -347,8 +347,10 @@ void VideoDevice::configureDeviceControls() {
         if (m_ucDevice.contains(controlName[i])) {// sets starting value if it is defined in user config
             if (m_ucDevice[controlName[i]].isDouble())
                 values["startValue"] = m_ucDevice[controlName[i]].toDouble();
-            if (m_ucDevice[controlName[i]].isString())
+            if (m_ucDevice[controlName[i]].isString()) {
                 values["startValue"] = m_ucDevice[controlName[i]].toString();
+//                qDebug() << "START:" << values["startValue"];
+            }
         }
 
         keys = values.keys();
@@ -393,7 +395,6 @@ void VideoDevice::configureDeviceControls() {
         }
         else
             qDebug() << controlName[i] << " not found in qml file.";
-
     }
 }
 
