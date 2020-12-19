@@ -415,6 +415,7 @@ void backEnd::setupBehaviorTracker()
 {
     for (int i = 0; i < behavCam.length(); i++) {
         behavTracker->setBehaviorCamBufferParameters(behavCam[i]->getDeviceName(),
+                                                     behavCam[i]->getTimeStampBufferPointer(),
                                                      behavCam[i]->getFrameBufferPointer(),
                                                      behavCam[i]->getBufferSize(),
                                                      behavCam[i]->getAcqFrameNumPointer());
@@ -535,6 +536,7 @@ void backEnd::constructUserConfigGUI()
     if (!ucBehaviorTracker.isEmpty()) {
         behavTracker = new BehaviorTracker(NULL, m_userConfig, m_softwareStartTime);
         QObject::connect(behavTracker, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+        QObject::connect(behavTracker, &BehaviorTracker::addTraceDisplay, traceDisplay, &TraceDisplayBackend::addNewTrace);
         behavTracker->createView();
         setupBehaviorTracker();
     }

@@ -118,8 +118,6 @@ Item {
                 videoDisplay.traceROIw.push(videoDisplay.addTraceROI[2]);
                 videoDisplay.traceROIh.push(videoDisplay.addTraceROI[3]);
                 videoDisplay.numTraceROIs++;
-
-
             }
         }
 

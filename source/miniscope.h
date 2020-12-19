@@ -69,7 +69,6 @@ private:
     float bnoTraceDisplayT[3][2][TRACE_DISPLAY_BUFFER_SIZE];
 
     // For Neuron Trace Display
-
     int m_numTraces;
     int m_traceROIs[NUM_MAX_NEURON_TRACES][4];
     float m_traceColors[NUM_MAX_NEURON_TRACES][3];

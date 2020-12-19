@@ -32,6 +32,8 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64
     m_pCutoffDisplay(0),
     m_softwareStartTime(softwareStartTime)
 {
+    tracesSetup = false;
+    m_numTraces = 0;
 
     freePoses->release(POSE_BUFFER_SIZE);
 
@@ -42,6 +44,8 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64
     behavTrackWorker = new BehaviorTrackerWorker(NULL, m_userConfig["behaviorTracker"].toObject());
     behavTrackWorker->setPoseBufferParameters(poseBuffer, poseFrameNumBuffer, POSE_BUFFER_SIZE, m_btPoseCount, freePoses, usedPoses, colors);
     workerThread = new QThread();
+
+
 
 }
 
@@ -59,9 +63,10 @@ void BehaviorTracker::parseUserConfigTracker()
 
 }
 
-void BehaviorTracker::setBehaviorCamBufferParameters(QString name, cv::Mat *frameBuf, int bufSize, QAtomicInt *acqFrameNum)
+void BehaviorTracker::setBehaviorCamBufferParameters(QString name, qint64* timeBuf, cv::Mat *frameBuf, int bufSize, QAtomicInt *acqFrameNum)
 {
     frameBuffer[name] = frameBuf;
+    timeStampBuffer[name] = timeBuf;
     bufferSize[name] = bufSize;
     m_acqFrameNum[name] = acqFrameNum;
 
@@ -108,6 +113,8 @@ void BehaviorTracker::createView()
     rootObject = view->rootObject();
     vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
     QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &BehaviorTracker::sendNewFrame);
+
+
 }
 
 void BehaviorTracker::connectSnS()
@@ -144,14 +151,31 @@ void BehaviorTracker::startThread()
 
 void BehaviorTracker::sendNewFrame()
 {
-    // TODO: currently writen to handle only 1 camera
+    // TODO: currently writen to handle only 1
+
+    if (tracesSetup == false) {
+        handleAddNewTracePose(0);
+        handleAddNewTracePose(1);
+        handleAddNewTracePose(2);
+        handleAddNewTracePose(3);
+        handleAddNewTracePose(4);
+        handleAddNewTracePose(5);
+        handleAddNewTracePose(6);
+        handleAddNewTracePose(7);
+        handleAddNewTracePose(8);
+        tracesSetup = true;
+    }
+
     int poseNum = *m_btPoseCount;
     if (poseNum > m_previousBtPoseFrameNum) {
         m_previousBtPoseFrameNum = poseNum;
         cv::Mat cvFrame;
         QImage qFrame;
+
         int frameNum = poseFrameNumBuffer[(poseNum - 1) % POSE_BUFFER_SIZE];
         int frameIdx = frameNum % bufferSize.first();
+
+        qint64 timeStamp = timeStampBuffer.first()[frameIdx];
         if (frameBuffer.first()[frameIdx].channels() == 1) {
             cv::cvtColor(frameBuffer.first()[frameIdx], cvFrame, cv::COLOR_GRAY2BGR);
         }
@@ -167,17 +191,35 @@ void BehaviorTracker::sendNewFrame()
             w = pose[i];
             h = pose[i + 20];
             l = pose[i + 40];
+            // TODO: Change to our own shader to plot points
             if (l > m_pCutoffDisplay)
                 cv::circle(cvFrame, cv::Point(w,h),3,cv::Scalar(colors[i*3]*1.5,colors[i*3+1]*1.5,colors[i*3+2]*1.5),cv::FILLED);
 //        }
         }
         qFrame = QImage(cvFrame.data, cvFrame.cols, cvFrame.rows, cvFrame.step, QImage::Format_RGB888);
         vidDisplay->setDisplayFrame(qFrame);
-    }
-    // TODO: Move QSemaphores to dataSaver
-//    usedPoses->tryAcquire();
-//    freePoses->release();
 
+        if (m_numTraces > 0) {
+            int bufNum;
+            int dataCount;
+
+            for (int i=0; i < m_numTraces; i++) {
+                if (m_traceDisplayBufNum[i] == 0)
+                    bufNum = 1;
+                else
+                    bufNum = 0;
+                dataCount  = m_traceNumDataInBuf[i][bufNum];
+                if (dataCount < TRACE_DISPLAY_BUFFER_SIZE) {
+                    // There is space for more data
+
+                    m_traceDisplayY[i][bufNum][dataCount] = pose[m_tracePoseIdx[i]];
+                    m_traceDisplayT[i][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
+                    m_traceNumDataInBuf[i][bufNum]++;
+                }
+            }
+        }
+
+    }
 
 }
 
@@ -188,5 +230,30 @@ void BehaviorTracker::startRunning()
 void BehaviorTracker::close()
 {
     emit closeWorker();
-//    view->close();
+    //    view->close();
+}
+
+void BehaviorTracker::handleAddNewTracePose(int poseIdx)
+{
+    if (m_numTraces < NUM_MAX_POSE_TRACES) {
+        m_tracePoseIdx[m_numTraces] = poseIdx;
+        m_traceColors[m_numTraces][0] = 1.0f;//((float)colors[poseIdx*3 + 0])/100.0f;
+        m_traceColors[m_numTraces][1] = 1.0f;//((float)colors[poseIdx*3 + 1])/100.0f;
+        m_traceColors[m_numTraces][2] = 1.0f;//((float)colors[poseIdx*3 + 2])/100.0f;
+
+        m_traceDisplayBufNum[m_numTraces] = 1;
+        m_traceNumDataInBuf[m_numTraces][0] = 0;
+        m_traceNumDataInBuf[m_numTraces][1] = 0;
+
+        emit addTraceDisplay("Pose" + QString::number(poseIdx),
+                             m_traceColors[m_numTraces],
+                             1.0/((float)view->width()),
+                             &m_traceDisplayBufNum[m_numTraces],
+                             m_traceNumDataInBuf[m_numTraces],
+                             TRACE_DISPLAY_BUFFER_SIZE,
+                             m_traceDisplayT[m_numTraces][0],
+                             m_traceDisplayY[m_numTraces][0]);
+        m_numTraces++;
+    }
+
 }

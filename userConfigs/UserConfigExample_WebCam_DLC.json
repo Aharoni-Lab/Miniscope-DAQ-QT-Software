@@ -27,7 +27,14 @@
         "windowHeight": 480,
         "windowX": 100,
         "windowY": 100,
-        "windowScale": 1.5
+        "windowScale": 1.0
+    }, 
+    "traceDisplay": {
+        "type": "scrolling",
+        "windowX": 100,
+        "windowY": 100,
+        "width": 600,
+        "height": 400
     },
     "devices": {
        "cameras": [

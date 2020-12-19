@@ -26,6 +26,10 @@
 #define POSE_BUFFER_SIZE    128
 // TODO: Move a bunch of stuff into structs across the whole project
 
+// For Pose Track Display
+#define NUM_MAX_POSE_TRACES   16
+#define TRACE_DISPLAY_BUFFER_SIZE   256
+
 class BehaviorTracker : public QObject
 {
     Q_OBJECT
@@ -33,13 +37,15 @@ public:
     explicit BehaviorTracker(QObject *parent = nullptr, QJsonObject userConfig = QJsonObject(), qint64 softwareStartTime = 0);
     void parseUserConfigTracker();
     void loadCamCalibration(QString name);
-    void setBehaviorCamBufferParameters(QString name, cv::Mat* frameBuf, int bufSize, QAtomicInt* acqFrameNum);
+    void setBehaviorCamBufferParameters(QString name, qint64* timeBuf, cv::Mat* frameBuf, int bufSize, QAtomicInt* acqFrameNum);
 
     void cameraCalibration();
     void createView();
     void connectSnS();
     void setUpDLCLive();
     void startThread();
+
+
 
     QVector<float>* getPoseBufferPointer() { return poseBuffer;}
     int* getPoseFrameNumBufferPointer() {return poseFrameNumBuffer; }
@@ -51,12 +57,14 @@ public:
 signals:
     void sendMessage(QString msg);
     void closeWorker();
+    void addTraceDisplay(QString, float c[3], float, QAtomicInt*, QAtomicInt*, int , float*, float*);
 
 public slots:
     void testSlot(QString msg) { qDebug() << msg; }
     void sendNewFrame();
     void startRunning(); // Slot gets called when thread starts
     void close();
+    void handleAddNewTracePose(int poseIdx);
 
 private:
     int initNumpy();
@@ -65,8 +73,10 @@ private:
 
     QString m_trackerType;
     int numberOfCameras;
+
     // Info from behavior cameras
     QMap<QString, cv::Mat*> frameBuffer;
+    QMap<QString, qint64*> timeStampBuffer;
     QMap<QString, QAtomicInt*> m_acqFrameNum;
     QMap<QString, int> bufferSize;
 
@@ -97,6 +107,16 @@ private:
     QJsonObject m_btConfig;
 
     qint64 m_softwareStartTime;
+
+    bool tracesSetup;
+    // For Pose Trace Display
+    int m_numTraces;
+    int m_tracePoseIdx[NUM_MAX_POSE_TRACES];
+    float m_traceColors[NUM_MAX_POSE_TRACES][3];
+    QAtomicInt m_traceDisplayBufNum[NUM_MAX_POSE_TRACES];
+    QAtomicInt m_traceNumDataInBuf[NUM_MAX_POSE_TRACES][2];
+    float m_traceDisplayY[NUM_MAX_POSE_TRACES][2][TRACE_DISPLAY_BUFFER_SIZE];
+    float m_traceDisplayT[NUM_MAX_POSE_TRACES][2][TRACE_DISPLAY_BUFFER_SIZE];
 };
 
 #endif // BEHAVIORTRACKER_H
