@@ -17,29 +17,33 @@
 
 typedef struct Traces{
 
-    Traces(QString name, float colors[3], float scale, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY):
+    Traces(QString name, float colors[3], float scale, bool sameOffset, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY):
         name(name),
         scale(scale),
+        sameOffsetAsPrevious(sameOffset),
         bufferSize(bufSize),
         displayBufferNumber(displayBufNum),
         numDataInBuffer(numDataInBuf),
         dataT(dataT),
         dataY(dataY)
     {
-        color[0] = colors[0];
-        color[1] = colors[1];
-        color[2] = colors[2];
+        color = colors;
+//        color[0] = colors[0];
+//        color[1] = colors[1];
+//        color[2] = colors[2];
     }
     QString name = "";
-    float color[3];
+    float* color;
     float offset = 0.0f;
     float scale;
+    bool sameOffsetAsPrevious = false;
     int bufferSize;
 
     QAtomicInt* displayBufferNumber;
     QAtomicInt* numDataInBuffer;
     float* dataT;
     float* dataY;
+
 } trace_t;
 
 
@@ -212,7 +216,7 @@ public:
     void createView();
 
 public slots:
-    void addNewTrace(QString name, float color[3], float scale, QAtomicInt* displayBufNum, QAtomicInt* numDataInBuf, int bufSize, float* dataT, float* dataY);
+    void addNewTrace(QString name, float color[3], float scale, bool sameOffset, QAtomicInt* displayBufNum, QAtomicInt* numDataInBuf, int bufSize, float* dataT, float* dataY);
     void close();
 
 private:

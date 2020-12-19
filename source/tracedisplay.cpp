@@ -55,10 +55,10 @@ void TraceDisplayBackend::createView()
     m_traceDisplay->setSoftwareStartTime(m_softwareStartTime);
 }
 
-void TraceDisplayBackend::addNewTrace(QString name, float color[3], float scale, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY)
+void TraceDisplayBackend::addNewTrace(QString name, float color[3], float scale, bool sameOffset, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY)
 {
 
-    trace_t newTrace = trace_t(name, color, scale, displayBufNum, numDataInBuf, bufSize, dataT, dataY);
+    trace_t newTrace = trace_t(name, color, scale, sameOffset, displayBufNum, numDataInBuf, bufSize, dataT, dataY);
     m_traceDisplay->addNewTrace(newTrace);
 }
 
@@ -169,7 +169,11 @@ void TraceDisplay::addNewTrace(trace_t newTrace)
         m_tempTraces.append(newTrace);
     }
 
-    m_traceNames.append(newTrace.name);
+    if (newTrace.sameOffsetAsPrevious)
+        m_traceNames.last() = m_traceNames.last().toString() + "," + newTrace.name;
+    else
+        m_traceNames.append(newTrace.name);
+
     emit traceNamesChanged();
 }
 
@@ -329,11 +333,25 @@ void TraceDisplayRenderer::addNewTrace(trace_t newTrace)
 void TraceDisplayRenderer::updateTraceOffsets()
 {
     int numTraces = traces.length();
-
-    float offsetStep = 2 / ((float)numTraces + 1);
-
+    int numOffsets = 0;
     for (int num=0; num < numTraces; num++) {
-        traces[num].offset = 1 - ((num + 1) * offsetStep);
+        if (traces[num].sameOffsetAsPrevious == false)
+            numOffsets++;
+    }
+
+    float offsetStep = 2.0f / ((float)numOffsets + 1);
+
+    int countOffset = -1;
+    for (int num=0; num < numTraces; num++) {
+        if (traces[num].sameOffsetAsPrevious == false) {
+            countOffset++;
+            traces[num].offset = 1 - ((countOffset + 1) * offsetStep);
+
+        }
+        else {
+            traces[num].offset = 1 - ((countOffset + 1) * offsetStep);
+        }
+
     }
 }
 
@@ -470,7 +488,13 @@ void TraceDisplayRenderer::initGridH()
 //    gridHVOB.destroy();
     QVector<float> gridHData;
 
-    int numHGridLines = traces.length();
+    int numOffsets = 0;
+    for (int num=0; num < traces.length(); num++) {
+        if (traces[num].sameOffsetAsPrevious == false)
+            numOffsets++;
+    }
+
+    int numHGridLines = numOffsets;
 
     float gridLineStep = 2 / ((float)numHGridLines + 1);
 
@@ -651,6 +675,7 @@ void TraceDisplayRenderer::drawTraces()
 
 
             // Update uniforms for specific trace
+//            qDebug() << num << traces[num].color[0] << traces[num].color[1]  << traces[num].color[2];
             m_programTraces->setUniformValueArray("u_color", traces[num].color, 1, 3);
             m_programTraces->setUniformValue("u_scaleTrace", traces[num].scale * 0.4f);
             m_programTraces->setUniformValue("u_offset", traces[num].offset);

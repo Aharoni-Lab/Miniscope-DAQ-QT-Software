@@ -142,7 +142,7 @@ void BehaviorTrackerWorker::setParameters(QString name, cv::Mat *frameBuf, int b
     numberOfCameras++;
 }
 
-void BehaviorTrackerWorker::setPoseBufferParameters(QVector<float> *poseBuf, int *poseFrameNumBuf, int poseBufSize, QAtomicInt *btPoseFrameNum, QSemaphore *free, QSemaphore *used, uint8_t *pColors)
+void BehaviorTrackerWorker::setPoseBufferParameters(QVector<float> *poseBuf, int *poseFrameNumBuf, int poseBufSize, QAtomicInt *btPoseFrameNum, QSemaphore *free, QSemaphore *used, float *pColors)
 {
     poseBuffer = poseBuf;
     poseFrameNumBuffer = poseFrameNumBuf;
@@ -170,9 +170,9 @@ void BehaviorTrackerWorker::getColors()
     c_out = reinterpret_cast<uint8_t*>(PyArray_DATA(np_ret));
 
     for (int i = 0; i < 20; i++){
-            colors[i*3] = c_out[i*3];
-            colors[i*3+1] = c_out[i*3+1];
-            colors[i*3+2] = c_out[i*3+2];
+            colors[i*3+0] = (float)c_out[i*3]/170.0f;
+            colors[i*3+1] = (float)c_out[i*3+1]/170.0f;
+            colors[i*3+2] = (float)c_out[i*3+2]/170.0f;
      }
 }
 

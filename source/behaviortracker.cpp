@@ -159,10 +159,6 @@ void BehaviorTracker::sendNewFrame()
         handleAddNewTracePose(2);
         handleAddNewTracePose(3);
         handleAddNewTracePose(4);
-        handleAddNewTracePose(5);
-        handleAddNewTracePose(6);
-        handleAddNewTracePose(7);
-        handleAddNewTracePose(8);
         tracesSetup = true;
     }
 
@@ -193,7 +189,7 @@ void BehaviorTracker::sendNewFrame()
             l = pose[i + 40];
             // TODO: Change to our own shader to plot points
             if (l > m_pCutoffDisplay)
-                cv::circle(cvFrame, cv::Point(w,h),3,cv::Scalar(colors[i*3]*1.5,colors[i*3+1]*1.5,colors[i*3+2]*1.5),cv::FILLED);
+                cv::circle(cvFrame, cv::Point(w,h),3,cv::Scalar(colors[i*3 + 2]*255,colors[i*3+1]*255,colors[i*3+0]*255),cv::FILLED);
 //        }
         }
         qFrame = QImage(cvFrame.data, cvFrame.cols, cvFrame.rows, cvFrame.step, QImage::Format_RGB888);
@@ -203,7 +199,7 @@ void BehaviorTracker::sendNewFrame()
             int bufNum;
             int dataCount;
 
-            for (int i=0; i < m_numTraces; i++) {
+            for (int i=0; i < m_numTraces; i+=2) {
                 if (m_traceDisplayBufNum[i] == 0)
                     bufNum = 1;
                 else
@@ -212,15 +208,26 @@ void BehaviorTracker::sendNewFrame()
                 if (dataCount < TRACE_DISPLAY_BUFFER_SIZE) {
                     // There is space for more data
 
-                    m_traceDisplayY[i][bufNum][dataCount] = pose[m_tracePoseIdx[i]];
+                    m_traceDisplayY[i][bufNum][dataCount] = pose[m_tracePoseIdx[i]] - view->width()/2.0f;
                     m_traceDisplayT[i][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
                     m_traceNumDataInBuf[i][bufNum]++;
                 }
+
+                if (m_traceDisplayBufNum[i+1] == 0)
+                    bufNum = 1;
+                else
+                    bufNum = 0;
+                dataCount  = m_traceNumDataInBuf[i+1][bufNum];
+                if (dataCount < TRACE_DISPLAY_BUFFER_SIZE) {
+                    // There is space for more data
+
+                    m_traceDisplayY[i+1][bufNum][dataCount] = pose[m_tracePoseIdx[i] + 20] - view->height()/2.0f;
+                    m_traceDisplayT[i+1][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
+                    m_traceNumDataInBuf[i+1][bufNum]++;
+                }
             }
         }
-
     }
-
 }
 
 void BehaviorTracker::startRunning()
@@ -235,19 +242,43 @@ void BehaviorTracker::close()
 
 void BehaviorTracker::handleAddNewTracePose(int poseIdx)
 {
-    if (m_numTraces < NUM_MAX_POSE_TRACES) {
+//    m_traceColors[0][0] = &colors[0];
+    if ((m_numTraces + 1) < NUM_MAX_POSE_TRACES) {
         m_tracePoseIdx[m_numTraces] = poseIdx;
-        m_traceColors[m_numTraces][0] = 1.0f;//((float)colors[poseIdx*3 + 0])/100.0f;
-        m_traceColors[m_numTraces][1] = 1.0f;//((float)colors[poseIdx*3 + 1])/100.0f;
-        m_traceColors[m_numTraces][2] = 1.0f;//((float)colors[poseIdx*3 + 2])/100.0f;
+//        m_traceColors[m_numTraces][0] = 1.0f;//((float)colors[poseIdx*3 + 0])/100.0f;
+//        m_traceColors[m_numTraces][1] = 1.0f;//((float)colors[poseIdx*3 + 1])/100.0f;
+//        m_traceColors[m_numTraces][2] = 1.0f;//((float)colors[poseIdx*3 + 2])/100.0f;
+
+        m_traceDisplayBufNum[m_numTraces]   = 1;
+        m_traceNumDataInBuf[m_numTraces][0] = 0;
+        m_traceNumDataInBuf[m_numTraces][1] = 0;
+
+//        qDebug() << colors[poseIdx * 3 + 0] << colors[poseIdx * 3 + 1] << colors[poseIdx * 3 + 2];
+        emit addTraceDisplay("Pose" + QString::number(poseIdx) + "w",
+                             &colors[poseIdx * 3 + 0],
+                             2.0/((float)view->width()),
+                             false,
+                             &m_traceDisplayBufNum[m_numTraces],
+                             m_traceNumDataInBuf[m_numTraces],
+                             TRACE_DISPLAY_BUFFER_SIZE,
+                             m_traceDisplayT[m_numTraces][0],
+                             m_traceDisplayY[m_numTraces][0]);
+        m_numTraces++;
+
+        m_tracePoseIdx[m_numTraces] = poseIdx;
+//        m_traceColors[m_numTraces][0] = 1.0f;//((float)colors[poseIdx*3 + 0])/100.0f;
+//        m_traceColors[m_numTraces][1] = 1.0f;//((float)colors[poseIdx*3 + 1])/100.0f;
+//        m_traceColors[m_numTraces][2] = 1.0f;//((float)colors[poseIdx*3 + 2])/100.0f;
 
         m_traceDisplayBufNum[m_numTraces] = 1;
         m_traceNumDataInBuf[m_numTraces][0] = 0;
         m_traceNumDataInBuf[m_numTraces][1] = 0;
 
-        emit addTraceDisplay("Pose" + QString::number(poseIdx),
-                             m_traceColors[m_numTraces],
-                             1.0/((float)view->width()),
+//        qDebug() << colors[poseIdx * 3 + 0] << colors[poseIdx * 3 + 1] << colors[poseIdx * 3 + 2];
+        emit addTraceDisplay("Pose" + QString::number(poseIdx) + "h",
+                             &colors[poseIdx * 3 + 0],
+                             2.0/((float)view->width()),
+                             true,
                              &m_traceDisplayBufNum[m_numTraces],
                              m_traceNumDataInBuf[m_numTraces],
                              TRACE_DISPLAY_BUFFER_SIZE,

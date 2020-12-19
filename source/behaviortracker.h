@@ -57,7 +57,7 @@ public:
 signals:
     void sendMessage(QString msg);
     void closeWorker();
-    void addTraceDisplay(QString, float c[3], float, QAtomicInt*, QAtomicInt*, int , float*, float*);
+    void addTraceDisplay(QString, float c[3], float, bool sameOffset, QAtomicInt*, QAtomicInt*, int , float*, float*);
 
 public slots:
     void testSlot(QString msg) { qDebug() << msg; }
@@ -98,7 +98,7 @@ private:
     NewQuickView *view;
     QObject *rootObject;
     VideoDisplay *vidDisplay;
-    uint8_t colors[20*3]; // TODO: Shouldn't be hardcoding this!
+    float colors[20*3]; // TODO: Shouldn't be hardcoding this!
 
     // Tracking states
     bool m_trackingRunning;
@@ -113,6 +113,7 @@ private:
     int m_numTraces;
     int m_tracePoseIdx[NUM_MAX_POSE_TRACES];
     float m_traceColors[NUM_MAX_POSE_TRACES][3];
+    bool sameOffsetAsPrevious[NUM_MAX_POSE_TRACES];
     QAtomicInt m_traceDisplayBufNum[NUM_MAX_POSE_TRACES];
     QAtomicInt m_traceNumDataInBuf[NUM_MAX_POSE_TRACES][2];
     float m_traceDisplayY[NUM_MAX_POSE_TRACES][2][TRACE_DISPLAY_BUFFER_SIZE];

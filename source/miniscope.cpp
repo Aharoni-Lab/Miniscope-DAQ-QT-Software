@@ -94,6 +94,7 @@ void Miniscope::handleAddNewTraceROI(int leftEdge, int topEdge, int width, int h
         emit addTraceDisplay("Neuron" + QString::number(m_numTraces),
                              m_traceColors[m_numTraces],
                              1.0/255.0f,
+                             false,
                              &m_traceDisplayBufNum[m_numTraces],
                              m_traceNumDataInBuf[m_numTraces],
                              TRACE_DISPLAY_BUFFER_SIZE,
@@ -224,16 +225,24 @@ void Miniscope::setupBNOTraceDisplay()
 {
     // Setup 3 traces for BNO data
     QString name;
+    bool sameOffset;
     for (int i=0; i < 3; i++) {
-        if (i ==0)
+        if (i ==0) {
             name = "Roll";
-        else if (i == 1)
+            sameOffset = false;
+        }
+        else if (i == 1) {
             name = "Pitch";
-        else if (i == 2)
+            sameOffset = true;
+        }
+        else if (i == 2) {
             name = "Yaw";
+            sameOffset = true;
+        }
         emit addTraceDisplay(name,
                              bnoTraceColor[i],
                              bnoScale[i],
+                             sameOffset,
                              &bnoDisplayBufNum[i],
                              bnoNumDataInBuf[i],
                              TRACE_DISPLAY_BUFFER_SIZE,
