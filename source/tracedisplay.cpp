@@ -715,7 +715,7 @@ void TraceDisplayRenderer::paint()
     glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
     glDisable(GL_DEPTH_TEST);
 
-    int pastScrollBarPos = m_viewportSize.width() * std::fmod((currentTime - m_softwareStartTime)/1000.0f, windowSize) / windowSize;
+    int pastScrollBarPos = m_viewportSize.width() * std::fmod((m_lastTimeDisplayed - m_softwareStartTime)/1000.0f, windowSize) / windowSize;
     int clearWidth = ((currentTime - m_lastTimeDisplayed)/1000.0) / windowSize * m_viewportSize.width();
 
     if (m_clearDisplayOnNextDraw == true) {
@@ -725,7 +725,7 @@ void TraceDisplayRenderer::paint()
     }
     else {
         glEnable(GL_SCISSOR_TEST);
-        glScissor(pastScrollBarPos, 0, clearWidth * 20, 10000);
+        glScissor(pastScrollBarPos, 0, 0.05f * m_viewportSize.width(), 10000);
         glClearColor(0, 0, 0, 0);
         glClear(GL_COLOR_BUFFER_BIT);
         glScissor(0, 0, 10000, 10000);

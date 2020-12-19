@@ -97,7 +97,7 @@ void Miniscope::handleAddNewTraceROI(int leftEdge, int topEdge, int width, int h
                              &m_traceDisplayBufNum[m_numTraces],
                              m_traceNumDataInBuf[m_numTraces],
                              TRACE_DISPLAY_BUFFER_SIZE,
-                             m_traceDisplayT[0],
+                             m_traceDisplayT[m_numTraces][0],
                              m_traceDisplayY[m_numTraces][0]);
 
         m_numTraces++;
@@ -177,7 +177,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
                 if (dataCount < TRACE_DISPLAY_BUFFER_SIZE) {
                     // There is space for more data
                     bnoTraceDisplayY[bnoIdx][bufNum][dataCount] = bnoBuffer[bufIdx*5 + 1 + bnoIdx];
-                    bnoTraceDisplayT[bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
+                    bnoTraceDisplayT[bnoIdx][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
                     bnoNumDataInBuf[bnoIdx][bufNum]++;
                 }
             }
@@ -213,7 +213,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
                 meanIntensity = cv::mean(frame(roiRect))[0];
 
                 m_traceDisplayY[i][bufNum][dataCount] = meanIntensity;
-                m_traceDisplayT[bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
+                m_traceDisplayT[i][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
                 m_traceNumDataInBuf[i][bufNum]++;
             }
         }
@@ -237,7 +237,7 @@ void Miniscope::setupBNOTraceDisplay()
                              &bnoDisplayBufNum[i],
                              bnoNumDataInBuf[i],
                              TRACE_DISPLAY_BUFFER_SIZE,
-                             bnoTraceDisplayT[0],
+                             bnoTraceDisplayT[i][0],
                              bnoTraceDisplayY[i][0]);
     }
 }

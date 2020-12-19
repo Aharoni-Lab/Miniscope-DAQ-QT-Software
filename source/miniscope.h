@@ -66,7 +66,7 @@ private:
     QAtomicInt bnoDisplayBufNum[3];
     QAtomicInt bnoNumDataInBuf[3][2];
     float bnoTraceDisplayY[3][2][TRACE_DISPLAY_BUFFER_SIZE];
-    float bnoTraceDisplayT[2][TRACE_DISPLAY_BUFFER_SIZE];
+    float bnoTraceDisplayT[3][2][TRACE_DISPLAY_BUFFER_SIZE];
 
     // For Neuron Trace Display
 
@@ -76,7 +76,7 @@ private:
     QAtomicInt m_traceDisplayBufNum[NUM_MAX_NEURON_TRACES];
     QAtomicInt m_traceNumDataInBuf[NUM_MAX_NEURON_TRACES][2];
     float m_traceDisplayY[NUM_MAX_NEURON_TRACES][2][TRACE_DISPLAY_BUFFER_SIZE];
-    float m_traceDisplayT[2][TRACE_DISPLAY_BUFFER_SIZE];
+    float m_traceDisplayT[NUM_MAX_NEURON_TRACES][2][TRACE_DISPLAY_BUFFER_SIZE];
 
 
     qint64 m_softwareStartTime;

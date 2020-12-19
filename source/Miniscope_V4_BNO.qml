@@ -92,6 +92,12 @@ Item {
                 border.color: "yellow"
                 color: "transparent"
                 border.width: 1
+                Text {
+                    text: index
+                    color: parent.border.color
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.verticalCenter: parent.verticalCenter
+                }
             }
 
         }
@@ -283,7 +289,7 @@ Item {
         RoundButton {
             id: addTraceRoi
             objectName: "addTraceRoi"
-            text: "Add Neurotrace ROI"
+            text: "Add Trace ROI"
             font.family: "Arial"
             font.pointSize: 10
             font.bold: true
