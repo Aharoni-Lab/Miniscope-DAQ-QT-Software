@@ -59,6 +59,7 @@ public:
     void setViewportSize(const QSize &size) { m_viewportSize = size; }
     void setWindow(QQuickWindow *window) { m_window = window; }
 
+    void doubleClickEvent(int x, int y);
 
     void initPrograms();
 
@@ -126,6 +127,7 @@ private:
     // Vars for display
     int m_numTraces;
     int m_numOffsets;
+    QVector<int> m_selectedTrace;
 
     // holds everything about traces
     QVector<trace_t> traces;
@@ -166,6 +168,7 @@ public:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void hoverMoveEvent(QHoverEvent *event) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
 
     QList<QVariant > xLabel() { return m_xLabel; }
     QList<QVariant > traceNames() { return m_traceNames; }

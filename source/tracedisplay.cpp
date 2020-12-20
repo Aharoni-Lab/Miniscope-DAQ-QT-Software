@@ -7,6 +7,7 @@
 #include <QDateTime>
 #include <QImage>
 #include <QString>
+#include <QtMath>
 
 #include <QtQuick/qquickwindow.h>
 #include <QtGui/QOpenGLShaderProgram>
@@ -142,7 +143,15 @@ void TraceDisplay::wheelEvent(QWheelEvent *event)
 
 void TraceDisplay::hoverMoveEvent(QHoverEvent *event)
 {
-//    qDebug() << "Hover" << event->pos();
+    //    qDebug() << "Hover" << event->pos();
+}
+
+void TraceDisplay::mouseDoubleClickEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        m_renderer->doubleClickEvent(event->x(), event->y());
+    }
+//       qDebug() << "DoubleClick" << event;
 }
 
 
@@ -683,7 +692,16 @@ void TraceDisplayRenderer::drawTraces()
             m_programTraces->setUniformValueArray("u_color", traces[num].color, 1, 3);
             m_programTraces->setUniformValue("u_scaleTrace", traces[num].scale /((float)m_numOffsets));
             m_programTraces->setUniformValue("u_offset", traces[num].offset);
-            m_programTraces->setUniformValue("u_traceSelected", 0.0f);
+            if (m_selectedTrace.isEmpty()) {
+                m_programTraces->setUniformValue("u_traceSelected", 0.0f);
+            }
+            else {
+                if (m_selectedTrace.contains(num))
+                    m_programTraces->setUniformValue("u_traceSelected", 1.0f);
+                else
+                    m_programTraces->setUniformValue("u_traceSelected", -1.0f);
+            }
+
 
             // Set the data for the trace
             m_programTraces->enableAttributeArray("a_dataTime");
@@ -815,4 +833,22 @@ void TraceDisplayRenderer::paint()
 //    // mixing with raw OpenGL.
     m_window->resetOpenGLState();
 
+}
+
+void TraceDisplayRenderer::doubleClickEvent(int x, int y)
+{
+    if (m_selectedTrace.isEmpty()){
+        // currently no trace selected
+
+        // Find what trace was closest to click
+        float tempY = (-2.0f * ((float)y) /(float)m_window->height()) + 1.0f;
+        float offsetStep = 2.0f / ((float)m_numOffsets + 1);
+        for (int i=0; i < traces.length(); i++) {
+            if (qFabs(tempY - traces[i].offset) <= offsetStep/2)
+                m_selectedTrace.append(i);
+        }
+    }
+    else {
+        m_selectedTrace.clear();
+    }
 }
