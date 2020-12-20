@@ -9,7 +9,13 @@ Item {
     objectName: "root"
     width: parent.width
     height: parent.height
-    focus: true
+//    focus: true
+//    Keys.onPressed: {
+//        if (event.key == Qt.Key_Left) {
+//            console.log("move left");
+//            event.accepted = true;
+//        }
+//    }
 
     TraceDisplay {
         id: traceDisplay
@@ -17,6 +23,8 @@ Item {
         Layout.minimumWidth: 640
         objectName: "traceDisplay"
         anchors.fill: parent
+        Keys.enabled: true
+        focus:true
 
         SequentialAnimation on t {
             NumberAnimation { to: 1; duration: 2500; easing.type: Easing.InQuad }

@@ -95,7 +95,7 @@ public:
 
     // Handle mouse events
     void updatePan(float deltaX, float deltaY);
-    void updateWindowSize(int scrollAmount);
+    void handleWheelEvent(int scrollAmount, QVector<Qt::Key> keyMods);
 
     // User controls to change trace display view
     float pan[2];
@@ -123,6 +123,7 @@ private:
 
     qreal m_t;
 
+    float m_globalScale;
 
     // Vars for display
     int m_numTraces;
@@ -169,6 +170,8 @@ public:
     void wheelEvent(QWheelEvent *event) override;
     void hoverMoveEvent(QHoverEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
+    void keyReleaseEvent(QKeyEvent *event) override;
 
     QList<QVariant > xLabel() { return m_xLabel; }
     QList<QVariant > traceNames() { return m_traceNames; }
@@ -207,6 +210,9 @@ private:
     QMouseEvent* lastMouseMoveEvent;
 
     qint64 m_softwareStartTime;
+
+    // modifier keys
+    QVector<Qt::Key> m_keyMods;
 
 
 

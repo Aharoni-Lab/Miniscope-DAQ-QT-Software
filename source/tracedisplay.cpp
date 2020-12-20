@@ -100,22 +100,22 @@ void TraceDisplay::mousePressEvent(QMouseEvent *event)
 void TraceDisplay::mouseMoveEvent(QMouseEvent *event)
 {
     // Drag event:
-    float deltaX, deltaY;
-    if (event->buttons() == Qt::LeftButton) {
-        if (lastMouseMoveEvent) {
-            deltaX = lastMouseMoveEvent->x() - event->x();
-            deltaY = lastMouseMoveEvent->y() - event->y();
-        }
-        else {
-            deltaX = lastMouseClickEvent->x() - event->x();
-            deltaY = lastMouseClickEvent->y() - event->y();
-        }
-        lastMouseMoveEvent = new QMouseEvent(*event);
+//    float deltaX, deltaY;
+//    if (event->buttons() == Qt::LeftButton) {
+//        if (lastMouseMoveEvent) {
+//            deltaX = lastMouseMoveEvent->x() - event->x();
+//            deltaY = lastMouseMoveEvent->y() - event->y();
+//        }
+//        else {
+//            deltaX = lastMouseClickEvent->x() - event->x();
+//            deltaY = lastMouseClickEvent->y() - event->y();
+//        }
+//        lastMouseMoveEvent = new QMouseEvent(*event);
 
-        m_renderer->updatePan(deltaX, deltaY);
+//        m_renderer->updatePan(deltaX, deltaY);
 
 
-    }
+//    }
 //    qDebug() << "Mouse Move" << event;
 }
 
@@ -131,14 +131,14 @@ void TraceDisplay::mouseReleaseEvent(QMouseEvent *event)
 void TraceDisplay::wheelEvent(QWheelEvent *event)
 {
     int scrollAmount = event->angleDelta().y();
-    m_renderer->updateWindowSize(scrollAmount);
+    m_renderer->handleWheelEvent(scrollAmount, m_keyMods);
 
     QList<QVariant> tempLabels;
     for (int i=0;i < 5; i++) {
         tempLabels.append(QString::number(i * m_renderer->windowSize/5,'f',1) + "s");
     }
     setXLabel(tempLabels);
-//    qDebug() << "Wheel" << event;
+    qDebug() << "Wheel" << event;
 }
 
 void TraceDisplay::hoverMoveEvent(QHoverEvent *event)
@@ -151,7 +151,35 @@ void TraceDisplay::mouseDoubleClickEvent(QMouseEvent *event)
     if (event->button() == Qt::LeftButton) {
         m_renderer->doubleClickEvent(event->x(), event->y());
     }
-//       qDebug() << "DoubleClick" << event;
+    //       qDebug() << "DoubleClick" << event;
+}
+
+void TraceDisplay::keyPressEvent(QKeyEvent *event)
+{
+    if (!event->isAutoRepeat()) {
+        if (event->key() == Qt::Key_Control) {
+            m_keyMods.append(Qt::Key_Control);
+        }
+        if (event->key() == Qt::Key_Shift) {
+            m_keyMods.append(Qt::Key_Shift);
+        }
+    }
+
+    qDebug() << "Press" << event;
+}
+
+void TraceDisplay::keyReleaseEvent(QKeyEvent *event)
+{
+    if (!event->isAutoRepeat()) {
+        if (event->key() == Qt::Key_Control) {
+            if (event->key() == Qt::Key_Control) {
+                m_keyMods.removeOne(Qt::Key_Control);
+            }
+            if (event->key() == Qt::Key_Shift) {
+                m_keyMods.removeOne(Qt::Key_Shift);
+            }
+        }
+    }
 }
 
 
@@ -239,6 +267,7 @@ TraceDisplayRenderer::TraceDisplayRenderer(QObject *parent, QSize displayWindowS
     m_programMovingBar(nullptr),
     m_programTraces(nullptr)
 {
+    m_globalScale = 1.0f;
     m_numOffsets = 0;
     m_clearDisplayOnNextDraw = false;
     m_viewportSize = displayWindowSize;
@@ -690,7 +719,7 @@ void TraceDisplayRenderer::drawTraces()
             // Update uniforms for specific trace
 //            qDebug() << num << traces[num].color[0] << traces[num].color[1]  << traces[num].color[2];
             m_programTraces->setUniformValueArray("u_color", traces[num].color, 1, 3);
-            m_programTraces->setUniformValue("u_scaleTrace", traces[num].scale /((float)m_numOffsets));
+            m_programTraces->setUniformValue("u_scaleTrace", traces[num].scale /((float)m_numOffsets) * m_globalScale);
             m_programTraces->setUniformValue("u_offset", traces[num].offset);
             if (m_selectedTrace.isEmpty()) {
                 m_programTraces->setUniformValue("u_traceSelected", 0.0f);
@@ -738,15 +767,30 @@ void TraceDisplayRenderer::updatePan(float deltaX, float deltaY)
 
 }
 
-void TraceDisplayRenderer::updateWindowSize(int scrollAmount)
+void TraceDisplayRenderer::handleWheelEvent(int scrollAmount, QVector<Qt::Key> keyMods)
 {
-
-    windowSize += (float)scrollAmount/10.0f;
-    if (windowSize < 1)
-        windowSize = 1;
-    if (windowSize > 120)
-        windowSize = 120;
-    m_clearDisplayOnNextDraw = true;
+    if (keyMods.contains(Qt::Key_Control)) {
+        // Adjust scale
+        if (m_selectedTrace.isEmpty()) {
+            // Adjust all scales
+//            if (m_globalScale > 0.1f && m_globalScale < 10.0f)
+                m_globalScale = m_globalScale * (1.0f + (float)scrollAmount/1000.0f);
+        }
+        else {
+            // Adjust specific scales
+            for (int i=0; i < m_selectedTrace.length(); i++) {
+                traces[m_selectedTrace[i]].scale = traces[m_selectedTrace[i]].scale * (1.0f + (float)scrollAmount/1000.0f);
+            }
+        }
+    }
+    else {
+        windowSize += (float)scrollAmount/10.0f;
+        if (windowSize < 1)
+            windowSize = 1;
+        if (windowSize > 120)
+            windowSize = 120;
+        m_clearDisplayOnNextDraw = true;
+    }
 
 //    initGridV();
 }
