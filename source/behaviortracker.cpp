@@ -209,7 +209,10 @@ void BehaviorTracker::sendNewFrame()
                     // There is space for more data
 
                     m_traceDisplayY[i][bufNum][dataCount] = pose[m_tracePoseIdx[i]] - view->width()/2.0f;
-                    m_traceDisplayT[i][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
+                    if (pose[m_tracePoseIdx[i] + 40] > m_pCutoffDisplay)
+                        m_traceDisplayT[i][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
+                    else
+                        m_traceDisplayT[i][bufNum][dataCount] = -1;
                     m_traceNumDataInBuf[i][bufNum]++;
                 }
 
@@ -222,7 +225,10 @@ void BehaviorTracker::sendNewFrame()
                     // There is space for more data
 
                     m_traceDisplayY[i+1][bufNum][dataCount] = pose[m_tracePoseIdx[i] + 20] - view->height()/2.0f;
-                    m_traceDisplayT[i+1][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
+                    if (pose[m_tracePoseIdx[i]+40] > m_pCutoffDisplay)
+                        m_traceDisplayT[i+1][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
+                    else
+                        m_traceDisplayT[i+1][bufNum][dataCount] = -1;
                     m_traceNumDataInBuf[i+1][bufNum]++;
                 }
             }

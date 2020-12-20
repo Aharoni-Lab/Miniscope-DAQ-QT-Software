@@ -230,6 +230,7 @@ TraceDisplayRenderer::TraceDisplayRenderer(QObject *parent, QSize displayWindowS
     m_programMovingBar(nullptr),
     m_programTraces(nullptr)
 {
+    m_numOffsets = 0;
     m_clearDisplayOnNextDraw = false;
     m_viewportSize = displayWindowSize;
     windowSize = 10; // in seconds. Consider having this defined in user config!
@@ -319,6 +320,9 @@ void TraceDisplayRenderer::initPrograms()
 void TraceDisplayRenderer::addNewTrace(trace_t newTrace)
 {
     newTrace.offset = 0.0f;
+    if (newTrace.sameOffsetAsPrevious == false)
+        m_numOffsets++;
+
     traces.append(newTrace);
 
     updateTraceOffsets();
@@ -677,7 +681,7 @@ void TraceDisplayRenderer::drawTraces()
             // Update uniforms for specific trace
 //            qDebug() << num << traces[num].color[0] << traces[num].color[1]  << traces[num].color[2];
             m_programTraces->setUniformValueArray("u_color", traces[num].color, 1, 3);
-            m_programTraces->setUniformValue("u_scaleTrace", traces[num].scale * 0.4f);
+            m_programTraces->setUniformValue("u_scaleTrace", traces[num].scale /((float)m_numOffsets));
             m_programTraces->setUniformValue("u_offset", traces[num].offset);
             m_programTraces->setUniformValue("u_traceSelected", 0.0f);
 
@@ -689,7 +693,7 @@ void TraceDisplayRenderer::drawTraces()
             m_programTraces->setAttributeArray("a_dataY", GL_FLOAT, &traces[num].dataY[arrayOffset], 1);
 
 
-            glLineWidth(3);
+            glLineWidth(5);
             glDrawArrays(GL_LINE_STRIP, 0, traces[num].numDataInBuffer[*traces[num].displayBufferNumber]);
 
 

@@ -27,7 +27,7 @@
 // TODO: Move a bunch of stuff into structs across the whole project
 
 // For Pose Track Display
-#define NUM_MAX_POSE_TRACES   16
+#define NUM_MAX_POSE_TRACES   40
 #define TRACE_DISPLAY_BUFFER_SIZE   256
 
 class BehaviorTracker : public QObject

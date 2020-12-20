@@ -213,7 +213,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
                 // There is space for more data
                 meanIntensity = cv::mean(frame(roiRect))[0];
 
-                m_traceDisplayY[i][bufNum][dataCount] = meanIntensity;
+                m_traceDisplayY[i][bufNum][dataCount] = meanIntensity - 127.0f;
                 m_traceDisplayT[i][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
                 m_traceNumDataInBuf[i][bufNum]++;
             }

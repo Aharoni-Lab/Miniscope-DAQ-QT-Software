@@ -125,6 +125,7 @@ private:
 
     // Vars for display
     int m_numTraces;
+    int m_numOffsets;
 
     // holds everything about traces
     QVector<trace_t> traces;
