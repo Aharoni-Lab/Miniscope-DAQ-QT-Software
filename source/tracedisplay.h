@@ -58,6 +58,9 @@ public:
     void setT(qreal t) { m_t = t; }
     void setViewportSize(const QSize &size) { m_viewportSize = size; }
     void setWindow(QQuickWindow *window) { m_window = window; }
+    trace_t getTrace(int idx) { return traces[idx]; }
+    float getGlobalScaling() { return m_globalScale; }
+    int getNumOffets() { return m_numOffsets; }
 
     void doubleClickEvent(int x, int y);
 
@@ -192,6 +195,7 @@ public:
     qreal t() const { return m_t; }
     void setT(qreal t);
     void addNewTrace(trace_t newTrace);
+    void updateYSelectLabels();
 
     void setSoftwareStartTime(qint64 time) { m_softwareStartTime = time; }
 

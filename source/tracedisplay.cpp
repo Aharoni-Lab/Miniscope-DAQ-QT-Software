@@ -138,6 +138,8 @@ void TraceDisplay::wheelEvent(QWheelEvent *event)
         tempLabels.append(QString::number(i * m_renderer->windowSize/5,'f',1) + "s");
     }
     setXLabel(tempLabels);
+
+    updateYSelectLabels();
     qDebug() << "Wheel" << event;
 }
 
@@ -148,6 +150,7 @@ void TraceDisplay::hoverMoveEvent(QHoverEvent *event)
 
 void TraceDisplay::mouseDoubleClickEvent(QMouseEvent *event)
 {
+
     if (event->button() == Qt::LeftButton) {
         m_renderer->doubleClickEvent(event->x(), event->y());
     }
@@ -157,10 +160,7 @@ void TraceDisplay::mouseDoubleClickEvent(QMouseEvent *event)
             ySelectedLabelChanged();
     }
     else {
-        for (int i=0; i< 11; i++){
-            m_ySelectedLabel.append(i);
-        }
-        ySelectedLabelChanged();
+        updateYSelectLabels();
     }
 }
 
@@ -222,6 +222,24 @@ void TraceDisplay::addNewTrace(trace_t newTrace)
         m_traceNames.append(newTrace.name);
 
     emit traceNamesChanged();
+}
+
+void TraceDisplay::updateYSelectLabels()
+{
+    m_ySelectedLabel.clear();
+    if (!m_renderer->m_selectedTrace.isEmpty()) {
+        float tempValue;
+        trace_t trace = m_renderer->getTrace(m_renderer->m_selectedTrace.first());
+        for (int i=-5; i< 6; i++){
+            // Gets the vertical position from -1 to 1
+            tempValue = -2.0f * (float)i/11.0f - trace.offset;
+
+            // Scales value based on scaling
+            tempValue = (tempValue / (m_renderer->getGlobalScaling() * trace.scale)) * (float)m_renderer->getNumOffets();
+            m_ySelectedLabel.append(QString::number(tempValue,'f',2));
+        }
+        ySelectedLabelChanged();
+    }
 }
 
 void TraceDisplay::handleWindowChanged(QQuickWindow *win)
