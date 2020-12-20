@@ -50,9 +50,9 @@ void main(void)
     vec2 position_tr = u_scale * (u_magnify * pos * vec2(1.0, u_scaleTrace) + vec2(0.0, u_offset) + u_pan);
 
     if (u_traceSelected == 1.0)
-        v_color.rgb = mix(v_color.rgb, vec3(1.0), 0.6);
+        v_color.rgb = mix(v_color.rgb, vec3(1.0), 0.8);
     else if (u_traceSelected == -1.0)
-        v_color = mix(v_color, vec4(vec3(0.0), 1), 0.7);
+        v_color = mix(v_color, vec4(vec3(0.0), 1), 0.8);
 
     gl_Position = vec4(position_tr, 0.0, 1.0);
 //    gl_Position = vec4(pos, 0.0, 1.0);

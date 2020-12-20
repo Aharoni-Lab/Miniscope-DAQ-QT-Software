@@ -56,10 +56,10 @@ void TraceDisplayBackend::createView()
     m_traceDisplay->setSoftwareStartTime(m_softwareStartTime);
 }
 
-void TraceDisplayBackend::addNewTrace(QString name, float color[3], float scale, bool sameOffset, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY)
+void TraceDisplayBackend::addNewTrace(QString name, float color[3], float scale, QString units, bool sameOffset, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY)
 {
 
-    trace_t newTrace = trace_t(name, color, scale, sameOffset, displayBufNum, numDataInBuf, bufSize, dataT, dataY);
+    trace_t newTrace = trace_t(name, color, scale, units, sameOffset, displayBufNum, numDataInBuf, bufSize, dataT, dataY);
     m_traceDisplay->addNewTrace(newTrace);
 }
 
@@ -236,7 +236,7 @@ void TraceDisplay::updateYSelectLabels()
 
             // Scales value based on scaling
             tempValue = (tempValue / (m_renderer->getGlobalScaling() * trace.scale)) * (float)m_renderer->getNumOffets();
-            m_ySelectedLabel.append(QString::number(tempValue,'f',2));
+            m_ySelectedLabel.append(QString::number(tempValue,'f',2) + trace.units);
         }
         ySelectedLabelChanged();
     }

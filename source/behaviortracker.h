@@ -57,7 +57,7 @@ public:
 signals:
     void sendMessage(QString msg);
     void closeWorker();
-    void addTraceDisplay(QString, float c[3], float, bool sameOffset, QAtomicInt*, QAtomicInt*, int , float*, float*);
+    void addTraceDisplay(QString, float c[3], float, QString, bool sameOffset, QAtomicInt*, QAtomicInt*, int , float*, float*);
 
 public slots:
     void testSlot(QString msg) { qDebug() << msg; }

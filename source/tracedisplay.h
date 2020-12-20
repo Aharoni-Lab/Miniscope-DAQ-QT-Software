@@ -17,9 +17,10 @@
 
 typedef struct Traces{
 
-    Traces(QString name, float colors[3], float scale, bool sameOffset, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY):
+    Traces(QString name, float colors[3], float scale, QString units, bool sameOffset, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY):
         name(name),
         scale(scale),
+        units(units),
         sameOffsetAsPrevious(sameOffset),
         bufferSize(bufSize),
         displayBufferNumber(displayBufNum),
@@ -36,6 +37,7 @@ typedef struct Traces{
     float* color;
     float offset = 0.0f;
     float scale;
+    QString units;
     bool sameOffsetAsPrevious = false;
     int bufferSize;
 
@@ -244,7 +246,7 @@ public:
     void createView();
 
 public slots:
-    void addNewTrace(QString name, float color[3], float scale, bool sameOffset, QAtomicInt* displayBufNum, QAtomicInt* numDataInBuf, int bufSize, float* dataT, float* dataY);
+    void addNewTrace(QString name, float color[3], float scale, QString units, bool sameOffset, QAtomicInt* displayBufNum, QAtomicInt* numDataInBuf, int bufSize, float* dataT, float* dataY);
     void close();
 
 private:

@@ -92,7 +92,7 @@ signals:
     void extTriggered(bool state);
     void startRecording();
     void stopRecording();
-    void addTraceDisplay(QString, float c[3], float, bool, QAtomicInt*, QAtomicInt*, int , float*, float*);
+    void addTraceDisplay(QString, float c[3], float, QString, bool, QAtomicInt*, QAtomicInt*, int , float*, float*);
 
 public slots:
     void sendNewFrame();
