@@ -60,6 +60,32 @@ Item {
         }
     }
 
+    ColumnLayout {
+        id: columnSelected
+        height: parent.height * (traceDisplay.ySelectedLabel.length - 1)/traceDisplay.ySelectedLabel.length
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        width: 100
+        Repeater { id: repeaterSelected
+            model: traceDisplay.ySelectedLabel.length
+            Rectangle {
+                id: rectangleSelected
+                width: 100
+                height:15
+                color: "transparent"
+                anchors.horizontalCenter: root.horizontalCenter
+                Text { text: traceDisplay.ySelectedLabel[index]
+                    anchors.fill: parent
+                    horizontalAlignment: Text.AlignHCenter
+                    font.family: "Helvetica"
+                    font.pointSize: 10
+                    color: "#969696"
+                   }
+            }
+
+        }
+    }
+
     RowLayout {
         id: bottomText
         objectName: "bottomText"

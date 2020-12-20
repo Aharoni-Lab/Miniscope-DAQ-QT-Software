@@ -151,7 +151,17 @@ void TraceDisplay::mouseDoubleClickEvent(QMouseEvent *event)
     if (event->button() == Qt::LeftButton) {
         m_renderer->doubleClickEvent(event->x(), event->y());
     }
-    //       qDebug() << "DoubleClick" << event;
+    if (m_renderer->m_selectedTrace.isEmpty()) {
+            // This is really poorly done!!!
+            m_ySelectedLabel.clear();
+            ySelectedLabelChanged();
+    }
+    else {
+        for (int i=0; i< 11; i++){
+            m_ySelectedLabel.append(i);
+        }
+        ySelectedLabelChanged();
+    }
 }
 
 void TraceDisplay::keyPressEvent(QKeyEvent *event)
@@ -264,6 +274,7 @@ TraceDisplayRenderer::TraceDisplayRenderer(QObject *parent, QSize displayWindowS
     m_programTexture(nullptr),
     m_programGridV(nullptr),
     m_programGridH(nullptr),
+    m_programSelectedGridH(nullptr),
     m_programMovingBar(nullptr),
     m_programTraces(nullptr)
 {
@@ -308,6 +319,7 @@ TraceDisplayRenderer::~TraceDisplayRenderer()
     delete m_programTexture;
     delete m_programGridV;
     delete m_programGridH;
+    delete m_programSelectedGridH;
     delete m_programMovingBar;
     delete m_programTraces;
 }
@@ -337,6 +349,13 @@ void TraceDisplayRenderer::initPrograms()
     m_programGridH->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/grid.frag");
     m_programGridH->link();
     initGridH();
+
+    // Horizontal lines program for selected traces
+    m_programSelectedGridH = new QOpenGLShaderProgram();
+    m_programSelectedGridH->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,":/shaders/grid.vert");
+    m_programSelectedGridH->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/grid.frag");
+    m_programSelectedGridH->link();
+    initSelectedGridH();
 
     // Moving bar program
     m_programMovingBar = new QOpenGLShaderProgram();
@@ -610,6 +629,79 @@ void TraceDisplayRenderer::drawGridH()
 
 }
 
+void TraceDisplayRenderer::initSelectedGridH()
+{
+    QVector<float> gridHData;
+
+    int numHGridLines = 11;
+
+    float gridLineStep = 2 / ((float)numHGridLines + 1);
+
+    float idx = 0;
+    for (float y = -1; y <= 1; y+= (gridLineStep) ) {
+        // Position
+        if (idx > 0 && idx <= numHGridLines) {
+            gridHData.append({-1.0f, y,
+                              idx});
+            gridHData.append({1.0f, y,
+                              idx});
+        }
+        idx += 1;
+    }
+
+
+    if (!selectedGridHVOB.isCreated())
+        selectedGridHVOB.create();
+    selectedGridHVOB.bind();
+    selectedGridHVOB.allocate(&gridHData[0], gridHData.length() * sizeof(float));
+    selectedGridHVOB.release();
+}
+
+void TraceDisplayRenderer::updateSelectedGridH()
+{
+    m_programSelectedGridH->bind();
+
+    float gridHColor[] = {0.9f, 0.9f, 0.9f};
+
+    // ------ These will be moved to mouse and keyboard slots
+    m_programSelectedGridH->setUniformValueArray("u_pan", pan, 1, 2);
+    m_programSelectedGridH->setUniformValueArray("u_scale", scale, 1, 2);
+    m_programSelectedGridH->setUniformValueArray("u_magnify", magnify, 1, 2);
+    m_programSelectedGridH->setUniformValueArray("u_color", gridHColor, 1, 3);
+    m_programSelectedGridH->setUniformValue("u_spacing", 1.0f);
+    // ----------------------------------------------------------
+
+    // WILL UPDATE VBO HERE IF NEEDED
+
+    m_programSelectedGridH->release();
+}
+
+void TraceDisplayRenderer::drawSelectedGridH()
+{
+    m_programSelectedGridH->bind();
+    selectedGridHVOB.bind();
+
+    m_programSelectedGridH->enableAttributeArray("a_position");
+//    m_programGridH->enableAttributeArray("a_color");
+    m_programSelectedGridH->enableAttributeArray("a_index");
+
+    m_programSelectedGridH->setAttributeBuffer("a_position",GL_FLOAT, 0,                2, 3 * sizeof(float));
+    m_programSelectedGridH->setAttributeBuffer("a_index",   GL_FLOAT, 2 * sizeof(float), 1, 3 * sizeof(float));
+
+
+    glLineWidth(3);
+    glDrawArrays(GL_LINE_STRIP, 0, selectedGridHVOB.size()/(3 * sizeof(float)));
+//    qDebug() << "SIZE" << (gridVVOB.size());
+
+//    glDrawArrays(GL_TRIANGLE_STRIP, 0, 3);
+
+    m_programSelectedGridH->disableAttributeArray("a_position");
+    m_programSelectedGridH->disableAttributeArray("a_index");
+
+    selectedGridHVOB.release();
+    m_programSelectedGridH->release();
+}
+
 void TraceDisplayRenderer::initMovingBar()
 {
     movingBarVBO.create();
@@ -862,8 +954,15 @@ void TraceDisplayRenderer::paint()
     drawGridV();
 
     // Draw vertical grid lines
-    updateGridH();
-    drawGridH();
+    if (m_selectedTrace.isEmpty()) {
+        updateGridH();
+        drawGridH();
+    }
+    else {
+        // Draw horizontal lines with values for selected trace(s)
+        updateSelectedGridH();
+        drawSelectedGridH();
+    }
 
     // Draw moving vertical bar
     updateMovingBar();
@@ -894,5 +993,6 @@ void TraceDisplayRenderer::doubleClickEvent(int x, int y)
     }
     else {
         m_selectedTrace.clear();
+
     }
 }

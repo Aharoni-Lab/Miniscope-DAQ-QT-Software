@@ -82,6 +82,12 @@ public:
     void drawGridH();
     QOpenGLBuffer gridHVOB;
 
+    // Display functions for selected horizontal grid lines
+    void initSelectedGridH();
+    void updateSelectedGridH();
+    void drawSelectedGridH();
+    QOpenGLBuffer selectedGridHVOB;
+
     // Display functions for moving bar
     void initMovingBar();
     void updateMovingBar();
@@ -109,12 +115,15 @@ public:
     qint64 currentTime;
     qint64 m_softwareStartTime;
 
+    QVector<int> m_selectedTrace;
+
 //signals:
 
 public slots:
     void paint();
 
 private:
+
     QSize m_viewportSize;
     QOpenGLShaderProgram *m_program;
     QOpenGLTexture *m_texture;
@@ -128,7 +137,6 @@ private:
     // Vars for display
     int m_numTraces;
     int m_numOffsets;
-    QVector<int> m_selectedTrace;
 
     // holds everything about traces
     QVector<trace_t> traces;
@@ -139,6 +147,7 @@ private:
     QOpenGLShaderProgram *m_programTexture;
     QOpenGLShaderProgram *m_programGridV;
     QOpenGLShaderProgram *m_programGridH;
+    QOpenGLShaderProgram *m_programSelectedGridH;
     QOpenGLShaderProgram *m_programMovingBar;
     QOpenGLShaderProgram *m_programTraces;
 
@@ -158,6 +167,7 @@ class TraceDisplay : public QQuickItem
     Q_OBJECT
     // FOr updating xlabel values
     Q_PROPERTY(QList<QVariant > xLabel READ xLabel WRITE setXLabel NOTIFY xLabelChanged)
+    Q_PROPERTY(QList<QVariant > ySelectedLabel READ ySelectedLabel WRITE setYSelectedLabel NOTIFY ySelectedLabelChanged)
     Q_PROPERTY(QList<QVariant > traceNames READ traceNames WRITE setTraceNames NOTIFY traceNamesChanged)
     Q_PROPERTY(qreal t READ t WRITE setT NOTIFY tChanged)
 
@@ -174,8 +184,10 @@ public:
     void keyReleaseEvent(QKeyEvent *event) override;
 
     QList<QVariant > xLabel() { return m_xLabel; }
+    QList<QVariant > ySelectedLabel() { return m_ySelectedLabel; }
     QList<QVariant > traceNames() { return m_traceNames; }
     void setXLabel(QList<QVariant > label) {m_xLabel = label; xLabelChanged();}
+    void setYSelectedLabel(QList<QVariant > label) {m_ySelectedLabel = label; ySelectedLabelChanged();}
     void setTraceNames(QList<QVariant > names) {m_traceNames = names; traceNamesChanged();}
     qreal t() const { return m_t; }
     void setT(qreal t);
@@ -186,6 +198,7 @@ public:
 
 signals:
     void xLabelChanged();
+    void ySelectedLabelChanged();
     void traceNamesChanged();
     void tChanged();
 
@@ -200,6 +213,7 @@ private:
     qreal m_t;
     QList<QVariant > m_xLabel;
     QList<QVariant> m_traceNames;
+    QList<QVariant> m_ySelectedLabel;
     TraceDisplayRenderer *m_renderer;
 
     QVector<trace_t> m_tempTraces;
