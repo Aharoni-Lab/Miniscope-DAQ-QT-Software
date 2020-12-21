@@ -32,7 +32,8 @@
             "numBinsX": 100,
             "numBinsY": 100,
             "poseIdxToUse": [0, 1, 2, 3, 4]
-        }
+        },
+        "poseIdxForTraceDisplay": ["0wh", "1w", "2w"]
     }, 
     "traceDisplay": {
         "type": "scrolling",

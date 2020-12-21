@@ -106,6 +106,7 @@ public:
     void parseUserConfigTracker();
     void loadCamCalibration(QString name);
     void setBehaviorCamBufferParameters(QString name, qint64* timeBuf, cv::Mat* frameBuf, int bufSize, QAtomicInt* acqFrameNum);
+    void setupDisplayTraces();
 
     void cameraCalibration();
     void createView();
@@ -132,7 +133,7 @@ public slots:
     void sendNewFrame();
     void startRunning(); // Slot gets called when thread starts
     void close();
-    void handleAddNewTracePose(int poseIdx);
+    void handleAddNewTracePose(int poseIdx, QString type, bool sameOffset);
 
 private:
     int initNumpy();
@@ -180,6 +181,8 @@ private:
     // For Pose Trace Display
     int m_numTraces;
     int m_tracePoseIdx[NUM_MAX_POSE_TRACES];
+    float m_traceWindowLength[NUM_MAX_POSE_TRACES];
+    int m_tracePoseType[NUM_MAX_POSE_TRACES];
     float m_traceColors[NUM_MAX_POSE_TRACES][3];
     bool sameOffsetAsPrevious[NUM_MAX_POSE_TRACES];
     QAtomicInt m_traceDisplayBufNum[NUM_MAX_POSE_TRACES];

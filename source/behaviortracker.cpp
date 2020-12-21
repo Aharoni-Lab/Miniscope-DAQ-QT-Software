@@ -96,6 +96,43 @@ void BehaviorTracker::setBehaviorCamBufferParameters(QString name, qint64* timeB
 
 }
 
+void BehaviorTracker::setupDisplayTraces()
+{
+    QString tempS;
+    int idx;
+    if (m_btConfig.contains("poseIdxForTraceDisplay")) {
+        QJsonArray tempArray = m_btConfig["poseIdxForTraceDisplay"].toArray();
+        for (int i=0; i<tempArray.size();i++) {
+            tempS = tempArray[i].toString();
+            if (tempS.endsWith("wh",Qt::CaseInsensitive) || tempS.endsWith("hw",Qt::CaseInsensitive)) {
+                tempS.chop(2);
+                idx = tempS.toInt();
+                if (idx >= 0) {
+                    handleAddNewTracePose(idx, "w", false);
+                    handleAddNewTracePose(idx, "h", true);
+                }
+            }
+            else if (tempS.endsWith("w",Qt::CaseInsensitive)) {
+                tempS.chop(1);
+                idx = tempS.toInt();
+                if (idx >= 0) {
+                    handleAddNewTracePose(idx, "w", false);
+                }
+            }
+            else if (tempS.endsWith("h",Qt::CaseInsensitive)) {
+                tempS.chop(1);
+                idx = tempS.toInt();
+                if (idx >= 0) {
+                    handleAddNewTracePose(idx, "h", false);
+                }
+            }
+
+
+        }
+
+    }
+}
+
 void BehaviorTracker::cameraCalibration()
 {
     // calibrate differently for 1 and 2 cameras
@@ -174,16 +211,7 @@ void BehaviorTracker::sendNewFrame()
     // TODO: currently writen to handle only 1
 
     if (tracesSetup == false) {
-        handleAddNewTracePose(0);
-        handleAddNewTracePose(1);
-        handleAddNewTracePose(2);
-        handleAddNewTracePose(3);
-        handleAddNewTracePose(4);
-        handleAddNewTracePose(5);
-        handleAddNewTracePose(6);
-        handleAddNewTracePose(7);
-        handleAddNewTracePose(8);
-        handleAddNewTracePose(9);
+        setupDisplayTraces();
         tracesSetup = true;
     }
 
@@ -205,17 +233,16 @@ void BehaviorTracker::sendNewFrame()
             cvFrame = frameBuffer.first()[frameIdx].clone();
 
         }
+
         // TODO: Shouldn't hardcore pose vector size/shape
-        QVector<float> pose = poseBuffer[(poseNum - 1) % POSE_BUFFER_SIZE];
-        float w, h, l;
-        for (int i = 0; i < 20; i++) {
-//            if ((i < 5) || ((i >=8) && (i <= 15))) {
-            w = pose[i];
-            h = pose[i + 20];
-            l = pose[i + 40];
+        QVector<float> tempPose = poseBuffer[(poseNum - 1) % POSE_BUFFER_SIZE];
+        int numPose = tempPose.length()/3;
+        QVector<QVector3D> pose;
+        for (int i = 0; i < numPose; i++) {
+            pose.append(QVector3D(tempPose[i + 0], tempPose[i + numPose], tempPose[i + 2 * numPose]));
             // TODO: Change to our own shader to plot points
-            if (l > m_pCutoffDisplay)
-                cv::circle(cvFrame, cv::Point(w,h),3,cv::Scalar(colors[i*3 + 2]*255,colors[i*3+1]*255,colors[i*3+0]*255),cv::FILLED);
+            if (pose.last().z() > m_pCutoffDisplay)
+                cv::circle(cvFrame, cv::Point(pose.last().x(),pose.last().y()),3,cv::Scalar(colors[i*3 + 2]*255,colors[i*3+1]*255,colors[i*3+0]*255),cv::FILLED);
 //        }
         }
         // For Occupancy plot
@@ -228,9 +255,9 @@ void BehaviorTracker::sendNewFrame()
             cv::Vec3b tempValues;
             for (int i=0; i < m_poseIdxUsed.length(); i++) {
                 idx = m_poseIdxUsed[i];
-                if (pose[idx + 40] > m_pCutoffDisplay) {
-                    tempX += pose[idx];
-                    tempY += pose[idx + 20];
+                if (pose[idx].z() > m_pCutoffDisplay) {
+                    tempX += pose[idx].x();
+                    tempY += pose[idx].y();
                     count++;
                 }
             }
@@ -265,11 +292,12 @@ void BehaviorTracker::sendNewFrame()
         qFrame = QImage(cvFrame.data, cvFrame.cols, cvFrame.rows, cvFrame.step, QImage::Format_RGB888);
         trackerDisplay->setDisplayImage(qFrame);
 
+        // For trace display
         if (m_numTraces > 0) {
             int bufNum;
             int dataCount;
 
-            for (int i=0; i < m_numTraces; i+=2) {
+            for (int i=0; i < m_numTraces; i++) {
                 if (m_traceDisplayBufNum[i] == 0)
                     bufNum = 1;
                 else
@@ -278,28 +306,12 @@ void BehaviorTracker::sendNewFrame()
                 if (dataCount < TRACE_DISPLAY_BUFFER_SIZE) {
                     // There is space for more data
 
-                    m_traceDisplayY[i][bufNum][dataCount] = pose[m_tracePoseIdx[i]] - view->width()/2.0f;
-                    if (pose[m_tracePoseIdx[i] + 40] > m_pCutoffDisplay)
+                    m_traceDisplayY[i][bufNum][dataCount] = pose[m_tracePoseIdx[i]][m_tracePoseType[i]] - m_traceWindowLength[i]/2.0f;
+                    if (pose[m_tracePoseIdx[i]][2] > m_pCutoffDisplay)
                         m_traceDisplayT[i][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
                     else
                         m_traceDisplayT[i][bufNum][dataCount] = -1;
                     m_traceNumDataInBuf[i][bufNum]++;
-                }
-
-                if (m_traceDisplayBufNum[i+1] == 0)
-                    bufNum = 1;
-                else
-                    bufNum = 0;
-                dataCount  = m_traceNumDataInBuf[i+1][bufNum];
-                if (dataCount < TRACE_DISPLAY_BUFFER_SIZE) {
-                    // There is space for more data
-
-                    m_traceDisplayY[i+1][bufNum][dataCount] = pose[m_tracePoseIdx[i] + 20] - view->height()/2.0f;
-                    if (pose[m_tracePoseIdx[i]+40] > m_pCutoffDisplay)
-                        m_traceDisplayT[i+1][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
-                    else
-                        m_traceDisplayT[i+1][bufNum][dataCount] = -1;
-                    m_traceNumDataInBuf[i+1][bufNum]++;
                 }
             }
         }
@@ -316,11 +328,21 @@ void BehaviorTracker::close()
     //    view->close();
 }
 
-void BehaviorTracker::handleAddNewTracePose(int poseIdx)
+void BehaviorTracker::handleAddNewTracePose(int poseIdx, QString type, bool sameOffset)
 {
 //    m_traceColors[0][0] = &colors[0];
     if ((m_numTraces + 1) < NUM_MAX_POSE_TRACES) {
-        m_tracePoseIdx[m_numTraces] = poseIdx;
+        if (type == "w") {
+            m_tracePoseIdx[m_numTraces] = poseIdx;
+
+            m_tracePoseType[m_numTraces] = 0;
+            m_traceWindowLength[m_numTraces] = (float)view->width();
+        }
+        else {
+            m_tracePoseIdx[m_numTraces] = poseIdx;
+            m_tracePoseType[m_numTraces] = 1;
+            m_traceWindowLength[m_numTraces] = (float)view->height();
+        }
 //        m_traceColors[m_numTraces][0] = 1.0f;//((float)colors[poseIdx*3 + 0])/100.0f;
 //        m_traceColors[m_numTraces][1] = 1.0f;//((float)colors[poseIdx*3 + 1])/100.0f;
 //        m_traceColors[m_numTraces][2] = 1.0f;//((float)colors[poseIdx*3 + 2])/100.0f;
@@ -330,33 +352,11 @@ void BehaviorTracker::handleAddNewTracePose(int poseIdx)
         m_traceNumDataInBuf[m_numTraces][1] = 0;
 
 //        qDebug() << colors[poseIdx * 3 + 0] << colors[poseIdx * 3 + 1] << colors[poseIdx * 3 + 2];
-        emit addTraceDisplay("Pose" + QString::number(poseIdx) + "w",
+        emit addTraceDisplay("Pose" + QString::number(poseIdx) + type,
                              &colors[poseIdx * 3 + 0],
-                             2.0/((float)view->width()),
+                             2.0/m_traceWindowLength[m_numTraces],
                              "px",
-                             false,
-                             &m_traceDisplayBufNum[m_numTraces],
-                             m_traceNumDataInBuf[m_numTraces],
-                             TRACE_DISPLAY_BUFFER_SIZE,
-                             m_traceDisplayT[m_numTraces][0],
-                             m_traceDisplayY[m_numTraces][0]);
-        m_numTraces++;
-
-        m_tracePoseIdx[m_numTraces] = poseIdx;
-//        m_traceColors[m_numTraces][0] = 1.0f;//((float)colors[poseIdx*3 + 0])/100.0f;
-//        m_traceColors[m_numTraces][1] = 1.0f;//((float)colors[poseIdx*3 + 1])/100.0f;
-//        m_traceColors[m_numTraces][2] = 1.0f;//((float)colors[poseIdx*3 + 2])/100.0f;
-
-        m_traceDisplayBufNum[m_numTraces] = 1;
-        m_traceNumDataInBuf[m_numTraces][0] = 0;
-        m_traceNumDataInBuf[m_numTraces][1] = 0;
-
-//        qDebug() << colors[poseIdx * 3 + 0] << colors[poseIdx * 3 + 1] << colors[poseIdx * 3 + 2];
-        emit addTraceDisplay("Pose" + QString::number(poseIdx) + "h",
-                             &colors[poseIdx * 3 + 0],
-                             2.0/((float)view->width()),
-                             "px",
-                             true,
+                             sameOffset,
                              &m_traceDisplayBufNum[m_numTraces],
                              m_traceNumDataInBuf[m_numTraces],
                              TRACE_DISPLAY_BUFFER_SIZE,
