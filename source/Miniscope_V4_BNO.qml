@@ -287,7 +287,7 @@ Item {
         RoundButton {
             id: addTraceRoi
             objectName: "addTraceRoi"
-            text: "Add Trace ROI"
+            text: "Add Neuron ROI"
             font.family: "Arial"
             font.pointSize: 10
             font.bold: true
@@ -308,7 +308,7 @@ Item {
         RoundButton {
             id: setRoi
             objectName: "setRoi"
-            text: "Set ROI"
+            text: "Set Frame ROI"
             font.family: "Arial"
             font.pointSize: 10
             font.bold: true

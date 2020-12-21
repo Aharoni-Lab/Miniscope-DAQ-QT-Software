@@ -15,6 +15,7 @@
 #include <QQmlApplicationEngine>
 #include <QVector>
 #include <QString>
+#include <QtMath>
 
 
 Miniscope::Miniscope(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime) :
@@ -38,12 +39,15 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucDevice, qint64 softwareStart
     }
 
     for (int i=0; i < 3; i++) {
-        bnoScale[i] = 1.0f;
+
         bnoDisplayBufNum[i] = 1;
         bnoNumDataInBuf[i][0] = 0;
         bnoNumDataInBuf[i][1] = 0;
 
     }
+    bnoScale[0] = 1.0f/3.141592f;
+    bnoScale[1] = 1.0f/3.141592f;
+    bnoScale[2] = 1.0f/3.141592f;
     // --------------------
 
     // For Neuron Trace Display
@@ -158,6 +162,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         vidDisp->setDisplayFrame(tempFrame2.copy()); //TODO: Probably doesn't need "copy"
     }
     if (getHeadOrienataionStreamState()) {
+        // TODO: Clean up this section. Consolidate
         if (bnoBuffer[bufIdx*5+4] < 0.05) { // Checks to see if norm of quat differs from 1 by 0.05
             // good data
             bnoDisplay->setProperty("badData", false);
@@ -166,6 +171,31 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
             bnoDisplay->setProperty("qy", bnoBuffer[bufIdx*5+2]);
             bnoDisplay->setProperty("qz", bnoBuffer[bufIdx*5+3]);
 
+            // Figure out Euler Angles
+            double qw = bnoBuffer[bufIdx*5+0];
+            double qx = bnoBuffer[bufIdx*5+1];
+            double qy = bnoBuffer[bufIdx*5+2];
+            double qz = bnoBuffer[bufIdx*5+3];
+
+            double m00 = 1.0 - 2.0*qy*qy - 2.0*qz*qz;
+            double m01 = 2.0*qx*qy + 2.0*qz*qw;
+            double m02 = 2.0*qx*qz - 2.0*qy*qw;
+            double m10 = 2.0*qx*qy - 2.0*qz*qw;
+            double m11 = 1 - 2.0*qx*qx - 2.0*qz*qz;
+            double m12 = 2.0*qy*qz + 2.0*qx*qw;
+            double m20 = 2.0*qx*qz + 2.0*qy*qw;
+            double m21 = 2.0*qy*qz - 2.0*qx*qw;
+            double m22 = 1.0 - 2.0*qx*qx - 2.0*qy*qy;
+
+
+            double R = atan2(m12, m22);
+            double c2 = sqrt(m00*m00 + m01*m01);
+            double P = atan2(-m02, c2);
+            double s1 = sin(R);
+            double c1 = cos(R);
+            double Y = atan2(s1*m20 - c1*m10, c1*m11-s1*m21);
+
+            double euler[] = {R,P,Y};
             // fill BNO display buffers ---------------
             int bufNum;
             int dataCount;
@@ -178,7 +208,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
                 dataCount  = bnoNumDataInBuf[bnoIdx][bufNum];
                 if (dataCount < TRACE_DISPLAY_BUFFER_SIZE) {
                     // There is space for more data
-                    bnoTraceDisplayY[bnoIdx][bufNum][dataCount] = bnoBuffer[bufIdx*5 + 1 + bnoIdx];
+                    bnoTraceDisplayY[bnoIdx][bufNum][dataCount] = euler[bnoIdx];
                     bnoTraceDisplayT[bnoIdx][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
                     bnoNumDataInBuf[bnoIdx][bufNum]++;
                 }
@@ -243,7 +273,7 @@ void Miniscope::setupBNOTraceDisplay()
         emit addTraceDisplay(name,
                              bnoTraceColor[i],
                              bnoScale[i],
-                             "degree",
+                             "rad",
                              sameOffset,
                              &bnoDisplayBufNum[i],
                              bnoNumDataInBuf[i],
