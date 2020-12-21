@@ -126,6 +126,10 @@ void BehaviorTracker::setupDisplayTraces()
                     handleAddNewTracePose(idx, "h", false);
                 }
             }
+            else {
+                // Something is wrong with how these are defined in user config
+                sendMessage("WARNING: Your \"poseIdxForTraceDisplay\" is incorrect for " + tempS + ". Should be an integer followed by \"w\", \"h\", or \"wh\".");
+            }
 
 
         }
