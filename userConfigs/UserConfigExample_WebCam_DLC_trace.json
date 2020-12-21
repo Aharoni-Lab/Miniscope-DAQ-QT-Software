@@ -27,7 +27,12 @@
         "windowHeight": 480,
         "windowX": 100,
         "windowY": 100,
-        "windowScale": 1.0
+        "windowScale": 1.0,
+        "occupancyPlot": {
+            "numBinsX": 40,
+            "numBinsY": 40,
+            "poseIdxToUse": [0, 1, 2, 3, 4]
+        }
     }, 
     "traceDisplay": {
         "type": "scrolling",

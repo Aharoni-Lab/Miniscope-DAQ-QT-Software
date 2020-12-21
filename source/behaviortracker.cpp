@@ -1,6 +1,6 @@
 #include "behaviortracker.h"
 #include "newquickview.h"
-#include "videodisplay.h"
+//#include "videodisplay.h"
 #include "behaviortrackerworker.h"
 
 #include <opencv2/opencv.hpp>
@@ -13,6 +13,7 @@
 #include <QScreen>
 #include <QQuickItem>
 #include <QThread>
+#include <QJsonArray>
 
 #ifdef USE_PYTHON
  #undef slots
@@ -32,6 +33,8 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64
     m_pCutoffDisplay(0),
     m_softwareStartTime(softwareStartTime)
 {
+    m_occMax = 0;
+    m_plotOcc = false;
     tracesSetup = false;
     m_numTraces = 0;
 
@@ -60,6 +63,20 @@ void BehaviorTracker::parseUserConfigTracker()
 //    QJsonObject jTracker = m_userConfig["behaviorTracker"].toObject();
 //    m_trackerType = jTracker["type"].toString("None");
     m_pCutoffDisplay = m_btConfig["pCutoffDisplay"].toDouble(0);
+
+    if (m_btConfig.contains("occupancyPlot")) {
+        m_plotOcc = true;
+        m_occNumBinsX = m_btConfig["occupancyPlot"].toObject()["numBinX"].toInt(20);
+        m_occNumBinsY = m_btConfig["occupancyPlot"].toObject()["numBinY"].toInt(20);
+        QJsonArray tempArray = m_btConfig["occupancyPlot"].toObject()["poseIdxToUse"].toArray();
+
+        for (int i=0; i< tempArray.size(); i++) {
+            m_poseIdxUsed.append(tempArray[i].toInt());
+        }
+
+        // Create 2D his matrix
+        m_occupancy = new cv::Mat(m_occNumBinsX, m_occNumBinsY, CV_8UC3, cv::Scalar(0,0,0));
+    }
 
 }
 
@@ -93,7 +110,7 @@ void BehaviorTracker::createView()
 {
     QJsonObject btConfig = m_userConfig["behaviorTracker"].toObject();
 
-    qmlRegisterType<VideoDisplay>("VideoDisplay", 1, 0, "VideoDisplay");
+    qmlRegisterType<TrackerDisplay>("TrackerDisplay", 1, 0, "TrackerDisplay");
     const QUrl url("qrc:/behaviorTracker.qml");
     view = new NewQuickView(url);
 
@@ -111,8 +128,8 @@ void BehaviorTracker::createView()
     view->show();
 
     rootObject = view->rootObject();
-    vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
-    QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &BehaviorTracker::sendNewFrame);
+    trackerDisplay = rootObject->findChild<TrackerDisplay*>("trackerDisplay");
+    QObject::connect(trackerDisplay->window(), &QQuickWindow::beforeRendering, this, &BehaviorTracker::sendNewFrame);
 
 
 }
@@ -164,6 +181,7 @@ void BehaviorTracker::sendNewFrame()
 
     int poseNum = *m_btPoseCount;
     if (poseNum > m_previousBtPoseFrameNum) {
+//        qDebug() << "send New Frame";
         m_previousBtPoseFrameNum = poseNum;
         cv::Mat cvFrame;
         QImage qFrame;
@@ -192,8 +210,52 @@ void BehaviorTracker::sendNewFrame()
                 cv::circle(cvFrame, cv::Point(w,h),3,cv::Scalar(colors[i*3 + 2]*255,colors[i*3+1]*255,colors[i*3+0]*255),cv::FILLED);
 //        }
         }
+        // For Occupancy plot
+        if (m_plotOcc) {
+            int tempX = 0;
+            int tempY = 0;
+            int count = 0;
+            int idx;
+            int tempVal;
+            cv::Vec3b tempValues;
+            for (int i=0; i < m_poseIdxUsed.length(); i++) {
+                idx = m_poseIdxUsed[i];
+                if (pose[idx + 40] > m_pCutoffDisplay) {
+                    tempX += pose[idx];
+                    tempY += pose[idx + 20];
+                    count++;
+                }
+            }
+            if (count > 0) {
+                tempX = (tempX/count) * m_occNumBinsX / view->width();
+                tempY = (tempY/count) * m_occNumBinsY / view->height();
+//                qDebug() << tempX << tempY;
+                tempValues = m_occupancy->at<cv::Vec3b>(tempY, tempX);
+                tempVal = tempValues[0] + tempValues[1] * 256; // TODO: add last index with 2^16
+                qDebug() << tempVal;
+                if (tempVal > m_occMax) {
+                    m_occMax = tempVal;
+                    trackerDisplay->setOccMax(m_occMax);
+                }
+
+//                qDebug() << m_occupancy->channels() << m_occupancy->rows << m_occupancy->cols;
+                if (tempValues[0] < 254) {
+                    tempValues[0] += 1;
+                }
+                else {
+                    // TODO: Handle third color as well
+                    tempValues[0] = 0;
+                    tempValues[1] += 1;
+                }
+                m_occupancy->at<cv::Vec3b>(tempY, tempX) = tempValues;
+//                cv::Mat tempFrame;
+//                cv::cvtColor(*m_occupancy, tempFrame, cv::COLOR_GRAY2BGR);
+//                trackerDisplay->setDisplayOcc(QImage(tempFrame.data, tempFrame.cols, tempFrame.rows, tempFrame.step, QImage::Format_RGB888));
+                trackerDisplay->setDisplayOcc(QImage(m_occupancy->data, m_occupancy->cols, m_occupancy->rows, m_occupancy->step, QImage::Format_RGB888));
+            }
+        }
         qFrame = QImage(cvFrame.data, cvFrame.cols, cvFrame.rows, cvFrame.step, QImage::Format_RGB888);
-        vidDisplay->setDisplayFrame(qFrame);
+        trackerDisplay->setDisplayImage(qFrame);
 
         if (m_numTraces > 0) {
             int bufNum;
@@ -295,4 +357,235 @@ void BehaviorTracker::handleAddNewTracePose(int poseIdx)
         m_numTraces++;
     }
 
+}
+
+TrackerDisplayRenderer::TrackerDisplayRenderer(QObject *parent, QSize displayWindowSize):
+    QObject(parent),
+    m_t(0),
+    m_newImage(false),
+    m_newOccupancy(false),
+    m_textureImage(nullptr),
+    m_texture2DHist(nullptr),
+    m_programImage(nullptr),
+    m_programOccupancy(nullptr)
+{
+    m_viewportSize = displayWindowSize;
+    initPrograms();
+}
+
+TrackerDisplayRenderer::~TrackerDisplayRenderer()
+{
+    delete m_textureImage;
+    delete m_texture2DHist;
+    delete m_programImage;
+    delete m_programOccupancy;
+}
+
+void TrackerDisplayRenderer::initPrograms()
+{
+    initializeOpenGLFunctions();
+
+    m_programImage = new QOpenGLShaderProgram();
+    m_programImage->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,":/shaders/tracker.vert");
+    m_programImage->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/tracker.frag");
+    m_programImage->link();
+
+    m_programOccupancy = new QOpenGLShaderProgram();
+    m_programOccupancy->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,":/shaders/tracker.vert");
+    m_programOccupancy->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/tracker.frag");
+    m_programOccupancy->link();
+
+    m_textureImage = new QOpenGLTexture(QImage(":/img/MiniscopeLogo.png").rgbSwapped());
+//    m_textureImage->bind(0);
+    m_texture2DHist = new QOpenGLTexture(QImage(":/img/MiniscopeLogo.png").rgbSwapped());
+}
+
+void TrackerDisplayRenderer::drawImage()
+{
+//    qDebug() << "DRAWING!";
+    m_textureImage->bind(0);
+    m_programImage->bind();
+
+
+
+    m_programImage->setUniformValue("texture", 0);
+    m_programImage->setUniformValue("u_displayType", 0.0f);
+
+    m_programImage->enableAttributeArray("position");
+    m_programImage->enableAttributeArray("texcoord");
+
+    float position[] = {
+        -1, -1,
+        1, -1,
+        -1, 1,
+        1, 1
+
+    };
+    float texcoord[] = {
+//        1, 1,
+//        1, 0,
+//        0, 1,
+//        0, 0
+        0, 1,
+        1, 1,
+        0, 0,
+        1, 0
+
+    };
+    m_programImage->setAttributeArray("position", GL_FLOAT, position, 2);
+    m_programImage->setAttributeArray("texcoord", GL_FLOAT, texcoord, 2);
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    m_programImage->disableAttributeArray(0);
+    m_programImage->disableAttributeArray(1);
+
+
+    if (m_newImage) {
+        m_textureImage->destroy();
+        m_textureImage->create();
+        m_textureImage->setData(m_displayImage);
+        m_newImage = false;
+    }
+
+    m_programImage->release();
+    m_textureImage->release(0);
+
+}
+
+void TrackerDisplayRenderer::draw2DHist()
+{
+    m_texture2DHist->bind(0);
+    m_programOccupancy->bind();
+
+
+
+    m_programOccupancy->setUniformValue("texture", 0);
+    m_programOccupancy->setUniformValue("u_displayType", 1.0f);
+    m_programOccupancy->setUniformValue("u_occMax", (float)occMax);
+
+    m_programOccupancy->enableAttributeArray("position");
+    m_programOccupancy->enableAttributeArray("texcoord");
+
+    float position[] = {
+        -1, -1,
+        1, -1,
+        -1, 1,
+        1, 1
+
+    };
+    float texcoord[] = {
+//        1, 1,
+//        1, 0,
+//        0, 1,
+//        0, 0
+        0, 1,
+        1, 1,
+        0, 0,
+        1, 0
+
+    };
+    m_programOccupancy->setAttributeArray("position", GL_FLOAT, position, 2);
+    m_programOccupancy->setAttributeArray("texcoord", GL_FLOAT, texcoord, 2);
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    m_programOccupancy->disableAttributeArray(0);
+    m_programOccupancy->disableAttributeArray(1);
+
+
+    if (m_newOccupancy) {
+        m_texture2DHist->destroy();
+        m_texture2DHist->create();
+        m_texture2DHist->setData(m_displayOcc);
+        m_newOccupancy = false;
+    }
+
+    m_programOccupancy->release();
+    m_texture2DHist->release(0);
+
+}
+
+void TrackerDisplayRenderer::paint()
+{
+    glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
+    glDisable(GL_DEPTH_TEST);
+
+    glClearColor(0, 0, 0, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+//    drawImage();
+    draw2DHist();
+
+    //    // Not strictly needed for this example, but generally useful for when
+    //    // mixing with raw OpenGL.
+    m_window->resetOpenGLState();
+}
+
+TrackerDisplay::TrackerDisplay():
+    m_t(0),
+    m_renderer(nullptr)
+{
+    connect(this, &QQuickItem::windowChanged, this, &TrackerDisplay::handleWindowChanged);
+
+}
+void TrackerDisplay::setT(qreal t)
+{
+    if (t == m_t)
+        return;
+    m_t = t;
+    emit tChanged();
+    if (window())
+        window()->update();
+}
+
+void TrackerDisplay::setDisplayImage(QImage image)
+{
+    if (m_renderer && !m_renderer->m_newImage)
+        m_renderer->setDisplayImage(image);
+}
+
+void TrackerDisplay::setDisplayOcc(QImage image)
+{
+    if (m_renderer && !m_renderer->m_newOccupancy)
+        m_renderer->setDisplayOcc(image);
+}
+
+void TrackerDisplay::handleWindowChanged(QQuickWindow *win)
+{
+    if (win) {
+        connect(win, &QQuickWindow::beforeSynchronizing, this, &TrackerDisplay::sync, Qt::DirectConnection);
+        connect(win, &QQuickWindow::sceneGraphInvalidated, this, &TrackerDisplay::cleanup, Qt::DirectConnection);
+//! [1]
+        // If we allow QML to do the clearing, they would clear what we paint
+        // and nothing would show.
+//! [3]
+        win->setClearBeforeRendering(false);
+    }
+}
+
+void TrackerDisplay::sync()
+{
+    if (!m_renderer) {
+        m_renderer = new TrackerDisplayRenderer(nullptr, window()->size() * window()->devicePixelRatio());
+//        m_renderer->setShowSaturation(m_showSaturation);
+//        m_renderer->setDisplayFrame(QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
+        connect(window(), &QQuickWindow::beforeRendering, m_renderer, &TrackerDisplayRenderer::paint, Qt::DirectConnection);
+
+    }
+    m_renderer->setViewportSize(window()->size() * window()->devicePixelRatio());
+//    m_renderer->setT(m_t);
+//    m_renderer->setDisplayFrame(m_displayFrame);
+    m_renderer->setWindow(window());
+}
+
+void TrackerDisplay::cleanup()
+{
+    if (m_renderer) {
+        delete m_renderer;
+        m_renderer = nullptr;
+    }
 }

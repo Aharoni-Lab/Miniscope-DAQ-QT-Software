@@ -30,6 +30,71 @@
 #define NUM_MAX_POSE_TRACES   40
 #define TRACE_DISPLAY_BUFFER_SIZE   256
 
+class TrackerDisplayRenderer : public QObject, protected QOpenGLFunctions
+{
+    Q_OBJECT
+public:
+    TrackerDisplayRenderer(QObject *parent = nullptr, QSize displayWindowSize = QSize());
+    ~TrackerDisplayRenderer();
+    void initPrograms();
+
+    void setViewportSize(const QSize &size) { m_viewportSize = size; }
+    void setWindow(QQuickWindow *window) { m_window = window; }
+
+    void setDisplayImage(QImage image) {m_displayImage = image.copy();  m_newImage = true;}
+    void setDisplayOcc(QImage image) { m_displayOcc = image.copy(); m_newOccupancy = true; }
+    void drawImage();
+    void draw2DHist();
+
+    bool m_newImage;
+    bool m_newOccupancy;
+    int occMax;
+
+public slots:
+    void paint();
+
+private:
+    qreal m_t;
+    QImage m_displayImage;
+    QImage m_displayOcc;
+
+    QSize m_viewportSize;
+    QOpenGLTexture *m_textureImage;
+    QOpenGLTexture *m_texture2DHist;
+    QQuickWindow *m_window;
+
+    QOpenGLShaderProgram *m_programImage;
+    QOpenGLShaderProgram *m_programOccupancy;
+};
+
+class TrackerDisplay : public QQuickItem
+{
+    Q_OBJECT
+    Q_PROPERTY(qreal t READ t WRITE setT NOTIFY tChanged)
+public:
+    TrackerDisplay();
+
+    qreal t() const { return m_t; }
+    void setT(qreal t);
+    void setDisplayImage(QImage image);
+    void setDisplayOcc(QImage image);
+    void setOccMax(int value) { m_renderer->occMax = value;}
+
+signals:
+    void tChanged();
+
+public slots:
+    void sync();
+    void cleanup();
+
+private slots:
+    void handleWindowChanged(QQuickWindow *win);
+
+private:
+    qreal m_t;
+    TrackerDisplayRenderer* m_renderer;
+
+};
 class BehaviorTracker : public QObject
 {
     Q_OBJECT
@@ -97,7 +162,7 @@ private:
     // For GUI
     NewQuickView *view;
     QObject *rootObject;
-    VideoDisplay *vidDisplay;
+    TrackerDisplay *trackerDisplay;
     float colors[20*3]; // TODO: Shouldn't be hardcoding this!
 
     // Tracking states
@@ -118,6 +183,14 @@ private:
     QAtomicInt m_traceNumDataInBuf[NUM_MAX_POSE_TRACES][2];
     float m_traceDisplayY[NUM_MAX_POSE_TRACES][2][TRACE_DISPLAY_BUFFER_SIZE];
     float m_traceDisplayT[NUM_MAX_POSE_TRACES][2][TRACE_DISPLAY_BUFFER_SIZE];
+
+    // For Occupancy Plotting
+    cv::Mat* m_occupancy;
+    bool m_plotOcc;
+    int m_occNumBinsX;
+    int m_occNumBinsY;
+    int m_occMax;
+    QVector<int> m_poseIdxUsed;
 };
 
 #endif // BEHAVIORTRACKER_H

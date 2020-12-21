@@ -38,5 +38,7 @@
         <file>shaders/trace.vert</file>
         <file>shaders/texture.frag</file>
         <file>shaders/texture.vert</file>
+        <file>shaders/tracker.vert</file>
+        <file>shaders/tracker.frag</file>
     </qresource>
 </RCC>
