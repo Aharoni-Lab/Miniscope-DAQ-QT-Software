@@ -17,6 +17,7 @@ void main() {
         float val = gl_FragColor.r * 255.0 + gl_FragColor.g * 65536.0;
         val = log(val) / log(u_occMax);
         gl_FragColor = colormap_parula(val);
+        gl_FragColor.a = 0.7;
     }
 }
 

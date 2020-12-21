@@ -76,6 +76,7 @@ void BehaviorTracker::parseUserConfigTracker()
 
         // Create 2D his matrix
         m_occupancy = new cv::Mat(m_occNumBinsX, m_occNumBinsY, CV_8UC3, cv::Scalar(0,0,0));
+
     }
 
 }
@@ -131,6 +132,8 @@ void BehaviorTracker::createView()
     trackerDisplay = rootObject->findChild<TrackerDisplay*>("trackerDisplay");
     QObject::connect(trackerDisplay->window(), &QQuickWindow::beforeRendering, this, &BehaviorTracker::sendNewFrame);
 
+    if (m_plotOcc)
+        trackerDisplay->setShowOccState(true);
 
 }
 
@@ -176,6 +179,11 @@ void BehaviorTracker::sendNewFrame()
         handleAddNewTracePose(2);
         handleAddNewTracePose(3);
         handleAddNewTracePose(4);
+        handleAddNewTracePose(5);
+        handleAddNewTracePose(6);
+        handleAddNewTracePose(7);
+        handleAddNewTracePose(8);
+        handleAddNewTracePose(9);
         tracesSetup = true;
     }
 
@@ -369,6 +377,7 @@ TrackerDisplayRenderer::TrackerDisplayRenderer(QObject *parent, QSize displayWin
     m_programImage(nullptr),
     m_programOccupancy(nullptr)
 {
+    m_showOcc = false;
     m_viewportSize = displayWindowSize;
     initPrograms();
 }
@@ -455,6 +464,7 @@ void TrackerDisplayRenderer::drawImage()
 
 void TrackerDisplayRenderer::draw2DHist()
 {
+    // TODO: store occupancy in frame buffer and just update a sinlge pixel on draw?
     m_texture2DHist->bind(0);
     m_programOccupancy->bind();
 
@@ -468,9 +478,9 @@ void TrackerDisplayRenderer::draw2DHist()
     m_programOccupancy->enableAttributeArray("texcoord");
 
     float position[] = {
-        -1, -1,
-        1, -1,
-        -1, 1,
+        0.5, 0.5,
+        1, 0.5,
+        0.5, 1,
         1, 1
 
     };
@@ -515,11 +525,13 @@ void TrackerDisplayRenderer::paint()
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+//    glEnable(GL_BLEND);
+//    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
-//    drawImage();
-    draw2DHist();
+    drawImage();
+
+    if( m_showOcc)
+        draw2DHist();
 
     //    // Not strictly needed for this example, but generally useful for when
     //    // mixing with raw OpenGL.
@@ -530,6 +542,7 @@ TrackerDisplay::TrackerDisplay():
     m_t(0),
     m_renderer(nullptr)
 {
+    m_showOcc = false;
     connect(this, &QQuickItem::windowChanged, this, &TrackerDisplay::handleWindowChanged);
 
 }
@@ -575,7 +588,7 @@ void TrackerDisplay::sync()
 //        m_renderer->setShowSaturation(m_showSaturation);
 //        m_renderer->setDisplayFrame(QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
         connect(window(), &QQuickWindow::beforeRendering, m_renderer, &TrackerDisplayRenderer::paint, Qt::DirectConnection);
-
+        m_renderer->m_showOcc = m_showOcc;
     }
     m_renderer->setViewportSize(window()->size() * window()->devicePixelRatio());
 //    m_renderer->setT(m_t);

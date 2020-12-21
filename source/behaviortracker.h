@@ -48,6 +48,7 @@ public:
 
     bool m_newImage;
     bool m_newOccupancy;
+    bool m_showOcc;
     int occMax;
 
 public slots:
@@ -79,6 +80,7 @@ public:
     void setDisplayImage(QImage image);
     void setDisplayOcc(QImage image);
     void setOccMax(int value) { m_renderer->occMax = value;}
+    void setShowOccState(bool state) {m_showOcc = state; }
 
 signals:
     void tChanged();
@@ -92,6 +94,7 @@ private slots:
 
 private:
     qreal m_t;
+    bool m_showOcc;
     TrackerDisplayRenderer* m_renderer;
 
 };

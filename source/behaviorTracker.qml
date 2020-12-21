@@ -38,5 +38,17 @@ Item {
             running: true
                 }
     }
+//    Rectangle {
+////        visible: trackerDisplay.
+//        width: root.width * .5/2
+//        height: root.height * .5/2
+//        anchors.top: parent.top
+//        anchors.topMargin: 0
+//        anchors.right: parent.right
+//        anchors.rightMargin: 0
+//        color: "transparent"
+//        border.color: "#000000"
+
+//    }
 
 }
