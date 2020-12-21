@@ -488,6 +488,7 @@ void TrackerDisplayRenderer::draw2DHist()
     m_programOccupancy->setAttributeArray("position", GL_FLOAT, position, 2);
     m_programOccupancy->setAttributeArray("texcoord", GL_FLOAT, texcoord, 2);
 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
     m_programOccupancy->disableAttributeArray(0);
