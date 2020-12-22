@@ -25,29 +25,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucDevice, qint64 softwareStart
     m_displatState("Raw"),
     m_softwareStartTime(softwareStartTime)
 {
-    // TODO: Maybe move to own function
-    // For BNO display ----
 
-    // Sets color of traces
-    float c0[] = {1,0,0};
-    float c1[] = {0,1,0};
-    float c2[] = {0,0,1};
-    for (int i=0; i < 3; i++) {
-        bnoTraceColor[0][i] = c0[i];
-        bnoTraceColor[1][i] = c1[i];
-        bnoTraceColor[2][i] = c2[i];
-    }
-
-    for (int i=0; i < 3; i++) {
-
-        bnoDisplayBufNum[i] = 1;
-        bnoNumDataInBuf[i][0] = 0;
-        bnoNumDataInBuf[i][1] = 0;
-
-    }
-    bnoScale[0] = 1.0f/3.141592f;
-    bnoScale[1] = 1.0f/3.141592f;
-    bnoScale[2] = 1.0f/3.141592f;
     // --------------------
 
     // For Neuron Trace Display
@@ -257,6 +235,30 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
 void Miniscope::setupBNOTraceDisplay()
 {
     // Setup 3 traces for BNO data
+
+    // For BNO display ----
+
+    // Sets color of traces
+    float c0[] = {0.3,-1,-1};
+    float c1[] = {0.6,-1,-1};
+    float c2[] = {0.9,-1,-1};
+    for (int i=0; i < 3; i++) {
+        bnoTraceColor[0][i] = c0[i];
+        bnoTraceColor[1][i] = c1[i];
+        bnoTraceColor[2][i] = c2[i];
+    }
+
+    for (int i=0; i < 3; i++) {
+
+        bnoDisplayBufNum[i] = 1;
+        bnoNumDataInBuf[i][0] = 0;
+        bnoNumDataInBuf[i][1] = 0;
+
+    }
+    bnoScale[0] = 1.0f/3.141592f;
+    bnoScale[1] = 1.0f/3.141592f;
+    bnoScale[2] = 1.0f/3.141592f;
+
     if (getHeadOrienataionStreamState()) {
         QJsonArray tempArray = m_ucDevice["headOrientation"].toObject()["plotTrace"].toArray();
         QString name;

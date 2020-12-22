@@ -42,7 +42,7 @@
 				"headOrientation": {
 					"enabled": true,
 					"filterBadData": true,
-                    "plotTrace": ["roll", "yaw"]
+                    "plotTrace": ["roll", "pitch", "yaw"]
 				},
                 "streamHeadOrientation_OLD": true,
                 "deviceID": 1,
