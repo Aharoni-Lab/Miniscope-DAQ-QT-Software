@@ -172,7 +172,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         tempMat2.convertTo(tempMat2, CV_8U);
         cv::cvtColor(tempMat2, tempFrame, cv::COLOR_GRAY2BGR);
         tempFrame2 = QImage(tempFrame.data, tempFrame.cols, tempFrame.rows, tempFrame.step, QImage::Format_RGB888);
-        vidDisp->setDisplayFrame(tempFrame2.copy()); //TODO: Probably doesn't need "copy"
+        vidDisp->setDisplayFrame(tempFrame2); //TODO: Probably doesn't need "copy"
     }
     if (getHeadOrienataionStreamState()) {
         // TODO: Clean up this section. Consolidate
@@ -255,7 +255,12 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
             dataCount  = m_traceNumDataInBuf[i][bufNum];
             if (dataCount < TRACE_DISPLAY_BUFFER_SIZE) {
                 // There is space for more data
-                meanIntensity = cv::mean(frame(roiRect))[0];
+                if (m_displatState == "Raw") {
+                    meanIntensity = cv::mean(frame(roiRect))[0];
+                }
+                else if (m_displatState == "dFF") {
+                    meanIntensity = cv::mean(tempMat2(roiRect))[0];
+                }
 
                 m_traceDisplayY[i][bufNum][dataCount] = meanIntensity - 127.0f;
                 m_traceDisplayT[i][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;

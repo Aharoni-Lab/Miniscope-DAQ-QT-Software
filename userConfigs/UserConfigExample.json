@@ -134,7 +134,7 @@
 					"height": 480
 				},
                 "cameraCalibrationFileLocation": "",
-                "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
+                "COMMENT_compression": "A Lossly compression CODEC is generally fine for behavior video data. We like to use MJPG or XVID. When you start the software it will tell you all supported CODECs on your computer.",
                 "compression": "MJPG",
                 "framesPerFile": 1000,
                 "windowScale": 0.5,
