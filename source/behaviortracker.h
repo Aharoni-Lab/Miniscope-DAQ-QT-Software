@@ -89,7 +89,7 @@ public:
     void setOccMax(int value) { m_renderer->occMax = value;}
     void setShowOccState(bool state) {m_showOcc = state; }
 
-    Q_INVOKABLE void occRectMoved(float x, float y);
+    Q_INVOKABLE void occRectChanged(float x, float y, float w, float h);
 
 signals:
     void tChanged();

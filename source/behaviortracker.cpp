@@ -574,14 +574,16 @@ void TrackerDisplay::mouseReleaseEvent(QMouseEvent *event)
 
 }
 
-void TrackerDisplay::occRectMoved(float x, float y)
+void TrackerDisplay::occRectChanged(float x, float y, float w, float h)
 {
 //    qDebug() << "HEHRE!!" << s;
     if (m_renderer) {
         m_renderer->occPlotBox[0] = x;
         m_renderer->occPlotBox[1] = y;
+        m_renderer->occPlotBox[2] = w;
+        m_renderer->occPlotBox[3] = h;
     }
-    qDebug() << x << y;
+    qDebug() << x << y << w << h;
 }
 
 void TrackerDisplay::setT(qreal t)

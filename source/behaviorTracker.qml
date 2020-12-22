@@ -37,18 +37,17 @@ Item {
             width: root.width * 0.4/2
             height: root.height * 0.4/2
             color: "transparent"
-            border.color: "red"
+            border.color: "steelblue"
             onXChanged: {
-                    if (occMA.drag.active) {
-                        trackerDisplay.occRectMoved(2 * (occRect.x )/root.width - 1, 1 - 2 * (occRect.y + occRect.height)/root.height);
-                }
+//                    if (occMA.drag.active) {
+                        trackerDisplay.occRectChanged(2 * (occRect.x )/root.width - 1, 1 - 2 * (occRect.y + occRect.height)/root.height, occRect.width/root.width * 2, occRect.height/root.height * 2);
+//                }
             }
             onYChanged: {
-                    if (occMA.drag.active) {
-                        trackerDisplay.occRectMoved(2 * (occRect.x)/root.width - 1, 1 - 2 * (occRect.y + occRect.height)/root.height);
-                    }
-                }
-
+//                if (occMA.drag.active) {
+                    trackerDisplay.occRectChanged(2 * (occRect.x)/root.width - 1, 1 - 2 * (occRect.y + occRect.height)/root.height, occRect.width/root.width * 2, occRect.height/root.height * 2);
+//                }
+            }
             MouseArea {
                 id: occMA
                 anchors.fill: parent
@@ -65,20 +64,60 @@ Item {
                     else
                         cursorShape = Qt.OpenHandCursor;
                 }
+            }
+            Rectangle {
+                id: resizeCorner
+                width: 10
+                height: 10
+                color: "steelblue"
+                anchors.verticalCenter:parent.bottom
+                anchors.horizontalCenter: parent.right
+
+
+
+                MouseArea {
+                    id: resizeMA
+                    anchors.fill: parent
+                    drag{ target: parent; axis: Drag.XAndYAxis }
+                    cursorShape: Qt.SizeFDiagCursor
+
+                    property var initX: 0
+                    property var initY: 0
+
+                    onPressed: {
+                        initX = mouseX;
+                        initY = mouseY;
+                    }
+
+                    onPositionChanged: {
+                       if(drag.active){
+                           var newWidth;
+                           var newHeight;
+                           var dx = (mouseX - initX)
+                           var dy = (mouseY - initY)
+                           var delta = Math.min(Math.abs(), Math.abs(dy))
+                           if (dx * occRect.height/occRect.width >= dy) {
+                               newWidth = occRect.width + dy * occRect.width/occRect.height
+                               newHeight = occRect.height + dy;
+                           }
+                           else {
+                               newWidth = occRect.width + dx
+                               newHeight = occRect.height + dx * occRect.height/occRect.width;
+                           }
+
+//                           if (newWidth < width || newHeight < height)
+//                               return
+
+                           occRect.width = newWidth
+//                           occRect.x = selComp.x + delta
+
+                           occRect.height = newHeight
+//                           occRect.y = selComp.y + delta
+                           occRect.onXChanged();
+                       }
+                    }
+                }
 
             }
         }
-//    Rectangle {
-////        visible: trackerDisplay.
-//        width: root.width * .5/2
-//        height: root.height * .5/2
-//        anchors.top: parent.top
-//        anchors.topMargin: 0
-//        anchors.right: parent.right
-//        anchors.rightMargin: 0
-//        color: "transparent"
-//        border.color: "#000000"
-
-//    }
-
 }
