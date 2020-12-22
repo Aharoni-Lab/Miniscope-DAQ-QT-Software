@@ -52,6 +52,7 @@ public:
     QJsonObject getDeviceConfig(QString deviceType);
     QObject* getRootDisplayObject() { return rootObject; }
     QQuickItem* getRootDisplayChild(QString childName) { return rootObject->findChild<QQuickItem*>(childName); }
+    VideoDisplay* getVideoDisplay() { return vidDisplay; }
     VideoStreamOCV* getDeviceStream() { return deviceStream; }
     virtual void setupDisplayObjectPointers() { }; // Child class should override this!
     bool getHeadOrienataionStreamState() { return m_headOrientationStreamState;}

@@ -47,6 +47,7 @@ void Miniscope::setupDisplayObjectPointers()
         bnoDisplay = getRootDisplayChild("bno");
     QObject* temp = getRootDisplayChild("addTraceRoi");
     temp->setProperty("enabled", getTraceDisplayStatus());
+    vidDisplay = getVideoDisplay();
 }
 void Miniscope::handleDFFSwitchChange(bool checked)
 {
@@ -67,9 +68,10 @@ void Miniscope::handleAddNewTraceROI(int leftEdge, int topEdge, int width, int h
         m_traceROIs[m_numTraces][3] = height;
 
 
-        m_traceColors[m_numTraces][0] = 1.0f;
-        m_traceColors[m_numTraces][1] = 1.0f;
-        m_traceColors[m_numTraces][2] = 0.3f;
+        m_traceColors[m_numTraces][0] = ((float)m_numTraces * 1.2 + 1)/4.0f;
+        m_traceColors[m_numTraces][0] -= floor(m_traceColors[m_numTraces][0]);
+        m_traceColors[m_numTraces][1] = -2.0f;
+        m_traceColors[m_numTraces][2] = -2.0f;
 
         m_traceDisplayBufNum[m_numTraces] = 1;
         m_traceNumDataInBuf[m_numTraces][0] = 0;
@@ -86,7 +88,38 @@ void Miniscope::handleAddNewTraceROI(int leftEdge, int topEdge, int width, int h
                              m_traceDisplayT[m_numTraces][0],
                              m_traceDisplayY[m_numTraces][0]);
 
+        // TODO: Must be a better way to append QVariant in qml
+        QList<double> tempProp;
+        QVariant varParams;
+
+        tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceROIx"));
+        tempProp.append(leftEdge);
+        varParams.setValue<QList<double>>( tempProp );
+        vidDisplay->setProperty("traceROIx", varParams);
+
+        tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceROIy"));
+        tempProp.append(topEdge);
+        varParams.setValue<QList<double>>( tempProp );
+        vidDisplay->setProperty("traceROIy", varParams);
+
+        tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceROIw"));
+        tempProp.append(width);
+        varParams.setValue<QList<double>>( tempProp );
+        vidDisplay->setProperty("traceROIw", varParams);
+
+        tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceROIh"));
+        tempProp.append(height);
+        varParams.setValue<QList<double>>( tempProp );
+        vidDisplay->setProperty("traceROIh", varParams);
+
+        tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceColor"));
+        tempProp.append(m_traceColors[m_numTraces][0]);
+        varParams.setValue<QList<double>>( tempProp );
+        vidDisplay->setProperty("traceColor", varParams);
+
+
         m_numTraces++;
+
     }
 }
 
@@ -239,9 +272,9 @@ void Miniscope::setupBNOTraceDisplay()
     // For BNO display ----
 
     // Sets color of traces
-    float c0[] = {0.3,-2,-2};
-    float c1[] = {0.6,-2,-2};
-    float c2[] = {0.9,-2,-2};
+    float c0[] = {0.1,-3.0f,-3.0f};
+    float c1[] = {0.5,-3.0f,-3.0f};
+    float c2[] = {0.9,-3.0f,-3.0f};
     for (int i=0; i < 3; i++) {
         bnoTraceColor[0][i] = c0[i];
         bnoTraceColor[1][i] = c1[i];

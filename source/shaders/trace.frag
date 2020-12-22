@@ -2,8 +2,14 @@ varying vec4 v_color;
 varying float v_index;
 
 vec4 colormap_parula(float x);
+
 float colormap_f1(int formula, float x);
 vec4 colormap_gnu_plot(float x, int red_type, int green_type, int blue_type);
+
+float colormap_red(float x);
+float colormap_green(float x);
+float colormap_blue(float x);
+vec4 colormap_jet(float x);
 
 void main() {
     gl_FragColor = v_color;
@@ -14,6 +20,10 @@ void main() {
     else if (gl_FragColor.g == -2.0 && gl_FragColor.b == -2.0) {
         // Use parula colormap_parula
         gl_FragColor = colormap_gnu_plot(gl_FragColor.r, 33.0, 13.0, 10.0);
+    }
+    else if (gl_FragColor.g == -3.0 && gl_FragColor.b == -3.0) {
+        // Use parula colormap_parula
+        gl_FragColor = colormap_jet(gl_FragColor.r);
     }
     if (((fract(v_index) > .00001) && (fract(v_index) < .99999)) || v_index > 2.0)
         gl_FragColor.a = 0.0;
@@ -527,4 +537,35 @@ float colormap_f1(int formula, float x) {
 
 vec4 colormap_gnu_plot(float x, int red_type, int green_type, int blue_type) {
     return vec4(colormap_f1(red_type, x), colormap_f1(green_type, x), colormap_f1(blue_type, x), 1.0);
+}
+
+float colormap_red(float x) {
+    if (x < 0.7) {
+        return 4.0 * x - 1.5;
+    } else {
+        return -4.0 * x + 4.5;
+    }
+}
+
+float colormap_green(float x) {
+    if (x < 0.5) {
+        return 4.0 * x - 0.5;
+    } else {
+        return -4.0 * x + 3.5;
+    }
+}
+
+float colormap_blue(float x) {
+    if (x < 0.3) {
+       return 4.0 * x + 0.5;
+    } else {
+       return -4.0 * x + 2.5;
+    }
+}
+
+vec4 colormap_jet(float x) {
+    float r = clamp(colormap_red(x), 0.0, 1.0);
+    float g = clamp(colormap_green(x), 0.0, 1.0);
+    float b = clamp(colormap_blue(x), 0.0, 1.0);
+    return vec4(r, g, b, 1.0);
 }

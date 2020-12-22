@@ -48,6 +48,7 @@ private:
     QJsonObject m_cDevice;
 
     QObject* rootDisplayObject;
+    VideoDisplay* vidDisplay;
 
 //    float bnoBuffer[FRAME_BUFFER_SIZE*5]; //w,x,y,z,norm
     QQuickItem *bnoDisplay;

@@ -19,7 +19,19 @@ Item {
     signal setRoiClicked()
     signal addTraceRoiClicked()
 
-
+    // colormap functions
+    function f1(type, x){
+        if (type === 33)
+            return Math.abs(2.0 * x - 0.5);
+        if (type === 13)
+            return Math.sin(3.141592 * x);
+        if (type === 10)
+            return Math.cos(3.141592/2.0 * x);
+    }
+    function colormap_gnu_plot (x) {
+        console.debug(Qt.rgba(f1(33,x),f1(13,x),f1(10,x),1.0));
+        return Qt.rgba(f1(33,x),f1(13,x),f1(10,x),1.0);
+    }
 
     Keys.onPressed: {
         if (event.key === Qt.Key_H) {
@@ -46,6 +58,7 @@ Item {
         property var traceROIy: []
         property var traceROIw: []
         property var traceROIh: []
+        property var traceColor: []
         property int numTraceROIs: 0
 
 
@@ -89,7 +102,7 @@ Item {
                 height: videoDisplay.traceROIh[index]
                 visible: true
 
-                border.color: "yellow"
+                border.color: root.colormap_gnu_plot(videoDisplay.traceColor[index])
                 color: "transparent"
                 border.width: 1
                 Text {
@@ -113,10 +126,10 @@ Item {
             else {
                 // New trace ROI has been selected
                 rectAddTraceROI.visible = false;
-                videoDisplay.traceROIx.push(videoDisplay.addTraceROI[0]);
-                videoDisplay.traceROIy.push(videoDisplay.addTraceROI[1]);
-                videoDisplay.traceROIw.push(videoDisplay.addTraceROI[2]);
-                videoDisplay.traceROIh.push(videoDisplay.addTraceROI[3]);
+//                videoDisplay.traceROIx.push(videoDisplay.addTraceROI[0]);
+//                videoDisplay.traceROIy.push(videoDisplay.addTraceROI[1]);
+//                videoDisplay.traceROIw.push(videoDisplay.addTraceROI[2]);
+//                videoDisplay.traceROIh.push(videoDisplay.addTraceROI[3]);
                 videoDisplay.numTraceROIs++;
             }
         }
