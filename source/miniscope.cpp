@@ -67,6 +67,8 @@ void Miniscope::setupDisplayObjectPointers()
     rootDisplayObject = getRootDisplayObject();
     if (getHeadOrienataionStreamState())
         bnoDisplay = getRootDisplayChild("bno");
+    QObject* temp = getRootDisplayChild("addTraceRoi");
+    temp->setProperty("enabled", getTraceDisplayStatus());
 }
 void Miniscope::handleDFFSwitchChange(bool checked)
 {
@@ -255,31 +257,41 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
 void Miniscope::setupBNOTraceDisplay()
 {
     // Setup 3 traces for BNO data
-    QString name;
-    bool sameOffset;
-    for (int i=0; i < 3; i++) {
-        if (i ==0) {
-            name = "Roll";
-            sameOffset = false;
+    if (getHeadOrienataionStreamState()) {
+        QJsonArray tempArray = m_ucDevice["headOrientation"].toObject()["plotTrace"].toArray();
+        QString name;
+        bool sameOffset;
+        int count = 0;
+        int idx;
+        for (int i=0; i < tempArray.size(); i++) {
+            name = tempArray[i].toString();
+            if (name == "roll" || name == "Roll") {
+                idx = 0;
+            }
+            else if (name == "pitch" || name == "Pitch") {
+                idx = 1;
+            }
+            else if (name == "yaw" || name == "Yaw") {
+                idx = 2;
+            }
+            if (count == 0)
+                sameOffset = false;
+            else
+                sameOffset = true;
+
+            emit addTraceDisplay(name,
+                                 bnoTraceColor[idx],
+                                 bnoScale[idx],
+                                 "rad",
+                                 sameOffset,
+                                 &bnoDisplayBufNum[idx],
+                                 bnoNumDataInBuf[idx],
+                                 TRACE_DISPLAY_BUFFER_SIZE,
+                                 bnoTraceDisplayT[idx][0],
+                                 bnoTraceDisplayY[idx][0]);
+
+            count++;
         }
-        else if (i == 1) {
-            name = "Pitch";
-            sameOffset = true;
-        }
-        else if (i == 2) {
-            name = "Yaw";
-            sameOffset = true;
-        }
-        emit addTraceDisplay(name,
-                             bnoTraceColor[i],
-                             bnoScale[i],
-                             "rad",
-                             sameOffset,
-                             &bnoDisplayBufNum[i],
-                             bnoNumDataInBuf[i],
-                             TRACE_DISPLAY_BUFFER_SIZE,
-                             bnoTraceDisplayT[i][0],
-                             bnoTraceDisplayY[i][0]);
     }
 }
 

@@ -26,6 +26,7 @@
         "value": [0, 1]
     },    
     "traceDisplay": {
+        "enabled": true,
         "type": "scrolling",
         "windowX": 100,
         "windowY": 100,
@@ -39,8 +40,9 @@
                 "deviceType": "Miniscope_V4_BNO",
                 "imageRegistration": "Off",
 				"headOrientation": {
-					"enable": true,
-					"filterBadData": true
+					"enabled": true,
+					"filterBadData": true,
+                    "plotTrace": ["roll", "yaw"]
 				},
                 "streamHeadOrientation_OLD": true,
                 "deviceID": 1,

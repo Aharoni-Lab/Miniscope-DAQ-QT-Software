@@ -80,6 +80,8 @@ public:
     virtual void setupBNOTraceDisplay() {} // Override
 
     float bnoBuffer[FRAME_BUFFER_SIZE*5]; //w,x,y,z,norm
+    void setTraceDisplayStatus(bool status) {m_traceDisplayStatus = status; }
+    bool getTraceDisplayStatus() { return m_traceDisplayStatus; }
 
 signals:
     // TODO: setup signals to configure camera in thread
@@ -167,6 +169,7 @@ private:
     int m_errors;
 
     qint64 m_softwareStartTime;
+    bool m_traceDisplayStatus;
 };
 
 #endif // VIDEODEVICE_H

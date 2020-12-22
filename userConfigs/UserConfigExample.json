@@ -19,7 +19,7 @@
     "researcherName": "Dr_Miniscope",
     "experimentName": "Experiment0",
     "animalName": "Fully Ball",
-    "customEntry0": "custom0",
+    "customEntry0": "customEntValHere",
 
     "COMMENT_recordLengthinSeconds": "Set this to 0 if you want to manually stop recordings. Any positive number will automatically stop recording at that number of seconds.",
     "recordLengthinSeconds": 600,
@@ -80,10 +80,12 @@
                 "COMMENT_deviceType": "This should be a supported deviceType listed in the videoDevice.json file.",
                 "COMMENT_deviceType2": "Supported types include 'Miniscope_V4_BNO' and 'Miniscope_V3'",
                 "deviceType": "Miniscope_V4_BNO",
-                "COMMENT_headOrientation": "If using a V4 Miniscope you should set enable to true so stream and record head orientation data from the onboard IMU.",
+                "COMMENT_headOrientation": "If using a V4 Miniscope you should set enabled to true so stream and record head orientation data from the onboard IMU.",
 				"headOrientation": {
-					"enable": true,
-					"filterBadData": true
+					"enabled": true,
+                    "filterBadData": true,
+                    "COMMENT_plotTrace": "Add or remove 'roll' 'pitch' and/or 'yaw' to define which get plotted in the time trace display.",
+                    "plotTrace": ["roll", "pitch", "yaw"]
                 },
                 "COMMENT_deviceID": "All UVC camera devices on your computer have a unique deviceID starting with '0'. Try numbers until you find the one that connects to the correct Miniscope.",
                 "COMMENT_deviceID2": "This number will never be more than one minus the number of cameras devices (including Miniscopes) connected to your computer.",

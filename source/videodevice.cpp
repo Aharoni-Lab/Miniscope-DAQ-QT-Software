@@ -31,6 +31,7 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     m_softwareStartTime(softwareStartTime)
 
 {
+    m_traceDisplayStatus = false;
     m_ucDevice = ucDevice; // hold user config for this device
     parseUserConfigDevice();
     m_cDevice = getDeviceConfig(m_ucDevice["deviceType"].toString()); // holds specific Miniscope configuration
@@ -47,7 +48,7 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
 
     // Checks to make sure user config and miniscope device type are supporting BNO streaming
     if (m_ucDevice.contains("headOrientation")) {
-        m_headOrientationStreamState = m_ucDevice["headOrientation"].toObject()["enable"].toBool(false);
+        m_headOrientationStreamState = m_ucDevice["headOrientation"].toObject()["enabled"].toBool(false);
         m_headOrientationFilterState = m_ucDevice["headOrientation"].toObject()["filterBadData"].toBool(false);
     }
     // DEPRICATED

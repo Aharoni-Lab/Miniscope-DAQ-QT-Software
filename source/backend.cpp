@@ -505,6 +505,7 @@ void backEnd::constructUserConfigGUI()
             sendMessage("ERROR: " + miniscope.last()->getDeviceName() + " has error: " + QString::number(miniscope.last()->getErrors()));
         }
         else {
+            miniscope.last()->setTraceDisplayStatus(traceDisplay != nullptr);
             miniscope.last()->createView();
             miniscope.last()->setupBNOTraceDisplay();
         }

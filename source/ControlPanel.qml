@@ -125,7 +125,7 @@ Item {
                      id: messageTextArea
                      objectName: "messageTextArea"
                      textFormat: TextEdit.RichText
-                     text: "'Space Bar': screenshot of video stream.<br/>'h': hides/shows video stream controls.<br/>Messages:"
+                     text: "'Space Bar': screenshot of video stream.<br/>'h': hides/shows video stream controls.<br/> Double click track to select it.<br/> Scroll wheel adjust width of trace display.<br/> CTRL + scroll wheel adjusts trace scale.<br/>Messages:"
                      wrapMode: Text.WrapAnywhere
     //                 anchors.fill: flick1
                      font.pointSize: 10
