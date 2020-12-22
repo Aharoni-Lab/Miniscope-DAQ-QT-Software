@@ -239,9 +239,9 @@ void Miniscope::setupBNOTraceDisplay()
     // For BNO display ----
 
     // Sets color of traces
-    float c0[] = {0.3,-1,-1};
-    float c1[] = {0.6,-1,-1};
-    float c2[] = {0.9,-1,-1};
+    float c0[] = {0.3,-2,-2};
+    float c1[] = {0.6,-2,-2};
+    float c2[] = {0.9,-2,-2};
     for (int i=0; i < 3; i++) {
         bnoTraceColor[0][i] = c0[i];
         bnoTraceColor[1][i] = c1[i];
