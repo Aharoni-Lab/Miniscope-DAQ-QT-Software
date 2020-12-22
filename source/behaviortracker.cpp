@@ -273,7 +273,7 @@ void BehaviorTracker::sendNewFrame()
 //                qDebug() << tempX << tempY;
                 tempValues = m_occupancy->at<cv::Vec3b>(tempY, tempX);
                 tempVal = tempValues[0] + tempValues[1] * 256; // TODO: add last index with 2^16
-                qDebug() << tempVal;
+//                qDebug() << tempVal;
                 if (tempVal > m_occMax) {
                     m_occMax = tempVal;
                     trackerDisplay->setOccMax(m_occMax);
@@ -383,6 +383,10 @@ TrackerDisplayRenderer::TrackerDisplayRenderer(QObject *parent, QSize displayWin
     m_programImage(nullptr),
     m_programOccupancy(nullptr)
 {
+    occPlotBox[0] = 0.5;
+    occPlotBox[1] = 0.5;
+    occPlotBox[2] = 0.4;
+    occPlotBox[3] = 0.4;
     m_showOcc = false;
     m_viewportSize = displayWindowSize;
     initPrograms();
@@ -484,10 +488,10 @@ void TrackerDisplayRenderer::draw2DHist()
     m_programOccupancy->enableAttributeArray("texcoord");
 
     float position[] = {
-        0.5, 0.5,
-        1, 0.5,
-        0.5, 1,
-        1, 1
+        occPlotBox[0], occPlotBox[1],
+        occPlotBox[0] + occPlotBox[2], occPlotBox[1],
+        occPlotBox[0],  occPlotBox[1] + occPlotBox[3],
+        occPlotBox[0] + occPlotBox[2], occPlotBox[1] + occPlotBox[3]
 
     };
     float texcoord[] = {
@@ -523,6 +527,8 @@ void TrackerDisplayRenderer::draw2DHist()
 
 }
 
+
+
 void TrackerDisplayRenderer::paint()
 {
     glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
@@ -552,6 +558,32 @@ TrackerDisplay::TrackerDisplay():
     connect(this, &QQuickItem::windowChanged, this, &TrackerDisplay::handleWindowChanged);
 
 }
+
+void TrackerDisplay::mousePressEvent(QMouseEvent *event)
+{
+
+}
+
+void TrackerDisplay::mouseMoveEvent(QMouseEvent *event)
+{
+
+}
+
+void TrackerDisplay::mouseReleaseEvent(QMouseEvent *event)
+{
+
+}
+
+void TrackerDisplay::occRectMoved(float x, float y)
+{
+//    qDebug() << "HEHRE!!" << s;
+    if (m_renderer) {
+        m_renderer->occPlotBox[0] = x;
+        m_renderer->occPlotBox[1] = y;
+    }
+    qDebug() << x << y;
+}
+
 void TrackerDisplay::setT(qreal t)
 {
     if (t == m_t)

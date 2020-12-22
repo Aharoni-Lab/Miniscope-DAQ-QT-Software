@@ -46,10 +46,13 @@ public:
     void drawImage();
     void draw2DHist();
 
+
+
     bool m_newImage;
     bool m_newOccupancy;
     bool m_showOcc;
     int occMax;
+    float occPlotBox[4];
 
 public slots:
     void paint();
@@ -75,12 +78,18 @@ class TrackerDisplay : public QQuickItem
 public:
     TrackerDisplay();
 
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+
     qreal t() const { return m_t; }
     void setT(qreal t);
     void setDisplayImage(QImage image);
     void setDisplayOcc(QImage image);
     void setOccMax(int value) { m_renderer->occMax = value;}
     void setShowOccState(bool state) {m_showOcc = state; }
+
+    Q_INVOKABLE void occRectMoved(float x, float y);
 
 signals:
     void tChanged();
@@ -96,6 +105,7 @@ private:
     qreal m_t;
     bool m_showOcc;
     TrackerDisplayRenderer* m_renderer;
+//    float m_occPlotBox[4];
 
 };
 class BehaviorTracker : public QObject
