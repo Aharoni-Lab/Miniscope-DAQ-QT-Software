@@ -331,12 +331,13 @@ void backEnd::setupDataSaver()
     }
 
     if (!ucBehaviorTracker.isEmpty()) {
-        dataSaver->setPoseBufferParameters(behavTracker->getPoseBufferPointer(),
-                                           behavTracker->getPoseFrameNumBufferPointer(),
-                                           behavTracker->getPoseBufferSize(),
-                                           behavTracker->getFreePosePointer(),
-                                           behavTracker->getUsedPosePointer());
-
+        if (ucBehaviorTracker["enabled"].toBool(true)) {
+            dataSaver->setPoseBufferParameters(behavTracker->getPoseBufferPointer(),
+                                               behavTracker->getPoseFrameNumBufferPointer(),
+                                               behavTracker->getPoseBufferSize(),
+                                               behavTracker->getFreePosePointer(),
+                                               behavTracker->getUsedPosePointer());
+        }
     }
 
     dataSaverThread = new QThread;
@@ -484,7 +485,8 @@ void backEnd::constructUserConfigGUI()
 
     // Make trace display
     if (!ucTraceDisplay.isEmpty()) {
-        traceDisplay = new TraceDisplayBackend(NULL, ucTraceDisplay, m_softwareStartTime);
+        if (ucTraceDisplay["enabled"].toBool(true))
+            traceDisplay = new TraceDisplayBackend(NULL, ucTraceDisplay, m_softwareStartTime);
     }
 
     // Make Minsicope displays
@@ -534,11 +536,13 @@ void backEnd::constructUserConfigGUI()
 
     // Make behavior tracker interface
     if (!ucBehaviorTracker.isEmpty()) {
-        behavTracker = new BehaviorTracker(NULL, m_userConfig, m_softwareStartTime);
-        QObject::connect(behavTracker, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
-        QObject::connect(behavTracker, &BehaviorTracker::addTraceDisplay, traceDisplay, &TraceDisplayBackend::addNewTrace);
-        behavTracker->createView();
-        setupBehaviorTracker();
+        if (ucBehaviorTracker["enabled"].toBool(true)) {
+            behavTracker = new BehaviorTracker(NULL, m_userConfig, m_softwareStartTime);
+            QObject::connect(behavTracker, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+            QObject::connect(behavTracker, &BehaviorTracker::addTraceDisplay, traceDisplay, &TraceDisplayBackend::addNewTrace);
+            behavTracker->createView();
+            setupBehaviorTracker();
+        }
     }
 
     connectSnS();

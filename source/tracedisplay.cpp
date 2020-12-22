@@ -41,8 +41,8 @@ void TraceDisplayBackend::createView()
 //    view->setHeight(height*0.9);
     view->setTitle("Trace Window");
 
-    view->setWidth(m_ucTraceDisplay["width"].toInt(640));
-    view->setHeight(m_ucTraceDisplay["height"].toInt(480));
+    view->setWidth(m_ucTraceDisplay["windowWidth"].toInt(640));
+    view->setHeight(m_ucTraceDisplay["windowHeight"].toInt(480));
 
     view->setX(m_ucTraceDisplay["windowX"].toInt(1));
     view->setY(m_ucTraceDisplay["windowY"].toInt(1));

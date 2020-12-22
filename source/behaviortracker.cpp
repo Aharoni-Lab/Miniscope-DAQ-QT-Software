@@ -65,18 +65,20 @@ void BehaviorTracker::parseUserConfigTracker()
     m_pCutoffDisplay = m_btConfig["pCutoffDisplay"].toDouble(0);
 
     if (m_btConfig.contains("occupancyPlot")) {
-        m_plotOcc = true;
-        m_occNumBinsX = m_btConfig["occupancyPlot"].toObject()["numBinX"].toInt(20);
-        m_occNumBinsY = m_btConfig["occupancyPlot"].toObject()["numBinY"].toInt(20);
-        QJsonArray tempArray = m_btConfig["occupancyPlot"].toObject()["poseIdxToUse"].toArray();
+        if (m_btConfig["occupancyPlot"].toObject()["enabled"].toBool(true)) {
+            m_plotOcc = true;
+            m_occNumBinsX = m_btConfig["occupancyPlot"].toObject()["numBinX"].toInt(20);
+            m_occNumBinsY = m_btConfig["occupancyPlot"].toObject()["numBinY"].toInt(20);
+            QJsonArray tempArray = m_btConfig["occupancyPlot"].toObject()["poseIdxToUse"].toArray();
 
-        for (int i=0; i< tempArray.size(); i++) {
-            m_poseIdxUsed.append(tempArray[i].toInt());
+            for (int i=0; i< tempArray.size(); i++) {
+                m_poseIdxUsed.append(tempArray[i].toInt());
+            }
+
+            // Create 2D his matrix
+            m_occupancy = new cv::Mat(m_occNumBinsX, m_occNumBinsY, CV_8UC3, cv::Scalar(0,0,0));
+
         }
-
-        // Create 2D his matrix
-        m_occupancy = new cv::Mat(m_occNumBinsX, m_occNumBinsY, CV_8UC3, cv::Scalar(0,0,0));
-
     }
 
 }
