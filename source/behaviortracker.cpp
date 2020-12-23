@@ -26,6 +26,7 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64
     QObject(parent),
     numberOfCameras(0),
     m_trackingRunning(false),
+    m_camResolution(640,480),
     m_btPoseCount(new QAtomicInt(0)),
     m_previousBtPoseFrameNum(0),
     usedPoses(new QSemaphore()),
@@ -150,8 +151,9 @@ void BehaviorTracker::cameraCalibration()
     // run calibration and save to file(s)
 }
 
-void BehaviorTracker::createView()
+void BehaviorTracker::createView(QSize resolution)
 {
+    m_camResolution = resolution;
     QJsonObject btConfig = m_userConfig["behaviorTracker"].toObject();
 
     qmlRegisterType<TrackerDisplay>("TrackerDisplay", 1, 0, "TrackerDisplay");
@@ -159,8 +161,9 @@ void BehaviorTracker::createView()
     view = new NewQuickView(url);
 
     // TODO: Probably should grab this from the behavior cam size...
-    view->setWidth(btConfig["windowWidth"].toInt(640) * btConfig["windowScale"].toDouble(1));
-    view->setHeight(btConfig["windowHeight"].toInt(480) * btConfig["windowScale"].toDouble(1));
+
+    view->setWidth(resolution.width() * btConfig["windowScale"].toDouble(1));
+    view->setHeight(resolution.height() * btConfig["windowScale"].toDouble(1));
 
     view->setTitle("Behavior Tracker");
     view->setX(btConfig["windowX"].toInt(1));
@@ -268,8 +271,8 @@ void BehaviorTracker::sendNewFrame()
                 }
             }
             if (count > 0) {
-                tempX = (tempX/count) * m_occNumBinsX / view->width();
-                tempY = (tempY/count) * m_occNumBinsY / view->height();
+                tempX = (tempX/count) * m_occNumBinsX / m_camResolution.width();
+                tempY = (tempY/count) * m_occNumBinsY / m_camResolution.height();
 //                qDebug() << tempX << tempY;
                 tempValues = m_occupancy->at<cv::Vec3b>(tempY, tempX);
                 tempVal = tempValues[0] + tempValues[1] * 256; // TODO: add last index with 2^16

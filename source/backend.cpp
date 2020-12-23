@@ -538,10 +538,13 @@ void backEnd::constructUserConfigGUI()
     // Make behavior tracker interface
     if (!ucBehaviorTracker.isEmpty()) {
         if (ucBehaviorTracker["enabled"].toBool(true)) {
+            // Behav tracker currently is hardcoded to use first behavior camera
+            QSize camRes = behavCam.first()->getResolution();
+
             behavTracker = new BehaviorTracker(NULL, m_userConfig, m_softwareStartTime);
             QObject::connect(behavTracker, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
             QObject::connect(behavTracker, &BehaviorTracker::addTraceDisplay, traceDisplay, &TraceDisplayBackend::addNewTrace);
-            behavTracker->createView();
+            behavTracker->createView(camRes);
             setupBehaviorTracker();
         }
     }

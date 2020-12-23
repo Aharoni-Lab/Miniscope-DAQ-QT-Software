@@ -24,6 +24,16 @@
     "COMMENT_recordLengthinSeconds": "Set this to 0 if you want to manually stop recordings. Any positive number will automatically stop recording at that number of seconds.",
     "recordLengthinSeconds": 600,
 
+    "COMMENT_executables": "The 2 sections below allow you to execute an external .exe file on recording start and stop. The 'filePath' is the absolute path to the .exe file. ",
+    "executableOnStartRecording": {
+        "filePath": "C:/Fiji.app/ImageJ-win64.exe",
+        "arguments": ["hi", "hi2"]
+    },
+    "executableOnStopRecording": {
+        "filePath": "C:/Fiji.app/ImageJ-win64.exe",
+        "arguments": ["hi", "hi2"]
+    },
+
     "COMMENT_behaviorTracker": "The behavior tracker is currently in beta testing. It requires you to have a functional Python environment with DeepLabCut-Live setup.",
     "COMMENT_behaviorTracker2": "For info on setting up DLC-Live go here, https://github.com/DeepLabCut/DeepLabCut-live",
     "COMMENT_behaviorTracker3": "Currently only the type of 'DeepLabCut-Live' is supported. You need to provide an absolute path to your Pythong environment and DLC model.",
@@ -38,11 +48,9 @@
         "COMMENT_pCutoffDisplay": "All DLC pose data will be recording but this pCufOff will set the minimum p value for data to be plotted.",
         "pCutoffDisplay": 0.3,
         "COMMENT_window": "These 'window' keys affect just the display of the behavior tracker. Set these to fit well within the rest of the GUI.",
-        "windowWidth": 640,
-        "windowHeight": 480,
-        "windowX": 100,
+        "windowX": 200,
         "windowY": 100,
-        "windowScale": 1.0,
+        "windowScale": 0.75,
         "COMMENT_occupancyPlot": "If you want an inset showing animal coverage across the environment set enabled to true.",
         "COMMENT_occupancyPlot2": "This will plot the log of a 2D occupancy histogram in the upper right corner of the behavior tracker window.",
         "occupancyPlot": {

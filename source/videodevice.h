@@ -72,6 +72,7 @@ public:
     QAtomicInt* getDAQFrameNumPointer() { return m_daqFrameNum; }
     QString getDeviceName(){return m_deviceName;}
     int getErrors() { return m_errors; }
+    QSize getResolution() {return m_resolution;}
 
     virtual void handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int f, VideoDisplay* vidDisp);
 
@@ -118,6 +119,7 @@ public slots:
 
 private:
 
+    QSize m_resolution;
     void configureDeviceControls();
     QVector<QMap<QString, int>> parseSendCommand(QJsonArray sendCommand);
     int processString2Int(QString s);

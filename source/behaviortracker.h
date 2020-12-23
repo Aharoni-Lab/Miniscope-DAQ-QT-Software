@@ -119,7 +119,7 @@ public:
     void setupDisplayTraces();
 
     void cameraCalibration();
-    void createView();
+    void createView(QSize resolution);
     void connectSnS();
     void setUpDLCLive();
     void startThread();
@@ -152,6 +152,7 @@ private:
 
     QString m_trackerType;
     int numberOfCameras;
+    QSize m_camResolution;
 
     // Info from behavior cameras
     QMap<QString, cv::Mat*> frameBuffer;

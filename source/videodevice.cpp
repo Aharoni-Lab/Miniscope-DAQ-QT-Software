@@ -43,6 +43,7 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     // -------------------------
 
     // Setup OpenCV camera stream
+    m_resolution = QSize(m_cDevice["width"].toInt(-1), m_cDevice["height"].toInt(-1));
     deviceStream = new VideoStreamOCV(nullptr, m_cDevice["width"].toInt(-1), m_cDevice["height"].toInt(-1), m_cDevice["pixelClock"].toDouble(-1));
     deviceStream->setDeviceName(m_deviceName);
 
