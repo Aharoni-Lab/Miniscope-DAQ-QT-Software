@@ -583,7 +583,7 @@ void TrackerDisplay::occRectChanged(float x, float y, float w, float h)
         m_renderer->occPlotBox[2] = w;
         m_renderer->occPlotBox[3] = h;
     }
-    qDebug() << x << y << w << h;
+//    qDebug() << x << y << w << h;
 }
 
 void TrackerDisplay::setT(qreal t)

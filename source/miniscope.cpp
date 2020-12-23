@@ -168,7 +168,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         tempMat2 = frame.clone();
         tempMat2.convertTo(tempMat2, CV_32F);
         cv::divide(tempMat2,baselineFrame,tempMat2);
-        tempMat2 = ((tempMat2 - 1.0) + 0.5) * 255;
+        tempMat2 = ((tempMat2 - 1.0) + 0.2) * 512;
         tempMat2.convertTo(tempMat2, CV_8U);
         cv::cvtColor(tempMat2, tempFrame, cv::COLOR_GRAY2BGR);
         tempFrame2 = QImage(tempFrame.data, tempFrame.cols, tempFrame.rows, tempFrame.step, QImage::Format_RGB888);

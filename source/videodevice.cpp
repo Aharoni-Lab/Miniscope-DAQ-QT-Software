@@ -61,7 +61,16 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
 
     deviceStream->setIsColor(m_cDevice["isColor"].toBool(false));
 
-    m_camConnected = deviceStream->connect2Camera(m_ucDevice["deviceID"].toInt());
+    qDebug() << m_ucDevice;
+    if (m_ucDevice.contains("deviceID") && !m_ucDevice["deviceID"].isNull()) {
+        qDebug() << "Camera" << m_ucDevice["deviceID"].toInt();
+        m_camConnected = deviceStream->connect2Camera(m_ucDevice["deviceID"].toInt());
+    }
+    else if (m_ucDevice.contains("videoPlayback")) {
+        qDebug() << "VIDEO!!!";
+        m_camConnected = deviceStream->connect2Video(m_ucDevice["videoPlayback"].toObject()["filePath"].toString(),
+                m_ucDevice["videoPlayback"].toObject()["frameRate"].toDouble());
+    }
     if (m_camConnected == 0) {
         qDebug() << "Not able to connect and open " << m_ucDevice["deviceName"].toString();
     }
@@ -133,6 +142,9 @@ void VideoDevice::createView()
              sendMessage(m_deviceName + " connected using Direct Show.");
         else if (m_camConnected == 2)
             sendMessage(m_deviceName + " couldn't connect using Direct Show. Using computer's default backend.");
+        else if (m_camConnected == 3)
+            sendMessage("Video file loaded.");
+
         qmlRegisterType<VideoDisplay>("VideoDisplay", 1, 0, "VideoDisplay");
 
         // Setup device window

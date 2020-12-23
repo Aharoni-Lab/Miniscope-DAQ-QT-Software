@@ -108,7 +108,7 @@ Item {
                 Text {
                     text: index
                     color: parent.border.color
-                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.right: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
