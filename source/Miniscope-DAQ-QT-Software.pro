@@ -1,11 +1,17 @@
 QT += qml quick widgets
 CONFIG += c++11
 
+QT += 3dcore
+
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
 # depend on your compiler). Refer to the documentation for the
 # deprecated API to know how to port your code away from it.
 DEFINES += QT_DEPRECATED_WARNINGS
+
+#DEFINES += DEBUG
+#DEFINES += USE_USB
+DEFINES += USE_PYTHON
 
 # You can also make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -16,11 +22,14 @@ SOURCES += \
         backend.cpp \
         behaviorcam.cpp \
         behaviortracker.cpp \
+        behaviortrackerworker.cpp \
         controlpanel.cpp \
         datasaver.cpp \
         main.cpp \
         miniscope.cpp \
         newquickview.cpp \
+        tracedisplay.cpp \
+        videodevice.cpp \
         videodisplay.cpp \
         videostreamocv.cpp
 
@@ -44,14 +53,22 @@ HEADERS += \
     backend.h \
     behaviorcam.h \
     behaviortracker.h \
+    behaviortrackerworker.h \
     controlpanel.h \
     datasaver.h \
     miniscope.h \
     newquickview.h \
+    tracedisplay.h \
+    videodevice.h \
     videodisplay.h \
     videostreamocv.h
 
-DISTFILES +=
+DISTFILES += \
+    ../Python/DLCwrapper.py \
+    ../Scripts/DLCwrapper.py \
+    ../deviceConfigs/behaviorCams.json \
+    ../deviceConfigs/miniscopes.json \
+    ../deviceConfigs/videoDevices.json
 
 win32 {
     # Path to your openCV .lib file(s)
@@ -69,17 +86,29 @@ win32 {
 #    LIBS += -LC:/libusb-1.0.23/MS64/dll/ -llibusb-1.0
 #    INCLUDEPATH += C:/libusb-1.0.23/include/libusb-1.0
 
+    # For Python
+#    INCLUDEPATH += C:/Python38/include
+#    LIBS += -LC:/Python38/libs -lpython38
+
+    INCLUDEPATH += C:/Users/dbaha/.conda/envs/dlc-live/include
+    LIBS += -LC:/Users/dbaha/.conda/envs/dlc-live/libs -lpython37
+
+    # For numpy
+    INCLUDEPATH += C:/Users/dbaha/.conda/envs/dlc-live/Lib/site-packages/numpy/core/include
+
 } else {
     CONFIG += link_pkgconfig
     PKGCONFIG += opencv4
 }
 
 # Move user and device configs to build directory
-copydata.commands = $(COPY_DIR) \"$$shell_path($$PWD\\..\\deviceConfigs)\" \"$$shell_path($$OUT_PWD\\deviceConfigs)\"
-copydata2.commands = $(COPY_DIR) \"$$shell_path($$PWD\\..\\userConfigs)\" \"$$shell_path($$OUT_PWD\\userConfigs)\"
-first.depends = $(first) copydata copydata2
+copydata.commands = $(COPY_DIR) \"$$shell_path($$PWD\\..\\deviceConfigs)\" \"$$shell_path($$OUT_PWD\\release\\deviceConfigs)\"
+copydata2.commands = $(COPY_DIR) \"$$shell_path($$PWD\\..\\userConfigs)\" \"$$shell_path($$OUT_PWD\\release\\userConfigs)\"
+copydata3.commands = $(COPY_DIR) \"$$shell_path($$PWD\\..\\Scripts)\" \"$$shell_path($$OUT_PWD\\release\\Scripts)\"
+first.depends = $(first) copydata copydata2 copydata3
 export(first.depends)
 export(copydata.commands)
 export(copydata2.commands)
+export(copydata3.commands)
 
-QMAKE_EXTRA_TARGETS += first copydata copydata2
+QMAKE_EXTRA_TARGETS += first copydata copydata2 copydata3

@@ -24,6 +24,14 @@
         "hue": [0, 1],
         "saturation": [0, 1],
         "value": [0, 1]
+    },    
+    "traceDisplay": {
+        "enabled": true,
+        "type": "scrolling",
+        "windowX": 100,
+        "windowY": 100,
+        "width": 600,
+        "height": 400
     },
     "devices": {
         "miniscopes": [
@@ -32,8 +40,9 @@
                 "deviceType": "Miniscope_V4_BNO",
                 "imageRegistration": "Off",
 				"headOrientation": {
-					"enable": true,
-					"filterBadData": true
+					"enabled": true,
+					"filterBadData": true,
+                    "plotTrace": ["roll", "pitch", "yaw"]
 				},
                 "streamHeadOrientation_OLD": true,
                 "deviceID": 1,
@@ -55,7 +64,7 @@
                 "gain": "Low",
                 "ewl": 50,
                 "led0": 10,
-                "frameRate": "25FPS"
+                "frameRate": "20FPS"
             }
         ]
     }

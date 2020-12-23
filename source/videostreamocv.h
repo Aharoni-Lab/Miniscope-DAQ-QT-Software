@@ -25,6 +25,7 @@ public:
                              int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS,
                              QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber);
     int connect2Camera(int cameraID);
+    int connect2Video(QString folderPath, QString filePrefix, float playbackFPS);
     void setHeadOrientationConfig(bool enableState, bool filterState) { m_headOrientationStreamState = enableState; m_headOrientationFilterState = filterState; }
     void setIsColor(bool isColor) { m_isColor = isColor; }
     void setDeviceName(QString name) { m_deviceName = name; }
@@ -75,6 +76,11 @@ private:
     double m_pixelClock;
 
     QString m_connectionType;
+
+    double m_playbackFPS;
+    QString m_playbackFolderPath;
+    QString m_playbackFilePrefix;
+    int m_playbackFileIndex;
 
 };
 

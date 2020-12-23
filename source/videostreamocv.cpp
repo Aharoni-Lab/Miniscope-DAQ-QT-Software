@@ -119,6 +119,24 @@ int VideoStreamOCV::connect2Camera(int cameraID) {
 
 }
 
+int VideoStreamOCV::connect2Video(QString folderPath, QString filePrefix, float playbackFPS)
+{
+    m_playbackFolderPath = folderPath;
+    m_playbackFilePrefix = filePrefix;
+    m_playbackFPS = playbackFPS;
+    m_playbackFileIndex = 0;
+
+    QString firstVideoFile = m_playbackFolderPath + "/" + m_playbackFilePrefix + QString::number(m_playbackFileIndex) + ".avi";
+    cam = new cv::VideoCapture;
+    if (cam->open(firstVideoFile.toStdString())) {
+        QThread::msleep(500);
+        m_connectionType = "videoFile";
+        return 3;
+    }
+    else
+        return 0;
+}
+
 void VideoStreamOCV::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf,
                                          int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS,
                                          QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber){
@@ -135,6 +153,7 @@ void VideoStreamOCV::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float
 
 void VideoStreamOCV::startStream()
 {
+    QString fileName;
     int idx = 0;
     int daqFrameNumOffset = 0;
 //    float heading, pitch, roll;
@@ -142,6 +161,7 @@ void VideoStreamOCV::startStream()
     double w, x, y, z;
     double extTriggerLast = -1;
     double extTrigger;
+    bool status = false;
     cv::Mat frame;
 
     m_stopStreaming = false;
@@ -155,31 +175,16 @@ void VideoStreamOCV::startStream()
                 break;
             }
 
+            status = true;
             // Get new frame and handle disconnects
-            if (!cam->grab()) {
-                // Grab failed
-                sendMessage("Warning: " + m_deviceName + " grab frame failed. Attempting to reconnect.");
-                if (cam->isOpened()) {
-                    qDebug() << "Grab failed: Releasing cam" << m_cameraID;
-                    cam->release();
-                    qDebug() << "Released cam" << m_cameraID;
-                }
-                QThread::msleep(1000);
-
-                if (attemptReconnect()) {
-                    // TODO: add some timeout here
-                    sendMessage("Warning: " + m_deviceName + " reconnected.");
-                    qDebug() << "Reconnect to camera" << m_cameraID;
-                }
-            }
-            else {
-                // Grab successful
-                timeStampBuffer[idx%frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
-                if (!cam->retrieve(frame)) {
-                    // Retrieve failed
-                    sendMessage("Warning: " + m_deviceName + " retrieve frame failed. Attempting to reconnect.");
+            if (m_connectionType != "videoFile") {
+                // Try to get frame from camera
+                if (!cam->grab()) {
+                    // Grab failed
+                    status = false;
+                    sendMessage("Warning: " + m_deviceName + " grab frame failed. Attempting to reconnect.");
                     if (cam->isOpened()) {
-                        qDebug() << "Retieve failed: Releasing cam" << m_cameraID;
+                        qDebug() << "Grab failed: Releasing cam" << m_cameraID;
                         cam->release();
                         qDebug() << "Released cam" << m_cameraID;
                     }
@@ -192,88 +197,128 @@ void VideoStreamOCV::startStream()
                     }
                 }
                 else {
-                    // Grab and retieve successful
+                    // Grab successful
+                    timeStampBuffer[idx%frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
+                    if (!cam->retrieve(frame)) {
+                        // Retrieve failed
+                        status = false;
+                        sendMessage("Warning: " + m_deviceName + " retrieve frame failed. Attempting to reconnect.");
+                        if (cam->isOpened()) {
+                            qDebug() << "Retieve failed: Releasing cam" << m_cameraID;
+                            cam->release();
+                            qDebug() << "Released cam" << m_cameraID;
+                        }
+                        QThread::msleep(1000);
 
-                    if (m_isColor) {
-                        frame.copyTo(frameBuffer[idx%frameBufferSize]);
+                        if (attemptReconnect()) {
+                            // TODO: add some timeout here
+                            sendMessage("Warning: " + m_deviceName + " reconnected.");
+                            qDebug() << "Reconnect to camera" << m_cameraID;
+                        }
+                    }
+                }
+            }
+            else if (m_connectionType == "videoFile") {
+                QThread::msleep(1000.0/m_playbackFPS);
+                timeStampBuffer[idx%frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
+                if (!cam->read(frame)) {
+                    // Try next file before fully giving up
+                    m_playbackFileIndex++;
+                    qDebug() << "FILE INDEX" << m_playbackFileIndex;
+                    fileName = m_playbackFolderPath + "/" + m_playbackFilePrefix + QString::number(m_playbackFileIndex) + ".avi";
+                    cam->release();
+                    if (cam->open(fileName.toStdString())) {
+                        if (!cam->read(frame)) {
+                            status = false;
+                            return;
+                        }
+                    }
+                    else
+                        return;
+
+                }
+            }
+            if (status) {
+                // frame was grabbed
+                // Grab and retieve successful
+
+                if (m_isColor) {
+                    frame.copyTo(frameBuffer[idx%frameBufferSize]);
+                }
+                else {
+                    //                            frame = cv::repeat(frame,4,4);
+                    cv::cvtColor(frame, frameBuffer[idx%frameBufferSize], cv::COLOR_BGR2GRAY);
+                }
+                // qDebug() << "Frame Number:" << *m_acqFrameNum - cam->get(cv::CAP_PROP_CONTRAST);
+
+                if (m_trackExtTrigger) {
+                    if (extTriggerLast == -1) {
+                        // first time grabbing trigger state.
+                        extTriggerLast = cam->get(cv::CAP_PROP_GAMMA);
                     }
                     else {
-                        //                            frame = cv::repeat(frame,4,4);
-                        cv::cvtColor(frame, frameBuffer[idx%frameBufferSize], cv::COLOR_BGR2GRAY);
-                    }
-                    // qDebug() << "Frame Number:" << *m_acqFrameNum - cam->get(cv::CAP_PROP_CONTRAST);
-
-                    if (m_trackExtTrigger) {
-                        if (extTriggerLast == -1) {
-                            // first time grabbing trigger state.
-                            extTriggerLast = cam->get(cv::CAP_PROP_GAMMA);
-                        }
-                        else {
-                            extTrigger = cam->get(cv::CAP_PROP_GAMMA);
-                            if (extTriggerLast != extTrigger) {
-                                // State change
-                                if (extTriggerLast == 0) {
-                                    // Went from 0 to 1
-                                    emit extTriggered(true);
-                                }
-                                else {
-                                    // Went from 1 to 0
-                                    emit extTriggered(false);
-                                }
+                        extTrigger = cam->get(cv::CAP_PROP_GAMMA);
+                        if (extTriggerLast != extTrigger) {
+                            // State change
+                            if (extTriggerLast == 0) {
+                                // Went from 0 to 1
+                                emit extTriggered(true);
                             }
-                            extTriggerLast = extTrigger;
+                            else {
+                                // Went from 1 to 0
+                                emit extTriggered(false);
+                            }
                         }
+                        extTriggerLast = extTrigger;
                     }
+                }
 
-                    if (m_headOrientationStreamState) {
-                        // BNO output is a unit quaternion after 2^14 division
-                        w = static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION));
-                        x = static_cast<qint16>(cam->get(cv::CAP_PROP_HUE));
-                        y = static_cast<qint16>(cam->get(cv::CAP_PROP_GAIN));
-                        z = static_cast<qint16>(cam->get(cv::CAP_PROP_BRIGHTNESS));
+                if (m_headOrientationStreamState) {
+                    // BNO output is a unit quaternion after 2^14 division
+                    w = static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION));
+                    x = static_cast<qint16>(cam->get(cv::CAP_PROP_HUE));
+                    y = static_cast<qint16>(cam->get(cv::CAP_PROP_GAIN));
+                    z = static_cast<qint16>(cam->get(cv::CAP_PROP_BRIGHTNESS));
 
 //                        sendMessage("W|X: 0x" + QString::number(static_cast<qint16>(w), 16) + " | 0x" + QString::number(static_cast<qint16>(x), 16));
 //                        sendMessage("Y|Z: 0x" + QString::number(static_cast<qint16>(y), 16) + " | 0x" + QString::number(static_cast<qint16>(z), 16));
 //                        if (*daqFrameNum%30 == 0)
 //                            sendMessage("Warning: BNO Calib: 0x" + QString::number(static_cast<quint16>(cam->get(cv::CAP_PROP_SHARPNESS)),16).toUpper());
 
-                        norm = sqrt(w*w + x*x + y*y + z*z);
-                        bnoBuffer[(idx%frameBufferSize)*5 + 0] = w/16384.0;
-                        bnoBuffer[(idx%frameBufferSize)*5 + 1] = x/16384.0;
-                        bnoBuffer[(idx%frameBufferSize)*5 + 2] = y/16384.0;
-                        bnoBuffer[(idx%frameBufferSize)*5 + 3] = z/16384.0;
-                        bnoBuffer[(idx%frameBufferSize)*5 + 4] = abs((norm/16384.0) - 1);
-                        //                            qDebug() << QString::number(static_cast<qint16>(cam->get(cv::CAP_PROP_SHARPNESS)),2) << norm << w << x << y << z ;
-                    }
-                    if (daqFrameNum != nullptr) {
-                        *daqFrameNum = cam->get(cv::CAP_PROP_CONTRAST) - daqFrameNumOffset;
-                        // qDebug() << cam->get(cv::CAP_PROP_CONTRAST);// *daqFrameNum;
-                        if (*m_acqFrameNum == 0) // Used to initially sync daqFrameNum with acqFrameNum
-                            daqFrameNumOffset = *daqFrameNum - 1;
-                    }
+                    norm = sqrt(w*w + x*x + y*y + z*z);
+                    bnoBuffer[(idx%frameBufferSize)*5 + 0] = w/16384.0;
+                    bnoBuffer[(idx%frameBufferSize)*5 + 1] = x/16384.0;
+                    bnoBuffer[(idx%frameBufferSize)*5 + 2] = y/16384.0;
+                    bnoBuffer[(idx%frameBufferSize)*5 + 3] = z/16384.0;
+                    bnoBuffer[(idx%frameBufferSize)*5 + 4] = abs((norm/16384.0) - 1);
+                    //                            qDebug() << QString::number(static_cast<qint16>(cam->get(cv::CAP_PROP_SHARPNESS)),2) << norm << w << x << y << z ;
+                }
+                if (daqFrameNum != nullptr) {
+                    *daqFrameNum = cam->get(cv::CAP_PROP_CONTRAST) - daqFrameNumOffset;
+                    // qDebug() << cam->get(cv::CAP_PROP_CONTRAST);// *daqFrameNum;
+                    if (*m_acqFrameNum == 0) // Used to initially sync daqFrameNum with acqFrameNum
+                        daqFrameNumOffset = *daqFrameNum - 1;
+                }
 
-                    // Handle thread safe controls of buffer
-                    if(!freeFrames->tryAcquire()) {
-                        // Failed to acquire free frame
-                        // Will throw away this acquired frame
-                        if (freeFrames->available() == 0) {
-                            // Buffers are full!
-                            sendMessage("Error: " + m_deviceName + " frame buffer is full. Frames will be lost!");
-                            QThread::msleep(100);
-                        }
+                // Handle thread safe controls of buffer
+                if(!freeFrames->tryAcquire()) {
+                    // Failed to acquire free frame
+                    // Will throw away this acquired frame
+                    if (freeFrames->available() == 0) {
+                        // Buffers are full!
+                        sendMessage("Error: " + m_deviceName + " frame buffer is full. Frames will be lost!");
+                        QThread::msleep(100);
                     }
-                    else {
-                        m_acqFrameNum->operator++();
-                        // qDebug() << *m_acqFrameNum << *daqFrameNum;
-                        idx++;
-                        emit newFrameAvailable(m_deviceName, *m_acqFrameNum);
-                        usedFrames->release();
-                    }
-
+                }
+                else {
+                    m_acqFrameNum->operator++();
+                    // qDebug() << *m_acqFrameNum << *daqFrameNum;
+                    idx++;
+                    emit newFrameAvailable(m_deviceName, *m_acqFrameNum);
+                    usedFrames->release();
                 }
 
             }
-
             // Get any new events
             QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices
             if (!sendCommandQueue.isEmpty())

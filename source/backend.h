@@ -12,6 +12,7 @@
 #include "controlpanel.h"
 #include "datasaver.h"
 #include "behaviortracker.h"
+#include "tracedisplay.h"
 
 
 class backEnd : public QObject
@@ -94,10 +95,12 @@ private:
     QJsonArray ucMiniscopes;
     QJsonArray ucBehaviorCams;
     QJsonObject ucBehaviorTracker;
+    QJsonObject ucTraceDisplay;
 
     QVector<Miniscope*> miniscope;
     QVector<BehaviorCam*> behavCam;
     ControlPanel *controlPanel;
+    TraceDisplayBackend *traceDisplay;
 
     DataSaver *dataSaver;
     QThread *dataSaverThread;
@@ -107,6 +110,8 @@ private:
     QVector<QString> m_availableCodec;
     QString m_availableCodecList;
     QVector<QString> unAvailableCodec;
+
+    qint64 m_softwareStartTime;
 
 };
 

@@ -29,5 +29,16 @@
         <file>img/icon/gain.png</file>
         <file>img/icon/led.png</file>
         <file>Miniscope_V3.qml</file>
+        <file>TraceDisplayWindow.qml</file>
+        <file>shaders/grid.vert</file>
+        <file>shaders/grid.frag</file>
+        <file>shaders/movingBar.vert</file>
+        <file>shaders/movingBar.frag</file>
+        <file>shaders/trace.frag</file>
+        <file>shaders/trace.vert</file>
+        <file>shaders/texture.frag</file>
+        <file>shaders/texture.vert</file>
+        <file>shaders/tracker.vert</file>
+        <file>shaders/tracker.frag</file>
     </qresource>
 </RCC>

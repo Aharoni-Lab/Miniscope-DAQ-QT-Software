@@ -1,0 +1,96 @@
+{
+    "researcherName": "Dr_Miniscope",
+    "dataDirectory": "C:/Users/dbaha/Documents/Data",
+    "directoryStructure": [
+        "researcherName",
+        "experimentName",
+        "animalName",
+        "date",
+        "time"
+    ],
+    "animalName": "testMouse",
+    "experimentName": "Linear Track Test",
+    "recordLengthinSeconds": 600,
+    "experiment_Not_Implemented": {
+        "type": "linearTrack",
+        "units": "cm",
+        "trackLength": 200
+    },
+    "behaviorTracker": {
+        "type": "DeepLabCut-Live",
+        "pyEnvPath": "C:/Users/dbaha/.conda/envs/dlc-live",
+        "modelPath": "C:/Users/dbaha/Documents/Data/DLC/DLC_Dog_resnet_50_iteration-0_shuffle-0",
+        "modelPathHuman": "C:/Users/dbaha/Documents/Data/DLC/DLC_human_dancing_resnet_101_iteration-0_shuffle-1",
+        "resize": 1,
+        "pCutoffDisplay": 0.3,
+        "windowWidth": 640,
+        "windowHeight": 480,
+        "windowX": 100,
+        "windowY": 100,
+        "windowScale": 1.0
+    }, 
+    "traceDisplay": {
+        "type": "scrolling",
+        "windowX": 100,
+        "windowY": 100,
+        "width": 600,
+        "height": 800
+    },
+    "devices": {
+        "miniscopes": [
+            {
+                "deviceName": "Miniscope",
+                "deviceType": "Miniscope_V4_BNO",
+                "imageRegistration": "Off",
+				"headOrientation": {
+					"enable": true,
+					"filterBadData": true
+				},
+                "streamHeadOrientation_OLD": true,
+                "deviceID": 1,
+				"showSaturation": true,
+				"ROI": {
+                    "notes": "This defines the bounding box of the portion of the video that is saved to disk",
+                    "note3": "Edge values are zero indexed",
+					"leftEdge": 0,
+					"topEdge": 0,
+					"width": 600,
+					"height": 600
+				},
+                "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
+                "compression": "FFV1",
+                "framesPerFile": 1000,
+                "windowScale": 0.75,
+                "windowX": 800,
+                "windowY": 100,
+                "gain": "Low",
+                "ewl": 50,
+                "led0": 10,
+                "frameRate": "20FPS"
+            }
+        ],
+       "cameras": [
+            {
+                "deviceName": "BehavCam 0",
+                "deviceType": "WebCam-640x480",
+                "deviceID": 0,
+				"showSaturation": true,
+				"ROI": {
+                    "notes": "This defines the bounding box of the portion of the video that is saved to disk",
+                    "note3": "Edge values are zero indexed",
+					"leftEdge": 0,
+					"topEdge": 0,
+					"width": 640,
+					"height": 480
+				},
+                "cameraCalibrationFileLocation": "",
+                "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
+                "compression": "MJPG",
+                "framesPerFile": 1000,
+                "windowScale": 0.5,
+                "windowX": 800,
+                "windowY": 600
+            }
+        ]
+    }
+}

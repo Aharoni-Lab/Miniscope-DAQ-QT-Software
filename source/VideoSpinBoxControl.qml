@@ -17,11 +17,12 @@ Item {
     property var displayTextValues: [1.0,2.0,3.0]
     property var outputValues: [1, 2, 3]
     property var outputValues2: [0,0,0,0,0,0,0,0,0,0,0]
-    property var startValue: "1"
+    property var startValue: -100.23948
 
 
     onStartValueChanged: {
-        spinBox.value = displaySpinBoxValues.indexOf(startValue)
+        spinBox.value = displaySpinBoxValues.indexOf(startValue);
+        spinBox.onValueChanged();
     }
 
     objectName: "default"

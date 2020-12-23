@@ -1,5 +1,5 @@
 attribute highp vec2 position;
-attribute highp vec2 texcoord;;
+attribute highp vec2 texcoord;
 varying highp vec2 v_texcoord;
 
 void main(void)

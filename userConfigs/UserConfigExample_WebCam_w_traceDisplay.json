@@ -1,6 +1,7 @@
 {
     "researcherName": "Dr_Miniscope",
-    "dataDirectory": "C:/Users/DBAharoni/Documents/Data",
+    "dataDirectory": "C:/Users/dbaha/Documents/Data",
+    "reserved terms for directoryStructure": ["time", "date"],
     "directoryStructure": [
         "researcherName",
         "experimentName",
@@ -11,6 +12,14 @@
     "animalName": "testMouse",
     "experimentName": "Linear Track Test",
     "recordLengthinSeconds": 600,
+    "executableOnStart": {
+        "filePath": "C:/Fiji.app/ImageJ-win64.exe",
+        "arguments": ["hi", "hi2"]
+    },
+    "executableOnStop": {
+        "filePath": "C:/Fiji.app/ImageJ-win64.exe",
+        "arguments": ["hi", "hi2"]
+    },
     "experiment_Not_Implemented": {
         "type": "linearTrack",
         "units": "cm",
@@ -22,19 +31,27 @@
         "saturation": [0, 1],
         "value": [0, 1]
     },
+    "traceDisplay": {
+        "type": "scrolling",
+        "windowX": 100,
+        "windowY": 100,
+        "width": 600,
+        "height": 400
+    },
     "devices": {
-       "cameras": [
+       "cameras2": [
             {
-                "deviceName": "MiniCAM0",
-                "deviceType": "Minicam-Mono-XGA",
-                "deviceID": 1,
+                "deviceName": "BehavCam 0",
+                "deviceType": "WebCam-1280x720",
+                "deviceID": 0,
 				"showSaturation": true,
 				"ROI": {
-					"notes": "This defines the bounding box of the portion of the video that is saved to disk",
-					"leftEdge": 10,
-					"topEdge": 20,
-					"width": 300,
-					"height": 200
+                    "notes": "This defines the bounding box of the portion of the video that is saved to disk",
+                    "note3": "Edge values are zero indexed",
+					"leftEdge": 0,
+					"topEdge": 0,
+					"width": 640,
+					"height": 480
 				},
                 "cameraCalibrationFileLocation": "",
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],

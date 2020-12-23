@@ -13,6 +13,7 @@
 #include <QVector>
 #include <QUrl>
 #include <QString>
+#include <QDateTime>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -25,16 +26,18 @@
 #include "controlpanel.h"
 #include "datasaver.h"
 #include "behaviortracker.h"
+#include "tracedisplay.h"
 
-//#include <libusb.h>
-
-//#define DEBUG
+#ifdef USE_USB
+ #include <libusb.h>
+#endif
 
 backEnd::backEnd(QObject *parent) :
     QObject(parent),
     m_versionNumber(""),
     m_userConfigFileName(""),
     m_userConfigOK(false),
+    traceDisplay(nullptr),
     behavTracker(nullptr)
 {
 #ifdef DEBUG
@@ -45,8 +48,7 @@ backEnd::backEnd(QObject *parent) :
 
 //    setUserConfigOK(true);
 #endif
-
-//    m_userConfigOK = false;
+    m_softwareStartTime = QDateTime().currentMSecsSinceEpoch();
 
     // User Config default values
     researcherName = "";
@@ -59,105 +61,107 @@ backEnd::backEnd(QObject *parent) :
     ucMiniscopes = {"None"};
     ucBehaviorCams = {"None"};
     ucBehaviorTracker["type"] = "None";
+    ucTraceDisplay["type"] = "None";
 
     dataSaver = new DataSaver();
 
-    // ---- LIBUSB TEST ----
-//    libusb_device **devs;
-//    int r;
-//    ssize_t cnt;
 
-//    r = libusb_init(NULL);
-//    if (r < 0)
-//        qDebug() << "Problem 1 ";
-//    else {
-//        cnt = libusb_get_device_list(NULL, &devs);
-//        if (cnt < 0){
-//            libusb_exit(NULL);
-//            qDebug() << "Problem 2";
-//        }
-//        else {
-//            // -----------
-//            libusb_device *dev;
-//            int i = 0, j = 0;
-//            uint8_t path[8];
+#ifdef USE_USB
+        // ---- LIBUSB TEST ----
+    libusb_device **devs;
+    int r;
+    ssize_t cnt;
 
-//            while ((dev = devs[i++]) != NULL) {
-//                struct libusb_device_descriptor desc;
-//                struct libusb_config_descriptor **configDesc;
-//                const struct libusb_endpoint_descriptor *epdesc;
-//                const struct libusb_interface_descriptor *interdesc;
-//                int r = libusb_get_device_descriptor(dev, &desc);
-//                if (r < 0) {
-//                    qDebug() << "failed to get device descriptor";
-//                }
-//                else {
+    r = libusb_init(NULL);
+    if (r < 0)
+        qDebug() << "Problem 1 ";
+    else {
+        cnt = libusb_get_device_list(NULL, &devs);
+        if (cnt < 0){
+            libusb_exit(NULL);
+            qDebug() << "Problem 2";
+        }
+        else {
+            // -----------
+            libusb_device *dev;
+            int i = 0, j = 0;
+            uint8_t path[8];
 
-//                    qDebug() << desc.idVendor << ":" << desc.idProduct << "bus" << libusb_get_bus_number(dev) << "device" << libusb_get_device_address(dev);
+            while ((dev = devs[i++]) != NULL) {
+                struct libusb_device_descriptor desc;
+                struct libusb_config_descriptor **configDesc;
+                const struct libusb_endpoint_descriptor *epdesc;
+                const struct libusb_interface_descriptor *interdesc;
+                int r = libusb_get_device_descriptor(dev, &desc);
+                if (r < 0) {
+                    qDebug() << "failed to get device descriptor";
+                }
+                else {
 
-//                    r = libusb_get_port_numbers(dev, path, sizeof(path));
-//                    if (r > 0) {
-//                        qDebug() <<"path:" << path[0];
-//                        for (j = 1; j < r; j++)
-//                            qDebug() << " more paths:" << path[j];
-//                    }
+                    qDebug() << desc.idVendor << ":" << desc.idProduct << "bus" << libusb_get_bus_number(dev) << "device" << libusb_get_device_address(dev);
 
-
-
-
-//                    libusb_device_handle *d_h = NULL;
-//                    r = libusb_open(dev,&d_h);
-//                    if ( r == 0) {
-//                        unsigned char name[200];
-//                        r = libusb_get_string_descriptor_ascii(d_h,desc.iProduct,name,200);
-//                        if ( r > 0) {
-//                            qDebug() << "name" << QString::fromUtf8((char *)name, r);
-//                        }
-// //                        libusb_set_configuration(d_h,0);
-// //                        r = libusb_get_active_config_descriptor(dev,configDesc);
-// //                        if (r < 0)
-// //                            qDebug() << "Config Desc failed:" << r;
-// //                        else {
-// //                            qDebug() << "Number of alt settings:" << configDesc[0]->interface->num_altsetting;
-// //                            interdesc = configDesc[0]->interface->altsetting;
-
-// //                                qDebug() << "Number of endpoints: "<< interdesc->bNumEndpoints;
-// //                                for(int k=0; k<(int)interdesc->bNumEndpoints; k++) {
-// //                                    epdesc = &interdesc->endpoint[k];
-// //                                    qDebug()<<"Descriptor Type: "<<(int)epdesc->bDescriptorType;
-// //                                    qDebug()<<"EP Address: "<<(int)epdesc->bEndpointAddress;
-// //                                }
-// //                            }
-// // //                        }
-// //                        libusb_free_config_descriptor(configDesc[0]);
-
-//                        libusb_claim_interface(d_h,2);
-//                        uint8_t data[5] = {0,1,2,3,4};
-//                        uint8_t inData[1024];
-//                        int actualLength;
-//                        qDebug() << "Sending" << data[0] << data[1] << data[2] << data[3] << data[4];
-//                        r = libusb_bulk_transfer(d_h,0x04|LIBUSB_ENDPOINT_OUT,data,5,NULL,1000);
-//                        if (r != 0)
-//                            qDebug() << "Issue sending bulk transfer to device:" << r;
-//                        else {
-//                            libusb_bulk_transfer(d_h,0x04|LIBUSB_ENDPOINT_IN ,inData,1024,&actualLength,1000);
-//                            qDebug() << "Receiving" << inData[0] << inData[1] << inData[2] << inData[3] << inData[4] << "inLength:" << actualLength;
-//                        }
-//                        libusb_close(d_h);
-//                    }
-//                    else {
-//                        qDebug() << "Open Fail:" << r;
-//                    }
-//                }
-//            }
-//            // ---------------
-
-//            libusb_free_device_list(devs, 1);
-//            libusb_exit(NULL);
-//        }
-//    }
+                    r = libusb_get_port_numbers(dev, path, sizeof(path));
+                    if (r > 0) {
+                        qDebug() <<"path:" << path[0];
+                        for (j = 1; j < r; j++)
+                            qDebug() << " more paths:" << path[j];
+                    }
 
 
+
+
+                    libusb_device_handle *d_h = NULL;
+                    r = libusb_open(dev,&d_h);
+                    if ( r == 0) {
+                        unsigned char name[200];
+                        r = libusb_get_string_descriptor_ascii(d_h,desc.iProduct,name,200);
+                        if ( r > 0) {
+                            qDebug() << "name" << QString::fromUtf8((char *)name, r);
+                        }
+ //                        libusb_set_configuration(d_h,0);
+ //                        r = libusb_get_active_config_descriptor(dev,configDesc);
+ //                        if (r < 0)
+ //                            qDebug() << "Config Desc failed:" << r;
+ //                        else {
+ //                            qDebug() << "Number of alt settings:" << configDesc[0]->interface->num_altsetting;
+ //                            interdesc = configDesc[0]->interface->altsetting;
+
+ //                                qDebug() << "Number of endpoints: "<< interdesc->bNumEndpoints;
+ //                                for(int k=0; k<(int)interdesc->bNumEndpoints; k++) {
+ //                                    epdesc = &interdesc->endpoint[k];
+ //                                    qDebug()<<"Descriptor Type: "<<(int)epdesc->bDescriptorType;
+ //                                    qDebug()<<"EP Address: "<<(int)epdesc->bEndpointAddress;
+ //                                }
+ //                            }
+ // //                        }
+ //                        libusb_free_config_descriptor(configDesc[0]);
+
+                        libusb_claim_interface(d_h,2);
+                        uint8_t data[5] = {0,1,2,3,4};
+                        uint8_t inData[1024];
+                        int actualLength;
+                        qDebug() << "Sending" << data[0] << data[1] << data[2] << data[3] << data[4];
+                        r = libusb_bulk_transfer(d_h,0x04|LIBUSB_ENDPOINT_OUT,data,5,NULL,1000);
+                        if (r != 0)
+                            qDebug() << "Issue sending bulk transfer to device:" << r;
+                        else {
+                            libusb_bulk_transfer(d_h,0x04|LIBUSB_ENDPOINT_IN ,inData,1024,&actualLength,1000);
+                            qDebug() << "Receiving" << inData[0] << inData[1] << inData[2] << inData[3] << inData[4] << "inLength:" << actualLength;
+                        }
+                        libusb_close(d_h);
+                    }
+                    else {
+                        qDebug() << "Open Fail:" << r;
+                    }
+                }
+            }
+            // ---------------
+
+            libusb_free_device_list(devs, 1);
+            libusb_exit(NULL);
+        }
+    }
+#endif
     testCodecSupport();
     QString tempStr;
     for (int i = 0; i < m_availableCodec.length(); i++)
@@ -257,7 +261,7 @@ void backEnd::connectSnS()
 {
 
     // Start and stop recording signals
-    QObject::connect(controlPanel, SIGNAL( recordStart()), dataSaver, SLOT (startRecording()));
+    QObject::connect(controlPanel, SIGNAL( recordStart(QMap<QString,QVariant>)), dataSaver, SLOT (startRecording(QMap<QString,QVariant>)));
     QObject::connect(controlPanel, SIGNAL( recordStop()), dataSaver, SLOT (stopRecording()));
     QObject::connect((controlPanel), SIGNAL( sendNote(QString) ), dataSaver, SLOT ( takeNote(QString) ));
     QObject::connect(this, SIGNAL( closeAll()), controlPanel, SLOT (close()));
@@ -278,16 +282,15 @@ void backEnd::connectSnS()
         QObject::connect(controlPanel, &ControlPanel::recordStop, miniscope[i], &Miniscope::stopRecording);
     }
     for (int i = 0; i < behavCam.length(); i++) {
-        QObject::connect(behavCam[i], SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+//        QObject::connect(behavCam[i], SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
         // For triggering screenshots
         QObject::connect(behavCam[i], SIGNAL(takeScreenShot(QString)), dataSaver, SLOT( takeScreenShot(QString)));
 
         QObject::connect(this, SIGNAL( closeAll()), behavCam[i], SLOT (close()));
 
-        if (behavTracker) {
-            QObject::connect(behavCam[i], SIGNAL(newFrameAvailable(QString, int)), behavTracker, SLOT( handleNewFrameAvailable(QString, int)));
-
-        }
+//        if (behavTracker) {
+//            QObject::connect(behavCam[i], SIGNAL(newFrameAvailable(QString, int)), behavTracker, SLOT( handleNewFrameAvailable(QString, int)));
+//        }
     }
     if (behavTracker)
         QObject::connect(this, SIGNAL( closeAll()), behavTracker, SLOT (close()));
@@ -311,7 +314,7 @@ void backEnd::setupDataSaver()
                                             miniscope[i]->getAcqFrameNumPointer());
 
         dataSaver->setHeadOrientationConfig(miniscope[i]->getDeviceName(), miniscope[i]->getHeadOrienataionStreamState(), miniscope[i]->getHeadOrienataionFilterState());
-
+        dataSaver->setROI(miniscope[i]->getDeviceName(), miniscope[i]->getROI());
     }
     for (int i = 0; i < behavCam.length(); i++) {
         dataSaver->setDataCompression(behavCam[i]->getDeviceName(), behavCam[i]->getCompressionType());
@@ -325,6 +328,16 @@ void backEnd::setupDataSaver()
                                             behavCam[i]->getAcqFrameNumPointer());
         dataSaver->setHeadOrientationConfig(behavCam[i]->getDeviceName(), false, false);
         dataSaver->setROI(behavCam[i]->getDeviceName(), behavCam[i]->getROI());
+    }
+
+    if (!ucBehaviorTracker.isEmpty()) {
+        if (ucBehaviorTracker["enabled"].toBool(true)) {
+            dataSaver->setPoseBufferParameters(behavTracker->getPoseBufferPointer(),
+                                               behavTracker->getPoseFrameNumBufferPointer(),
+                                               behavTracker->getPoseBufferSize(),
+                                               behavTracker->getFreePosePointer(),
+                                               behavTracker->getUsedPosePointer());
+        }
     }
 
     dataSaverThread = new QThread;
@@ -394,6 +407,7 @@ void backEnd::parseUserConfig()
     ucMiniscopes = devices["miniscopes"].toArray();
     ucBehaviorCams = devices["cameras"].toArray();
     ucBehaviorTracker = m_userConfig["behaviorTracker"].toObject();
+    ucTraceDisplay = m_userConfig["traceDisplay"].toObject();
 
 
 }
@@ -402,10 +416,14 @@ void backEnd::setupBehaviorTracker()
 {
     for (int i = 0; i < behavCam.length(); i++) {
         behavTracker->setBehaviorCamBufferParameters(behavCam[i]->getDeviceName(),
+                                                     behavCam[i]->getTimeStampBufferPointer(),
                                                      behavCam[i]->getFrameBufferPointer(),
                                                      behavCam[i]->getBufferSize(),
                                                      behavCam[i]->getAcqFrameNumPointer());
     }
+
+    // Start behavior tracker thread
+    behavTracker->startThread();
 }
 
 bool backEnd::checkForUniqueDeviceNames()
@@ -465,10 +483,15 @@ void backEnd::constructUserConfigGUI()
     controlPanel = new ControlPanel(this, m_userConfig);
     QObject::connect(this, SIGNAL (sendMessage(QString) ), controlPanel, SLOT( receiveMessage(QString)));
 
+    // Make trace display
+    if (!ucTraceDisplay.isEmpty()) {
+        if (ucTraceDisplay["enabled"].toBool(true))
+            traceDisplay = new TraceDisplayBackend(NULL, ucTraceDisplay, m_softwareStartTime);
+    }
 
-
+    // Make Minsicope displays
     for (idx = 0; idx < ucMiniscopes.size(); idx++) {
-        miniscope.append(new Miniscope(this, ucMiniscopes[idx].toObject()));
+        miniscope.append(new Miniscope(this, ucMiniscopes[idx].toObject(), m_softwareStartTime));
         QObject::connect(miniscope.last(),
                          SIGNAL (onPropertyChanged(QString, QString, QVariant)),
                          dataSaver,
@@ -476,11 +499,21 @@ void backEnd::constructUserConfigGUI()
 
         // Connect send and receive message to textbox in controlPanel
         QObject::connect(miniscope.last(), SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
-
-        miniscope.last()->createView();
+        QObject::connect(miniscope.last(), &Miniscope::addTraceDisplay, traceDisplay, &TraceDisplayBackend::addNewTrace);
+        if (miniscope.last()->getErrors() != 0) {
+            // Errors have occured in creating this object
+            sendMessage("ERROR: " + miniscope.last()->getDeviceName() + " has error: " + QString::number(miniscope.last()->getErrors()));
+        }
+        else {
+            miniscope.last()->setTraceDisplayStatus(traceDisplay != nullptr);
+            miniscope.last()->createView();
+            miniscope.last()->setupBNOTraceDisplay();
+        }
     }
+
+    // Make Behav Cam displays
     for (idx = 0; idx < ucBehaviorCams.size(); idx++) {
-        behavCam.append(new BehaviorCam(this, ucBehaviorCams[idx].toObject()));
+        behavCam.append(new BehaviorCam(this, ucBehaviorCams[idx].toObject(), m_softwareStartTime));
         QObject::connect(behavCam.last(),
                          SIGNAL (onPropertyChanged(QString, QString, QVariant)),
                          dataSaver,
@@ -489,16 +522,32 @@ void backEnd::constructUserConfigGUI()
         // Connect send and receive message to textbox in controlPanel
         QObject::connect(behavCam.last(), SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
 
-        behavCam.last()->createView();
+        if (behavCam.last()->getErrors() != 0) {
+            // Errors have occured in creating this object
+            sendMessage("ERROR: " + behavCam.last()->getDeviceName() + " has error: " + QString::number(behavCam.last()->getErrors()));
+        }
+        else
+            behavCam.last()->createView();
     }
+
+    // Create experiment interface
     if (!ucExperiment.isEmpty()){
         // Construct experiment interface
     }
-    if (!ucBehaviorTracker.isEmpty()) {
-        behavTracker = new BehaviorTracker(this, m_userConfig);
-        setupBehaviorTracker();
-    }
 
+    // Make behavior tracker interface
+    if (!ucBehaviorTracker.isEmpty()) {
+        if (ucBehaviorTracker["enabled"].toBool(true)) {
+            // Behav tracker currently is hardcoded to use first behavior camera
+            QSize camRes = behavCam.first()->getResolution();
+
+            behavTracker = new BehaviorTracker(NULL, m_userConfig, m_softwareStartTime);
+            QObject::connect(behavTracker, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+            QObject::connect(behavTracker, &BehaviorTracker::addTraceDisplay, traceDisplay, &TraceDisplayBackend::addNewTrace);
+            behavTracker->createView(camRes);
+            setupBehaviorTracker();
+        }
+    }
 
     connectSnS();
 }

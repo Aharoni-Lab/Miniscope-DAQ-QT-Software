@@ -13,6 +13,9 @@
 #include <QTimer>
 #include <QTime>
 #include <QMetaObject>
+#include <QProcess>
+#include <QJsonArray>
+#include <QMap>
 
 ControlPanel::ControlPanel(QObject *parent, QJsonObject userConfig) :
     QObject(parent),
@@ -59,6 +62,7 @@ void ControlPanel::createView()
     rootObject->setProperty("ucRecordLength", m_ucRecordLengthinSeconds);
 //    recordTimeText->setProperty("text", "----/" + QString::number(m_ucRecordLengthinSeconds) + " s");
 
+    fillUCEditText();
     connectSnS();
 }
 
@@ -85,6 +89,27 @@ void ControlPanel::connectSnS()
 
 }
 
+void ControlPanel::fillUCEditText()
+{
+    QList<QVariant> props, values, isNumber;
+    QStringList keys = m_userConfig.keys();
+    for (int i=0; i< keys.size(); i++) {
+        if (m_userConfig[keys[i]].isString()) {
+            props.append(keys[i]);
+            values.append(m_userConfig[keys[i]].toString());
+            isNumber.append(0);
+        }
+        if (m_userConfig[keys[i]].isDouble()) {
+            props.append(keys[i]);
+            values.append(m_userConfig[keys[i]].toDouble());
+            isNumber.append(1);
+        }
+    }
+    rootObject->setProperty("ucProps", props);
+    rootObject->setProperty("ucValues", values);
+    rootObject->setProperty("ucIsNumber", isNumber);
+}
+
 void ControlPanel::receiveMessage(QString msg)
 {
     // Add msg to textbox in controlPanel.qml
@@ -96,7 +121,32 @@ void ControlPanel::receiveMessage(QString msg)
 
 void ControlPanel::onRecordActivated()
 {
-    recordStart();
+    QJsonObject exeInfo;
+    QStringList argList;
+    QJsonArray argArray;
+    if (m_userConfig.contains("executableOnStartRecording")) {
+        // Lets setup a exe to execute
+        exeInfo = m_userConfig["executableOnStartRecording"].toObject();
+        argArray = m_userConfig["arguments"].toArray();
+        for (int i=0; i < argArray.size(); i++) {
+            argList.append(argArray[i].toString());
+        }
+        QProcess::startDetached(exeInfo["filePath"].toString(""), argList);
+    }
+
+    // Construct uc props that might have been changed by user
+    QStringList ucPropsList = rootObject->property("ucProps").toStringList();
+    QList<QVariant> ucValuesList = rootObject->property("ucValues").toList();
+    QMap<QString,QVariant> ucInfo;
+    for (int i=0; i< ucPropsList.size(); i++) {
+        ucInfo[ucPropsList[i]] = ucValuesList[i];
+
+        // Updates the record time in the tick timer inturrupt function
+        if (ucPropsList[i] == "recordLengthinSeconds")
+            m_ucRecordLengthinSeconds = ucValuesList[i].toInt();
+    }
+    recordStart(ucInfo);
+
     m_recording = true;
     rootObject->setProperty("recording", true);
     currentRecordTime = 0;
@@ -106,6 +156,19 @@ void ControlPanel::onRecordActivated()
 
 void ControlPanel::onStopActivated()
 {
+    QJsonObject exeInfo;
+    QStringList argList;
+    QJsonArray argArray;
+    if (m_userConfig.contains("executableOnStopRecording")) {
+        // Lets setup a exe to execute
+        exeInfo = m_userConfig["executableOnStopRecording"].toObject();
+        argArray = m_userConfig["arguments"].toArray();
+        for (int i=0; i < argArray.size(); i++) {
+            argList.append(argArray[i].toString());
+        }
+        QProcess::startDetached(exeInfo["filePath"].toString(""), argList);
+    }
+
     recordStop();
     receiveMessage("Recording Stopped.");
     m_recording = false;
@@ -123,6 +186,7 @@ void ControlPanel::recordTimerTick()
         recordTimer->stop();
         recordStop();
         receiveMessage("Recording Stopped.");
+        rootObject->setProperty("recording", false);
         currentRecordTime = 0;
     }
 

@@ -12,6 +12,10 @@ Item {
     property double ucRecordLength: 1
     property bool recording: false
 
+    property var ucProps: []
+    property var ucValues: []
+    property var ucIsNumber: []
+
     signal submitNoteSignal(string note)
     signal extTriggerSwitchToggled(bool checkedState)
 
@@ -82,55 +86,164 @@ Item {
             }
         }
 
-        Flickable {
-            id: flick1
-            flickableDirection: Flickable.VerticalFlick
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
+        TabBar {
+            id: bar
+            currentIndex: 0
             Layout.columnSpan: 2
-            TextArea.flickable: TextArea {
-                 id: messageTextArea
-                 objectName: "messageTextArea"
-                 textFormat: TextEdit.RichText
-                 text: "'Space Bar': screenshot of video stream.<br/>'h': hides/shows video stream controls.<br/>Messages:"
-                 wrapMode: Text.WrapAnywhere
-//                 anchors.fill: flick1
-                 font.pointSize: 10
-                 readOnly: true
-                 background: Rectangle {
- //                    radius: rbSelectUserConfig.radius
-//                     anchors.fill: flick1
- //                    border.width: 1
-                     color: "#ebebeb"
-                 }
-                 function log_color(msg, color){
-                     return "<span style='color: " + color +  ";' >" + msg + "</span>";
-                 }
-                 function logMessage(time, msg){
+            width: parent.width
+            TabButton {
+                text: qsTr("Home")
+                width: implicitWidth
+//                onClicked: {
 
-                     var color = "darkgreen";
-                     if(msg.toLowerCase().indexOf('error') >= 0){
-                         color = "red";
-                     } else if (msg.toLowerCase().indexOf('warning') >= 0){
-                         color = "goldenrod";
-                     }
+//                    stack.currentIndex = 0;
+//                }
+            }
+            TabButton {
+                text: qsTr("User Config")
+                width: implicitWidth
+//                onClicked: {
 
-                     var _time = log_color(time, "0xFFFFFF")
-                     var _msg = log_color(msg, color);
-                     messageTextArea.append(_time + ": " + _msg);
-
-                     // scroll to bottom
-                     flick1.contentY = (messageTextArea.height - flick1.height);
-                 }
-             }
-            contentWidth: messageTextArea.width
-            contentHeight: messageTextArea.height
-
-            ScrollBar.vertical: ScrollBar {
-                width: 20
+//                    stack.currentIndex = 1;
+//                }
             }
         }
+
+        StackLayout {
+            id: stack
+            currentIndex: bar.currentIndex
+        Layout.columnSpan: 2
+
+            Flickable {
+                id: flick1
+                flickableDirection: Flickable.VerticalFlick
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+
+                TextArea.flickable: TextArea {
+                     id: messageTextArea
+                     objectName: "messageTextArea"
+                     textFormat: TextEdit.RichText
+                     text: "'Space Bar': screenshot of video stream.<br/>'h': hides/shows video stream controls.<br/> Double click track to select it.<br/> Scroll wheel adjust width of trace display.<br/> CTRL + scroll wheel adjusts trace scale.<br/>Messages:"
+                     wrapMode: Text.WrapAnywhere
+    //                 anchors.fill: flick1
+                     font.pointSize: 10
+                     readOnly: true
+                     background: Rectangle {
+     //                    radius: rbSelectUserConfig.radius
+    //                     anchors.fill: flick1
+     //                    border.width: 1
+                         color: "#ebebeb"
+                     }
+                     function log_color(msg, color){
+                         return "<span style='color: " + color +  ";' >" + msg + "</span>";
+                     }
+                     function logMessage(time, msg){
+
+                         var color = "darkgreen";
+                         if(msg.toLowerCase().indexOf('error') >= 0){
+                             color = "red";
+                         } else if (msg.toLowerCase().indexOf('warning') >= 0){
+                             color = "goldenrod";
+                         }
+
+                         var _time = log_color(time, "0xFFFFFF")
+                         var _msg = log_color(msg, color);
+                         messageTextArea.append(_time + ": " + _msg);
+
+                         // scroll to bottom
+                         flick1.contentY = (messageTextArea.height - flick1.height);
+                     }
+                 }
+                contentWidth: messageTextArea.width
+                contentHeight: messageTextArea.height
+
+                ScrollBar.vertical: ScrollBar {
+                    width: 20
+                }
+            }
+
+            ScrollView {
+                id: flick0
+                Layout.fillHeight: true
+                Layout.fillWidth: true
+//                flickableDirection: Flickable.VerticalFlick
+//                clip: true
+                Layout.columnSpan: 2
+                Column {
+                        id: cL
+                        spacing: 5
+//                        Layout.fillWidth: true
+//                        Layout.fillHeight: true
+//                        clip: true
+
+                        anchors.fill: parent
+
+
+                        Repeater {
+                            id: repeater
+                            model: root.ucProps.length
+                            Rectangle {
+
+                                width: root.width - 10
+                                height: 60
+                                color: "transparent"
+                                anchors.left: parent.left
+                                anchors.leftMargin: 5
+                                border.color: "#555555"
+
+                                Label {
+
+                                    text: root.ucProps[index]
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    horizontalAlignment: Text.AlignHCenter
+                                    anchors.top: parent.top
+                                    anchors.topMargin: 7
+                                    font.pointSize: 12
+                                    font.family: "Arial"
+
+                                }
+                                TextField {
+                                    property var validNumber : IntValidator { bottom:0;}
+                                    property var validAll : RegExpValidator{}
+                                    width: parent.width - 10
+                                    height:30
+                                    text: root.ucValues[index]
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    anchors.top: parent.top
+                                    anchors.topMargin: 25
+                                    font.pointSize: 12
+                                    font.family: "Arial"
+                                    color: "green"
+                                    enabled: !root.recording
+                                    validator: if(root.ucIsNumber[index]) {validNumber} else {validAll}
+
+                                    onTextChanged: {
+                                        if (focus)
+                                            color = "red"
+                                    }
+
+                                    onEditingFinished: {
+                                        color = "green"
+                                        root.ucValues[index] = text;
+                                        if (root.ucProps[index] === "recordLengthinSeconds") {
+                                            root.ucRecordLength = text;
+                                            ucRecordLengthChanged();
+                                        }
+//                                        ucPropsChanged();
+                                    }
+                                }
+                            }
+                        }
+                        Item { Layout.fillHeight: true }    // <-- filler here
+                    }
+                }
+        }
+
+
+
+
 
         DelayButton {
             id: bRecord
@@ -217,6 +330,6 @@ Item {
 
 /*##^##
 Designer {
-    D{i:1;anchors_height:200;anchors_width:200}D{i:2;anchors_height:200;anchors_width:200}
+    D{i:1;anchors_height:200;anchors_width:200}D{i:17;anchors_height:60}D{i:2;anchors_height:200;anchors_width:200}
 }
 ##^##*/

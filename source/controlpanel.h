@@ -15,6 +15,7 @@ public:
     explicit ControlPanel(QObject *parent = nullptr, QJsonObject userConfig = QJsonObject());
     void createView();
     void connectSnS();
+    void fillUCEditText();
 //    void setUserConfig(QJsonObject userConfig) {m_userConfig = userConfig;}
 
 public slots:
@@ -28,7 +29,7 @@ public slots:
     void close();
 
 signals:
-    void recordStart();
+    void recordStart(QMap<QString,QVariant> ucInfo);
     void recordStop();
     void sendNote(QString note);
     void setExtTriggerTrackingState(bool state);

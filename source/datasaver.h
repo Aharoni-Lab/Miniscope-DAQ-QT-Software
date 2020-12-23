@@ -32,12 +32,14 @@ public:
     void setupBaseDirectory();
     void setROI(QString name, int *bbox);
 
+    void setPoseBufferParameters(QVector<float>* poseBuf, int* poseFrameNumBuf, int poseBufSize, QSemaphore* freePos, QSemaphore* usedPos);
+
 signals:
     void sendMessage(QString msg);
 
 public slots:
     void startRunning();
-    void startRecording();
+    void startRecording(QMap<QString,QVariant> ucInfo);
     void stopRecording();
     void devicePropertyChanged(QString deviceName, QString propName, QVariant propValue);
     void takeScreenShot(QString type);
@@ -77,10 +79,22 @@ private:
     QMap<QString, QFile*> headOriFile;
     QMap<QString, QTextStream*> headOriStream;
 
+    QFile* behavTrackerFile;
+    QTextStream* behavTrackerStream;
+
     QMap<QString, int*> ROI;
 
     QFile* noteFile;
     QTextStream* noteStream;
+
+    // Pose pointers (turn into struct!!!!!)
+    QVector<float>* poseBuffer;
+    int* poseFrameNumBuffer;
+    int poseBufferSize;
+    int btPoseCount;
+    QSemaphore* freePoses;
+    QSemaphore* usedPoses;
+    bool behaviorTrackerEnabled;
 
     bool m_recording;
     bool m_running;

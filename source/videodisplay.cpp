@@ -106,7 +106,7 @@ void VideoDisplay::sync()
 //! [9]
 
 void VideoDisplay::mousePressEvent(QMouseEvent *event){
-    if (m_roiSelectionActive && event->button() == Qt::LeftButton) {
+    if ((m_roiSelectionActive || m_addTraceRoiSelectionActive) && event->button() == Qt::LeftButton) {
         // TODO: Send info to shader to draw rectangle
         lastMouseClickEvent = new QMouseEvent(*event);
     }
@@ -124,10 +124,19 @@ void VideoDisplay::mouseMoveEvent(QMouseEvent *event) {
         setROI({leftEdge,topEdge,width,height,m_roiSelectionActive});
         qDebug() << "Mouse Move" << event;
     }
+    if (m_addTraceRoiSelectionActive /*&& event->button() == Qt::LeftButton*/ && lastMouseClickEvent != nullptr) {
+        int leftEdge = (lastMouseClickEvent->x() < event->x()) ? (lastMouseClickEvent->x()) : (event->x());
+        int topEdge = (lastMouseClickEvent->y() < event->y()) ? (lastMouseClickEvent->y()) : (event->y());
+        int width = abs(lastMouseClickEvent->x() - event->x());
+        int height = abs(lastMouseClickEvent->y() - event->y());
+
+        setAddTraceROI({leftEdge,topEdge,width,height,m_addTraceRoiSelectionActive});
+//        qDebug() << "Mouse Move" << event;
+    }
 }
 
 void VideoDisplay::mouseReleaseEvent(QMouseEvent *event) {
-    if (m_roiSelectionActive && event->button() == Qt::LeftButton && lastMouseClickEvent != nullptr) {
+    if (event->button() == Qt::LeftButton && lastMouseClickEvent != nullptr) {
         lastMouseReleaseEvent = event;
 
         // Calculate ROI properties
@@ -136,17 +145,24 @@ void VideoDisplay::mouseReleaseEvent(QMouseEvent *event) {
         int width = abs(lastMouseClickEvent->x() - lastMouseReleaseEvent->x());
         int height = abs(lastMouseClickEvent->y() - lastMouseReleaseEvent->y());
 
-        m_roiSelectionActive = false;
-        // Send new ROI to behavior camera class
-        emit newROISignal(leftEdge, topEdge, width, height);
-        setROI({leftEdge,topEdge,width,height,m_roiSelectionActive});
+        if (m_roiSelectionActive ) {
+            m_roiSelectionActive = false;
+            // Send new ROI to behavior camera class
+            emit newROISignal(leftEdge, topEdge, width, height);
+            setROI({leftEdge,topEdge,width,height,m_roiSelectionActive});
 
-        // Reset these Mouse events
-        lastMouseClickEvent = nullptr;
-        lastMouseReleaseEvent = nullptr;
+        }
+        if (m_addTraceRoiSelectionActive ) {
+            m_addTraceRoiSelectionActive = false;
+            // Send new ROI to behavior camera class
+            emit newAddTraceROISignal(leftEdge, topEdge, width, height);
+            setAddTraceROI({leftEdge,topEdge,width,height,m_addTraceRoiSelectionActive});
 
-
+        }
     }
+    // Reset these Mouse events
+    lastMouseClickEvent = nullptr;
+    lastMouseReleaseEvent = nullptr;
 }
 
 void VideoDisplay::setROI(QList<int> roi)
@@ -155,10 +171,17 @@ void VideoDisplay::setROI(QList<int> roi)
 
     roiChanged();
 }
-//! [4]
+
+void VideoDisplay::setAddTraceROI(QList<int> roi)
+{
+    m_addTraceROI = roi;
+
+    addTraceROIChanged();
+}
+
 void VideoDisplayRenderer::paint()
 {
-//    qDebug() << "Painting!";
+    //    qDebug() << "Painting!";
     if (!m_program) {
         initializeOpenGLFunctions();
 
