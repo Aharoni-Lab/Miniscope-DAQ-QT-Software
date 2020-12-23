@@ -177,7 +177,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         tempMat2 = frame.clone();
         tempMat2.convertTo(tempMat2, CV_32F);
         cv::divide(tempMat2,baselineFrame,tempMat2);
-        tempMat2 = ((tempMat2 - 1.0) + 0.1) * 1024;
+        tempMat2 = ((tempMat2 - 1.0) + 0.05) * 2048;
         tempMat2.convertTo(tempMat2, CV_8U);
         cv::cvtColor(tempMat2, tempFrame, cv::COLOR_GRAY2BGR);
         tempFrame2 = QImage(tempFrame.data, tempFrame.cols, tempFrame.rows, tempFrame.step, QImage::Format_RGB888);
@@ -245,8 +245,16 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
     if (m_numTraces > 0) {
         int bufNum;
         int dataCount;
+
         float meanIntensity;
 
+        float meanFrameIntensity;
+        if (m_displatState == "dFF") {
+            // Remove or find a fast way (maybe with resize or downsamp) if needed.
+            meanFrameIntensity = cv::mean(tempMat2)[0];
+        }
+        else
+            meanFrameIntensity = 0.0f;
         for (int i=0; i < m_numTraces; i++) {
 //            m_traceROIs[m_numTraces][0] = leftEdge;
 //            m_traceROIs[m_numTraces][1] = topEdge;
@@ -271,7 +279,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
                     meanIntensity = cv::mean(tempMat2(roiRect))[0];
                 }
 
-                m_traceDisplayY[i][bufNum][dataCount] = meanIntensity - 127.0f;
+                m_traceDisplayY[i][bufNum][dataCount] = meanIntensity - meanFrameIntensity - 127.0f;
                 m_traceDisplayT[i][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
                 m_traceNumDataInBuf[i][bufNum]++;
             }

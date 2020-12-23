@@ -32,6 +32,8 @@ Item {
     }
         Rectangle {
             id: occRect
+            objectName: "occRect"
+            visible: false
             x: 0.75/1 * root.width
             y: 0.05/1 * root.height
             width: root.width * 0.4/2

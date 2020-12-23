@@ -87,7 +87,7 @@ public:
     void setDisplayImage(QImage image);
     void setDisplayOcc(QImage image);
     void setOccMax(int value) { m_renderer->occMax = value;}
-    void setShowOccState(bool state) {m_showOcc = state; }
+    void setShowOccState(bool state);
 
     Q_INVOKABLE void occRectChanged(float x, float y, float w, float h);
 

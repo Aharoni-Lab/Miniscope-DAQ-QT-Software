@@ -178,8 +178,10 @@ void BehaviorTracker::createView(QSize resolution)
     trackerDisplay = rootObject->findChild<TrackerDisplay*>("trackerDisplay");
     QObject::connect(trackerDisplay->window(), &QQuickWindow::beforeRendering, this, &BehaviorTracker::sendNewFrame);
 
-    if (m_plotOcc)
+    if (m_plotOcc) {
         trackerDisplay->setShowOccState(true);
+        trackerDisplay->findChild<QObject*>("occRect")->setProperty("visible", m_plotOcc);
+    }
 
 }
 
@@ -609,6 +611,12 @@ void TrackerDisplay::setDisplayOcc(QImage image)
 {
     if (m_renderer && !m_renderer->m_newOccupancy)
         m_renderer->setDisplayOcc(image);
+}
+
+void TrackerDisplay::setShowOccState(bool state)
+{
+    m_showOcc = state;
+
 }
 
 void TrackerDisplay::handleWindowChanged(QQuickWindow *win)

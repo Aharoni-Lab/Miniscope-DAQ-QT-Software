@@ -44,7 +44,8 @@
 					"filterBadData": true
                 },
                 "videoPlayback": {
-                    "folderPath": "C:/Users/dbaha/Documents/Data/V4_Megha_cranial",
+                    "folderPath2": "C:/Users/dbaha/Documents/Data/V4_Pingping",
+                    "folderPath": "C:/Users/dbaha/Documents/Data/V4_Megha_cranial/New",
                     "filePrefix": "",
                     "frameRate": 40
                 },
