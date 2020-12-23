@@ -60,12 +60,14 @@ void Miniscope::handleDFFSwitchChange(bool checked)
 
 void Miniscope::handleAddNewTraceROI(int leftEdge, int topEdge, int width, int height)
 {
+    double windowScale = m_ucDevice["windowScale"].toDouble(1);
     if (m_numTraces < NUM_MAX_NEURON_TRACES) {
 
-        m_traceROIs[m_numTraces][0] = leftEdge;
-        m_traceROIs[m_numTraces][1] = topEdge;
-        m_traceROIs[m_numTraces][2] = width;
-        m_traceROIs[m_numTraces][3] = height;
+//        qDebug() << leftEdge << topEdge << width << height;
+        m_traceROIs[m_numTraces][0] = leftEdge/windowScale;
+        m_traceROIs[m_numTraces][1] = topEdge/windowScale;
+        m_traceROIs[m_numTraces][2] = width/windowScale;
+        m_traceROIs[m_numTraces][3] = height/windowScale;
 
 
         m_traceColors[m_numTraces][0] = ((float)m_numTraces * 1.2 + 1)/4.0f;
@@ -128,6 +130,13 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
 {
     QImage tempFrame2;
     cv::Mat tempFrame, tempMat1, tempMat2;
+
+
+//    for (int i=0; i < m_numTraces; i++) {
+//        frame.at<uint8_t>(m_traceROIs[i][1],m_traceROIs[i][0]) = 255;
+//        frame.at<uint8_t>(m_traceROIs[i][1] + m_traceROIs[i][3],m_traceROIs[i][0] + m_traceROIs[i][2]) = 255;
+//    }
+
     // TODO: Think about where color to gray and vise versa should take place.
     if (frame.channels() == 1) {
         cv::cvtColor(frame, tempFrame, cv::COLOR_GRAY2BGR);
@@ -168,7 +177,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         tempMat2 = frame.clone();
         tempMat2.convertTo(tempMat2, CV_32F);
         cv::divide(tempMat2,baselineFrame,tempMat2);
-        tempMat2 = ((tempMat2 - 1.0) + 0.2) * 512;
+        tempMat2 = ((tempMat2 - 1.0) + 0.1) * 1024;
         tempMat2.convertTo(tempMat2, CV_8U);
         cv::cvtColor(tempMat2, tempFrame, cv::COLOR_GRAY2BGR);
         tempFrame2 = QImage(tempFrame.data, tempFrame.cols, tempFrame.rows, tempFrame.step, QImage::Format_RGB888);

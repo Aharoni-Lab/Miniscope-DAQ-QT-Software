@@ -29,7 +29,7 @@ Item {
             return Math.cos(3.141592/2.0 * x);
     }
     function colormap_gnu_plot (x) {
-        console.debug(Qt.rgba(f1(33,x),f1(13,x),f1(10,x),1.0));
+//        console.debug(Qt.rgba(f1(33,x),f1(13,x),f1(10,x),1.0));
         return Qt.rgba(f1(33,x),f1(13,x),f1(10,x),1.0);
     }
 

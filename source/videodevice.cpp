@@ -68,7 +68,8 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     }
     else if (m_ucDevice.contains("videoPlayback")) {
         qDebug() << "VIDEO!!!";
-        m_camConnected = deviceStream->connect2Video(m_ucDevice["videoPlayback"].toObject()["filePath"].toString(),
+        m_camConnected = deviceStream->connect2Video(m_ucDevice["videoPlayback"].toObject()["folderPath"].toString(),
+                m_ucDevice["videoPlayback"].toObject()["filePrefix"].toString(),
                 m_ucDevice["videoPlayback"].toObject()["frameRate"].toDouble());
     }
     if (m_camConnected == 0) {

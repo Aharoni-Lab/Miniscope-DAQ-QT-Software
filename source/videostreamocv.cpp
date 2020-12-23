@@ -119,11 +119,16 @@ int VideoStreamOCV::connect2Camera(int cameraID) {
 
 }
 
-int VideoStreamOCV::connect2Video(QString filePath, float playbackFPS)
+int VideoStreamOCV::connect2Video(QString folderPath, QString filePrefix, float playbackFPS)
 {
+    m_playbackFolderPath = folderPath;
+    m_playbackFilePrefix = filePrefix;
     m_playbackFPS = playbackFPS;
+    m_playbackFileIndex = 0;
+
+    QString firstVideoFile = m_playbackFolderPath + "/" + m_playbackFilePrefix + QString::number(m_playbackFileIndex) + ".avi";
     cam = new cv::VideoCapture;
-    if (cam->open(filePath.toStdString())) {
+    if (cam->open(firstVideoFile.toStdString())) {
         QThread::msleep(500);
         m_connectionType = "videoFile";
         return 3;
@@ -148,6 +153,7 @@ void VideoStreamOCV::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float
 
 void VideoStreamOCV::startStream()
 {
+    QString fileName;
     int idx = 0;
     int daqFrameNumOffset = 0;
 //    float heading, pitch, roll;
@@ -216,7 +222,20 @@ void VideoStreamOCV::startStream()
                 QThread::msleep(1000.0/m_playbackFPS);
                 timeStampBuffer[idx%frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
                 if (!cam->read(frame)) {
-                    status = false;
+                    // Try next file before fully giving up
+                    m_playbackFileIndex++;
+                    qDebug() << "FILE INDEX" << m_playbackFileIndex;
+                    fileName = m_playbackFolderPath + "/" + m_playbackFilePrefix + QString::number(m_playbackFileIndex) + ".avi";
+                    cam->release();
+                    if (cam->open(fileName.toStdString())) {
+                        if (!cam->read(frame)) {
+                            status = false;
+                            return;
+                        }
+                    }
+                    else
+                        return;
+
                 }
             }
             if (status) {

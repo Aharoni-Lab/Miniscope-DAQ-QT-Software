@@ -44,8 +44,9 @@
 					"filterBadData": true
                 },
                 "videoPlayback": {
-                    "filePath": "C:/Users/dbaha/Documents/Data/V4_Megha_cranial/0.avi",
-                    "frameRate": 20
+                    "folderPath": "C:/Users/dbaha/Documents/Data/V4_Megha_cranial",
+                    "filePrefix": "",
+                    "frameRate": 40
                 },
 				"showSaturation": true,
 				"ROI": {
