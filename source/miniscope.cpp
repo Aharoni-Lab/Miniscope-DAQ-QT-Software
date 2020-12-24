@@ -30,6 +30,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucDevice, qint64 softwareStart
 
     // For Neuron Trace Display
     m_numTraces = 0;
+    m_traceLastValueIdx = 0;
     // --------------------
 
     m_ucDevice = ucDevice; // hold user config for this device
@@ -130,7 +131,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
 {
     QImage tempFrame2;
     cv::Mat tempFrame, tempMat1, tempMat2;
-
+    float traceMean = 0;
 
 //    for (int i=0; i < m_numTraces; i++) {
 //        frame.at<uint8_t>(m_traceROIs[i][1],m_traceROIs[i][0]) = 255;
@@ -251,10 +252,16 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         float meanFrameIntensity;
         if (m_displatState == "dFF") {
             // Remove or find a fast way (maybe with resize or downsamp) if needed.
-            meanFrameIntensity = cv::mean(tempMat2)[0];
+            // Use center 60% of frame for mean calculation
+            cv::Rect frameMeanROIRect(tempMat2.rows * 0.2,
+                                      tempMat2.cols * 0.2,
+                                      tempMat2.rows * 0.6,
+                                      tempMat2.cols * 0.6);
+            meanFrameIntensity = cv::mean(tempMat2(frameMeanROIRect))[0];
         }
         else
             meanFrameIntensity = 0.0f;
+        m_traceLastValueIdx = (m_traceLastValueIdx + 1) % SMOOTHING_WINDOW_IN_FRAMES;
         for (int i=0; i < m_numTraces; i++) {
 //            m_traceROIs[m_numTraces][0] = leftEdge;
 //            m_traceROIs[m_numTraces][1] = topEdge;
@@ -278,8 +285,14 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
                 else if (m_displatState == "dFF") {
                     meanIntensity = cv::mean(tempMat2(roiRect))[0];
                 }
-
-                m_traceDisplayY[i][bufNum][dataCount] = meanIntensity - meanFrameIntensity - 127.0f;
+                // Used for mean window smoothing of traces
+                m_traceLastValues[i][m_traceLastValueIdx] = meanIntensity - meanFrameIntensity - 127.0f;
+                traceMean = 0;
+                for (int j=0; j < SMOOTHING_WINDOW_IN_FRAMES; j++){
+                    traceMean += m_traceLastValues[i][j];
+                }
+                traceMean = traceMean / SMOOTHING_WINDOW_IN_FRAMES;
+                m_traceDisplayY[i][bufNum][dataCount] = traceMean;
                 m_traceDisplayT[i][bufNum][dataCount] = (timeStamp - m_softwareStartTime)/1000.0;
                 m_traceNumDataInBuf[i][bufNum]++;
             }
