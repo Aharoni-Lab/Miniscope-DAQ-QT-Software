@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import cv2
 import colorcet as cc
@@ -10,15 +11,27 @@ class MiniDLC:
         self.modelPath = modelPath
         self.resize = resizeVal
 
-        # Some Notes:
-        # Need to install CUDA from NVidia. I had to use v10.1 and move all needed .dll's to C:Windows\System32
-        # Need to install cuDNN from NVidia. Follow install instructions and still move .dll to System32 folder
-        # Was still getting a CUDNN_STATUS_ALLOC_FAILED error so added the "allow_growth" code below to get it to work
+    def setupDLC(self):
+          # Some Notes:
+          # Need to install CUDA from NVidia. I had to use v10.1 and move all needed .dll's to C:Windows\System32
+          # Need to install cuDNN from NVidia. Follow install instructions and still move .dll to System32 folder
+          # Was still getting a CUDNN_STATUS_ALLOC_FAILED error so added the "allow_growth" code below to get it to work
+          # If having error: Could not create cudnn handle: CUDNN_STATUS_ALLOC_FAILED uncomment below
+        print("In setupDLC.")
+        try:
+            config = tf.compat.v1.ConfigProto()
+            config.gpu_options.allow_growth = True
+            self.dlcLive = DLCLive(self.modelPath, resize=self.resize, tf_config=config)
+            return 0
+        except:
+#            e = sys.exc_info()[0]
+            try:
+                self.dlcLive = DLCLive(self.modelPath, resize=self.resize)
+                return 0
+            except:
+                return 1
 
-        # If having error: Could not create cudnn handle: CUDNN_STATUS_ALLOC_FAILED uncomment below
-        config = tf.compat.v1.ConfigProto()
-        config.gpu_options.allow_growth = True
-        self.dlcLive = DLCLive(modelPath, resize=resizeVal, tf_config=config)
+
         # otherwise use:
 #        self.dlcLive = DLCLive(modelPath, resize=resizeVal)
 

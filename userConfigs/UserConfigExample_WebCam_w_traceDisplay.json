@@ -12,11 +12,11 @@
     "animalName": "testMouse",
     "experimentName": "Linear Track Test",
     "recordLengthinSeconds": 600,
-    "executableOnStart": {
+    "executableOnStartRecording": {
         "filePath": "C:/Fiji.app/ImageJ-win64.exe",
         "arguments": ["hi", "hi2"]
     },
-    "executableOnStop": {
+    "executableOnStopRecording": {
         "filePath": "C:/Fiji.app/ImageJ-win64.exe",
         "arguments": ["hi", "hi2"]
     },

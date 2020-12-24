@@ -17,10 +17,23 @@
  #define slots
 #endif
 
+
+// ------ Pything MiniDLC Errors ------
+#define ERROR_NONE                  0
+#define ERROR_INIT                  9
+#define ERROR_IMPORT                10
+#define ERROR_INSTANCE              11
+#define ERROR_SETUPDLC              12
+#define ERROR_INIT_INF              13
+#define ERROR_GET_POSE              14
+
+// ------------------------------------
+
 BehaviorTrackerWorker::BehaviorTrackerWorker(QObject *parent, QJsonObject behavTrackerConfig):
     QObject(parent),
     numberOfCameras(0),
-    m_PythonInitialized(false)
+    m_PythonInitialized(false),
+    m_PythonError(ERROR_NONE)
 {
     m_btConfig = behavTrackerConfig;
 }
@@ -34,7 +47,7 @@ void BehaviorTrackerWorker::initPython()
     if (QDir(m_btConfig["pyEnvPath"].toString() + "/Lib/site-packages/dlclive").exists()) {
         // likely a correct path
         Py_SetPythonHome(m_btConfig["pyEnvPath"].toString().toStdWString().c_str());
-        qDebug() << "0000" << m_PythonInitialized;
+//        qDebug() << "0000" << m_PythonInitialized;
         Py_Initialize();
         m_PythonInitialized = true;
         PyObject* sysPath = PySys_GetObject((char*)"path");
@@ -43,6 +56,7 @@ void BehaviorTrackerWorker::initPython()
     }
     else {
         // couldn't find dlclive in expected location. Possibly a bad path
+        m_PythonError = ERROR_INIT;
         m_PythonInitialized = false;
     }
 
@@ -62,26 +76,39 @@ void BehaviorTrackerWorker::setUpDLCLive()
     pName = PyUnicode_DecodeFSDefault("Scripts.DLCwrapper");
     pModule = PyImport_Import(pName);
     Py_DECREF(pName);
-    pDict = PyModule_GetDict(pModule);
+    if (pModule == NULL) {
+        m_PythonError = ERROR_IMPORT;
+        emit sendMessage("ERROR: Cannot import 'Scripts/DLCwrapper'.");
+    }
+    else {
+        pDict = PyModule_GetDict(pModule);
+        pClass = PyDict_GetItemString(pDict, "MiniDLC");
 
-    pClass = PyDict_GetItemString(pDict, "MiniDLC");
+        pArgs = PyTuple_New(2);
+        pValue = PyUnicode_FromString(m_btConfig["modelPath"].toString().toUtf8());
+        PyTuple_SetItem(pArgs, 0, pValue);
 
-    pArgs = PyTuple_New(2);
-    pValue = PyUnicode_FromString(m_btConfig["modelPath"].toString().toUtf8());
-    PyTuple_SetItem(pArgs, 0, pValue);
+        pValue = PyFloat_FromDouble(m_btConfig["resize"].toDouble(1));
+        PyTuple_SetItem(pArgs, 1, pValue);
 
-    pValue = PyFloat_FromDouble(m_btConfig["resize"].toDouble(1));
-    PyTuple_SetItem(pArgs, 1, pValue);
+        // Should create instance of MiniDLC class
+        pInstance = PyObject_CallObject(pClass,pArgs);
+        // If NULL something went wrong and we shouldn't do more with pInstance
+        if (pInstance == NULL) {
+            m_PythonError = ERROR_INSTANCE;
+            emit sendMessage("ERROR: Behavior Tracker couldn't create instance of MiniDLC class from Scripts/DLCwrapper.py script.");
+        }
+        else {
+            pValue = PyObject_CallMethod(pInstance,"setupDLC", NULL);
+            if (PyFloat_AsDouble(pValue) != 0) {
+                // Failure
+                m_PythonError = ERROR_SETUPDLC;
+                emit sendMessage("ERROR: 'setupDLC' failed in 'Scripts/DLCwrapper.py.");
 
-    pInstance = PyObject_CallObject(pClass,pArgs);
+            }
+        }
+    }
 
-//    pValue = PyObject_CallMethod(pInstance,"initInference",NULL);
-
-//    Py_DECREF(pValue);
-//    Py_DECREF(pArgs);
-//    Py_DECREF(pClass);
-//    Py_DECREF(pDict);
-//    Py_DECREF(pModule);
 #endif
 }
 
@@ -101,10 +128,19 @@ QVector<float> BehaviorTrackerWorker::getDLCLivePose(cv::Mat frame)
 
     if (m_DLCInitInfDone == false) {
         pValue = PyObject_CallMethod(pInstance,"initInference", "(O)", mat);
+        if (pValue == NULL) {
+            m_PythonError = ERROR_INIT_INF;
+            emit sendMessage("ERROR: Cannot init inference of DLC-Live in 'Scripts/DLCwrapper.py.");
+        }
         m_DLCInitInfDone = true;
     }
-    else
+    else {
         pValue = PyObject_CallMethod(pInstance,"getPose", "(O)", mat);
+        if (pValue == NULL) {
+            m_PythonError = ERROR_GET_POSE;
+            emit sendMessage("ERROR: Cannot get pose from DLC-Live in 'Scripts/DLCwrapper.py.");
+        }
+    }
 
     PyArrayObject *np_ret = reinterpret_cast<PyArrayObject*>(pValue);
 
@@ -181,48 +217,50 @@ void BehaviorTrackerWorker::startRunning()
     // Gets called when thread starts running
 
     initPython();
-    if (m_PythonInitialized == false)
-        sendMessage("ERROR: Python not initialized. Check Python env path!");
+    if (m_PythonError != ERROR_NONE)
+        emit sendMessage("ERROR: Python not initialized. Check Python env path!");
     else {
         initNumpy(); // Inits import_array() and handles the return of it
 
         setUpDLCLive();
+        if (m_PythonError == ERROR_NONE) {
+            getColors();
 
-        getColors();
-        // Will try using DLC's viewer before using our own
-
-        m_trackingRunning = true;
-        int acqFrameNum;
-        int frameIdx;
-        int idx = 0;
-        QList<QString> camNames = frameBuffer.keys();
-        while (m_trackingRunning) {
-            for (int camNum = 0; camNum < camNames.length(); camNum++) {
-                // Loops through cameras to see if new frames are ready
-                acqFrameNum = *m_acqFrameNum[camNames[camNum]];
-                if (acqFrameNum > currentFrameNumberProcessed[camNames[camNum]]) {
-                    // New frame ready for behavior tracking
-                    frameIdx = (acqFrameNum - 1) % bufferSize[camNames[camNum]];
-                    poseBuffer[idx % poseBufferSize] = getDLCLivePose(frameBuffer[camNames[camNum]][frameIdx]);
-                    poseFrameNumBuffer[idx % poseBufferSize] = (acqFrameNum - 1);
-                    currentFrameNumberProcessed[camNames[camNum]] = acqFrameNum;
-    //                qDebug() << acqFrameNum;
-                    if (!freePoses->tryAcquire()) {
-                        // Failed to acquire
-                        // Pose will be thrown away
-                        if (freePoses->available() == 0) {
-                            sendMessage("Warning: Pose buffer full");
-                            QThread::msleep(500);
+            m_trackingRunning = true;
+            int acqFrameNum;
+            int frameIdx;
+            int idx = 0;
+            QList<QString> camNames = frameBuffer.keys();
+            while (m_trackingRunning) {
+                for (int camNum = 0; camNum < camNames.length(); camNum++) {
+                    // Loops through cameras to see if new frames are ready
+                    acqFrameNum = *m_acqFrameNum[camNames[camNum]];
+                    if (acqFrameNum > currentFrameNumberProcessed[camNames[camNum]]) {
+                        // New frame ready for behavior tracking
+                        frameIdx = (acqFrameNum - 1) % bufferSize[camNames[camNum]];
+                        poseBuffer[idx % poseBufferSize] = getDLCLivePose(frameBuffer[camNames[camNum]][frameIdx]);
+                        if (m_PythonError != ERROR_NONE)
+                            return;
+                        poseFrameNumBuffer[idx % poseBufferSize] = (acqFrameNum - 1);
+                        currentFrameNumberProcessed[camNames[camNum]] = acqFrameNum;
+        //                qDebug() << acqFrameNum;
+                        if (!freePoses->tryAcquire()) {
+                            // Failed to acquire
+                            // Pose will be thrown away
+                            if (freePoses->available() == 0) {
+                                emit sendMessage("Warning: Pose buffer full");
+                                QThread::msleep(500);
+                            }
+                        }
+                        else {
+                            idx++;
+                            m_btPoseCount->operator++();
+                            usedPoses->release();
                         }
                     }
-                    else {
-                        idx++;
-                        m_btPoseCount->operator++();
-                        usedPoses->release();
-                    }
                 }
+                QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices
             }
-            QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices
         }
     }
 }

@@ -72,6 +72,7 @@ private:
     PyObject *pValue;
 
     bool m_PythonInitialized;
+    int m_PythonError;
 };
 
 #endif // BEHAVIORTRACKERWORKER_H
