@@ -24,7 +24,7 @@
 #define BASELINE_FRAME_BUFFER_SIZE  128
 
 #define TRACE_DISPLAY_BUFFER_SIZE         256
-#define NUM_MAX_NEURON_TRACES             16
+#define NUM_MAX_NEURON_TRACES             32
 #define SMOOTHING_WINDOW_IN_FRAMES        4
 
 class Miniscope : public VideoDevice

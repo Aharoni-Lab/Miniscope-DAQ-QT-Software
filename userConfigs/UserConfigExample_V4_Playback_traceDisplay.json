@@ -30,8 +30,8 @@
         "type": "scrolling",
         "windowX": 100,
         "windowY": 100,
-        "width": 600,
-        "height": 400
+        "windowWidth": 600,
+        "windowHeight": 800
     },
     "devices": {
         "miniscopes": [
@@ -47,7 +47,7 @@
                     "folderPath2": "C:/Users/dbaha/Documents/Data/V4_Pingping",
                     "folderPath": "C:/Users/dbaha/Documents/Data/V4_Megha_cranial/New",
                     "filePrefix": "",
-                    "frameRate": 20
+                    "frameRate": 40
                 },
 				"showSaturation": true,
 				"ROI": {
