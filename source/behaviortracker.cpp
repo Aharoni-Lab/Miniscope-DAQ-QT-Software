@@ -162,6 +162,7 @@ void BehaviorTracker::createView(QSize resolution)
 
     // TODO: Probably should grab this from the behavior cam size...
 
+
     view->setWidth(resolution.width() * btConfig["windowScale"].toDouble(1));
     view->setHeight(resolution.height() * btConfig["windowScale"].toDouble(1));
 
@@ -178,11 +179,12 @@ void BehaviorTracker::createView(QSize resolution)
     trackerDisplay = rootObject->findChild<TrackerDisplay*>("trackerDisplay");
     QObject::connect(trackerDisplay->window(), &QQuickWindow::beforeRendering, this, &BehaviorTracker::sendNewFrame);
 
+
     if (m_plotOcc) {
         trackerDisplay->setShowOccState(true);
-        trackerDisplay->findChild<QObject*>("occRect")->setProperty("visible", m_plotOcc);
+        rootObject->findChild<QObject*>("occRect")->setProperty("visible", m_plotOcc);
     }
-
+    qDebug() << "EEEERRRRROOOOOOOOORRRRRR" << resolution;
 }
 
 void BehaviorTracker::connectSnS()

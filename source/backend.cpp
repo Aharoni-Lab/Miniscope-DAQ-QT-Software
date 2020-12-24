@@ -542,6 +542,7 @@ void backEnd::constructUserConfigGUI()
             QSize camRes = behavCam.first()->getResolution();
 
             behavTracker = new BehaviorTracker(NULL, m_userConfig, m_softwareStartTime);
+
             QObject::connect(behavTracker, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
             QObject::connect(behavTracker, &BehaviorTracker::addTraceDisplay, traceDisplay, &TraceDisplayBackend::addNewTrace);
             behavTracker->createView(camRes);

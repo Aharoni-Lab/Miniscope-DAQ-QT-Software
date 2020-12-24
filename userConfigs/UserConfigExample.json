@@ -41,6 +41,8 @@
     "behaviorTracker": {
         "enabled": false,
         "type": "DeepLabCut-Live",
+        "COMMENT_pyEnvPath": "This should be the absolute path to the base folder of your Pythong environment that can successfully run DLC-Live.",
+        "COMMENT_pyEnvPath2": "The Miniscope Software initially checks this folder to make sure it contains this exact subfolder, '/Lib/site-packages/dlclive'",
         "pyEnvPath": "C:/Users/dbaha/.conda/envs/dlc-live",
         "modelPath": "C:/Users/dbaha/Documents/Data/DLC/DLC_Dog_resnet_50_iteration-0_shuffle-0",
         "COMMENT_resize": "resize will scale the behavior video for DLC-Live. This should be 1 or less. If DLC is running slow you should consider using a smaller resize value.",
