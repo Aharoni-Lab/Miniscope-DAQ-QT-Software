@@ -90,11 +90,11 @@ win32 {
 #    INCLUDEPATH += C:/Python38/include
 #    LIBS += -LC:/Python38/libs -lpython38
 
-    INCLUDEPATH += C:/Users/dbaha/.conda/envs/dlc-live/include
-    LIBS += -LC:/Users/dbaha/.conda/envs/dlc-live/libs -lpython37
+    INCLUDEPATH += C:/Users/dbaha/.conda/envs/basepy37/include
+    LIBS += -LC:/Users/dbaha/.conda/envs/basepy37/libs -lpython37
 
     # For numpy
-    INCLUDEPATH += C:/Users/dbaha/.conda/envs/dlc-live/Lib/site-packages/numpy/core/include
+    INCLUDEPATH += C:/Users/dbaha/.conda/envs/basepy37/Lib/site-packages/numpy/core/include
 
 } else {
     CONFIG += link_pkgconfig

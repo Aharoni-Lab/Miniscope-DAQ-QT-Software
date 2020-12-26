@@ -26,6 +26,7 @@
 #define ERROR_SETUPDLC              12
 #define ERROR_INIT_INF              13
 #define ERROR_GET_POSE              14
+#define ERROR_NUMPY_DLL             15
 
 // ------------------------------------
 
@@ -45,19 +46,31 @@ void BehaviorTrackerWorker::initPython()
 
     // Check to see if environment path goes to a likely python env with dlc
     if (QDir(m_btConfig["pyEnvPath"].toString() + "/Lib/site-packages/dlclive").exists()) {
-        // likely a correct path
-        Py_SetPythonHome(m_btConfig["pyEnvPath"].toString().toStdWString().c_str());
-//        qDebug() << "0000" << m_PythonInitialized;
-        Py_Initialize();
-        m_PythonInitialized = true;
-        PyObject* sysPath = PySys_GetObject((char*)"path");
-        PyList_Append(sysPath, PyUnicode_FromString(".")); // appends path with current dir
-        Py_DECREF(sysPath);
+
+        // Checks to make sure numpy .dll exists.
+        if (QDir(m_btConfig["pyEnvPath"].toString() + "/Lib/site-packages/numpy/.libs").exists()) {
+
+            // likely a correct path
+            Py_SetPythonHome(m_btConfig["pyEnvPath"].toString().toStdWString().c_str());
+            Py_Initialize();
+            m_PythonInitialized = true;
+            PyObject* sysPath = PySys_GetObject((char*)"path");
+    //        qDebug() << "SYS PATH" << sysPath;
+    //        QString pathToLib = m_btConfig["pyEnvPath"].toString() + "/Library/bin";
+    //        PyList_Append(sysPath, PyUnicode_FromString(pathToLib.toStdString().c_str()));
+            PyList_Append(sysPath, PyUnicode_FromString(".")); // appends path with current dir
+            Py_DECREF(sysPath);
+        }
+        else {
+            m_PythonError = ERROR_NUMPY_DLL;
+            emit sendMessage("ERROR: Looks like your numpy install is missing a required DLL file. This happens if you use 'conda install numpy'. To fix, uninstall numpy from your environment and uses 'pip install numpy' to reisntall it. <pyEnvPath>/Lib/site-packages/numpy/.libs should now exist.");
+        }
     }
     else {
         // couldn't find dlclive in expected location. Possibly a bad path
         m_PythonError = ERROR_INIT;
         m_PythonInitialized = false;
+        emit sendMessage("ERROR: Python not initialized. Check Python env path! Your path should contain: <pyEnvPath>/Lib/site-packages/dlclive.");
     }
 
 #endif
@@ -74,11 +87,12 @@ void BehaviorTrackerWorker::setUpDLCLive()
     PyObject *pName;
 
     pName = PyUnicode_DecodeFSDefault("Scripts.DLCwrapper");
+//    pName = PyUnicode_DecodeFSDefault("Scripts.DLCwrapper");
     pModule = PyImport_Import(pName);
     Py_DECREF(pName);
     if (pModule == NULL) {
         m_PythonError = ERROR_IMPORT;
-        emit sendMessage("ERROR: Cannot import 'Scripts/DLCwrapper'.");
+        emit sendMessage("ERROR: Cannot import './Scripts/DLCwrapper'. This usually is due to either a PATH issue or a problem importing all the modules in this .py file.");
     }
     else {
         pDict = PyModule_GetDict(pModule);
@@ -217,9 +231,7 @@ void BehaviorTrackerWorker::startRunning()
     // Gets called when thread starts running
 
     initPython();
-    if (m_PythonError != ERROR_NONE)
-        emit sendMessage("ERROR: Python not initialized. Check Python env path!");
-    else {
+    if (m_PythonError == ERROR_NONE) {
         initNumpy(); // Inits import_array() and handles the return of it
 
         setUpDLCLive();

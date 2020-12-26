@@ -31,10 +31,6 @@ class MiniDLC:
             except:
                 return 1
 
-
-        # otherwise use:
-#        self.dlcLive = DLCLive(modelPath, resize=resizeVal)
-
     def sayHi(self):
         print(self.resize)
         return 0
