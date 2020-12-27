@@ -7,6 +7,13 @@
 
 #include <opencv2/opencv.hpp>
 
+#include <QtQuick/QQuickItem>
+#include <QtGui/QOpenGLShaderProgram>
+#include <QtGui/QOpenGLFunctions>
+#include <QtGui/QOpenGLTexture>
+#include <QtGui/QOpenGLBuffer>
+#include <QtGui/QOpenGLFramebufferObject>
+
 #include <QObject>
 #include <QJsonObject>
 #include <QAtomicInt>
@@ -30,6 +37,17 @@
 #define NUM_MAX_POSE_TRACES   40
 #define TRACE_DISPLAY_BUFFER_SIZE   256
 
+// For overlay plotting
+#define NUM_PAST_FRAMES_OVERLAY     6
+
+typedef struct OverlayData{
+    float position[3] ;
+    float color;
+    float index ;
+    float pValue;
+
+} overlayData_t;
+
 class TrackerDisplayRenderer : public QObject, protected QOpenGLFunctions
 {
     Q_OBJECT
@@ -45,7 +63,7 @@ public:
     void setDisplayOcc(QImage image) { m_displayOcc = image.copy(); m_newOccupancy = true; }
     void drawImage();
     void draw2DHist();
-
+    void drawTrackerOverlay();
 
 
     bool m_newImage;
@@ -53,6 +71,7 @@ public:
     bool m_showOcc;
     int occMax;
     float occPlotBox[4];
+    QVector<overlayData_t> overlayData;
 
 public slots:
     void paint();
@@ -69,6 +88,9 @@ private:
 
     QOpenGLShaderProgram *m_programImage;
     QOpenGLShaderProgram *m_programOccupancy;
+
+    QOpenGLShaderProgram *m_programTrackingOverlay;
+    QOpenGLBuffer overlayVOB;
 };
 
 class TrackerDisplay : public QQuickItem
@@ -78,14 +100,12 @@ class TrackerDisplay : public QQuickItem
 public:
     TrackerDisplay();
 
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
 
     qreal t() const { return m_t; }
     void setT(qreal t);
     void setDisplayImage(QImage image);
     void setDisplayOcc(QImage image);
+    void setOverlayData(QVector<overlayData_t> data);
     void setOccMax(int value) { m_renderer->occMax = value;}
     void setShowOccState(bool state);
 
@@ -208,6 +228,10 @@ private:
     int m_occNumBinsY;
     int m_occMax;
     QVector<int> m_poseIdxUsed;
+
+    // For tracker Overlay plotting
+    QVector<overlayData_t> overlayData;
+
 };
 
 #endif // BEHAVIORTRACKER_H

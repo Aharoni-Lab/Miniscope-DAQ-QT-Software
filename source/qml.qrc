@@ -40,5 +40,7 @@
         <file>shaders/texture.vert</file>
         <file>shaders/tracker.vert</file>
         <file>shaders/tracker.frag</file>
+        <file>shaders/trackerOverlay.frag</file>
+        <file>shaders/trackerOverlay.vert</file>
     </qresource>
 </RCC>

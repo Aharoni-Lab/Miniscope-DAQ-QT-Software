@@ -19,21 +19,21 @@
     "behaviorTracker": {
         "type": "DeepLabCut-Live",
         "pyEnvPath": "C:/Users/dbaha/.conda/envs/dlc-live",
-        "modelPath": "C:/Users/dbaha/Documents/Data/DLC/DLC_Dog_resnet_50_iteration-0_shuffle-0",
-        "modelPathHuman": "C:/Users/dbaha/Documents/Data/DLC/DLC_human_dancing_resnet_101_iteration-0_shuffle-1",
+        "modelPathDog": "C:/Users/dbaha/Documents/Data/DLC/DLC_Dog_resnet_50_iteration-0_shuffle-0",
+        "modelPath": "C:/Users/dbaha/Documents/Data/DLC/DLC_human_dancing_resnet_101_iteration-0_shuffle-1",
         "resize": 1,
         "pCutoffDisplay": 0.2,
         "windowWidth": 640,
         "windowHeight": 480,
         "windowX": 100,
         "windowY": 100,
-        "windowScale": 1.0,
+        "windowScale": 2.0,
         "occupancyPlot": {
             "numBinsX": 100,
             "numBinsY": 100,
-            "poseIdxToUse": [0, 1, 2, 3, 4]
+            "poseIdxToUse": [11,12]
         },
-        "poseIdxForTraceDisplay": ["0wh", "1w", "2w"]
+        "poseIdxForTraceDisplay": ["11wh", "12wh"]
     }, 
     "traceDisplay": {
         "type": "scrolling",
@@ -61,7 +61,7 @@
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
                 "compression": "MJPG",
                 "framesPerFile": 1000,
-                "windowScale": 1.0,
+                "windowScale": 0.5,
                 "windowX": 800,
                 "windowY": 600
             }

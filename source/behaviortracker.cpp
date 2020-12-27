@@ -5,6 +5,13 @@
 
 #include <opencv2/opencv.hpp>
 
+#include <QtQuick/QQuickItem>
+#include <QtGui/QOpenGLShaderProgram>
+#include <QtGui/QOpenGLFunctions>
+#include <QtGui/QOpenGLTexture>
+#include <QtGui/QOpenGLBuffer>
+#include <QtGui/QOpenGLFramebufferObject>
+
 #include <QJsonObject>
 #include <QDebug>
 #include <QAtomicInt>
@@ -254,10 +261,42 @@ void BehaviorTracker::sendNewFrame()
         for (int i = 0; i < numPose; i++) {
             pose.append(QVector3D(tempPose[i + 0], tempPose[i + numPose], tempPose[i + 2 * numPose]));
             // TODO: Change to our own shader to plot points
-            if (pose.last().z() > m_pCutoffDisplay)
-                cv::circle(cvFrame, cv::Point(pose.last().x(),pose.last().y()),3,cv::Scalar(colors[i*3 + 2]*255,colors[i*3+1]*255,colors[i*3+0]*255),cv::FILLED);
+//            if (pose.last().z() > m_pCutoffDisplay)
+//                cv::circle(cvFrame, cv::Point(pose.last().x(),pose.last().y()),5,cv::Scalar(colors[i*3 + 2]*255,colors[i*3+1]*255,colors[i*3+0]*255),cv::FILLED);
 //        }
         }
+
+        // For Tracker Overlay
+        // init overlayData
+        if (overlayData.length() != (NUM_PAST_FRAMES_OVERLAY * pose.length())) {
+            for (int i=0; i < pose.length(); i++) {
+                for (int j=0; j < NUM_PAST_FRAMES_OVERLAY; j++) {
+                    overlayData.append(overlayData_t());
+                }
+            }
+        }
+        // Move and fill overlayData vector
+        for (int i=0; i < pose.length(); i++) {
+            for (int j=0; j < (NUM_PAST_FRAMES_OVERLAY - 1); j++) {
+                // Shift old data down 1
+                overlayData[i * NUM_PAST_FRAMES_OVERLAY + j] = overlayData[i * NUM_PAST_FRAMES_OVERLAY + j + 1];
+                overlayData[i * NUM_PAST_FRAMES_OVERLAY + j].position[2] -= 1.0f/NUM_PAST_FRAMES_OVERLAY;
+//                if (i == 0) {
+//                    qDebug() << j << overlayData[i * NUM_PAST_FRAMES_OVERLAY + j].position[0] << overlayData[i * NUM_PAST_FRAMES_OVERLAY + j].position[1];
+//                }
+            }
+            // Add new data
+            overlayData[((i + 1) * NUM_PAST_FRAMES_OVERLAY) - 1].position[0] = 2.0f * pose[i].x()/m_camResolution.width() - 1.0f;
+            overlayData[((i + 1) * NUM_PAST_FRAMES_OVERLAY) - 1].position[1] = -2.0f * pose[i].y()/m_camResolution.height() + 1.0f;
+            overlayData[((i + 1) * NUM_PAST_FRAMES_OVERLAY) - 1].position[2] = 1.0f;
+            overlayData[((i + 1) * NUM_PAST_FRAMES_OVERLAY) - 1].color = (float)(i)/(float)(pose.length());
+            overlayData[((i + 1) * NUM_PAST_FRAMES_OVERLAY) - 1].index = (float)i;
+            overlayData[((i + 1) * NUM_PAST_FRAMES_OVERLAY) - 1].pValue = pose[i].z();
+
+        }
+        trackerDisplay->setOverlayData(overlayData);
+
+
         // For Occupancy plot
         if (m_plotOcc) {
             int tempX = 0;
@@ -388,7 +427,8 @@ TrackerDisplayRenderer::TrackerDisplayRenderer(QObject *parent, QSize displayWin
     m_textureImage(nullptr),
     m_texture2DHist(nullptr),
     m_programImage(nullptr),
-    m_programOccupancy(nullptr)
+    m_programOccupancy(nullptr),
+    m_programTrackingOverlay(nullptr)
 {
     occPlotBox[0] = 0.5;
     occPlotBox[1] = 0.5;
@@ -405,6 +445,7 @@ TrackerDisplayRenderer::~TrackerDisplayRenderer()
     delete m_texture2DHist;
     delete m_programImage;
     delete m_programOccupancy;
+    delete m_programTrackingOverlay;
 }
 
 void TrackerDisplayRenderer::initPrograms()
@@ -420,6 +461,13 @@ void TrackerDisplayRenderer::initPrograms()
     m_programOccupancy->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,":/shaders/tracker.vert");
     m_programOccupancy->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/tracker.frag");
     m_programOccupancy->link();
+
+    m_programTrackingOverlay = new QOpenGLShaderProgram();
+    m_programTrackingOverlay->addCacheableShaderFromSourceFile(QOpenGLShader::Vertex,":/shaders/trackerOverlay.vert");
+    m_programTrackingOverlay->addCacheableShaderFromSourceFile(QOpenGLShader::Fragment,":/shaders/trackerOverlay.frag");
+    m_programTrackingOverlay->link();
+
+
 
     m_textureImage = new QOpenGLTexture(QImage(":/img/MiniscopeLogo.png").rgbSwapped());
 //    m_textureImage->bind(0);
@@ -534,7 +582,48 @@ void TrackerDisplayRenderer::draw2DHist()
 
 }
 
+void TrackerDisplayRenderer::drawTrackerOverlay () {
 
+    if (!overlayVOB.isCreated() && !overlayData.isEmpty()) {
+        // Setup VOB
+        overlayVOB.create();
+        overlayVOB.bind();
+        overlayVOB.allocate(&overlayData[0], sizeof(overlayData_t) * overlayData.length());
+        overlayVOB.release();
+    }
+//    qDebug() << "OV Length" << overlayData.length();
+    if (overlayVOB.isCreated()) {
+
+
+        m_programTrackingOverlay->bind();
+        overlayVOB.bind();
+        overlayVOB.allocate(&overlayData[0], sizeof(overlayData_t) * overlayData.length());
+//        qDebug() << overlayData[0].position[0] << overlayData[0].position[1];
+
+        m_programTrackingOverlay->setUniformValue("u_pValueCutoff", 0.5f);
+
+        m_programTrackingOverlay->enableAttributeArray("a_position");
+        m_programTrackingOverlay->enableAttributeArray("a_color");
+        m_programTrackingOverlay->enableAttributeArray("a_index");
+        m_programTrackingOverlay->enableAttributeArray("a_pValue");
+
+        m_programTrackingOverlay->setAttributeBuffer("a_position",GL_FLOAT, 0,                3, sizeof(overlayData_t));
+        m_programTrackingOverlay->setAttributeBuffer("a_color", GL_FLOAT, 3 * sizeof(float), 1, sizeof(overlayData_t));
+        m_programTrackingOverlay->setAttributeBuffer("a_index", GL_FLOAT, 4 * sizeof(float), 1, sizeof(overlayData_t));
+        m_programTrackingOverlay->setAttributeBuffer("a_pValue", GL_FLOAT, 5 * sizeof(float), 1, sizeof(overlayData_t));
+
+        glLineWidth(20);
+        glDrawArrays(GL_LINE_STRIP, 0, overlayVOB.size()/(sizeof(overlayData_t)));
+
+        m_programTrackingOverlay->disableAttributeArray("a_position");
+        m_programTrackingOverlay->disableAttributeArray("a_color");
+        m_programTrackingOverlay->disableAttributeArray("a_index");
+        m_programTrackingOverlay->disableAttributeArray("a_pValue");
+
+        overlayVOB.release();
+        m_programTrackingOverlay->release();
+    }
+}
 
 void TrackerDisplayRenderer::paint()
 {
@@ -544,16 +633,20 @@ void TrackerDisplayRenderer::paint()
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
 
-//    glEnable(GL_BLEND);
-//    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
     drawImage();
 
-    if( m_showOcc)
-        draw2DHist();
+    drawTrackerOverlay();
 
-    //    // Not strictly needed for this example, but generally useful for when
-    //    // mixing with raw OpenGL.
+    if( m_showOcc) {
+        glDisable(GL_BLEND);
+        draw2DHist();
+    }
+
+    // Not strictly needed for this example, but generally useful for when
+    // mixing with raw OpenGL.
     m_window->resetOpenGLState();
 }
 
@@ -566,20 +659,6 @@ TrackerDisplay::TrackerDisplay():
 
 }
 
-void TrackerDisplay::mousePressEvent(QMouseEvent *event)
-{
-
-}
-
-void TrackerDisplay::mouseMoveEvent(QMouseEvent *event)
-{
-
-}
-
-void TrackerDisplay::mouseReleaseEvent(QMouseEvent *event)
-{
-
-}
 
 void TrackerDisplay::occRectChanged(float x, float y, float w, float h)
 {
@@ -613,6 +692,12 @@ void TrackerDisplay::setDisplayOcc(QImage image)
 {
     if (m_renderer && !m_renderer->m_newOccupancy)
         m_renderer->setDisplayOcc(image);
+}
+
+void TrackerDisplay::setOverlayData(QVector<overlayData_t> data)
+{
+    if (m_renderer)
+        m_renderer->overlayData = data;
 }
 
 void TrackerDisplay::setShowOccState(bool state)
