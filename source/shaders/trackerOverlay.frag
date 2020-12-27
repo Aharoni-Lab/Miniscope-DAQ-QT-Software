@@ -21,9 +21,10 @@ void main(void)
     gl_FragColor = colormap_jet(v_color);
 
     if (v_pValue < u_pValueCutoff) {
-        if (gl_FragColor.a > 0.5)
-            gl_FragColor.a = 0.5;
-        gl_FragColor.a = gl_FragColor.a * 0.2f;
+        gl_FragColor = mix(gl_FragColor,vec4(0.0,0.0,0.0,0.0), 0.8);
+//        if (gl_FragColor.a > 0.1)
+//            gl_FragColor.a = 0.1;
+        gl_FragColor.a = gl_FragColor.a * 0.05f;
     }
 
     gl_FragColor.a = v_pastID;

@@ -72,6 +72,7 @@ public:
     int occMax;
     float occPlotBox[4];
     QVector<overlayData_t> overlayData;
+    float pValCut;
 
 public slots:
     void paint();
@@ -108,6 +109,7 @@ public:
     void setOverlayData(QVector<overlayData_t> data);
     void setOccMax(int value) { m_renderer->occMax = value;}
     void setShowOccState(bool state);
+    void setPValueCutOff(float value) {m_pValCut = value; }
 
     Q_INVOKABLE void occRectChanged(float x, float y, float w, float h);
 
@@ -123,6 +125,7 @@ private slots:
 
 private:
     qreal m_t;
+    float m_pValCut;
     bool m_showOcc;
     TrackerDisplayRenderer* m_renderer;
 //    float m_occPlotBox[4];

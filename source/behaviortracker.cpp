@@ -180,18 +180,19 @@ void BehaviorTracker::createView(QSize resolution)
 #ifdef Q_OS_WINDOWS
     view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
 #endif
-    view->show();
+
 
     rootObject = view->rootObject();
     trackerDisplay = rootObject->findChild<TrackerDisplay*>("trackerDisplay");
     QObject::connect(trackerDisplay->window(), &QQuickWindow::beforeRendering, this, &BehaviorTracker::sendNewFrame);
-
+    trackerDisplay->setPValueCutOff(m_pCutoffDisplay);
 
     if (m_plotOcc) {
         trackerDisplay->setShowOccState(true);
         rootObject->findChild<QObject*>("occRect")->setProperty("visible", m_plotOcc);
     }
-    qDebug() << "EEEERRRRROOOOOOOOORRRRRR" << resolution;
+
+    view->show();
 }
 
 void BehaviorTracker::connectSnS()
@@ -430,6 +431,7 @@ TrackerDisplayRenderer::TrackerDisplayRenderer(QObject *parent, QSize displayWin
     m_programOccupancy(nullptr),
     m_programTrackingOverlay(nullptr)
 {
+    pValCut = 0.0f;
     occPlotBox[0] = 0.5;
     occPlotBox[1] = 0.5;
     occPlotBox[2] = 0.4;
@@ -600,7 +602,7 @@ void TrackerDisplayRenderer::drawTrackerOverlay () {
         overlayVOB.allocate(&overlayData[0], sizeof(overlayData_t) * overlayData.length());
 //        qDebug() << overlayData[0].position[0] << overlayData[0].position[1];
 
-        m_programTrackingOverlay->setUniformValue("u_pValueCutoff", 0.5f);
+        m_programTrackingOverlay->setUniformValue("u_pValueCutoff", pValCut);
 
         m_programTrackingOverlay->enableAttributeArray("a_position");
         m_programTrackingOverlay->enableAttributeArray("a_color");
@@ -634,14 +636,17 @@ void TrackerDisplayRenderer::paint()
     glClear(GL_COLOR_BUFFER_BIT);
 
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     drawImage();
 
+//    glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     drawTrackerOverlay();
 
     if( m_showOcc) {
-        glDisable(GL_BLEND);
+//        glDisable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         draw2DHist();
     }
 
@@ -655,6 +660,7 @@ TrackerDisplay::TrackerDisplay():
     m_renderer(nullptr)
 {
     m_showOcc = false;
+    m_pValCut = 0.0f;
     connect(this, &QQuickItem::windowChanged, this, &TrackerDisplay::handleWindowChanged);
 
 }
@@ -727,6 +733,7 @@ void TrackerDisplay::sync()
 //        m_renderer->setDisplayFrame(QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
         connect(window(), &QQuickWindow::beforeRendering, m_renderer, &TrackerDisplayRenderer::paint, Qt::DirectConnection);
         m_renderer->m_showOcc = m_showOcc;
+        m_renderer->pValCut = m_pValCut;
     }
     m_renderer->setViewportSize(window()->size() * window()->devicePixelRatio());
 //    m_renderer->setT(m_t);
