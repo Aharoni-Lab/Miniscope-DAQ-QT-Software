@@ -391,12 +391,12 @@ void BehaviorTracker::handleAddNewTracePose(int poseIdx, QString type, bool same
             m_tracePoseIdx[m_numTraces] = poseIdx;
 
             m_tracePoseType[m_numTraces] = 0;
-            m_traceWindowLength[m_numTraces] = (float)view->width();
+            m_traceWindowLength[m_numTraces] = (float)m_camResolution.width();
         }
         else {
             m_tracePoseIdx[m_numTraces] = poseIdx;
             m_tracePoseType[m_numTraces] = 1;
-            m_traceWindowLength[m_numTraces] = (float)view->height();
+            m_traceWindowLength[m_numTraces] = (float)m_camResolution.height();
         }
 //        m_traceColors[m_numTraces][0] = 1.0f;//((float)colors[poseIdx*3 + 0])/100.0f;
 //        m_traceColors[m_numTraces][1] = 1.0f;//((float)colors[poseIdx*3 + 1])/100.0f;
