@@ -234,6 +234,7 @@ private:
 
     // For tracker Overlay plotting
     QVector<overlayData_t> overlayData;
+    int m_numPose;
 
 };
 

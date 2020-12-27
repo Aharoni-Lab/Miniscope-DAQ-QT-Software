@@ -129,6 +129,7 @@ void BehaviorTrackerWorker::setUpDLCLive()
 QVector<float> BehaviorTrackerWorker::getDLCLivePose(cv::Mat frame)
 {
 
+    QVector<float> pose;
 #ifdef USE_PYTHON
     PyObject *mat;
 
@@ -146,7 +147,8 @@ QVector<float> BehaviorTrackerWorker::getDLCLivePose(cv::Mat frame)
             m_PythonError = ERROR_INIT_INF;
             emit sendMessage("ERROR: Cannot init inference of DLC-Live in 'Scripts/DLCwrapper.py.");
         }
-        m_DLCInitInfDone = true;
+        else
+            m_DLCInitInfDone = true;
     }
     else {
         pValue = PyObject_CallMethod(pInstance,"getPose", "(O)", mat);
@@ -154,25 +156,22 @@ QVector<float> BehaviorTrackerWorker::getDLCLivePose(cv::Mat frame)
             m_PythonError = ERROR_GET_POSE;
             emit sendMessage("ERROR: Cannot get pose from DLC-Live in 'Scripts/DLCwrapper.py.");
         }
+        else {
+            PyArrayObject *np_ret = reinterpret_cast<PyArrayObject*>(pValue);
+
+            // Convert back to C++ array and print.
+
+            npy_intp *arraySize = PyArray_SHAPE(np_ret);
+            pose = QVector<float>(arraySize[0] * arraySize[1]);
+
+            float *c_out;
+            c_out = reinterpret_cast<float*>(PyArray_DATA(np_ret));
+
+            for (int i = 0; i < arraySize[0] * arraySize[1]; i++){
+                    pose[i] = c_out[i];
+            }
+        }
     }
-
-    PyArrayObject *np_ret = reinterpret_cast<PyArrayObject*>(pValue);
-
-    // Convert back to C++ array and print.
-
-    npy_intp *arraySize = PyArray_SHAPE(np_ret);
-    QVector<float> pose(arraySize[0] * arraySize[1]);
-
-    float *c_out;
-    c_out = reinterpret_cast<float*>(PyArray_DATA(np_ret));
-
-    for (int i = 0; i < arraySize[0] * arraySize[1]; i++){
-            pose[i] = c_out[i];
-    }
-//    qDebug() << pose;
-//    QThread::msleep(50);
-
-
 
 //    Py_DECREF(pValue);
     Py_DECREF(mat);
@@ -192,7 +191,7 @@ void BehaviorTrackerWorker::setParameters(QString name, cv::Mat *frameBuf, int b
     numberOfCameras++;
 }
 
-void BehaviorTrackerWorker::setPoseBufferParameters(QVector<float> *poseBuf, int *poseFrameNumBuf, int poseBufSize, QAtomicInt *btPoseFrameNum, QSemaphore *free, QSemaphore *used, float *pColors)
+void BehaviorTrackerWorker::setPoseBufferParameters(QVector<float> *poseBuf, int *poseFrameNumBuf, int poseBufSize, QAtomicInt *btPoseFrameNum, QSemaphore *free, QSemaphore *used)
 {
     poseBuffer = poseBuf;
     poseFrameNumBuffer = poseFrameNumBuf;
@@ -201,7 +200,6 @@ void BehaviorTrackerWorker::setPoseBufferParameters(QVector<float> *poseBuf, int
     freePoses = free;
     usedPoses = used;
 
-    colors = pColors;
 }
 
 void BehaviorTrackerWorker::getColors()
@@ -236,7 +234,7 @@ void BehaviorTrackerWorker::startRunning()
 
         setUpDLCLive();
         if (m_PythonError == ERROR_NONE) {
-            getColors();
+//            getColors(); // We don't used these colors anymore
 
             m_trackingRunning = true;
             int acqFrameNum;

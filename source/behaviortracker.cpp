@@ -41,6 +41,7 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64
     m_pCutoffDisplay(0),
     m_softwareStartTime(softwareStartTime)
 {
+    m_numPose = 1; // Placeholder to avoid dividing by 0;
     m_occMax = 0;
     m_plotOcc = false;
     tracesSetup = false;
@@ -53,7 +54,7 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64
 
 
     behavTrackWorker = new BehaviorTrackerWorker(NULL, m_userConfig["behaviorTracker"].toObject());
-    behavTrackWorker->setPoseBufferParameters(poseBuffer, poseFrameNumBuffer, POSE_BUFFER_SIZE, m_btPoseCount, freePoses, usedPoses, colors);
+    behavTrackWorker->setPoseBufferParameters(poseBuffer, poseFrameNumBuffer, POSE_BUFFER_SIZE, m_btPoseCount, freePoses, usedPoses);
     workerThread = new QThread();
 
 
@@ -231,11 +232,6 @@ void BehaviorTracker::sendNewFrame()
 {
     // TODO: currently writen to handle only 1
 
-    if (tracesSetup == false) {
-        setupDisplayTraces();
-        tracesSetup = true;
-    }
-
     int poseNum = *m_btPoseCount;
     if (poseNum > m_previousBtPoseFrameNum) {
 //        qDebug() << "send New Frame";
@@ -257,14 +253,20 @@ void BehaviorTracker::sendNewFrame()
 
         // TODO: Shouldn't hardcore pose vector size/shape
         QVector<float> tempPose = poseBuffer[(poseNum - 1) % POSE_BUFFER_SIZE];
-        int numPose = tempPose.length()/3;
+        m_numPose = tempPose.length()/3;
         QVector<QVector3D> pose;
-        for (int i = 0; i < numPose; i++) {
-            pose.append(QVector3D(tempPose[i + 0], tempPose[i + numPose], tempPose[i + 2 * numPose]));
+        for (int i = 0; i < m_numPose; i++) {
+            pose.append(QVector3D(tempPose[i + 0], tempPose[i + m_numPose], tempPose[i + 2 * m_numPose]));
             // TODO: Change to our own shader to plot points
 //            if (pose.last().z() > m_pCutoffDisplay)
 //                cv::circle(cvFrame, cv::Point(pose.last().x(),pose.last().y()),5,cv::Scalar(colors[i*3 + 2]*255,colors[i*3+1]*255,colors[i*3+0]*255),cv::FILLED);
 //        }
+        }
+
+        // Needs to be called after knowing the number of poses
+        if (tracesSetup == false && m_numPose > 0) {
+            setupDisplayTraces();
+            tracesSetup = true;
         }
 
         // For Tracker Overlay
@@ -404,6 +406,9 @@ void BehaviorTracker::handleAddNewTracePose(int poseIdx, QString type, bool same
         m_traceNumDataInBuf[m_numTraces][0] = 0;
         m_traceNumDataInBuf[m_numTraces][1] = 0;
 
+        colors[poseIdx * 3 + 0] = (float)poseIdx/(float)m_numPose;
+        colors[poseIdx * 3 + 1] = -3.0f;
+        colors[poseIdx * 3 + 2] = -3.0f;
 //        qDebug() << colors[poseIdx * 3 + 0] << colors[poseIdx * 3 + 1] << colors[poseIdx * 3 + 2];
         emit addTraceDisplay("Pose" + QString::number(poseIdx) + type,
                              &colors[poseIdx * 3 + 0],
