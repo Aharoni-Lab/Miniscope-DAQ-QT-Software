@@ -10,8 +10,12 @@ attribute float a_pValue;
 varying float v_pValue;
 
 varying float v_pastID;
+
+uniform float u_pointSize;
 void main(void)
 {
+
+    gl_PointSize = u_pointSize;
 
     v_color = a_color;
     v_index = a_index/1.0;

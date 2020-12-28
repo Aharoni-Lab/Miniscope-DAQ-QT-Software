@@ -20,14 +20,16 @@ void main(void)
 {
     gl_FragColor = colormap_jet(v_color);
 
+    gl_FragColor.a = v_pastID;
+
     if (v_pValue < u_pValueCutoff) {
-        gl_FragColor = mix(gl_FragColor,vec4(0.0,0.0,0.0,0.0), 0.9);
+//        gl_FragColor = mix(gl_FragColor,vec4(0.0,0.0,0.0,0.0), 0.9);
 //        if (gl_FragColor.a > 0.1)
 //            gl_FragColor.a = 0.1;
         gl_FragColor.a = gl_FragColor.a * 0.05f;
     }
 
-    gl_FragColor.a = v_pastID;
+
     if (((fract(v_index) > .0001) && (fract(v_index) < .99999)))
         gl_FragColor.a = 0.0;
 }

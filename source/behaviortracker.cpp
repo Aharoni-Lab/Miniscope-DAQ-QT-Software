@@ -21,6 +21,7 @@
 #include <QQuickItem>
 #include <QThread>
 #include <QJsonArray>
+#include <QtMath>
 
 #ifdef USE_PYTHON
  #undef slots
@@ -90,6 +91,27 @@ void BehaviorTracker::parseUserConfigTracker()
         }
     }
 
+    // For pose Overlay
+    if (m_btConfig.contains("poseOverlay")) {
+        m_poseOverlayEnabled = m_btConfig["poseOverlay"].toObject()["enabled"].toBool(false);
+        m_overlayType = m_btConfig["poseOverlay"].toObject()["type"].toString("point");
+        m_overlayNumPoses = m_btConfig["poseOverlay"].toObject()["numOfPastPoses"].toInt(0) + 1;
+        m_poseMarkerSize = m_btConfig["poseOverlay"].toObject()["markerSize"].toDouble(10);
+    }
+    else {
+        m_overlayType = "point";
+        m_overlayNumPoses = 1;
+    }
+    // Make sure num poses is at at least a minimum
+    if (m_overlayType == "ribbon" && m_overlayNumPoses < 2)
+        m_overlayNumPoses = 2;
+    if (m_overlayType == "line" && m_overlayNumPoses < 2)
+        m_overlayNumPoses = 2;
+    if (m_overlayType == "point" && m_overlayNumPoses < 1)
+        m_overlayNumPoses = 1;
+
+    if (m_poseMarkerSize < 3)
+        m_poseMarkerSize = 3;
 }
 
 void BehaviorTracker::setBehaviorCamBufferParameters(QString name, qint64* timeBuf, cv::Mat *frameBuf, int bufSize, QAtomicInt *acqFrameNum)
@@ -187,6 +209,8 @@ void BehaviorTracker::createView(QSize resolution)
     trackerDisplay = rootObject->findChild<TrackerDisplay*>("trackerDisplay");
     QObject::connect(trackerDisplay->window(), &QQuickWindow::beforeRendering, this, &BehaviorTracker::sendNewFrame);
     trackerDisplay->setPValueCutOff(m_pCutoffDisplay);
+    trackerDisplay->setOverlayShowState(m_poseOverlayEnabled);
+    trackerDisplay->setPoseMarkerSize(m_poseMarkerSize);
 
     if (m_plotOcc) {
         trackerDisplay->setShowOccState(true);
@@ -228,6 +252,65 @@ void BehaviorTracker::startThread()
 
 }
 
+void BehaviorTracker::makeRibbon()
+{
+    double slope;
+    double dx, dy;
+    double startingWidth = m_poseMarkerSize / (float)(m_camResolution.width());
+    double width = 0;
+    double sqrtTerm;
+    int previousIdx = -1;
+    int count = 0;
+
+//    if (overlayRibbon.isEmpty()) {
+//        // fill up overlyRibbon by making twice the size of overlayData;
+//        overlayRibbon = overlayLine;
+//        overlayRibbon.append(overlayLine);
+//    }
+
+    for (int i=0; i<overlayLine.length(); i++) {
+        if (overlayLine[i].index != previousIdx) {
+            // first of the pose lines
+            previousIdx = overlayLine[i].index;
+            width = 0;
+            count = 0;
+        }
+
+        if (count == 0) {
+            // First
+            slope = (overlayLine[i + 1].position[0] - overlayLine[i].position[0]) /
+                    (overlayLine[i + 1].position[1] - overlayLine[i].position[1]);
+
+        }
+        else if (count < (m_overlayNumPoses - 1)) {
+            // All middle points
+            slope = (overlayLine[i + 1].position[0] - overlayLine[i - 1].position[0]) /
+                    (overlayLine[i + 1].position[1] - overlayLine[i - 1].position[1]);
+
+        }
+        else {
+            // Last
+            slope = (overlayLine[i].position[0] - overlayLine[i - 1].position[0]) /
+                    (overlayLine[i].position[1] - overlayLine[i - 1].position[1]);
+
+        }
+        sqrtTerm = qSqrt(1 + slope*slope);
+        dx = width / sqrtTerm;
+        dy = slope * dx;
+
+        overlayRibbon[2 * i] = overlayLine[i];
+        overlayRibbon[2 * i].position[0] -= dx;
+        overlayRibbon[2 * i].position[1] -= dy;
+
+        overlayRibbon[(2 * i) + 1] = overlayLine[i];
+        overlayRibbon[(2 * i) + 1].position[0] += dx;
+        overlayRibbon[(2 * i) + 1].position[1] += dy;
+
+        width += startingWidth/(float)m_overlayNumPoses;
+        count++;
+    }
+}
+
 void BehaviorTracker::sendNewFrame()
 {
     // TODO: currently writen to handle only 1
@@ -263,41 +346,58 @@ void BehaviorTracker::sendNewFrame()
 //        }
         }
 
-        // Needs to be called after knowing the number of poses
-        if (tracesSetup == false && m_numPose > 0) {
-            setupDisplayTraces();
-            tracesSetup = true;
-        }
-
         // For Tracker Overlay
-        // init overlayData
-        if (overlayData.length() != (NUM_PAST_FRAMES_OVERLAY * pose.length())) {
-            for (int i=0; i < pose.length(); i++) {
-                for (int j=0; j < NUM_PAST_FRAMES_OVERLAY; j++) {
-                    overlayData.append(overlayData_t());
+        if (m_poseOverlayEnabled) {
+            // Needs to be called after knowing the number of poses
+            if (tracesSetup == false && m_numPose > 0) {
+                setupDisplayTraces();
+                tracesSetup = true;
+            }
+            // init overlayData
+            if (overlayLine.length() != (m_overlayNumPoses * pose.length())) {
+                overlayPoint.clear();
+                overlayLine.clear();
+                overlayRibbon.clear();
+                for (int i=0; i < pose.length(); i++) {
+                    overlayPoint.append(overlayData_t());
+                    for (int j=0; j < m_overlayNumPoses; j++) {
+                        overlayLine.append(overlayData_t());
+
+                        overlayRibbon.append(overlayData_t());
+                        overlayRibbon.append(overlayData_t());
+                    }
                 }
             }
-        }
-        // Move and fill overlayData vector
-        for (int i=0; i < pose.length(); i++) {
-            for (int j=0; j < (NUM_PAST_FRAMES_OVERLAY - 1); j++) {
-                // Shift old data down 1
-                overlayData[i * NUM_PAST_FRAMES_OVERLAY + j] = overlayData[i * NUM_PAST_FRAMES_OVERLAY + j + 1];
-                overlayData[i * NUM_PAST_FRAMES_OVERLAY + j].position[2] -= 1.0f/NUM_PAST_FRAMES_OVERLAY;
-//                if (i == 0) {
-//                    qDebug() << j << overlayData[i * NUM_PAST_FRAMES_OVERLAY + j].position[0] << overlayData[i * NUM_PAST_FRAMES_OVERLAY + j].position[1];
-//                }
-            }
-            // Add new data
-            overlayData[((i + 1) * NUM_PAST_FRAMES_OVERLAY) - 1].position[0] = 2.0f * pose[i].x()/m_camResolution.width() - 1.0f;
-            overlayData[((i + 1) * NUM_PAST_FRAMES_OVERLAY) - 1].position[1] = -2.0f * pose[i].y()/m_camResolution.height() + 1.0f;
-            overlayData[((i + 1) * NUM_PAST_FRAMES_OVERLAY) - 1].position[2] = 1.0f;
-            overlayData[((i + 1) * NUM_PAST_FRAMES_OVERLAY) - 1].color = (float)(i)/(float)(pose.length());
-            overlayData[((i + 1) * NUM_PAST_FRAMES_OVERLAY) - 1].index = (float)i;
-            overlayData[((i + 1) * NUM_PAST_FRAMES_OVERLAY) - 1].pValue = pose[i].z();
+            // Move and fill overlayData vector
+            for (int i=0; i < pose.length(); i++) {
+                for (int j=0; j < (m_overlayNumPoses - 1); j++) {
+                    // Shift old data down 1
+                    overlayLine[i * m_overlayNumPoses + j] = overlayLine[i * m_overlayNumPoses + j + 1];
+                    overlayLine[i * m_overlayNumPoses + j].position[2] -= 1.0f/m_overlayNumPoses;
+    //                if (i == 0) {
+    //                    qDebug() << j << overlayData[i * m_overlayNumPoses + j].position[0] << overlayData[i * m_overlayNumPoses + j].position[1];
+    //                }
+                }
+                // Add new data
+                overlayLine[((i + 1) * m_overlayNumPoses) - 1].position[0] = 2.0f * pose[i].x()/m_camResolution.width() - 1.0f;
+                overlayLine[((i + 1) * m_overlayNumPoses) - 1].position[1] = -2.0f * pose[i].y()/m_camResolution.height() + 1.0f;
+                overlayLine[((i + 1) * m_overlayNumPoses) - 1].position[2] = 1.0f;
+                overlayLine[((i + 1) * m_overlayNumPoses) - 1].color = (float)(i)/(float)(pose.length());
+                overlayLine[((i + 1) * m_overlayNumPoses) - 1].index = (float)i;
+                overlayLine[((i + 1) * m_overlayNumPoses) - 1].pValue = pose[i].z();
 
+                overlayPoint[i] = overlayLine[((i + 1) * m_overlayNumPoses) - 1];
+
+            }
+            if (m_overlayType == "point")
+                trackerDisplay->setOverlayData(overlayLine, m_overlayType);
+            else if (m_overlayType == "line")
+                trackerDisplay->setOverlayData(overlayLine, m_overlayType);
+            else if (m_overlayType == "ribbon") {
+                makeRibbon();
+                trackerDisplay->setOverlayData(overlayRibbon, m_overlayType);
+            }
         }
-        trackerDisplay->setOverlayData(overlayData);
 
 
         // For Occupancy plot
@@ -436,6 +536,7 @@ TrackerDisplayRenderer::TrackerDisplayRenderer(QObject *parent, QSize displayWin
     m_programOccupancy(nullptr),
     m_programTrackingOverlay(nullptr)
 {
+    poseMarkerSize = 3;
     pValCut = 0.0f;
     occPlotBox[0] = 0.5;
     occPlotBox[1] = 0.5;
@@ -619,8 +720,20 @@ void TrackerDisplayRenderer::drawTrackerOverlay () {
         m_programTrackingOverlay->setAttributeBuffer("a_index", GL_FLOAT, 4 * sizeof(float), 1, sizeof(overlayData_t));
         m_programTrackingOverlay->setAttributeBuffer("a_pValue", GL_FLOAT, 5 * sizeof(float), 1, sizeof(overlayData_t));
 
-        glLineWidth(20);
-        glDrawArrays(GL_LINE_STRIP, 0, overlayVOB.size()/(sizeof(overlayData_t)));
+
+        if (overlayType == "point") {
+            m_programTrackingOverlay->setUniformValue("u_pointSize", (float)poseMarkerSize);
+            glDrawArrays(GL_POINTS, 0, overlayVOB.size()/(sizeof(overlayData_t)));
+
+        }
+        else if (overlayType == "line") {
+            glLineWidth(poseMarkerSize);
+            glDrawArrays(GL_LINE_STRIP, 0, overlayVOB.size()/(sizeof(overlayData_t)));
+        }
+        else if (overlayType == "ribbon") {
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, overlayVOB.size()/(sizeof(overlayData_t)));
+        }
+
 
         m_programTrackingOverlay->disableAttributeArray("a_position");
         m_programTrackingOverlay->disableAttributeArray("a_color");
@@ -640,14 +753,17 @@ void TrackerDisplayRenderer::paint()
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
 
+    glEnable(GL_PROGRAM_POINT_SIZE);
+
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     drawImage();
 
 //    glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-    drawTrackerOverlay();
+//    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    if (overlayEnabled)
+        drawTrackerOverlay();
 
     if( m_showOcc) {
 //        glDisable(GL_BLEND);
@@ -665,6 +781,7 @@ TrackerDisplay::TrackerDisplay():
     m_renderer(nullptr)
 {
     m_showOcc = false;
+    m_overlayEnabled = false;
     m_pValCut = 0.0f;
     connect(this, &QQuickItem::windowChanged, this, &TrackerDisplay::handleWindowChanged);
 
@@ -705,16 +822,24 @@ void TrackerDisplay::setDisplayOcc(QImage image)
         m_renderer->setDisplayOcc(image);
 }
 
-void TrackerDisplay::setOverlayData(QVector<overlayData_t> data)
+void TrackerDisplay::setOverlayData(QVector<overlayData_t> data, QString type)
 {
-    if (m_renderer)
+    if (m_renderer) {
         m_renderer->overlayData = data;
+        m_renderer->overlayType = type;
+    }
+
 }
 
 void TrackerDisplay::setShowOccState(bool state)
 {
     m_showOcc = state;
 
+}
+
+void TrackerDisplay::setOverlayShowState(bool state)
+{
+    m_overlayEnabled = state;
 }
 
 void TrackerDisplay::handleWindowChanged(QQuickWindow *win)
@@ -739,6 +864,8 @@ void TrackerDisplay::sync()
         connect(window(), &QQuickWindow::beforeRendering, m_renderer, &TrackerDisplayRenderer::paint, Qt::DirectConnection);
         m_renderer->m_showOcc = m_showOcc;
         m_renderer->pValCut = m_pValCut;
+        m_renderer->overlayEnabled = m_overlayEnabled;
+        m_renderer->poseMarkerSize = m_poseMarkerSize;
     }
     m_renderer->setViewportSize(window()->size() * window()->devicePixelRatio());
 //    m_renderer->setT(m_t);

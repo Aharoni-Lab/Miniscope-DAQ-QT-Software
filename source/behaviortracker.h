@@ -38,7 +38,7 @@
 #define TRACE_DISPLAY_BUFFER_SIZE   256
 
 // For overlay plotting
-#define NUM_PAST_FRAMES_OVERLAY     6
+//#define NUM_PAST_FRAMES_OVERLAY     10
 
 typedef struct OverlayData{
     float position[3] ;
@@ -69,10 +69,13 @@ public:
     bool m_newImage;
     bool m_newOccupancy;
     bool m_showOcc;
+    bool overlayEnabled;
+    QString overlayType;
     int occMax;
     float occPlotBox[4];
     QVector<overlayData_t> overlayData;
     float pValCut;
+    double poseMarkerSize;
 
 public slots:
     void paint();
@@ -106,10 +109,12 @@ public:
     void setT(qreal t);
     void setDisplayImage(QImage image);
     void setDisplayOcc(QImage image);
-    void setOverlayData(QVector<overlayData_t> data);
+    void setOverlayData(QVector<overlayData_t> data, QString type);
     void setOccMax(int value) { m_renderer->occMax = value;}
     void setShowOccState(bool state);
+    void setOverlayShowState(bool state);
     void setPValueCutOff(float value) {m_pValCut = value; }
+    void setPoseMarkerSize(double size) { m_poseMarkerSize = size; }
 
     Q_INVOKABLE void occRectChanged(float x, float y, float w, float h);
 
@@ -127,7 +132,9 @@ private:
     qreal m_t;
     float m_pValCut;
     bool m_showOcc;
+    bool m_overlayEnabled;
     TrackerDisplayRenderer* m_renderer;
+    double m_poseMarkerSize;
 //    float m_occPlotBox[4];
 
 };
@@ -146,6 +153,7 @@ public:
     void connectSnS();
     void setUpDLCLive();
     void startThread();
+    void makeRibbon();
 
 
 
@@ -233,8 +241,14 @@ private:
     QVector<int> m_poseIdxUsed;
 
     // For tracker Overlay plotting
-    QVector<overlayData_t> overlayData;
+    QVector<overlayData_t> overlayPoint;
+    QVector<overlayData_t> overlayLine;
+    QVector<overlayData_t> overlayRibbon;
     int m_numPose;
+    QString m_overlayType;
+    int m_overlayNumPoses;
+    bool m_poseOverlayEnabled;
+    double m_poseMarkerSize;
 
 };
 

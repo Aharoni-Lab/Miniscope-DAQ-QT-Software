@@ -33,7 +33,21 @@
             "numBinsY": 100,
             "poseIdxToUse": [11,12]
         },
-        "poseIdxForTraceDisplay": ["11wh", "12wh"]
+        "poseIdxForTraceDisplay": ["11wh", "12wh"],
+        "poseOverlay": {
+            "enabled": true,
+            "type": "point",
+            "numOfPastPoses": 6,
+            "markerSize": 20,
+            "skeleton": {
+                "enabled": true,
+                "connectedJoints": [
+                    [0, 1, 2],
+                    [3, 4],
+                    [5, 6, 7]
+                ]
+            }
+        }
     }, 
     "traceDisplay": {
         "type": "scrolling",

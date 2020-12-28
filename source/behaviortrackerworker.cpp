@@ -154,7 +154,7 @@ QVector<float> BehaviorTrackerWorker::getDLCLivePose(cv::Mat frame)
         pValue = PyObject_CallMethod(pInstance,"getPose", "(O)", mat);
         if (pValue == NULL) {
             m_PythonError = ERROR_GET_POSE;
-            emit sendMessage("ERROR: Cannot get pose from DLC-Live in 'Scripts/DLCwrapper.py.");
+            emit sendMessage("ERROR: Cannot get pose from DLC-Live in 'Scripts/DLCwrapper.py. Sometime you just need to restart the software.");
         }
         else {
             PyArrayObject *np_ret = reinterpret_cast<PyArrayObject*>(pValue);
