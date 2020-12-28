@@ -65,7 +65,27 @@
         },
         "COMMENT_poseIdxForTraceDisplay": "This array will setup time trace plotting for specific pose indices. You must give it a the index number along with 'w', 'h', or 'wh'.",
         "COMMENT_poseIdxForTraceDisplay2": "'w' means it will plot the width or x position. 'h' means it will plot the height or y position.",
-        "poseIdxForTraceDisplay": ["0wh", "1w", "2w"]
+        "poseIdxForTraceDisplay": ["0wh", "1w", "2w"],
+        "COMMENT_poseOverlay": "This section enables and sets up the overlaying of pose data on top of the behavior tracker window.",
+        "poseOverlay": {
+            "enabled": true,
+            "COMMENT_type": "type defines how the pose data will be shown. The allowable vales are 'point', 'line', 'ribbon",
+            "type": "point",
+            "COMMENT_numOfPastPoses": "The overlay can display recent past positions of joints and fade them out as time goes one. This value sets how many past poses to display in the overlay.",
+            "numOfPastPoses": 6,
+            "COMMENT_markerSize": "The markerSize sets how large the points, lines, or ribbons in the overlay will be. Reasonable values are between 3 and 20.",
+            "markerSize": 20,
+            "COMMENT_skeleton": "You can enable the below 'skekelton' section if you want to also overlay a skeleton that connects certain pose indices or joints.",
+            "skeleton": {
+                "enabled": true,
+                "COMMENT_connectedIndices": "This is an array of arrays. Each internal array defines the set of connected pose indices or joints to be displayed.",
+                "connectedIndices": [
+                    [0, 1, 2, 3, 4, 5],
+                    [6, 7, 8, 9, 10, 11],
+                    [12, 13]
+                ]
+            }
+        }
     }, 
 
     "COMMENT_traceDisplay": "traceDisplay defines the parameters for the real-time time trace display. Delete this section or set enabled to false to turn off trace plotting.",

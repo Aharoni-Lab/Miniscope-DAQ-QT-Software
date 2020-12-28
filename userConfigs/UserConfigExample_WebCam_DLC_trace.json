@@ -27,8 +27,9 @@
         "windowHeight": 480,
         "windowX": 100,
         "windowY": 100,
-        "windowScale": 2.0,
+        "windowScale": 1.0,
         "occupancyPlot": {
+            "enabled": true,
             "numBinsX": 100,
             "numBinsY": 100,
             "poseIdxToUse": [11,12]
@@ -36,7 +37,7 @@
         "poseIdxForTraceDisplay": ["11wh", "12wh"],
         "poseOverlay": {
             "enabled": true,
-            "type": "point",
+            "type": "ribbon",
             "numOfPastPoses": 6,
             "markerSize": 20,
             "skeleton": {

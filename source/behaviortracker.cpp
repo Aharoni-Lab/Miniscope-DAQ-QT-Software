@@ -780,7 +780,7 @@ void TrackerDisplayRenderer::drawTrackerOverlay (QString type) {
             }
         }
         else if (type == "skeleton") {
-            glLineWidth(poseMarkerSize);
+            glLineWidth(poseMarkerSize/2);
             glDrawArrays(GL_LINE_STRIP, 0, overlaySkeletonVOB.size()/(sizeof(overlayData_t)));
         }
 
@@ -895,7 +895,7 @@ void TrackerDisplay::setSkeletonData(QVector<overlayData_t> data)
 {
     if (m_renderer)
         m_renderer->overlaySkeletonData = data;
-    qDebug() << data[0].position[0] << data[0].position[0] << data.length();
+//    qDebug() << data[0].position[0] << data[0].position[0] << data.length();
 }
 
 void TrackerDisplay::setShowOccState(bool state)
