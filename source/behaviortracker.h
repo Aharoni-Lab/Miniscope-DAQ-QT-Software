@@ -45,6 +45,7 @@ typedef struct OverlayData{
     float color;
     float index ;
     float pValue;
+    int poseIdx;
 
 } overlayData_t;
 
@@ -63,17 +64,19 @@ public:
     void setDisplayOcc(QImage image) { m_displayOcc = image.copy(); m_newOccupancy = true; }
     void drawImage();
     void draw2DHist();
-    void drawTrackerOverlay();
+    void drawTrackerOverlay(QString type);
 
 
     bool m_newImage;
     bool m_newOccupancy;
     bool m_showOcc;
     bool overlayEnabled;
+    bool overlaySkeletonEnabled;
     QString overlayType;
     int occMax;
     float occPlotBox[4];
     QVector<overlayData_t> overlayData;
+    QVector<overlayData_t> overlaySkeletonData;
     float pValCut;
     double poseMarkerSize;
 
@@ -94,7 +97,8 @@ private:
     QOpenGLShaderProgram *m_programOccupancy;
 
     QOpenGLShaderProgram *m_programTrackingOverlay;
-    QOpenGLBuffer overlayVOB;
+    QOpenGLBuffer overlayDataVOB;
+    QOpenGLBuffer overlaySkeletonVOB;
 };
 
 class TrackerDisplay : public QQuickItem
@@ -110,9 +114,11 @@ public:
     void setDisplayImage(QImage image);
     void setDisplayOcc(QImage image);
     void setOverlayData(QVector<overlayData_t> data, QString type);
+    void setSkeletonData(QVector<overlayData_t> data);
     void setOccMax(int value) { m_renderer->occMax = value;}
     void setShowOccState(bool state);
     void setOverlayShowState(bool state);
+    void setOverlaySkeletonShowState(bool state);
     void setPValueCutOff(float value) {m_pValCut = value; }
     void setPoseMarkerSize(double size) { m_poseMarkerSize = size; }
 
@@ -133,6 +139,7 @@ private:
     float m_pValCut;
     bool m_showOcc;
     bool m_overlayEnabled;
+    bool m_overlaySkeletonEnabled;
     TrackerDisplayRenderer* m_renderer;
     double m_poseMarkerSize;
 //    float m_occPlotBox[4];
@@ -241,13 +248,15 @@ private:
     QVector<int> m_poseIdxUsed;
 
     // For tracker Overlay plotting
-    QVector<overlayData_t> overlayPoint;
+    QVector<overlayData_t> overlayPose;
     QVector<overlayData_t> overlayLine;
     QVector<overlayData_t> overlayRibbon;
+    QVector<overlayData_t> overlaySkeleton;
     int m_numPose;
     QString m_overlayType;
     int m_overlayNumPoses;
     bool m_poseOverlayEnabled;
+    bool m_poseOverlaySkeletonEnabled;
     double m_poseMarkerSize;
 
 };

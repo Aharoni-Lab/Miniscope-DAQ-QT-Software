@@ -93,12 +93,28 @@ void BehaviorTracker::parseUserConfigTracker()
 
     // For pose Overlay
     if (m_btConfig.contains("poseOverlay")) {
-        m_poseOverlayEnabled = m_btConfig["poseOverlay"].toObject()["enabled"].toBool(false);
+        m_poseOverlayEnabled = m_btConfig["poseOverlay"].toObject()["enabled"].toBool(true);
         m_overlayType = m_btConfig["poseOverlay"].toObject()["type"].toString("point");
         m_overlayNumPoses = m_btConfig["poseOverlay"].toObject()["numOfPastPoses"].toInt(0) + 1;
         m_poseMarkerSize = m_btConfig["poseOverlay"].toObject()["markerSize"].toDouble(10);
+        if (m_poseOverlayEnabled = m_btConfig["poseOverlay"].toObject().contains("skeleton")) {
+            QJsonObject tempSk = m_btConfig["poseOverlay"].toObject()["skeleton"].toObject();
+            m_poseOverlaySkeletonEnabled = tempSk["enabled"].toBool(true);
+            QJsonArray tempArray = tempSk["connectedIndices"].toArray();
+            QJsonArray connectedArray;
+            for (int i=0; i < tempArray.size(); i++) {
+                connectedArray = tempArray[i].toArray();
+                for (int j=0; j < connectedArray.size(); j++) {
+                    overlaySkeleton.append(overlayData_t());
+                    overlaySkeleton.last().position[2] = 1.0f;
+                    overlaySkeleton.last().poseIdx = connectedArray[j].toInt(0);
+                    overlaySkeleton.last().index = i;
+                }
+            }
+        }
     }
     else {
+        m_poseOverlayEnabled = false;
         m_overlayType = "point";
         m_overlayNumPoses = 1;
     }
@@ -211,6 +227,7 @@ void BehaviorTracker::createView(QSize resolution)
     trackerDisplay->setPValueCutOff(m_pCutoffDisplay);
     trackerDisplay->setOverlayShowState(m_poseOverlayEnabled);
     trackerDisplay->setPoseMarkerSize(m_poseMarkerSize);
+    trackerDisplay->setOverlaySkeletonShowState(m_poseOverlaySkeletonEnabled);
 
     if (m_plotOcc) {
         trackerDisplay->setShowOccState(true);
@@ -355,11 +372,11 @@ void BehaviorTracker::sendNewFrame()
             }
             // init overlayData
             if (overlayLine.length() != (m_overlayNumPoses * pose.length())) {
-                overlayPoint.clear();
+                overlayPose.clear();
                 overlayLine.clear();
                 overlayRibbon.clear();
                 for (int i=0; i < pose.length(); i++) {
-                    overlayPoint.append(overlayData_t());
+                    overlayPose.append(overlayData_t());
                     for (int j=0; j < m_overlayNumPoses; j++) {
                         overlayLine.append(overlayData_t());
 
@@ -386,8 +403,19 @@ void BehaviorTracker::sendNewFrame()
                 overlayLine[((i + 1) * m_overlayNumPoses) - 1].index = (float)i;
                 overlayLine[((i + 1) * m_overlayNumPoses) - 1].pValue = pose[i].z();
 
-                overlayPoint[i] = overlayLine[((i + 1) * m_overlayNumPoses) - 1];
+                overlayPose[i] = overlayLine[((i + 1) * m_overlayNumPoses) - 1];
 
+            }
+            if (m_poseOverlaySkeletonEnabled) {
+                int idx;
+                for (int i=0; i < overlaySkeleton.length(); i++) {
+                    idx = overlaySkeleton[i].poseIdx;
+                    overlaySkeleton[i].position[0] = overlayPose[idx].position[0];
+                    overlaySkeleton[i].position[1] = overlayPose[idx].position[1];
+                    overlaySkeleton[i].color = overlayPose[idx].color;
+                    overlaySkeleton[i].pValue = overlayPose[idx].pValue;
+                }
+                trackerDisplay->setSkeletonData(overlaySkeleton);
             }
             if (m_overlayType == "point")
                 trackerDisplay->setOverlayData(overlayLine, m_overlayType);
@@ -536,6 +564,7 @@ TrackerDisplayRenderer::TrackerDisplayRenderer(QObject *parent, QSize displayWin
     m_programOccupancy(nullptr),
     m_programTrackingOverlay(nullptr)
 {
+    overlaySkeletonEnabled = false;
     poseMarkerSize = 3;
     pValCut = 0.0f;
     occPlotBox[0] = 0.5;
@@ -690,24 +719,39 @@ void TrackerDisplayRenderer::draw2DHist()
 
 }
 
-void TrackerDisplayRenderer::drawTrackerOverlay () {
+void TrackerDisplayRenderer::drawTrackerOverlay (QString type) {
 
-    if (!overlayVOB.isCreated() && !overlayData.isEmpty()) {
+    // TODO: Handling the different data and skeleton types way better!!!
+    if (!overlayDataVOB.isCreated() && !overlayData.isEmpty() && type == "data") {
         // Setup VOB
-        overlayVOB.create();
-        overlayVOB.bind();
-        overlayVOB.allocate(&overlayData[0], sizeof(overlayData_t) * overlayData.length());
-        overlayVOB.release();
+        overlayDataVOB.create();
+        overlayDataVOB.bind();
+        overlayDataVOB.allocate(&overlayData[0], sizeof(overlayData_t) * overlayData.length());
+        overlayDataVOB.release();
     }
-//    qDebug() << "OV Length" << overlayData.length();
-    if (overlayVOB.isCreated()) {
 
+    if (!overlaySkeletonVOB.isCreated() && !overlaySkeletonData.isEmpty() && type == "skeleton") {
+        // Setup VOB
+        overlaySkeletonVOB.create();
+        overlaySkeletonVOB.bind();
+        overlaySkeletonVOB.allocate(&overlaySkeletonData[0], sizeof(overlayData_t) * overlaySkeletonData.length());
+        overlaySkeletonVOB.release();
+    }
 
-        m_programTrackingOverlay->bind();
-        overlayVOB.bind();
-        overlayVOB.allocate(&overlayData[0], sizeof(overlayData_t) * overlayData.length());
-//        qDebug() << overlayData[0].position[0] << overlayData[0].position[1];
+    bool vobBound = false;
+    m_programTrackingOverlay->bind();
 
+    if (overlayDataVOB.isCreated() && type == "data") {
+        overlayDataVOB.bind();
+        overlayDataVOB.allocate(&overlayData[0], sizeof(overlayData_t) * overlayData.length());
+        vobBound = true;
+    }
+    else if (overlaySkeletonVOB.isCreated() && type == "skeleton") {
+        overlaySkeletonVOB.bind();
+        overlaySkeletonVOB.allocate(&overlaySkeletonData[0], sizeof(overlayData_t) * overlaySkeletonData.length());
+        vobBound = true;
+    }
+    if (vobBound) {
         m_programTrackingOverlay->setUniformValue("u_pValueCutoff", pValCut);
 
         m_programTrackingOverlay->enableAttributeArray("a_position");
@@ -721,17 +765,23 @@ void TrackerDisplayRenderer::drawTrackerOverlay () {
         m_programTrackingOverlay->setAttributeBuffer("a_pValue", GL_FLOAT, 5 * sizeof(float), 1, sizeof(overlayData_t));
 
 
-        if (overlayType == "point") {
-            m_programTrackingOverlay->setUniformValue("u_pointSize", (float)poseMarkerSize);
-            glDrawArrays(GL_POINTS, 0, overlayVOB.size()/(sizeof(overlayData_t)));
+        if (type == "data") {
+            if (overlayType == "point") {
+                m_programTrackingOverlay->setUniformValue("u_pointSize", (float)poseMarkerSize);
+                glDrawArrays(GL_POINTS, 0, overlayDataVOB.size()/(sizeof(overlayData_t)));
 
+            }
+            else if (overlayType == "line") {
+                glLineWidth(poseMarkerSize);
+                glDrawArrays(GL_LINE_STRIP, 0, overlayDataVOB.size()/(sizeof(overlayData_t)));
+            }
+            else if (overlayType == "ribbon") {
+                glDrawArrays(GL_TRIANGLE_STRIP, 0, overlayDataVOB.size()/(sizeof(overlayData_t)));
+            }
         }
-        else if (overlayType == "line") {
+        else if (type == "skeleton") {
             glLineWidth(poseMarkerSize);
-            glDrawArrays(GL_LINE_STRIP, 0, overlayVOB.size()/(sizeof(overlayData_t)));
-        }
-        else if (overlayType == "ribbon") {
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, overlayVOB.size()/(sizeof(overlayData_t)));
+            glDrawArrays(GL_LINE_STRIP, 0, overlaySkeletonVOB.size()/(sizeof(overlayData_t)));
         }
 
 
@@ -740,7 +790,11 @@ void TrackerDisplayRenderer::drawTrackerOverlay () {
         m_programTrackingOverlay->disableAttributeArray("a_index");
         m_programTrackingOverlay->disableAttributeArray("a_pValue");
 
-        overlayVOB.release();
+        if (type == "data")
+            overlayDataVOB.release();
+        else if (type == "skeleton")
+            overlaySkeletonVOB.release();
+
         m_programTrackingOverlay->release();
     }
 }
@@ -762,8 +816,14 @@ void TrackerDisplayRenderer::paint()
 
 //    glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
 //    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-    if (overlayEnabled)
-        drawTrackerOverlay();
+
+
+    if (overlayEnabled) {
+        if (overlaySkeletonEnabled) {
+            drawTrackerOverlay("skeleton");
+        }
+        drawTrackerOverlay("data");
+    }
 
     if( m_showOcc) {
 //        glDisable(GL_BLEND);
@@ -831,6 +891,13 @@ void TrackerDisplay::setOverlayData(QVector<overlayData_t> data, QString type)
 
 }
 
+void TrackerDisplay::setSkeletonData(QVector<overlayData_t> data)
+{
+    if (m_renderer)
+        m_renderer->overlaySkeletonData = data;
+    qDebug() << data[0].position[0] << data[0].position[0] << data.length();
+}
+
 void TrackerDisplay::setShowOccState(bool state)
 {
     m_showOcc = state;
@@ -840,6 +907,11 @@ void TrackerDisplay::setShowOccState(bool state)
 void TrackerDisplay::setOverlayShowState(bool state)
 {
     m_overlayEnabled = state;
+}
+
+void TrackerDisplay::setOverlaySkeletonShowState(bool state)
+{
+    m_overlaySkeletonEnabled = state;
 }
 
 void TrackerDisplay::handleWindowChanged(QQuickWindow *win)
@@ -866,6 +938,7 @@ void TrackerDisplay::sync()
         m_renderer->pValCut = m_pValCut;
         m_renderer->overlayEnabled = m_overlayEnabled;
         m_renderer->poseMarkerSize = m_poseMarkerSize;
+        m_renderer->overlaySkeletonEnabled = m_overlaySkeletonEnabled;
     }
     m_renderer->setViewportSize(window()->size() * window()->devicePixelRatio());
 //    m_renderer->setT(m_t);
