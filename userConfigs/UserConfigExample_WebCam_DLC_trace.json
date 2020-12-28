@@ -38,7 +38,7 @@
         "poseOverlay": {
             "enabled": true,
             "type": "ribbon",
-            "numOfPastPoses": 6,
+            "numOfPastPoses": 10,
             "markerSize": 20,
             "skeleton": {
                 "enabled": true,

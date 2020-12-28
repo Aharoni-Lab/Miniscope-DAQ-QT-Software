@@ -216,7 +216,7 @@ private:
     NewQuickView *view;
     QObject *rootObject;
     TrackerDisplay *trackerDisplay;
-    float colors[20*3]; // TODO: Shouldn't be hardcoding this!
+    float colors[NUM_MAX_POSE_TRACES][3]; // TODO: Shouldn't be hardcoding this!
 
     // Tracking states
     bool m_trackingRunning;

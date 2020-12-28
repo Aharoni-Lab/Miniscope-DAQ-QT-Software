@@ -534,12 +534,19 @@ void BehaviorTracker::handleAddNewTracePose(int poseIdx, QString type, bool same
         m_traceNumDataInBuf[m_numTraces][0] = 0;
         m_traceNumDataInBuf[m_numTraces][1] = 0;
 
-        colors[poseIdx * 3 + 0] = (float)poseIdx/(float)m_numPose;
-        colors[poseIdx * 3 + 1] = -3.0f;
-        colors[poseIdx * 3 + 2] = -3.0f;
-//        qDebug() << colors[poseIdx * 3 + 0] << colors[poseIdx * 3 + 1] << colors[poseIdx * 3 + 2];
-        emit addTraceDisplay("Pose" + QString::number(poseIdx) + type,
-                             &colors[poseIdx * 3 + 0],
+        colors[m_numTraces][0] = (float)poseIdx/(float)m_numPose;
+
+        if (sameOffset) {
+            if (colors[m_numTraces][0] < 0.9)
+                colors[m_numTraces][0] =  (float)poseIdx/(float)m_numPose + 0.1f;
+            else
+                colors[m_numTraces][0] =  (float)poseIdx/(float)m_numPose - 0.1f;
+        }
+
+        colors[m_numTraces][1] = -3.0f;
+        colors[m_numTraces][2] = -3.0f;
+        emit addTraceDisplay("Joint" + QString::number(poseIdx) + type,
+                             colors[m_numTraces],
                              2.0/m_traceWindowLength[m_numTraces],
                              "px",
                              sameOffset,
