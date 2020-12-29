@@ -7,8 +7,8 @@ import QtQuick.Dialogs 1.2
 Window {
     id: root
     visible: true
-    width: 480
-    height: 640
+    width: 720
+    height: 720
     color: "#afafaf"
     title: qsTr("Miniscope DAQ")
 
@@ -140,6 +140,22 @@ Window {
 
         }
 
+
+        TreeViewerJSON {
+            id: treeView
+            objectName: "treeView"
+            model: backend.jsonTreeModel
+            visible: false
+            Layout.rowSpan: 4
+            Layout.fillHeight: true
+
+            Layout.fillWidth: true
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+
+
+
+        }
+
         ScrollView {
             id: view
             Layout.fillWidth: true
@@ -173,6 +189,9 @@ Window {
                         // Send file name to c++ backend
                         if (drop.hasUrls) {
                             backend.userConfigFileName = drop.urls[0];
+                            treeView.visible = true;
+                            view.visible = false;
+
                         }
             //            rbRun.enabled = true
                     }

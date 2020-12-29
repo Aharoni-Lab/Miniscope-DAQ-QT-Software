@@ -63,7 +63,7 @@ void BehaviorTrackerWorker::initPython()
         }
         else {
             m_PythonError = ERROR_NUMPY_DLL;
-            emit sendMessage("ERROR: Looks like your numpy install is missing a required DLL file. This happens if you use 'conda install numpy'. To fix, uninstall numpy from your environment and uses 'pip install numpy' to reisntall it. <pyEnvPath>/Lib/site-packages/numpy/.libs should now exist.");
+            emit sendMessage("ERROR: Looks like your numpy install is missing a required DLL file. This happens if you use 'conda install numpy'. To fix, uninstall numpy from your environment and use 'pip install numpy' to reinstall it. <pyEnvPath>/Lib/site-packages/numpy/.libs should now exist.");
         }
     }
     else {

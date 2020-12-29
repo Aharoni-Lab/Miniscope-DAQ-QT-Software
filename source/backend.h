@@ -6,6 +6,8 @@
 #include <QJsonArray>
 #include <QThread>
 #include <QString>
+#include <QStandardItemModel>
+#include <QStandardItem>
 
 #include "miniscope.h"
 #include "behaviorcam.h"
@@ -24,6 +26,9 @@ class backEnd : public QObject
     Q_PROPERTY(bool userConfigOK READ userConfigOK WRITE setUserConfigOK NOTIFY userConfigOKChanged)
     Q_PROPERTY(QString availableCodecList READ availableCodecList WRITE setAvailableCodecList NOTIFY availableCodecListChanged)
     Q_PROPERTY(QString versionNumber READ versionNumber WRITE setVersionNumber NOTIFY versionNumberChanged)
+
+    Q_PROPERTY(QStandardItemModel* jsonTreeModel READ jsonTreeModel WRITE setJsonTreeModel NOTIFY jsonTreeModelChanged)
+
 public:
     explicit backEnd(QObject *parent = nullptr);
 
@@ -42,6 +47,14 @@ public:
     QString versionNumber() { return m_versionNumber; }
     void setVersionNumber(const QString &input) { m_versionNumber = input; }
 
+    QStandardItemModel* jsonTreeModel() { return m_jsonTreeModel; }
+    void setJsonTreeModel(QStandardItemModel* model) { m_jsonTreeModel = model; }
+
+    void constructJsonTreeModel();
+    QStandardItem *handleJsonObject(QStandardItem* parent, QJsonObject obj);
+    QStandardItem *handleJsonArray(QStandardItem* parent, QJsonArray arry);
+
+
     void loadUserConfigFile();
     bool checkUserConfigForIssues();
     void constructUserConfigGUI();
@@ -58,6 +71,7 @@ signals:
     void userConfigOKChanged();
     void availableCodecListChanged();
     void versionNumberChanged();
+    void jsonTreeModelChanged();
 
     void closeAll();
     void showErrorMessage();
@@ -112,6 +126,10 @@ private:
     QVector<QString> unAvailableCodec;
 
     qint64 m_softwareStartTime;
+
+    QHash <int,QByteArray> roles;
+    QStandardItemModel* m_jsonTreeModel;
+    QVector<QStandardItem*> m_standardItem;
 
 };
 

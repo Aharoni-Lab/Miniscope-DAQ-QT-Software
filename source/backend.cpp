@@ -14,6 +14,8 @@
 #include <QUrl>
 #include <QString>
 #include <QDateTime>
+#include <QStandardItemModel>
+#include <QStandardItem>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -38,7 +40,8 @@ backEnd::backEnd(QObject *parent) :
     m_userConfigFileName(""),
     m_userConfigOK(false),
     traceDisplay(nullptr),
-    behavTracker(nullptr)
+    behavTracker(nullptr),
+    m_jsonTreeModel(new QStandardItemModel())
 {
 #ifdef DEBUG
 //    QString homePath = QDir::homePath();
@@ -175,6 +178,8 @@ backEnd::backEnd(QObject *parent) :
                          "\n\nUnavailable compression Codes on your computer are:\n" + tempStr.chopped(2));
 
 //    QObject::connect(this, SIGNAL (userConfigFileNameChanged()), this, SLOT( handleUserConfigFileNameChanged() ));
+
+
 }
 
 void backEnd::setUserConfigFileName(const QString &input)
@@ -205,6 +210,162 @@ void backEnd::setUserConfigDisplay(const QString &input)
 void backEnd::setAvailableCodecList(const QString &input)
 {
     m_availableCodecList = input;
+}
+
+void backEnd::constructJsonTreeModel()
+{
+    m_jsonTreeModel->clear();
+    m_jsonTreeModel->setColumnCount(3);
+    m_standardItem.clear();
+
+
+    roles[Qt::UserRole + 1] = "key";
+    roles[Qt::UserRole + 2] = "value";
+    roles[Qt::UserRole + 3] = "type";
+
+    m_jsonTreeModel->setItemRoleNames(roles);
+//    qDebug() << "ROLE" << m_jsonTreeModel->roleNames();
+
+//    QStandardItem *parentItem = m_jsonTreeModel->invisibleRootItem();
+
+    QStringList keys = m_userConfig.keys();
+    for (int i=0; i < keys.length(); i++) {
+        if(m_userConfig[keys[i]].isObject()) {
+            m_standardItem.append(new QStandardItem());
+            m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
+            m_standardItem.last()->setData("", Qt::UserRole + 2);
+            m_standardItem.last()->setData("Object", Qt::UserRole + 3);
+//            m_standardItem.append(handleJsonObject(m_standardItem.last(), m_userConfig[keys[i]].toObject()));
+            m_jsonTreeModel->appendRow(handleJsonObject(m_standardItem.last(), m_userConfig[keys[i]].toObject()));
+        }
+        else if (m_userConfig[keys[i]].isArray()) {
+            m_standardItem.append(new QStandardItem());
+            m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
+            m_standardItem.last()->setData("", Qt::UserRole + 2);
+            m_standardItem.last()->setData("Array", Qt::UserRole + 3);
+            m_jsonTreeModel->appendRow(handleJsonArray(m_standardItem.last(), m_userConfig[keys[i]].toArray()));
+
+        }
+        else if (m_userConfig[keys[i]].isString()){
+            m_standardItem.append(new QStandardItem());
+            m_standardItem.last()->setColumnCount(3);
+            m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
+            m_standardItem.last()->setData(m_userConfig[keys[i]].toString(),Qt::UserRole + 2);
+            m_standardItem.last()->setData("String", Qt::UserRole + 3);
+            m_jsonTreeModel->appendRow(m_standardItem.last());
+        }
+        else if (m_userConfig[keys[i]].isBool()) {
+            m_standardItem.append(new QStandardItem());
+            m_standardItem.last()->setColumnCount(3);
+            m_standardItem.last()->setData(keys[i],Qt::UserRole + 1);
+            m_standardItem.last()->setData(m_userConfig[keys[i]].toBool(),Qt::UserRole + 2);
+            m_standardItem.last()->setData("Bool",Qt::UserRole + 3);
+            m_jsonTreeModel->appendRow(m_standardItem.last());
+        }
+        else if (m_userConfig[keys[i]].isDouble()) {
+            m_standardItem.append(new QStandardItem());
+            m_standardItem.last()->setColumnCount(3);
+            m_standardItem.last()->setData(keys[i],Qt::UserRole + 1);
+            m_standardItem.last()->setData(m_userConfig[keys[i]].toDouble(),Qt::UserRole + 2);
+            m_standardItem.last()->setData("Number",Qt::UserRole + 3);
+            m_jsonTreeModel->appendRow(m_standardItem.last());
+        }
+    }
+
+}
+
+QStandardItem *backEnd::handleJsonObject(QStandardItem *parent, QJsonObject obj)
+{
+    QStringList keys = obj.keys();
+    for (int i=0; i < keys.length(); i++) {
+        if(obj[keys[i]].isObject()) {
+            m_standardItem.append(new QStandardItem());
+            m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
+            m_standardItem.last()->setData("", Qt::UserRole + 2);
+            m_standardItem.last()->setData("Object", Qt::UserRole + 3);
+            parent->appendRow(handleJsonObject(m_standardItem.last(), obj[keys[i]].toObject()));
+        }
+        else if (obj[keys[i]].isArray()) {
+            m_standardItem.append(new QStandardItem());
+            m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
+            m_standardItem.last()->setData("", Qt::UserRole + 2);
+            m_standardItem.last()->setData("Array", Qt::UserRole + 3);
+            parent->appendRow(handleJsonArray(m_standardItem.last(), obj[keys[i]].toArray()));
+
+        }
+        else if (obj[keys[i]].isString()){
+            m_standardItem.append(new QStandardItem());
+//            m_standardItem.last()->setColumnCount(3);
+            m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
+            m_standardItem.last()->setData(obj[keys[i]].toString(),Qt::UserRole + 2);
+            m_standardItem.last()->setData("String", Qt::UserRole + 3);
+            parent->appendRow(m_standardItem.last());
+        }
+        else if (obj[keys[i]].isBool()) {
+            m_standardItem.append(new QStandardItem());
+//            m_standardItem.last()->setColumnCount(3);
+            m_standardItem.last()->setData(keys[i],Qt::UserRole + 1);
+            m_standardItem.last()->setData(obj[keys[i]].toBool(),Qt::UserRole + 2);
+            m_standardItem.last()->setData("Bool",Qt::UserRole + 3);
+            parent->appendRow(m_standardItem.last());
+        }
+        else if (obj[keys[i]].isDouble()) {
+            m_standardItem.append(new QStandardItem());
+//            m_standardItem.last()->setColumnCount(3);
+            m_standardItem.last()->setData(keys[i],Qt::UserRole + 1);
+            m_standardItem.last()->setData(obj[keys[i]].toDouble(),Qt::UserRole + 2);
+            m_standardItem.last()->setData("Number",Qt::UserRole + 3);
+            parent->appendRow(m_standardItem.last());
+        }
+    }
+    return parent;
+}
+
+QStandardItem *backEnd::handleJsonArray(QStandardItem *parent, QJsonArray arry)
+{
+//    QStringList keys = obj.keys();
+    for (int i=0; i < arry.size(); i++) {
+        if(arry[i].isObject()) {
+            m_standardItem.append(new QStandardItem());
+            m_standardItem.last()->setData("Array", Qt::UserRole + 1);
+            m_standardItem.last()->setData("", Qt::UserRole + 2);
+            m_standardItem.last()->setData("Object", Qt::UserRole + 3);
+            parent->appendRow(handleJsonObject(m_standardItem.last(), arry[i].toObject()));
+        }
+        else if (arry[i].isArray()) {
+            m_standardItem.append(new QStandardItem());
+            m_standardItem.last()->setData("Array", Qt::UserRole + 1);
+            m_standardItem.last()->setData("", Qt::UserRole + 2);
+            m_standardItem.last()->setData("Array", Qt::UserRole + 3);
+            parent->appendRow(handleJsonArray(m_standardItem.last(), arry[i].toArray()));
+
+        }
+        else if (arry[i].isString()){
+            m_standardItem.append(new QStandardItem());
+//            m_standardItem.last()->setColumnCount(3);
+            m_standardItem.last()->setData("", Qt::UserRole + 1);
+            m_standardItem.last()->setData(arry[i].toString(),Qt::UserRole + 2);
+            m_standardItem.last()->setData("String", Qt::UserRole + 3);
+            parent->appendRow(m_standardItem.last());
+        }
+        else if (arry[i].isBool()) {
+            m_standardItem.append(new QStandardItem());
+//            m_standardItem.last()->setColumnCount(3);
+            m_standardItem.last()->setData("",Qt::UserRole + 1);
+            m_standardItem.last()->setData(arry[i].toBool(),Qt::UserRole + 2);
+            m_standardItem.last()->setData("Bool",Qt::UserRole + 3);
+            parent->appendRow(m_standardItem.last());
+        }
+        else if (arry[i].isDouble()) {
+            m_standardItem.append(new QStandardItem());
+//            m_standardItem.last()->setColumnCount(3);
+            m_standardItem.last()->setData("",Qt::UserRole + 1);
+            m_standardItem.last()->setData(arry[i].toDouble(),Qt::UserRole + 2);
+            m_standardItem.last()->setData("Number",Qt::UserRole + 3);
+            parent->appendRow(m_standardItem.last());
+        }
+    }
+    return parent;
 }
 
 void backEnd::loadUserConfigFile()
@@ -253,6 +414,7 @@ void backEnd::exitClicked()
 void backEnd::handleUserConfigFileNameChanged()
 {
     loadUserConfigFile();
+    constructJsonTreeModel();
     parseUserConfig();
     checkUserConfigForIssues();
 }
