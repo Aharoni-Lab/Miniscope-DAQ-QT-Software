@@ -517,6 +517,8 @@ void backEnd::onRunClicked()
 {
 //    qDebug() << "Run was clicked!";
     generateUserConfigFromModel();
+    parseUserConfig();
+    checkUserConfigForIssues();
     if (m_userConfigOK) {
 
         constructUserConfigGUI();

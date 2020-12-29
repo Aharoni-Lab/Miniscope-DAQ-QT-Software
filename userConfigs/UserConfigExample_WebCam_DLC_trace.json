@@ -17,6 +17,7 @@
         "trackLength": 200
     },
     "behaviorTracker": {
+        "enabled": true,
         "type": "DeepLabCut-Live",
         "pyEnvPath": "C:/Users/dbaha/.conda/envs/dlc-live",
         "modelPathDog": "C:/Users/dbaha/Documents/Data/DLC/DLC_Dog_resnet_50_iteration-0_shuffle-0",

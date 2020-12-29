@@ -1,12 +1,14 @@
 import QtQuick 2.0
 import QtQuick.Controls 1.4
+    import QtQuick.Controls 2.12 as QTQC2
 import QtQuick.Layouts 1.3
+import QtQuick.Controls.Styles 1.4
 
 TreeView {
     id:root
     rowDelegate: Rectangle {
             width: parent.width
-            height: 20
+            height: 25
 
         }
     TableViewColumn {
@@ -28,6 +30,7 @@ TreeView {
                     anchors.left: parent.left
                     anchors.leftMargin: 3
                     font.pointSize: 10
+
 //                    color:  if (model.type === "Number") {"black"} else {"black"}
                 }
             }
@@ -39,17 +42,47 @@ TreeView {
         role: "value"
         width: 400
         delegate: Loader {
-            Rectangle {
-                width: parent.width
-                height: parent.height
-                color: if (model.type === "Number") {"#cfe2f3"} else if (model.type === "String") {"#d9d2e9"} else if (model.type === "Bool") {"#ead1dc"} else {"#f3f3f3"}
-                border.color: "black"
-                border.width: 1
-                anchors.fill: parent
-                TextEdit {
+                QTQC2.TextField {
                     text: model.value
-                    font.pointSize: 12
-                    onTextChanged: backend.treeViewTextChanged(currentIndex, text);
+                    enabled: {
+                        if (model.type === "Object" || model.type === "Array") {false}
+                        else {true}
+                    }
+
+                    anchors.fill: parent
+                    font.pointSize: 10
+                    height: 25
+                    background:
+                        Rectangle {
+                            anchors.fill: parent
+                            border.color: "black"
+                            border.width: 1
+                            color: if (model.type === "Number") {"#cfe2f3"} else if (model.type === "String") {"#d9d2e9"} else if (model.type === "Bool") {"#ead1dc"} else {"#f3f3f3"}
+                        }
+
+                    property var validNumber : IntValidator { bottom:0;}
+//                    property var validNone : RegExpValidator{regExp: /$^/}
+                    property var validAll : RegExpValidator{}
+
+                    validator: {
+
+                        if (model.type === "Number") {validNumber}
+//                        else if (model.type === "Object") {validNone}
+//                        else if (model.type === "Array") {validNone}
+                        else {validAll}
+                    }
+
+                    onTextChanged: {
+                        if (focus)
+                            color = "red"
+                    }
+
+                    onEditingFinished: {
+                        color = "green"
+                        backend.treeViewTextChanged(currentIndex, text);
+                    }
+
+//                    onTextChanged: backend.treeViewTextChanged(currentIndex, text);
                 }
 //                Text {
 //                    text: model.value
@@ -58,7 +91,7 @@ TreeView {
 //                    font.pointSize: 10
 ////                    color:  if (model.type === "Number") {"black"} else {"black"}
 //                }
-            }
+//            }
         }
 //        delegate: Loader {
 //            property var modelTwo: model.value
