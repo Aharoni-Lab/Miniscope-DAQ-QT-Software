@@ -51,8 +51,12 @@ public:
     void setJsonTreeModel(QStandardItemModel* model) { m_jsonTreeModel = model; }
 
     void constructJsonTreeModel();
+    Q_INVOKABLE void treeViewTextChanged(const QModelIndex &index, QString text);
     QStandardItem *handleJsonObject(QStandardItem* parent, QJsonObject obj);
     QStandardItem *handleJsonArray(QStandardItem* parent, QJsonArray arry);
+    void generateUserConfigFromModel();
+    QJsonObject getObjectFromModel(QModelIndex index);
+    QJsonArray getArrayFromModel(QModelIndex index);
 
 
     void loadUserConfigFile();
@@ -83,6 +87,8 @@ public slots:
     void onRecordClicked();
     void exitClicked();
     void handleUserConfigFileNameChanged();
+
+//    Q_INVOKABLE void treeViewclicked();
 //    void onStopClicked();
 
 private:

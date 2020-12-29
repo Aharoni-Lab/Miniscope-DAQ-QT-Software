@@ -16,6 +16,7 @@
 #include <QDateTime>
 #include <QStandardItemModel>
 #include <QStandardItem>
+#include <QModelIndex>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -180,6 +181,7 @@ backEnd::backEnd(QObject *parent) :
 //    QObject::connect(this, SIGNAL (userConfigFileNameChanged()), this, SLOT( handleUserConfigFileNameChanged() ));
 
 
+
 }
 
 void backEnd::setUserConfigFileName(const QString &input)
@@ -271,7 +273,15 @@ void backEnd::constructJsonTreeModel()
             m_jsonTreeModel->appendRow(m_standardItem.last());
         }
     }
+}
 
+void backEnd::treeViewTextChanged(const QModelIndex &index, QString text)
+{
+    if (index.isValid()) {
+        QStandardItem *item = m_jsonTreeModel->itemFromIndex(index);
+        item->setData(text,Qt::UserRole + 2);
+        qDebug() << "TEXT!"  << item->data(Qt::UserRole + 1) << item->data(Qt::UserRole + 2) << text;
+    }
 }
 
 QStandardItem *backEnd::handleJsonObject(QStandardItem *parent, QJsonObject obj)
@@ -368,6 +378,128 @@ QStandardItem *backEnd::handleJsonArray(QStandardItem *parent, QJsonArray arry)
     return parent;
 }
 
+void backEnd::generateUserConfigFromModel()
+{
+
+//    void forEach(QAbstractItemModel* model, QModelIndex parent = QModelIndex()) {
+//        for(int r = 0; r < model->rowCount(parent); ++r) {
+//            QModelIndex index = model->index(r, 0, parent);
+//            QVariant name = model->data(index);
+//            qDebug() << name;
+//            // here is your applicable code
+//            if( model->hasChildren(index) ) {
+//                forEach(model, index);
+//            }
+//        }
+//    }
+
+    QJsonObject jConfig;
+    QString key, value, type;
+    for (int i=0; i < m_jsonTreeModel->rowCount(); i++) {
+        QModelIndex index = m_jsonTreeModel->index(i, 0);
+        key = m_jsonTreeModel->data(index, Qt::UserRole + 1).toString();
+        value = m_jsonTreeModel->data(index, Qt::UserRole + 2).toString();
+        type = m_jsonTreeModel->data(index, Qt::UserRole + 3).toString();
+        if (type == "Object") {
+            jConfig[key] = getObjectFromModel(index);
+        }
+        else if (type == "Array") {
+             jConfig[key] = getArrayFromModel(index);
+        }
+        else if (type == "String") {
+            jConfig[key] = value;
+        }
+        else if (type == "Bool") {
+            if (value == "true")
+                jConfig[key] = true;
+            else if (value == "false")
+                jConfig[key] = false;
+        }
+        else if (type == "Number") {
+            jConfig[key] = value.toDouble();
+        }
+    }
+
+    m_userConfig = jConfig;
+//    QJsonDocument d;
+//    d.setObject(jConfig);
+//    QFile file;
+//    file.setFileName("JSONNNNNNN.json");
+//    file.open(QFile::WriteOnly | QFile::Text | QFile::Truncate);
+//    file.write(d.toJson());
+//    file.close();
+}
+
+QJsonObject backEnd::getObjectFromModel(QModelIndex idx)
+{
+    QJsonObject jObj;
+
+    QString key, value, type;
+
+    for (int i=0; i < m_jsonTreeModel->rowCount(idx); i++) {
+        QModelIndex index = m_jsonTreeModel->index(i, 0, idx);
+        key = m_jsonTreeModel->data(index, Qt::UserRole + 1).toString();
+        value = m_jsonTreeModel->data(index, Qt::UserRole + 2).toString();
+        type = m_jsonTreeModel->data(index, Qt::UserRole + 3).toString();
+        if (type == "Object") {
+            jObj[key] = getObjectFromModel(index);
+        }
+        else if (type == "Array") {
+             jObj[key] = getArrayFromModel(index);
+        }
+        else if (type == "String") {
+            jObj[key] = value;
+        }
+        else if (type == "Bool") {
+            if (value == "true")
+                jObj[key] = true;
+            else if (value == "false")
+                jObj[key] = false;
+        }
+        else if (type == "Number") {
+            jObj[key] = value.toDouble();
+        }
+
+    }
+
+    return jObj;
+}
+
+QJsonArray backEnd::getArrayFromModel(QModelIndex idx)
+{
+    QJsonArray jAry;
+
+    QString key, value, type;
+
+    for (int i=0; i < m_jsonTreeModel->rowCount(idx); i++) {
+        QModelIndex index = m_jsonTreeModel->index(i, 0, idx);
+        key = m_jsonTreeModel->data(index, Qt::UserRole + 1).toString();
+        value = m_jsonTreeModel->data(index, Qt::UserRole + 2).toString();
+        type = m_jsonTreeModel->data(index, Qt::UserRole + 3).toString();
+        if (type == "Object") {
+            jAry.append(getObjectFromModel(index));
+        }
+        else if (type == "Array") {
+             jAry.append(getArrayFromModel(index));
+        }
+        else if (type == "String") {
+            jAry.append(value);
+        }
+        else if (type == "Bool") {
+            if (value == "true")
+                jAry.append(true);
+            else if (value == "false")
+                jAry.append(false);
+        }
+        else if (type == "Number") {
+            jAry.append(value.toDouble());
+        }
+
+    }
+
+    return jAry;
+}
+
 void backEnd::loadUserConfigFile()
 {
     QString jsonFile;
@@ -384,7 +516,7 @@ void backEnd::loadUserConfigFile()
 void backEnd::onRunClicked()
 {
 //    qDebug() << "Run was clicked!";
-
+    generateUserConfigFromModel();
     if (m_userConfigOK) {
 
         constructUserConfigGUI();

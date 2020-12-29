@@ -3,6 +3,7 @@ import QtQuick.Controls 1.4
 import QtQuick.Layouts 1.3
 
 TreeView {
+    id:root
     rowDelegate: Rectangle {
             width: parent.width
             height: 20
@@ -45,13 +46,18 @@ TreeView {
                 border.color: "black"
                 border.width: 1
                 anchors.fill: parent
-                Text {
+                TextEdit {
                     text: model.value
-                    anchors.left: parent.left
-                    anchors.leftMargin: 3
-                    font.pointSize: 10
-//                    color:  if (model.type === "Number") {"black"} else {"black"}
+                    font.pointSize: 12
+                    onTextChanged: backend.treeViewTextChanged(currentIndex, text);
                 }
+//                Text {
+//                    text: model.value
+//                    anchors.left: parent.left
+//                    anchors.leftMargin: 3
+//                    font.pointSize: 10
+////                    color:  if (model.type === "Number") {"black"} else {"black"}
+//                }
             }
         }
 //        delegate: Loader {
@@ -86,15 +92,15 @@ TreeView {
         }
     }
 
-    Component {
-        id: stringDelegate
-        TextEdit {
-            text: modelTwo
-            font.family: Arial
-            font.pointSize: 12
-            onTextChanged: updateValue(text)
-        }
-    }
+//    Component {
+//        id: stringDelegate
+//        TextEdit {
+//            text: modelTwo
+//            font.family: Arial
+//            font.pointSize: 12
+//            onTextChanged: updateValue(text)
+//        }
+//    }
 
     DropArea {
         id: drop

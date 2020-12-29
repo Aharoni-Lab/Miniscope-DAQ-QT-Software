@@ -68,6 +68,7 @@ DISTFILES += \
     ../Scripts/DLCwrapper.py \
     ../deviceConfigs/behaviorCams.json \
     ../deviceConfigs/miniscopes.json \
+    ../deviceConfigs/userConfigProps.json \
     ../deviceConfigs/videoDevices.json
 
 win32 {

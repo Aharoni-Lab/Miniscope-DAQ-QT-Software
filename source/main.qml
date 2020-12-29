@@ -6,11 +6,13 @@ import QtQuick.Dialogs 1.2
 
 Window {
     id: root
+    objectName: "windowMain"
     visible: true
     width: 720
     height: 720
     color: "#afafaf"
     title: qsTr("Miniscope DAQ")
+
 
 
     FileDialog {
@@ -145,12 +147,15 @@ Window {
             id: treeView
             objectName: "treeView"
             model: backend.jsonTreeModel
+
             visible: false
             Layout.rowSpan: 4
             Layout.fillHeight: true
 
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+
+
 
 
 

@@ -106,7 +106,7 @@ void BehaviorTracker::parseUserConfigTracker()
                 connectedArray = tempArray[i].toArray();
                 for (int j=0; j < connectedArray.size(); j++) {
                     overlaySkeleton.append(overlayData_t());
-                    overlaySkeleton.last().position[2] = 1.0f;
+                    overlaySkeleton.last().position[2] = 0.25f;
                     overlaySkeleton.last().poseIdx = connectedArray[j].toInt(0);
                     overlaySkeleton.last().index = i;
                 }
