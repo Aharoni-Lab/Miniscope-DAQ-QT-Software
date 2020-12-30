@@ -110,7 +110,6 @@ Window {
     MessageDialog {
         id: saveMessageDialog
         property string fName: backend.userConfigFileName
-//        property string fName2: fName.replace(".json", "_new.json")
         title: "User Config File Saved"
         text:  "The user config file has been saved to " + fName.replace(".json", "_new.json")
         onAccepted: {

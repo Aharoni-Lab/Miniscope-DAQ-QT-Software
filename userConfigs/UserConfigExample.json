@@ -103,10 +103,9 @@
     "COMMENT_devices2": "The currently supported 'deviceType' can be found in the deviceConfigs/videoDevices.json file.",
     "devices": {
         "COMMENT_miniscopes": "This is an array of miniscopes along with their parameters. Generally you will only have 1 entry here.",
-        "miniscopes": [
-            {
+        "miniscopes": {
+            "miniscopeDeviceName": {
                 "COMMENT_deviceName": "This can be whatever you want. It should be unique for each device though.",
-                "deviceName": "Miniscope",
                 "COMMENT_deviceType": "This should be a supported deviceType listed in the videoDevice.json file.",
                 "COMMENT_deviceType2": "Supported types include 'Miniscope_V4_BNO' and 'Miniscope_V3'",
                 "deviceType": "Miniscope_V4_BNO",
@@ -145,11 +144,10 @@
                 "led0": 10,
                 "frameRate": "20FPS"
             }
-        ],
+        },
         "COMMENT_cameras": "This is an array of the behavioral cameras along with their parameters. Look at the comments above for Miniscope as these are the same for cameras.",
-       "cameras": [
-            {
-                "deviceName": "BehavCam 0",
+       "cameras": {
+            "cameraDeviceName":{
                 "COMMENT_deviceType": "Supported types include 'WebCam', 'WebCam-320x240','WebCam-640x480','WebCam-1280x720'.",
                 "COMMENT_deviceType2": "If your behavior camera supports other resolutions you want to use you can add a new entry for it in deviceConfigs/videoDevices.json",
                 "deviceType": "WebCam-640x480",
@@ -171,6 +169,6 @@
                 "windowX": 800,
                 "windowY": 600
             }
-        ]
+       }
     }
 }

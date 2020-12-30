@@ -20,28 +20,16 @@
         "filePath": "C:/Fiji.app/ImageJ-win64.exe",
         "arguments": ["hi", "hi2"]
     },
-    "experiment_Not_Implemented": {
-        "type": "linearTrack",
-        "units": "cm",
-        "trackLength": 200
-    },
-    "behaviorTracker_Not_Implemented": {
-        "type": "HSV",
-        "hue": [0, 1],
-        "saturation": [0, 1],
-        "value": [0, 1]
-    },
     "traceDisplay": {
         "type": "scrolling",
         "windowX": 100,
         "windowY": 100,
-        "width": 600,
-        "height": 400
+        "windowWidth": 600,
+        "windowHeight": 400
     },
     "devices": {
-       "cameras": [
-            {
-                "deviceName": "BehavCam 0",
+       "cameras": {
+           "BehavCam 0": {
                 "deviceType": "WebCam-1280x720",
                 "deviceID": 0,
 				"showSaturation": true,
@@ -61,6 +49,6 @@
                 "windowX": 800,
                 "windowY": 600
             }
-        ]
+       }
     }
 }

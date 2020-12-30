@@ -17,11 +17,21 @@ TreeView {
         width: 200
 
         delegate: Loader {
+            property string modelType: model.type
             Rectangle {
                 id: rectangle
                 width: parent.width
                 height: parent.height
-                color: if (model.type === "Number") {"#cfe2f3"} else if (model.type === "String") {"#d9d2e9"} else if (model.type === "Bool") {"#ead1dc"} else {"#f3f3f3"}
+                color: {
+                    if (modelType === "Number") {"#cfe2f3"}
+                    else if (modelType === "Integer") {"#cfe2f3"}
+                    else if (modelType === "Double") {"#cfe2f3"}
+                    else if (modelType === "String") {"#d9d2e9"}
+                    else if (modelType === "DirPath") {"#ead1dc"}
+                    else if (modelType === "FilePath") {"#ead1dc"}
+                    else {"#f3f3f3"}
+                }
+
                 border.color: "black"
                 border.width: 1
                 anchors.fill: parent
@@ -64,10 +74,20 @@ TreeView {
         role: "type"
         width: 100
         delegate: Loader {
+            property string modelType: model.type
             Rectangle {
                 width: parent.width
                 height: parent.height
-                color: if (model.type === "Number") {"#cfe2f3"} else if (model.type === "String") {"#d9d2e9"} else if (model.type === "Bool") {"#ead1dc"} else {"#f3f3f3"}
+                color: {
+                    if (modelType === "Number") {"#cfe2f3"}
+                    else if (modelType === "Integer") {"#cfe2f3"}
+                    else if (modelType === "Double") {"#cfe2f3"}
+                    else if (modelType === "String") {"#d9d2e9"}
+                    else if (modelType === "DirPath") {"#ead1dc"}
+                    else if (modelType === "FilePath") {"#ead1dc"}
+                    else {"#f3f3f3"}
+                }
+
                 border.color: "black"
                 border.width: 1
 //                anchors.fill: parent
@@ -117,18 +137,35 @@ TreeView {
                     anchors.fill: parent
                     border.color: "black"
                     border.width: 1
-                    color: if (modelType === "Number") {"#cfe2f3"} else if (modelType === "String") {"#d9d2e9"} else if (modelType === "Bool") {"#ead1dc"} else {"#f3f3f3"}
-                }
+                    color: {
 
-            property var validNumber : DoubleValidator { }//{ bottom:0;}
-//                    property var validNone : RegExpValidator{regExp: /$^/}
+                        if (modelType === "Number") {"#cfe2f3"}
+                        else if (modelType === "Integer") {"#cfe2f3"}
+                        else if (modelType === "Double") {"#cfe2f3"}
+                        else if (modelType === "String") {"#d9d2e9"}
+                        else if (modelType === "DirPath") {"#ead1dc"}
+                        else if (modelType === "FilePath") {"#ead1dc"}
+                        else {"#f3f3f3"}
+
+//                        if (modelType === "Number") {"#cfe2f3"}
+//                        else if (modelType === "String") {"#d9d2e9"}
+//                        else if (modelType === "Bool") {"#ead1dc"}
+//                        else {"#f3f3f3"}
+                    }
+                }
+            property var validInt : IntValidator { bottom:0;}
+            property var validDouble : DoubleValidator { bottom:0;}
+            property var validPath : RegExpValidator{regExp: /^[^\\]+$/}
             property var validAll : RegExpValidator{}
 
             validator: {
 
-                if (modelType === "Number") {validNumber}
-//                        else if (modelType === "Object") {validNone}
-//                        else if (modelType === "Array") {validNone}
+                if (modelType === "Number") {validDouble}
+                else if (modelType === "Integer") {validInt}
+                else if (modelType === "Double") {validDouble}
+                else if (modelType === "String") {validAll}
+                else if (modelType === "DirPath") {validPath}
+                else if (modelType === "FilePath") {validPath}
                 else {validAll}
             }
 

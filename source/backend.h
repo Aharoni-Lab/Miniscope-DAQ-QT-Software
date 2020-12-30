@@ -52,8 +52,8 @@ public:
 
     void constructJsonTreeModel();
     Q_INVOKABLE void treeViewTextChanged(const QModelIndex &index, QString text);
-    QStandardItem *handleJsonObject(QStandardItem* parent, QJsonObject obj);
-    QStandardItem *handleJsonArray(QStandardItem* parent, QJsonArray arry);
+    QStandardItem *handleJsonObject(QStandardItem* parent, QJsonObject obj, QJsonObject objProps);
+    QStandardItem *handleJsonArray(QStandardItem* parent, QJsonArray arry, QString type);
     void generateUserConfigFromModel();
     QJsonObject getObjectFromModel(QModelIndex index);
     QJsonArray getArrayFromModel(QModelIndex index);
@@ -103,6 +103,7 @@ private:
     QString m_userConfigDisplay;
     bool m_userConfigOK;
     QJsonObject m_userConfig;
+    QJsonObject m_configProps;
 
     // Break down of different types in user config file
     // 'uc' stands for userConfig
@@ -113,8 +114,8 @@ private:
     QString animalName;
 
     QJsonObject ucExperiment;
-    QJsonArray ucMiniscopes;
-    QJsonArray ucBehaviorCams;
+    QJsonObject ucMiniscopes;
+    QJsonObject ucBehaviorCams;
     QJsonObject ucBehaviorTracker;
     QJsonObject ucTraceDisplay;
 
