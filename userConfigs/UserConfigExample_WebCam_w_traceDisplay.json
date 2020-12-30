@@ -39,7 +39,7 @@
         "height": 400
     },
     "devices": {
-       "cameras2": [
+       "cameras": [
             {
                 "deviceName": "BehavCam 0",
                 "deviceType": "WebCam-1280x720",

@@ -57,6 +57,7 @@ public:
     void generateUserConfigFromModel();
     QJsonObject getObjectFromModel(QModelIndex index);
     QJsonArray getArrayFromModel(QModelIndex index);
+    Q_INVOKABLE void saveConfigObject();
 
 
     void loadUserConfigFile();

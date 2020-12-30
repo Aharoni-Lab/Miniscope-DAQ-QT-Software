@@ -500,6 +500,21 @@ QJsonArray backEnd::getArrayFromModel(QModelIndex idx)
     return jAry;
 }
 
+void backEnd::saveConfigObject()
+{
+    generateUserConfigFromModel();
+    QJsonDocument d;
+    d.setObject(m_userConfig);
+    QFile file;
+    QString fName = m_userConfigFileName;
+    fName.chop(5);
+    fName.append("_new.json");
+    file.setFileName(fName);
+    file.open(QFile::WriteOnly | QFile::Text | QFile::Truncate);
+    file.write(d.toJson());
+    file.close();
+}
+
 void backEnd::loadUserConfigFile()
 {
     QString jsonFile;

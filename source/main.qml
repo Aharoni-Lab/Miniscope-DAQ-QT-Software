@@ -107,6 +107,18 @@ Window {
         visible: false
     }
 
+    MessageDialog {
+        id: saveMessageDialog
+        property string fName: backend.userConfigFileName
+//        property string fName2: fName.replace(".json", "_new.json")
+        title: "User Config File Saved"
+        text:  "The user config file has been saved to " + fName.replace(".json", "_new.json")
+        onAccepted: {
+            visible = false
+        }
+        visible: false
+    }
+
 
     ColumnLayout {
         id: columnLayout
@@ -117,30 +129,82 @@ Window {
         spacing: 10
         anchors.fill: parent
 
-        RoundButton {
-            id: rbSelectUserConfig
+        RowLayout {
+            id: rowLayoutTop
             height: 40
-            text: "Select User Config File"
             Layout.minimumHeight: 40
             Layout.preferredHeight: 40
             Layout.fillHeight: false
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             Layout.fillWidth: true
-            font.family: "Arial"
-            font.pointSize: 20
-            font.bold: true
-            font.weight: Font.Normal
-            radius: 10
-            background: Rectangle {
-                id: configRect
-                radius: rbSelectUserConfig.radius
-                border.width: 1
-                color: "#a8a7fd"
-            }
-            onClicked: fileDialog.setVisible(1)
-            onHoveredChanged: hovered ? configRect.color = "#f8a7fd" : configRect.color = "#a8a7fd"
+            spacing: 10
 
+
+            RoundButton {
+                id: rbSelectUserConfig
+                height: 40
+                text: "Select Config File"
+                Layout.minimumHeight: 40
+                Layout.preferredHeight: 40
+                Layout.fillHeight: false
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                Layout.fillWidth: true
+                font.family: "Arial"
+                font.pointSize: 18
+                font.bold: true
+                font.weight: Font.Normal
+                radius: 10
+
+                Layout.minimumWidth: 20
+                Layout.preferredWidth: 400
+                Layout.maximumWidth: 600
+
+                background: Rectangle {
+                    id: configRect
+                    radius: rbSelectUserConfig.radius
+                    border.width: 1
+                    color: "#a8a7fd"
+                }
+                onClicked: fileDialog.setVisible(1)
+                onHoveredChanged: hovered ? configRect.color = "#f8a7fd" : configRect.color = "#a8a7fd"
+
+            }
+
+            RoundButton {
+                id: rbSaveUserConfig
+                height: 40
+                text: "Save User Config File"
+                Layout.minimumHeight: 40
+                Layout.preferredHeight: 40
+                Layout.fillHeight: false
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                Layout.fillWidth: true
+                font.family: "Arial"
+                font.pointSize: 18
+                font.bold: true
+                font.weight: Font.Normal
+                radius: 10
+                enabled: backend.userConfigOK
+
+                Layout.minimumWidth: 100
+                Layout.preferredWidth: 200
+                Layout.maximumWidth: 700
+
+                background: Rectangle {
+                    id: configSaveRect
+                    radius: rbSaveUserConfig.radius
+                    border.width: 1
+                    color: "#a8a7fd"
+                }
+                onClicked: {
+
+                    backend.saveConfigObject()
+                    saveMessageDialog.visible = true
+                }
+                onHoveredChanged: hovered ? configSaveRect.color = "#f8a7fd" : configSaveRect.color = "#a8a7fd"
+
+            }
         }
+
 
 
         TreeViewerJSON {
@@ -194,6 +258,7 @@ Window {
                         // Send file name to c++ backend
                         if (drop.hasUrls) {
                             backend.userConfigFileName = drop.urls[0];
+                            backend.userConfigFileNameChanged();
                             treeView.visible = true;
                             view.visible = false;
 
@@ -215,7 +280,7 @@ Window {
             Layout.preferredHeight: 40
             font.family: "Arial"
             font.bold: true
-            font.pointSize: 20
+            font.pointSize: 18
             Layout.minimumHeight: 40
             Layout.fillHeight: false
             font.weight: Font.Normal
@@ -249,7 +314,7 @@ Window {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
                 font.family: "Arial"
-                font.pointSize: 20
+                font.pointSize: 18
                 font.bold: true
                 font.weight: Font.Normal
                 background: Rectangle {
@@ -273,7 +338,7 @@ Window {
                 Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
                 radius: 10
                 font.family: "Arial"
-                font.pointSize: 20
+                font.pointSize: 18
                 font.bold: true
                 font.weight: Font.Normal
                 background: Rectangle {
