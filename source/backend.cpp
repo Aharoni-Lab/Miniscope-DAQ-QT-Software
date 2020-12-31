@@ -175,15 +175,38 @@ backEnd::backEnd(QObject *parent) :
     for (int i = 0; i < unAvailableCodec.length(); i++)
         tempStr += unAvailableCodec[i] + ", ";
 
-    setUserConfigDisplay("Select a User Configuration file.\n\nSupported devices are listed in the .json files in the deviceConfig folder.\n\nAvailable compression Codecs on your computer are:\n" + m_availableCodecList +
-                         "\n\nUnavailable compression Codes on your computer are:\n" + tempStr.chopped(2));
+    // Build initial text in main screen -------
+    QFile file;
+    QString jsonFile;
+    QJsonObject jObj;
+    QStringList supportedDevices;
+    file.setFileName("deviceConfigs/videoDevices.json");
+    bool status = file.open(QIODevice::ReadOnly | QIODevice::Text);
+    if (status == true) {
+        jsonFile = file.readAll();
+        file.close();
+        QJsonDocument d = QJsonDocument::fromJson(jsonFile.toUtf8());
+        jObj = d.object();
+        supportedDevices = jObj.keys();
+    }
+
+    QString initDisplayMessage;
+    initDisplayMessage = "Select a User Configuration file. You can click the button above or just drag and drop a user config file here.\n\n";
+    initDisplayMessage.append("Supported devices are:\n");
+    for (int i=0; i < supportedDevices.length(); i++) {
+        initDisplayMessage.append("\t" + supportedDevices[i] + "\n");
+    }
+    initDisplayMessage.append("More information on the devices can be found in /deviceConfigs/videoDevices.json.\n\n");
+    initDisplayMessage.append("Available compression Codecs on your computer are:\n\t" + m_availableCodecList +
+                              "\n\nUnavailable compression Codes on your computer are:\n\t" + tempStr.chopped(2));
+
+            setUserConfigDisplay(initDisplayMessage);
 
 //    QObject::connect(this, SIGNAL (userConfigFileNameChanged()), this, SLOT( handleUserConfigFileNameChanged() ));
 
-    QString jsonFile;
-    QFile file;
+
     file.setFileName("deviceConfigs/userConfigProps.json");
-    bool status = file.open(QIODevice::ReadOnly | QIODevice::Text);
+    status = file.open(QIODevice::ReadOnly | QIODevice::Text);
     if (status == true) {
         jsonFile = file.readAll();
         file.close();
@@ -244,50 +267,61 @@ void backEnd::constructJsonTreeModel()
 //    QStandardItem *parentItem = m_jsonTreeModel->invisibleRootItem();
 
     QStringList keys = m_userConfig.keys();
+    QString tempType;
+    QString tempS;
     for (int i=0; i < keys.length(); i++) {
-        if(m_userConfig[keys[i]].isObject()) {
-            m_standardItem.append(new QStandardItem());
-            m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
-            m_standardItem.last()->setData("", Qt::UserRole + 2);
-            m_standardItem.last()->setData("Object", Qt::UserRole + 3);
-//            m_standardItem.append(handleJsonObject(m_standardItem.last(), m_userConfig[keys[i]].toObject()));
-            m_jsonTreeModel->appendRow(handleJsonObject(m_standardItem.last(), m_userConfig[keys[i]].toObject(), m_configProps[keys[i]].toObject()));
-        }
-        else if (m_userConfig[keys[i]].isArray()) {
-            m_standardItem.append(new QStandardItem());
-            m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
-            m_standardItem.last()->setData("", Qt::UserRole + 2);
-            m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["type"].toString(), Qt::UserRole + 3);
-            m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
-            m_jsonTreeModel->appendRow(handleJsonArray(m_standardItem.last(), m_userConfig[keys[i]].toArray(), m_configProps[keys[i]].toObject()["type"].toString()));
+        if (!keys[i].contains("COMMENT")) {
+            tempType = m_configProps[keys[i]].toObject()["type"].toString("String");
+            tempS = m_userConfig[keys[i]].toString();
+            if (tempType.contains("path") || tempType.contains("Path")) {
 
-        }
-        else if (m_userConfig[keys[i]].isString()){
-            m_standardItem.append(new QStandardItem());
-            m_standardItem.last()->setColumnCount(3);
-            m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
-            m_standardItem.last()->setData(m_userConfig[keys[i]].toString(),Qt::UserRole + 2);
-            m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["type"].toString("String"), Qt::UserRole + 3);
-            m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
-            m_jsonTreeModel->appendRow(m_standardItem.last());
-        }
-        else if (m_userConfig[keys[i]].isBool()) {
-            m_standardItem.append(new QStandardItem());
-            m_standardItem.last()->setColumnCount(3);
-            m_standardItem.last()->setData(keys[i],Qt::UserRole + 1);
-            m_standardItem.last()->setData(m_userConfig[keys[i]].toBool(),Qt::UserRole + 2);
-            m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["type"].toString("Bool"),Qt::UserRole + 3);
-            m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
-            m_jsonTreeModel->appendRow(m_standardItem.last());
-        }
-        else if (m_userConfig[keys[i]].isDouble()) {
-            m_standardItem.append(new QStandardItem());
-            m_standardItem.last()->setColumnCount(3);
-            m_standardItem.last()->setData(keys[i],Qt::UserRole + 1);
-            m_standardItem.last()->setData(m_userConfig[keys[i]].toDouble(),Qt::UserRole + 2);
-            m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["type"].toString("Double"),Qt::UserRole + 3);
-            m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
-            m_jsonTreeModel->appendRow(m_standardItem.last());
+                tempS = tempS.replace("\\","/"); // Corrects the slashes
+            }
+
+            if(m_userConfig[keys[i]].isObject()) {
+                m_standardItem.append(new QStandardItem());
+                m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
+                m_standardItem.last()->setData("", Qt::UserRole + 2);
+                m_standardItem.last()->setData("Object", Qt::UserRole + 3);
+    //            m_standardItem.append(handleJsonObject(m_standardItem.last(), m_userConfig[keys[i]].toObject()));
+                m_jsonTreeModel->appendRow(handleJsonObject(m_standardItem.last(), m_userConfig[keys[i]].toObject(), m_configProps[keys[i]].toObject()));
+            }
+            else if (m_userConfig[keys[i]].isArray()) {
+                m_standardItem.append(new QStandardItem());
+                m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
+                m_standardItem.last()->setData("", Qt::UserRole + 2);
+                m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["type"].toString(), Qt::UserRole + 3);
+                m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
+                m_jsonTreeModel->appendRow(handleJsonArray(m_standardItem.last(), m_userConfig[keys[i]].toArray(), m_configProps[keys[i]].toObject()["type"].toString()));
+
+            }
+            else if (m_userConfig[keys[i]].isString()){
+                m_standardItem.append(new QStandardItem());
+                m_standardItem.last()->setColumnCount(3);
+                m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
+                m_standardItem.last()->setData(tempS, Qt::UserRole + 2);
+                m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["type"].toString("String"), Qt::UserRole + 3);
+                m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
+                m_jsonTreeModel->appendRow(m_standardItem.last());
+            }
+            else if (m_userConfig[keys[i]].isBool()) {
+                m_standardItem.append(new QStandardItem());
+                m_standardItem.last()->setColumnCount(3);
+                m_standardItem.last()->setData(keys[i],Qt::UserRole + 1);
+                m_standardItem.last()->setData(m_userConfig[keys[i]].toBool(),Qt::UserRole + 2);
+                m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["type"].toString("Bool"),Qt::UserRole + 3);
+                m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
+                m_jsonTreeModel->appendRow(m_standardItem.last());
+            }
+            else if (m_userConfig[keys[i]].isDouble()) {
+                m_standardItem.append(new QStandardItem());
+                m_standardItem.last()->setColumnCount(3);
+                m_standardItem.last()->setData(keys[i],Qt::UserRole + 1);
+                m_standardItem.last()->setData(m_userConfig[keys[i]].toDouble(),Qt::UserRole + 2);
+                m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["type"].toString("Double"),Qt::UserRole + 3);
+                m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
+                m_jsonTreeModel->appendRow(m_standardItem.last());
+            }
         }
     }
 }
@@ -295,65 +329,84 @@ void backEnd::constructJsonTreeModel()
 void backEnd::treeViewTextChanged(const QModelIndex &index, QString text)
 {
     if (index.isValid()) {
+
         QStandardItem *item = m_jsonTreeModel->itemFromIndex(index);
+
+        if (item->data(Qt::UserRole + 3).toString().contains("path") || item->data(Qt::UserRole + 3).toString().contains("Path") ) {
+            text = text.replace("\\","/");
+        }
+
         item->setData(text,Qt::UserRole + 2);
-        qDebug() << "TEXT!"  << item->data(Qt::UserRole + 1) << item->data(Qt::UserRole + 2) << text;
+//        qDebug() << "TEXT!"  << item->data(Qt::UserRole + 1) << item->data(Qt::UserRole + 2) << text;
     }
 }
 
 QStandardItem *backEnd::handleJsonObject(QStandardItem *parent, QJsonObject obj, QJsonObject objProps)
 {
     QStringList keys = obj.keys();
+
+    QString tempType;
+    QString tempS;
+
     for (int i=0; i < keys.length(); i++) {
-        if(obj[keys[i]].isObject()) {
-            m_standardItem.append(new QStandardItem());
-            m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
-            m_standardItem.last()->setData("", Qt::UserRole + 2);
-            m_standardItem.last()->setData("Object", Qt::UserRole + 3);
+        if (!keys[i].contains("COMMENT")) {
 
-            if (parent->data(Qt::UserRole + 1).toString() == "cameras")
-                parent->appendRow(handleJsonObject(m_standardItem.last(), obj[keys[i]].toObject(), objProps["cameraDeviceName"].toObject()));
-            else if (parent->data(Qt::UserRole + 1).toString() == "miniscopes")
-                parent->appendRow(handleJsonObject(m_standardItem.last(), obj[keys[i]].toObject(), objProps["miniscopeDeviceName"].toObject()));
-            else
-                parent->appendRow(handleJsonObject(m_standardItem.last(), obj[keys[i]].toObject(), objProps[keys[i]].toObject()));
+            tempType = objProps[keys[i]].toObject()["type"].toString();
+            tempS = obj[keys[i]].toString();
+            if (tempType.contains("path") || tempType.contains("Path")) {
+                tempS = tempS.replace("\\","/"); // Corrects the slashes
+            }
 
-        }
-        else if (obj[keys[i]].isArray()) {
-            m_standardItem.append(new QStandardItem());
-            m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
-            m_standardItem.last()->setData("", Qt::UserRole + 2);
-            m_standardItem.last()->setData(objProps[keys[i]].toObject()["type"].toString(), Qt::UserRole + 3);
-            m_standardItem.last()->setData(objProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
-            parent->appendRow(handleJsonArray(m_standardItem.last(), obj[keys[i]].toArray(), objProps[keys[i]].toObject()["type"].toString()));
+            if(obj[keys[i]].isObject()) {
+                m_standardItem.append(new QStandardItem());
+                m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
+                m_standardItem.last()->setData("", Qt::UserRole + 2);
+                m_standardItem.last()->setData("Object", Qt::UserRole + 3);
 
-        }
-        else if (obj[keys[i]].isString()){
-            m_standardItem.append(new QStandardItem());
-//            m_standardItem.last()->setColumnCount(3);
-            m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
-            m_standardItem.last()->setData(obj[keys[i]].toString(),Qt::UserRole + 2);
-            m_standardItem.last()->setData(objProps[keys[i]].toObject()["type"].toString("String"), Qt::UserRole + 3);
-            m_standardItem.last()->setData(objProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
-            parent->appendRow(m_standardItem.last());
-        }
-        else if (obj[keys[i]].isBool()) {
-            m_standardItem.append(new QStandardItem());
-//            m_standardItem.last()->setColumnCount(3);
-            m_standardItem.last()->setData(keys[i],Qt::UserRole + 1);
-            m_standardItem.last()->setData(obj[keys[i]].toBool(),Qt::UserRole + 2);
-            m_standardItem.last()->setData(objProps[keys[i]].toObject()["type"].toString("Bool"),Qt::UserRole + 3);
-            m_standardItem.last()->setData(objProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
-            parent->appendRow(m_standardItem.last());
-        }
-        else if (obj[keys[i]].isDouble()) {
-            m_standardItem.append(new QStandardItem());
-//            m_standardItem.last()->setColumnCount(3);
-            m_standardItem.last()->setData(keys[i],Qt::UserRole + 1);
-            m_standardItem.last()->setData(obj[keys[i]].toDouble(),Qt::UserRole + 2);
-            m_standardItem.last()->setData(objProps[keys[i]].toObject()["type"].toString("Double"),Qt::UserRole + 3);
-            m_standardItem.last()->setData(objProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
-            parent->appendRow(m_standardItem.last());
+                if (parent->data(Qt::UserRole + 1).toString() == "cameras")
+                    parent->appendRow(handleJsonObject(m_standardItem.last(), obj[keys[i]].toObject(), objProps["cameraDeviceName"].toObject()));
+                else if (parent->data(Qt::UserRole + 1).toString() == "miniscopes")
+                    parent->appendRow(handleJsonObject(m_standardItem.last(), obj[keys[i]].toObject(), objProps["miniscopeDeviceName"].toObject()));
+                else
+                    parent->appendRow(handleJsonObject(m_standardItem.last(), obj[keys[i]].toObject(), objProps[keys[i]].toObject()));
+
+            }
+            else if (obj[keys[i]].isArray()) {
+                m_standardItem.append(new QStandardItem());
+                m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
+                m_standardItem.last()->setData("", Qt::UserRole + 2);
+                m_standardItem.last()->setData(objProps[keys[i]].toObject()["type"].toString(), Qt::UserRole + 3);
+                m_standardItem.last()->setData(objProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
+                parent->appendRow(handleJsonArray(m_standardItem.last(), obj[keys[i]].toArray(), objProps[keys[i]].toObject()["type"].toString()));
+
+            }
+            else if (obj[keys[i]].isString()){
+                m_standardItem.append(new QStandardItem());
+    //            m_standardItem.last()->setColumnCount(3);
+                m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
+                m_standardItem.last()->setData(tempS, Qt::UserRole + 2);
+                m_standardItem.last()->setData(objProps[keys[i]].toObject()["type"].toString("String"), Qt::UserRole + 3);
+                m_standardItem.last()->setData(objProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
+                parent->appendRow(m_standardItem.last());
+            }
+            else if (obj[keys[i]].isBool()) {
+                m_standardItem.append(new QStandardItem());
+    //            m_standardItem.last()->setColumnCount(3);
+                m_standardItem.last()->setData(keys[i],Qt::UserRole + 1);
+                m_standardItem.last()->setData(obj[keys[i]].toBool(),Qt::UserRole + 2);
+                m_standardItem.last()->setData(objProps[keys[i]].toObject()["type"].toString("Bool"),Qt::UserRole + 3);
+                m_standardItem.last()->setData(objProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
+                parent->appendRow(m_standardItem.last());
+            }
+            else if (obj[keys[i]].isDouble()) {
+                m_standardItem.append(new QStandardItem());
+    //            m_standardItem.last()->setColumnCount(3);
+                m_standardItem.last()->setData(keys[i],Qt::UserRole + 1);
+                m_standardItem.last()->setData(obj[keys[i]].toDouble(),Qt::UserRole + 2);
+                m_standardItem.last()->setData(objProps[keys[i]].toObject()["type"].toString("Double"),Qt::UserRole + 3);
+                m_standardItem.last()->setData(objProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
+                parent->appendRow(m_standardItem.last());
+            }
         }
     }
     return parent;
@@ -363,11 +416,13 @@ QStandardItem *backEnd::handleJsonArray(QStandardItem *parent, QJsonArray arry, 
 {
 //    QStringList keys = obj.keys();
 //    type = type.right(6);
-    type = type.right(type.length() - 7);
+    type = type.right(type.length() - 6);
     type = type.chopped(1);
-
-    if (type != "String" || type != "Bool" || type != "Integer" || type != "Double" || type != "Number" || type != "Object")
+    qDebug() << "TYPE" << type;
+    if (type != "String" && type != "Bool" && type != "Integer" && type != "Double" && type != "Number" && type != "Object" && type.left(5) != "Array") {
+        qDebug() << "TYPE" << type;
         type = "String";
+    }
 
     for (int i=0; i < arry.size(); i++) {
         if(arry[i].isObject()) {
@@ -554,6 +609,10 @@ void backEnd::saveConfigObject()
 
 void backEnd::loadUserConfigFile()
 {
+    int count;
+    QStringList sList;
+    QString s;
+
     QString jsonFile;
     QFile file;
     file.setFileName(m_userConfigFileName);
@@ -563,6 +622,55 @@ void backEnd::loadUserConfigFile()
     file.close();
     QJsonDocument d = QJsonDocument::fromJson(jsonFile.toUtf8());
     m_userConfig = d.object();
+
+    // Correct for old device structure in user config files
+    QJsonObject tempObj;
+    QJsonObject deviceObj = m_userConfig["devices"].toObject();
+    if (m_userConfig["devices"].toObject()["miniscopes"].isArray()) {
+        QJsonArray tempAry = m_userConfig["devices"].toObject()["miniscopes"].toArray();
+        QJsonObject miniObj;
+        sList.clear();
+        count = 0;
+        for (int i=0; i < tempAry.size(); i++) {
+            s = tempAry[i].toObject()["deviceName"].toString();
+
+            // Forces name to be unique
+            if (sList.contains(s)) {
+                s.append(QString::number(count));
+                count++;
+            }
+            sList.append(s);
+//            tempAry[i].toObject().remove("deviceName");
+            tempObj = tempAry[i].toObject();
+            tempObj.remove("deviceName");
+            miniObj[s] = tempObj;
+        }
+        deviceObj.remove("miniscopes");
+        deviceObj["miniscopes"] = miniObj;
+
+    }
+    if (m_userConfig["devices"].toObject()["cameras"].isArray()) {
+        QJsonArray tempAry = m_userConfig["devices"].toObject()["cameras"].toArray();
+        QJsonObject camObj;
+        sList.clear();
+        count = 0;
+        for (int i=0; i < tempAry.size(); i++) {
+            s = tempAry[i].toObject()["deviceName"].toString();
+
+            // Forces name to be unique
+            if (sList.contains(s)) {
+                s.append(QString::number(count));
+                count++;
+            }
+            sList.append(s);
+            tempObj = tempAry[i].toObject();
+            tempObj.remove("deviceName");
+            camObj[s] = tempObj;
+        }
+        deviceObj.remove("cameras");
+        deviceObj["cameras"] = camObj;
+    }
+    m_userConfig["devices"] = deviceObj;
 }
 
 void backEnd::onRunClicked()

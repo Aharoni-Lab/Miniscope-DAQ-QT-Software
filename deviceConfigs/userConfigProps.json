@@ -4,7 +4,7 @@
         "tips": "This is an absolute path to the base directory you want to save all data to. It should use '/' and not '\\'."
     },
     "directoryStructure": {
-        "type": "ArrayOfStrings",
+        "type": "Array(String)",
         "tips": "This is an array of strings which defines the structure of the save directory. 'Time' and 'Date' will generate the exact time and data when recording starts. All other entries can be whatever you want but they also need to have their own \"key\": \"value\" pair defined within this file."
     },
     "researcherName": {
@@ -30,7 +30,7 @@
             "tips": "This is an absolute path to a .exe file you want to have executed at the start of recording. This is usually used to syncronize some third party hardware."
         },
         "arguments": {
-            "type": "ArrayOfStrings",
+            "type": "Array(String)",
             "tips": "This is an array of strings that will be sent as arguments to the .exe listed in 'filePath'."
         }
     },
@@ -40,7 +40,7 @@
             "tips": "This is an absolute path to a .exe file you want to have executed at the start of recording. This is usually used to syncronize some third party hardware."
         },
         "arguments": {
-            "type": "ArrayOfStrings",
+            "type": "Array(String)",
             "tips": "This is an array of strings that will be sent as arguments to the .exe listed in 'filePath'."
         }
     },
@@ -95,12 +95,12 @@
                 "tips": "This is the number of vertical spatial bins used in the 2D occupancy calculation. Usually somewhere between 20 and 100 works well."
             },           
             "poseIdxToUse": {
-                "type": "ArratOfIntegers",
+                "type": "Array(Integer)",
                 "tips": "The 2D occupancy plotter will use the mean of the DLC pose/joint indices listed in this array to fill the 2D occupancy bins. You need to list at least 1 indice for the plotter to work."
             }
         },
         "poseIdxForTraceDisplay": {
-            "type": "ArrayOfStrings",
+            "type": "Array(String)",
             "tips": "The behavior tracker can also plot the positional time trace of any of the DLC pose/joints within the trace display. This array will setup time trace plotting for specific pose indices. You must give it a the index number along with 'w', 'h', or 'wh'. 'w' means it will plot the width or x position. 'h' means it will plot the height or y position."
         },
         "poseOverlay": {
@@ -126,7 +126,7 @@
                     "tips": "You can enable the below 'skekelton' section if you want to also overlay a skeleton that connects certain pose indices or joints."
                 },
                 "connectedIndices": {
-                    "type": "ArrayOfIntegerArrays",
+                    "type": "Array(Array(Integer))",
                     "tips": "This is an array of arrays. Each internal array defines the set of connected pose/joint indices to be connected and displayed."
                 }
             }
@@ -175,7 +175,7 @@
                         "tips": "Generally this should be set to true for V4 Miniscopes with full version numbers under v4.34. If you see a lot of noise in your displayed head-orientation data then you can set this to true."
                     },
                     "plotTrace": {
-                        "type": "ArrayOfStrings",
+                        "type": "Array(String)",
                         "tips": "Add or remove 'roll' 'pitch' and/or 'yaw' to define which dimensions get plotted in the time trace display."
                     }
                 },

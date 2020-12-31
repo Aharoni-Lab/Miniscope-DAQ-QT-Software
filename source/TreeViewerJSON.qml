@@ -20,10 +20,12 @@ TreeView {
 
         delegate: Loader {
             property string modelType: model.type
+            property string modelTips: model.tips
             Rectangle {
                 id: rectangle
                 width: parent.width
                 height: parent.height
+
                 color: {
                     if (modelType === "Number") {"#cfe2f3"}
                     else if (modelType === "Integer") {"#cfe2f3"}
@@ -44,6 +46,13 @@ TreeView {
                     font.pointSize: 10
 
 //                    color:  if (model.type === "Number") {"black"} else {"black"}
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: {
+                            root.toolTipText = modelTips;
+
+                    }
                 }
             }
         }
@@ -121,6 +130,11 @@ TreeView {
                 else
                     backend.treeViewTextChanged(currentIndex, "false");
             }
+            onFocusChanged: {
+                if (focus) {
+                    root.toolTipText = modelTips;
+                }
+            }
         }
     }
 
@@ -136,6 +150,10 @@ TreeView {
             anchors.fill: parent
             font.pointSize: 10
             height: 25
+
+            selectByMouse: true
+//            canPaste: true
+
             background:
                 Rectangle {
                     anchors.fill: parent
@@ -168,8 +186,8 @@ TreeView {
                 else if (modelType === "Integer") {validInt}
                 else if (modelType === "Double") {validDouble}
                 else if (modelType === "String") {validAll}
-                else if (modelType === "DirPath") {validPath}
-                else if (modelType === "FilePath") {validPath}
+                else if (modelType === "DirPath") {validAll}
+                else if (modelType === "FilePath") {validAll}
                 else {validAll}
             }
             onFocusChanged: {
