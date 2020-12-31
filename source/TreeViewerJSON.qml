@@ -5,12 +5,14 @@ import QtQuick.Layouts 1.3
 import QtQuick.Controls.Styles 1.4
 
 TreeView {
+    property string toolTipText
     id:root
     rowDelegate: Rectangle {
             width: parent.width
             height: 25
 
         }
+
     TableViewColumn {
         title: "Key"
         role: "key"
@@ -54,6 +56,7 @@ TreeView {
         delegate: Loader {
             property string modelValue: model.value
             property string modelType: model.type
+            property string modelTips: model.tips
             sourceComponent:
             {
                 if (model.type === "Bool") {checkBoxDelegate}
@@ -72,7 +75,7 @@ TreeView {
     TableViewColumn {
         title: "Type"
         role: "type"
-        width: 100
+        width: 90
         delegate: Loader {
             property string modelType: model.type
             Rectangle {
@@ -101,6 +104,7 @@ TreeView {
             }
         }
     }
+
 
     Component {
         id: checkBoxDelegate
@@ -167,6 +171,11 @@ TreeView {
                 else if (modelType === "DirPath") {validPath}
                 else if (modelType === "FilePath") {validPath}
                 else {validAll}
+            }
+            onFocusChanged: {
+                if (focus) {
+                    root.toolTipText = modelTips;
+                }
             }
 
             onTextChanged: {

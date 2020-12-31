@@ -147,7 +147,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         tempFrame2 = QImage(frame.data, frame.cols, frame.rows, frame.step, QImage::Format_RGB888);
 
     // Generate moving average baseline frame
-    if ((timeStamp - baselinePreviousTimeStamp) > 100) {
+    if ((timeStamp - baselinePreviousTimeStamp) > 50) {
         // update baseline frame buffer every ~500ms
         tempMat1 = frame.clone();
         tempMat1.convertTo(tempMat1, CV_32F);
@@ -178,7 +178,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         tempMat2 = frame.clone();
         tempMat2.convertTo(tempMat2, CV_32F);
         cv::divide(tempMat2,baselineFrame,tempMat2);
-        tempMat2 = ((tempMat2 - 1.0) + 0.05) * 2048;
+        tempMat2 = ((tempMat2 - 1.0) + 0.02) * 256 * 10;
         tempMat2.convertTo(tempMat2, CV_8U);
         cv::cvtColor(tempMat2, tempFrame, cv::COLOR_GRAY2BGR);
         tempFrame2 = QImage(tempFrame.data, tempFrame.cols, tempFrame.rows, tempFrame.step, QImage::Format_RGB888);

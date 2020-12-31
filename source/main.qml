@@ -203,25 +203,42 @@ Window {
 
             }
         }
+        ColumnLayout {
+            TreeViewerJSON {
+                id: treeView
+                objectName: "treeView"
+                model: backend.jsonTreeModel
+
+                visible: false
+                Layout.rowSpan: 4
+                Layout.fillHeight: true
+
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
 
 
 
-        TreeViewerJSON {
-            id: treeView
-            objectName: "treeView"
-            model: backend.jsonTreeModel
+            }
+            TextArea {
 
-            visible: false
-            Layout.rowSpan: 4
-            Layout.fillHeight: true
+                text: "<b>Tool Tip:</b> " + treeView.toolTipText
+                horizontalAlignment: Text.AlignLeft
+                verticalAlignment: Text.AlignTop
+                visible: treeView.visible
 
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+//                height: 200
+                Layout.fillHeight: true
 
-
-
-
-
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                readOnly: true
+                wrapMode: TextField.WordWrap
+                Layout.maximumHeight: 100
+                Layout.minimumHeight: 30
+                Layout.preferredHeight: 40
+                textFormat: Text.RichText
+                font.pointSize: 12
+            }
         }
 
         ScrollView {
