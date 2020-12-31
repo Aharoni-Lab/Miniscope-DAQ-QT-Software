@@ -196,7 +196,7 @@ void DataSaver::startRunning()
                         else
                             isColor = true;
                         // TODO: Add compression options here
-                        if (ROI.contains(names[i])) {
+                        if (ROI[names[i]][0] >= 0 && ROI[names[i]][1] >= 0 && ROI[names[i]][2] >= 0 && ROI[names[i]][3] >= 0) {
                             // Need to trim frame to ROI
 //                            qDebug() << ROI[names[i]][0] << ROI[names[i]][1] << ROI[names[i]][2] << ROI[names[i]][3];
                             videoWriter[names[i]]->open(tempStr.toUtf8().constData(),
@@ -230,7 +230,7 @@ void DataSaver::startRunning()
                     }
 
                     // TODO: Increment video file if reach max frame number per file
-                    if (ROI.contains(names[i])) {
+                    if (ROI[names[i]][0] >= 0 && ROI[names[i]][1] >= 0 && ROI[names[i]][2] >= 0 && ROI[names[i]][3] >= 0) {
                         videoWriter[names[i]]->write(frameBuffer[names[i]][bufPosition](cv::Rect(ROI[names[i]][0],ROI[names[i]][1],ROI[names[i]][2],ROI[names[i]][3])));
 
                     }
@@ -513,7 +513,7 @@ QJsonDocument DataSaver::constructDeviceMetaData(QString type, QString deviceNam
     metaData["framesPerFile"] = deviceObj["framesPerFile"].toInt(1000);
     metaData["compression"] = deviceObj["compression"].toString("FFV1");
 
-    if (ROI.contains(deviceName)) {
+    if (ROI[deviceName][0] >= 0 && ROI[deviceName][1] >= 0 && ROI[deviceName][2] >= 0 && ROI[deviceName][3] >= 0) {
         QJsonObject jROI;
         jROI["leftEdge"] = ROI[deviceName][0];
         jROI["topEdge"] = ROI[deviceName][1];

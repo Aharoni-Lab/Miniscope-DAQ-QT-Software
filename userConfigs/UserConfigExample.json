@@ -27,11 +27,11 @@
     "COMMENT_executables": "The 2 sections below allow you to execute an external .exe file on recording start and stop. The 'filePath' is the absolute path to the .exe file. ",
     "executableOnStartRecording": {
         "filePath": "C:/Fiji.app/ImageJ-win64.exe",
-        "arguments": ["hi", "hi2"]
+        "arguments": ["arg1", "arg2"]
     },
     "executableOnStopRecording": {
         "filePath": "C:/Fiji.app/ImageJ-win64.exe",
-        "arguments": ["hi", "hi2"]
+        "arguments": ["arg1", "arg2", "arg3"]
     },
 
     "COMMENT_behaviorTracker": "The behavior tracker is currently in beta testing. It requires you to have a functional Python environment with DeepLabCut-Live setup.",
