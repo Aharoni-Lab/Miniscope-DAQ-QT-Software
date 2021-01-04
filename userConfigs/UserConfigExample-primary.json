@@ -1,0 +1,177 @@
+{
+    "COMMENT": "This JSON file can be used as a template to build your own user config file for the Miniscope Software.",
+    "COMMENT2": "Keys with 'COMMENT' in their name are ignored by the software and are here to guide you through making a user config file.",
+    "COMMENT3": "Once you select or drag&drop a user configuration file into the main window of the software, you will also be able to edit it and see tips.",
+    
+    "COMMENT_dataDirectory": "This will be the base folder for your Miniscope recordings. It should be an absolute path using forward slashes /",
+    "dataDirectory": "C:/FILL/OUT/THIS/PATH",
+    
+    "COMMENT_directoryStructure": "When you start a recording the software will construct a folder structure for your experiment. This will be built in the dataDirectory location using the list of keys in directoryStructure.",
+    "COMMENT_directoryStructure2": "Each key listed in directoryStructure should be defined as well with its corresponding value. You can add your own keys as well.",
+    "COMMENT_directoryStructure3": "The data and time keys should not have values assigned to them as they will be populated with the recording data and time when you hit record in the software.",
+    "directoryStructure": [
+        "researcherName",
+        "experimentName",
+        "animalName",
+        "customEntry0",
+        "date",
+        "time"
+    ],
+    "researcherName": "Dr_Miniscope",
+    "experimentName": "Experiment0",
+    "animalName": "Fully Ball",
+    "customEntry0": "customEntValHere",
+
+    "COMMENT_recordLengthinSeconds": "Set this to 0 if you want to manually stop recordings. Any positive number will automatically stop recording at that number of seconds.",
+    "recordLengthinSeconds": 600,
+
+    "COMMENT_executables": "The 2 sections below allow you to execute an external .exe file on recording start and stop. The 'filePath' is the absolute path to the .exe file. ",
+    "executableOnStartRecording": {
+        "enabled": true,
+        "filePath": "C:/FILL/OUT/THIS/PATH",
+        "arguments": ["arg1", "arg2"]
+    },
+    "executableOnStopRecording": {
+        "enabled": true,
+        "filePath": "C:/FILL/OUT/THIS/PATH",
+        "arguments": ["arg1", "arg2", "arg3"]
+    },
+
+    "COMMENT_behaviorTracker": "The behavior tracker is currently in beta testing. It requires you to have a functional Python environment with DeepLabCut-Live setup.",
+    "COMMENT_behaviorTracker2": "For info on setting up DLC-Live go here, https://github.com/DeepLabCut/DeepLabCut-live",
+    "COMMENT_behaviorTracker3": "Currently only the type of 'DeepLabCut-Live' is supported. You need to provide an absolute path to your Pythong environment and DLC model.",
+    "COMMENT_behaviorTracker4": "If you don't to use the behaviorTracker either remove this section or set 'enabled' to false.",
+    "behaviorTracker": {
+        "enabled": false,
+        "type": "DeepLabCut-Live",
+        "COMMENT_pyEnvPath": "This should be the absolute path to the base folder of your Pythong environment that can successfully run DLC-Live.",
+        "COMMENT_pyEnvPath2": "The Miniscope Software initially checks this folder to make sure it contains this exact subfolder, '/Lib/site-packages/dlclive'",
+        "pyEnvPath": "ABSOLUTE/PATH/TO/PYTHON/ENVIRONMENT",
+        "modelPath": "ABSOLUTE/PATH/TO/DLC/MODEL",
+        "COMMENT_resize": "resize will scale the behavior video for DLC-Live. This should be 1 or less. If DLC is running slow you should consider using a smaller resize value.",
+        "resize": 1,
+        "COMMENT_pCutoffDisplay": "All DLC pose data will be recording but this pCufOff will set the minimum p value for data to be plotted.",
+        "pCutoffDisplay": 0.3,
+        "COMMENT_window": "These 'window' keys affect just the display of the behavior tracker. Set these to fit well within the rest of the GUI.",
+        "windowX": 200,
+        "windowY": 100,
+        "windowScale": 0.75,
+        "COMMENT_occupancyPlot": "If you want an inset showing animal coverage across the environment set enabled to true.",
+        "COMMENT_occupancyPlot2": "This will plot the log of a 2D occupancy histogram in the upper right corner of the behavior tracker window.",
+        "occupancyPlot": {
+            "enabled": true,
+            "COMMENT_numBins": "numBins X and Y are the number of spatial bins the behavior camera will be divided into for the occupancy plot.",
+            "numBinsX": 100,
+            "numBinsY": 100,
+            "COMMENT_poseIdxToUse": "The occupancy plotter will take the mean position of the DLC pose indices listed here. It also requires the p value of these to be above the cutoff above to be used in the mean for each frame.",
+            "poseIdxToUse": [0, 1, 2, 3, 4]
+        },
+        "COMMENT_poseIdxForTraceDisplay": "This array will setup time trace plotting for specific pose indices. You must give it a the index number along with 'w', 'h', or 'wh'.",
+        "COMMENT_poseIdxForTraceDisplay2": "'w' means it will plot the width or x position. 'h' means it will plot the height or y position.",
+        "poseIdxForTraceDisplay": ["0wh", "1w", "2w"],
+        "COMMENT_poseOverlay": "This section enables and sets up the overlaying of pose data on top of the behavior tracker window.",
+        "poseOverlay": {
+            "enabled": true,
+            "COMMENT_type": "type defines how the pose data will be shown. The allowable vales are 'point', 'line', 'ribbon",
+            "type": "point",
+            "COMMENT_numOfPastPoses": "The overlay can display recent past positions of joints and fade them out as time goes one. This value sets how many past poses to display in the overlay.",
+            "numOfPastPoses": 6,
+            "COMMENT_markerSize": "The markerSize sets how large the points, lines, or ribbons in the overlay will be. Reasonable values are between 3 and 20.",
+            "markerSize": 20,
+            "COMMENT_skeleton": "You can enable the below 'skekelton' section if you want to also overlay a skeleton that connects certain pose indices or joints.",
+            "skeleton": {
+                "enabled": true,
+                "COMMENT_connectedIndices": "This is an array of arrays. Each internal array defines the set of connected pose indices or joints to be displayed.",
+                "connectedIndices": [
+                    [0, 1, 2, 3, 4, 5],
+                    [6, 7, 8, 9, 10, 11],
+                    [12, 13]
+                ]
+            }
+        }
+    }, 
+
+    "COMMENT_traceDisplay": "traceDisplay defines the parameters for the real-time time trace display. Delete this section or set enabled to false to turn off trace plotting.",
+    "COMMENT_traceDisplay2": "Currently only the type of 'scrolling' is implemented. The 'window' parameters set up the size and location of the trace display.",
+    "traceDisplay": {
+        "enabled": true,
+        "type": "scrolling",
+        "windowX": 100,
+        "windowY": 100,
+        "windowWidth": 600,
+        "windowHeight": 800
+    },
+
+    "COMMENT_devices": "'devices' defines all input and output devices to the software.",
+    "COMMENT_devices2": "The currently supported 'deviceType' can be found in the deviceConfigs/videoDevices.json file and also are displayed in the main window of the software when first loaded.",
+    "devices": {
+        "COMMENT_miniscopes": "This is a JSON object of miniscopes along with their parameters. Generally you will only have 1 entry here.",
+        "miniscopes": {
+            "miniscopeDeviceName": {
+                "COMMENT_deviceName": "This can be whatever you want. It should be unique for each device though.",
+                "COMMENT_deviceType": "This should be a supported deviceType listed in the videoDevice.json file.",
+                "COMMENT_deviceType2": "Supported types include 'Miniscope_V4_BNO' and 'Miniscope_V3'",
+                "deviceType": "Miniscope_V4_BNO",
+                "COMMENT_headOrientation": "If using a V4 Miniscope you should set enabled to true so stream and record head orientation data from the onboard IMU.",
+				"headOrientation": {
+					"enabled": true,
+                    "filterBadData": true,
+                    "COMMENT_plotTrace": "Add or remove 'roll' 'pitch' and/or 'yaw' to define which get plotted in the time trace display.",
+                    "plotTrace": ["roll", "pitch", "yaw"]
+                },
+                "COMMENT_deviceID": "All UVC camera devices on your computer have a unique deviceID starting with '0'. Try numbers until you find the one that connects to the correct Miniscope.",
+                "COMMENT_deviceID2": "This number will never be more than one minus the number of cameras devices (including Miniscopes) connected to your computer.",
+                "deviceID": 1,
+                "showSaturation": true,
+                "COMMENT_ROI": "You can define an ROI here or select one in the GUI. You can also completely remove this section if you don't want to trim the FOV at all.",
+				"ROI": {
+                    "notes": "This defines the bounding box of the portion of the video that is saved to disk",
+                    "note3": "Edge values are zero indexed",
+					"leftEdge": 0,
+					"topEdge": 0,
+					"width": 600,
+					"height": 600
+                },
+                "COMMENT_compression": "Imaging data is save in .avi file format. You can choose what type of video compression to apply when saving data.",
+                "COMMENT_compression2": "We suggest using a lossless compression CODEC for Miniscope data. This would be either GREY or FFV1. GREY does no compression. FFV1 losslessly compresses the data but can be CPU intensive.",
+                "COMMENT_compression3": "We generally use FFV1 is our computer can keep up with it. If you notice the frame buffer filling up completely while recording you should switch to GREY.",
+                "compression": "FFV1",
+                "framesPerFile": 1000,
+                "COMMENT_window": "The window keys define how the GUI for this device will be setup. They don't affect the actual recorded data.",
+                "windowScale": 0.75,
+                "windowX": 800,
+                "windowY": 100,
+                "COMMENT": "gain, ewl, led0, frameRate allow you to design the initial values the Miniscope boots up with. These can be later adjusted in the GUI.",
+                "gain": "Low", "COMMENT_gain": "Low, Medium, High are 1x, 2x, and 3.5x",
+                "ewl": 50,
+                "led0": 10,
+                "frameRate": "20FPS"
+            }
+        },
+        "COMMENT_cameras": "This is an array of the behavioral cameras along with their parameters. Look at the comments above for Miniscope as these are the same for cameras.",
+       "cameras": {
+            "cameraDeviceName":{
+                "COMMENT_deviceType": "Supported types include 'WebCam', 'WebCam-320x240','WebCam-640x480','WebCam-1280x720'.",
+                "COMMENT_deviceType2": "If your behavior camera supports other resolutions you want to use you can add a new entry for it in deviceConfigs/videoDevices.json",
+                "deviceType": "WebCam-640x480",
+                "deviceID": 0,
+				"showSaturation": true,
+				"ROI": {
+                    "notes": "This defines the bounding box of the portion of the video that is saved to disk",
+                    "note3": "Edge values are zero indexed",
+					"leftEdge": 0,
+					"topEdge": 0,
+					"width": 640,
+					"height": 480
+				},
+                "cameraCalibrationFileLocation": "",
+                "COMMENT_compression": "A Lossly compression CODEC is generally fine for behavior video data. We like to use MJPG or XVID. When you start the software it will tell you all supported CODECs on your computer.",
+                "compression": "MJPG",
+                "framesPerFile": 1000,
+                "windowScale": 0.5,
+                "windowX": 800,
+                "windowY": 600
+            }
+       }
+    }
+}

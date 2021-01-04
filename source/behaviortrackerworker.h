@@ -28,7 +28,7 @@ public:
     void setUpDLCLive();
     QVector<float> getDLCLivePose(cv::Mat frame);
     void setParameters(QString name, cv::Mat *frameBuf, int bufSize, QAtomicInt *acqFrameNum);
-    void setPoseBufferParameters(QVector<float> *poseBuf, int *poseFrameNumBuf, int poseBufSize, QAtomicInt *btPoseFrameNum, QSemaphore *free, QSemaphore *used, float *pColors);
+    void setPoseBufferParameters(QVector<float> *poseBuf, int *poseFrameNumBuf, int poseBufSize, QAtomicInt *btPoseFrameNum, QSemaphore *free, QSemaphore *used);
     void getColors();
 
 signals:
@@ -72,6 +72,7 @@ private:
     PyObject *pValue;
 
     bool m_PythonInitialized;
+    int m_PythonError;
 };
 
 #endif // BEHAVIORTRACKERWORKER_H

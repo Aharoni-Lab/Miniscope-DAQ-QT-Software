@@ -1,0 +1,309 @@
+{
+    "dataDirectory": {
+        "type": "DirPath",
+        "tips": "This is an absolute path to the base directory you want to save all data to. It should use '/' and not '\\'."
+    },
+    "directoryStructure": {
+        "type": "Array(String)",
+        "tips": "This is an array of strings which defines the structure of the save directory. 'Time' and 'Date' will generate the exact time and data when recording starts. All other entries can be whatever you want but they also need to have their own \"key\": \"value\" pair defined within this file."
+    },
+    "researcherName": {
+        "type": "String",
+        "tips": "This will be saved in the recording's meta data file as well as can be used as an entry into the 'directoryStructure' array."
+    },
+    "experimentName": {
+        "type": "String",
+        "tips": "This will be saved in the recording's meta data file as well as can be used as an entry into the 'directoryStructure' array."
+    },
+    "animalName": {
+        "type": "String",
+        "tips": "This will be saved in the recording's meta data file as well as can be used as an entry into the 'directoryStructure' array."
+    },
+    "recordLengthinSeconds": {
+        "type": "Integer",
+        "tips": "This is an integer value. A value of '0' does not limit recording length. An integer value above 0 will stop the recording at that amount of seconds."
+    },
+
+    "executableOnStartRecording": {
+        "enabled": {
+            "type": "Bool",
+            "tips": "This enables or disabled the .exe file from being called."
+        },
+        "filePath": {
+            "type": "FilePath",
+            "tips": "This is an absolute path to a .exe file you want to have executed at the start of recording. This is usually used to syncronize some third party hardware."
+        },
+        "arguments": {
+            "type": "Array(String)",
+            "tips": "This is an array of strings that will be sent as arguments to the .exe listed in 'filePath'."
+        }
+    },
+    "executableOnStopRecording": {
+        "enabled": {
+            "type": "Bool",
+            "tips": "This enables or disabled the .exe file from being called."
+        },
+        "filePath": {
+            "type": "FilePath",
+            "tips": "This is an absolute path to a .exe file you want to have executed at the start of recording. This is usually used to syncronize some third party hardware."
+        },
+        "arguments": {
+            "type": "Array(String)",
+            "tips": "This is an array of strings that will be sent as arguments to the .exe listed in 'filePath'."
+        }
+    },
+    "behaviorTracker": {
+        "enabled": {
+            "type": "Bool",
+            "tips": "This enables or disabled the entire behavior tracker module within the software. Enable this for the behavior tracker to run and generate a GUI."
+        },
+        "type": {
+            "type": "String",
+            "tips": "Right now the behavior tracker only supports \"DeepLabCut-Live\" as type. For info on setting up DLC-Live go here, https://github.com/DeepLabCut/DeepLabCut-live"
+        },
+        "pyEnvPath": {
+            "type": "FilePath",
+            "tips": "The behavior tracker needs the absolute path to a functional Python virtual environment which can successfully run DeepLabCut-Live. The Miniscope Software initially checks this folder to make sure it contains this exact subfolder, '/Lib/site-packages/dlclive'"
+        },
+        "modelPath": {
+            "type": "FilePath",
+            "tips": "This is the absolute path to the DLC model you want to use."
+        },
+        "resize": {
+            "type": "Double",
+            "tips": "This number will resize the behavior camera image to lower resolution if your CPU/GPU is having a hard time keeping up with the video stream. This number shouldn't ever be set above 1."
+        },
+        "pCutoffDisplay": {
+            "type": "Double",
+            "tips": "All DLC pose data will be recording but this pCufOff will set the minimum p value for data to be plotted within the GUI."
+        },
+        "windowX": {
+            "type": "Integer",
+            "tips": "These 'window' keys: value pairs affect just the display of the behavior tracker. Set these to fit well within the rest of your GUI. This is the top left location of the GUI window."
+        },
+        "windowY": {
+            "type": "Integer",
+            "tips": "These 'window' keys: value pairs affect just the display of the behavior tracker. Set these to fit well within the rest of your GUI. This is the top left location of the GUI window."
+        },
+        "windowScale": {
+            "type": "Double",
+            "tips": "These 'window' keys: value pairs affect just the display of the behavior tracker. Set these to fit well within the rest of your GUI. This sets the scale of the window relative to the size of the actual video data it is processing. A value of 1 is a good place to start."
+        },
+        "occupancyPlot": {
+            "enabled": {
+                "type": "Bool",
+                "tips": "The behavior tracker is capable of generating a 2D occupancy plot based on DLC pose data and overlaying it within the behavior tracker GUI. This enables that option."
+            },
+            "numBinsX": {
+                "type": "Integer",
+                "tips": "This is the number of horizontal spatial bins used in the 2D occupancy calculation. Usually somewhere between 20 and 100 works well."
+            },
+            "numBinsY": {
+                "type": "Integer",
+                "tips": "This is the number of vertical spatial bins used in the 2D occupancy calculation. Usually somewhere between 20 and 100 works well."
+            },           
+            "poseIdxToUse": {
+                "type": "Array(Integer)",
+                "tips": "The 2D occupancy plotter will use the mean of the DLC pose/joint indices listed in this array to fill the 2D occupancy bins. You need to list at least 1 indice for the plotter to work."
+            }
+        },
+        "poseIdxForTraceDisplay": {
+            "type": "Array(String)",
+            "tips": "The behavior tracker can also plot the positional time trace of any of the DLC pose/joints within the trace display. This array will setup time trace plotting for specific pose indices. You must give it a the index number along with 'w', 'h', or 'wh'. 'w' means it will plot the width or x position. 'h' means it will plot the height or y position."
+        },
+        "poseOverlay": {
+            "enabled": {
+                "type": "Bool",
+                "tips": "This section enables and sets up the overlaying of DLC pose/joint/skeleton data on top of the behavior tracker window."
+            },
+            "type": {
+                "type": "String",
+                "tips": "You can select between displaying data as \"point\", \"line\", or \"ribbon\". Try them all to see what you like the most."
+            },
+            "numOfPastPoses": {
+                "type": "Integer",
+                "tips": "The overlay can display recent past positions of joints and fade them out as time goes one. This value sets how many past poses to display in the overlay. Setting this to 0 will only show the most recent DLC pose data. A valuse of 0 to 20 is resonable here."
+            },
+            "markerSize": {
+                "type": "Integer",
+                "tips": "The markerSize sets how large the points, lines, or ribbons in the overlay will be. Reasonable values are between 3 and 20."
+            },
+            "skeleton": {
+                "enabled": {
+                    "type": "Bool",
+                    "tips": "You can enable the below 'skekelton' section if you want to also overlay a skeleton that connects certain pose indices or joints."
+                },
+                "connectedIndices": {
+                    "type": "Array(Array(Integer))",
+                    "tips": "This is an array of arrays. Each internal array defines the set of connected pose/joint indices to be connected and displayed."
+                }
+            }
+        }
+    }, 
+    "traceDisplay": {
+        "enabled": {
+            "type": "Bool",
+            "tips": "Trace Display is a separate GUI window which can display all types of time trace data. It can be used to display head-orientation data from the V4 Miniscope, Neuron ROI fluorescence, DLC pose positions, and so on. Enable this to generate the trace display window."
+        },
+        "type": {
+            "type": "String",
+            "tips": "Only supports \"scrolling\" right now."
+        },
+        "windowX": {
+            "type": "Integer",
+            "tips": "These 'window' key: value pairs define the location and size of the trace display window."
+        },
+        "windowY": {
+            "type": "Integer",
+            "tips": "These 'window' key: value pairs define the location and size of the trace display window."
+        },
+        "windowWidth": {
+            "type": "Integer",
+            "tips": "These 'window' key: value pairs define the location and size of the trace display window."
+        },
+        "windowHeight": {
+            "type": "Integer",
+            "tips": "These 'window' key: value pairs define the location and size of the trace display window."
+        }
+    },
+    "devices": {
+        "miniscopes": {
+            "miniscopeDeviceName": {
+                "deviceType": {
+                    "type": "MiniscopeDeviceType",
+                    "tips": "This should be a supported deviceType listed in the deviceconfig/videoDevice.json file. Supported types include \"Miniscope_V4_BNO\" and \"Miniscope_V3\"."
+                },
+				"headOrientation": {
+					"enabled": {
+                        "type": "Bool",
+                        "tips": "Set this to true if you have a V4 or newer Miniscope. It will acquire and display head-orinetation data from the on-board BNO sensor."
+                    },
+                    "filterBadData": {
+                        "type": "Bool",
+                        "tips": "Generally this should be set to true for V4 Miniscopes with full version numbers under v4.34. If you see a lot of noise in your displayed head-orientation data then you can set this to true."
+                    },
+                    "plotTrace": {
+                        "type": "Array(String)",
+                        "tips": "Add or remove 'roll' 'pitch' and/or 'yaw' to define which dimensions get plotted in the time trace display."
+                    }
+                },
+                "deviceID": {
+                    "type": "Integer",
+                    "tips": "All UVC camera devices on your computer have a unique deviceID starting with '0'. Try numbers until you find the one that connects to the correct Miniscope. This number will never be more than one minus the number of cameras devices (including Miniscopes) connected to your computer."
+                },
+                "showSaturation": {
+                    "type": "Bool",
+                    "tips": "If set to true, the video stream window will show red pixels for any fully saturated pixels. This can also be turned on and off within the video display window."
+                },
+				"ROI": {
+					"leftEdge": {
+                        "type": "Integer",
+                        "tips": "You can define an ROI here or select one in the GUI. You can also completely remove this section if you don't want to trim the FOV at all. These values define the bounding box in pixels of the ROI."
+                    },
+					"topEdge": {
+                        "type": "Integer",
+                        "tips": "You can define an ROI here or select one in the GUI. You can also completely remove this section if you don't want to trim the FOV at all. These values define the bounding box in pixels of the ROI."
+                    },
+					"width": {
+                        "type": "Integer",
+                        "tips": "You can define an ROI here or select one in the GUI. You can also completely remove this section if you don't want to trim the FOV at all. These values define the bounding box in pixels of the ROI."
+                    },
+					"height": {
+                        "type": "Integer",
+                        "tips": "You can define an ROI here or select one in the GUI. You can also completely remove this section if you don't want to trim the FOV at all. These values define the bounding box in pixels of the ROI."
+                    }
+                },
+                "compression": {
+                    "type": "String",
+                    "tips": "Imaging data is save in .avi file format. You can choose what type of video compression to apply when saving data. We suggest using a lossless compression CODEC for Miniscope data. This would be either GREY or FFV1. GREY does no compression. FFV1 losslessly compresses the data but can be CPU intensive. We generally use FFV1 is our computer can keep up with it. If you notice the frame buffer filling up completely while recording you should switch to GREY."
+                },
+                "framesPerFile": {
+                    "type": "Integer",
+                    "tips": "We generally set this to 1000. It defines how large each .avi file will be in your recording."
+                },
+                "windowScale": {
+                    "type": "Double",
+                    "tips": "The window keys define how the GUI for this device will be setup. They don't affect the actual recorded data."
+                },
+                "windowX": {
+                    "type": "Integer",
+                    "tips": "The window keys define how the GUI for this device will be setup. They don't affect the actual recorded data."
+                },
+                "windowY": {
+                    "type": "Integer",
+                    "tips": "The window keys define how the GUI for this device will be setup. They don't affect the actual recorded data."
+                },
+                "gain": {
+                    "type": "String",
+                    "tips": "Acceptable values are \"Low\", \"Medium\", \"High\". For the V4 Miniscope these correspond to 1x, 2x, and 3.5x respectively."
+                },
+                "ewl": {
+                    "type": "Integer",
+                    "tips": "This sets the initial position of the electro-tunable lens focal plane."
+                },
+                "led0": {
+                    "type": "Integer",
+                    "tips": "This sets the initial excitation LED intensity. Values can be from 0 to 100 but many Miniscope configurations have trouble with values over 70 or 80 due to current limits through certain coax cable lengths."
+                },
+                "frameRate": {
+                    "type": "String",
+                    "tips": "This sets the initial FPS of the video device. Acceptable values usually go in increments of 5 between 10 and 30 and have the form of: \"20FPS\" for example."
+                }
+            }
+        },
+       "cameras": {
+           "cameraDeviceName": {
+                "deviceType": {
+                    "type": "CameraDeviceType",
+                    "tips": "This should be a supported deviceType listed in the deviceconfig/videoDevice.json file."
+                },
+                "deviceID": {
+                    "type": "Integer",
+                    "tips": "All UVC camera devices on your computer have a unique deviceID starting with '0'. Try numbers until you find the one that connects to the correct Miniscope. This number will never be more than one minus the number of cameras devices (including Miniscopes) connected to your computer."
+                },
+				"showSaturation": {
+                    "type": "Bool",
+                    "tips": "If set to true, the video stream window will show red pixels for any fully saturated pixels. This can also be turned on and off within the video display window."
+                },
+				"ROI": {
+					"leftEdge": {
+                        "type": "Integer",
+                        "tips": "You can define an ROI here or select one in the GUI. You can also completely remove this section if you don't want to trim the FOV at all. These values define the bounding box in pixels of the ROI."
+                    },
+					"topEdge": {
+                        "type": "Integer",
+                        "tips": "You can define an ROI here or select one in the GUI. You can also completely remove this section if you don't want to trim the FOV at all. These values define the bounding box in pixels of the ROI."
+                    },
+					"width": {
+                        "type": "Integer",
+                        "tips": "You can define an ROI here or select one in the GUI. You can also completely remove this section if you don't want to trim the FOV at all. These values define the bounding box in pixels of the ROI."
+                    },
+					"height": {
+                        "type": "Integer",
+                        "tips": "You can define an ROI here or select one in the GUI. You can also completely remove this section if you don't want to trim the FOV at all. These values define the bounding box in pixels of the ROI."
+                    }
+                },
+                "compression": {
+                    "type": "String",
+                    "tips": "Imaging data is save in .avi file format. You can choose what type of video compression to apply when saving data. A Lossly compression CODEC is generally fine for behavior video data. We like to use MJPG or XVID. When you start the software it will tell you all supported CODECs on your computer."
+                },
+                "framesPerFile": {
+                    "type": "Integer",
+                    "tips": "We generally set this to 1000. It defines how large each .avi file will be in your recording."
+                },
+                "windowScale": {
+                    "type": "Double",
+                    "tips": "The window keys define how the GUI for this device will be setup. They don't affect the actual recorded data."
+                },
+                "windowX": {
+                    "type": "Integer",
+                    "tips": "The window keys define how the GUI for this device will be setup. They don't affect the actual recorded data."
+                },
+                "windowY": {
+                    "type": "Integer",
+                    "tips": "The window keys define how the GUI for this device will be setup. They don't affect the actual recorded data."
+                }
+            }
+       }
+    }
+}

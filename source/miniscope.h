@@ -24,7 +24,8 @@
 #define BASELINE_FRAME_BUFFER_SIZE  128
 
 #define TRACE_DISPLAY_BUFFER_SIZE         256
-#define NUM_MAX_NEURON_TRACES      16
+#define NUM_MAX_NEURON_TRACES             32
+#define SMOOTHING_WINDOW_IN_FRAMES        4
 
 class Miniscope : public VideoDevice
 {
@@ -77,6 +78,8 @@ private:
     QAtomicInt m_traceNumDataInBuf[NUM_MAX_NEURON_TRACES][2];
     float m_traceDisplayY[NUM_MAX_NEURON_TRACES][2][TRACE_DISPLAY_BUFFER_SIZE];
     float m_traceDisplayT[NUM_MAX_NEURON_TRACES][2][TRACE_DISPLAY_BUFFER_SIZE];
+    float m_traceLastValues[NUM_MAX_NEURON_TRACES][SMOOTHING_WINDOW_IN_FRAMES];
+    int m_traceLastValueIdx;
 
 
     qint64 m_softwareStartTime;

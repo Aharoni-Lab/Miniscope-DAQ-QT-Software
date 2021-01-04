@@ -27,11 +27,11 @@
     "COMMENT_executables": "The 2 sections below allow you to execute an external .exe file on recording start and stop. The 'filePath' is the absolute path to the .exe file. ",
     "executableOnStartRecording": {
         "filePath": "C:/Fiji.app/ImageJ-win64.exe",
-        "arguments": ["hi", "hi2"]
+        "arguments": ["arg1", "arg2"]
     },
     "executableOnStopRecording": {
         "filePath": "C:/Fiji.app/ImageJ-win64.exe",
-        "arguments": ["hi", "hi2"]
+        "arguments": ["arg1", "arg2", "arg3"]
     },
 
     "COMMENT_behaviorTracker": "The behavior tracker is currently in beta testing. It requires you to have a functional Python environment with DeepLabCut-Live setup.",
@@ -41,6 +41,8 @@
     "behaviorTracker": {
         "enabled": false,
         "type": "DeepLabCut-Live",
+        "COMMENT_pyEnvPath": "This should be the absolute path to the base folder of your Pythong environment that can successfully run DLC-Live.",
+        "COMMENT_pyEnvPath2": "The Miniscope Software initially checks this folder to make sure it contains this exact subfolder, '/Lib/site-packages/dlclive'",
         "pyEnvPath": "C:/Users/dbaha/.conda/envs/dlc-live",
         "modelPath": "C:/Users/dbaha/Documents/Data/DLC/DLC_Dog_resnet_50_iteration-0_shuffle-0",
         "COMMENT_resize": "resize will scale the behavior video for DLC-Live. This should be 1 or less. If DLC is running slow you should consider using a smaller resize value.",
@@ -63,7 +65,27 @@
         },
         "COMMENT_poseIdxForTraceDisplay": "This array will setup time trace plotting for specific pose indices. You must give it a the index number along with 'w', 'h', or 'wh'.",
         "COMMENT_poseIdxForTraceDisplay2": "'w' means it will plot the width or x position. 'h' means it will plot the height or y position.",
-        "poseIdxForTraceDisplay": ["0wh", "1w", "2w"]
+        "poseIdxForTraceDisplay": ["0wh", "1w", "2w"],
+        "COMMENT_poseOverlay": "This section enables and sets up the overlaying of pose data on top of the behavior tracker window.",
+        "poseOverlay": {
+            "enabled": true,
+            "COMMENT_type": "type defines how the pose data will be shown. The allowable vales are 'point', 'line', 'ribbon",
+            "type": "point",
+            "COMMENT_numOfPastPoses": "The overlay can display recent past positions of joints and fade them out as time goes one. This value sets how many past poses to display in the overlay.",
+            "numOfPastPoses": 6,
+            "COMMENT_markerSize": "The markerSize sets how large the points, lines, or ribbons in the overlay will be. Reasonable values are between 3 and 20.",
+            "markerSize": 20,
+            "COMMENT_skeleton": "You can enable the below 'skekelton' section if you want to also overlay a skeleton that connects certain pose indices or joints.",
+            "skeleton": {
+                "enabled": true,
+                "COMMENT_connectedIndices": "This is an array of arrays. Each internal array defines the set of connected pose indices or joints to be displayed.",
+                "connectedIndices": [
+                    [0, 1, 2, 3, 4, 5],
+                    [6, 7, 8, 9, 10, 11],
+                    [12, 13]
+                ]
+            }
+        }
     }, 
 
     "COMMENT_traceDisplay": "traceDisplay defines the parameters for the real-time time trace display. Delete this section or set enabled to false to turn off trace plotting.",
@@ -81,10 +103,9 @@
     "COMMENT_devices2": "The currently supported 'deviceType' can be found in the deviceConfigs/videoDevices.json file.",
     "devices": {
         "COMMENT_miniscopes": "This is an array of miniscopes along with their parameters. Generally you will only have 1 entry here.",
-        "miniscopes": [
-            {
+        "miniscopes": {
+            "miniscopeDeviceName": {
                 "COMMENT_deviceName": "This can be whatever you want. It should be unique for each device though.",
-                "deviceName": "Miniscope",
                 "COMMENT_deviceType": "This should be a supported deviceType listed in the videoDevice.json file.",
                 "COMMENT_deviceType2": "Supported types include 'Miniscope_V4_BNO' and 'Miniscope_V3'",
                 "deviceType": "Miniscope_V4_BNO",
@@ -123,11 +144,10 @@
                 "led0": 10,
                 "frameRate": "20FPS"
             }
-        ],
+        },
         "COMMENT_cameras": "This is an array of the behavioral cameras along with their parameters. Look at the comments above for Miniscope as these are the same for cameras.",
-       "cameras": [
-            {
-                "deviceName": "BehavCam 0",
+       "cameras": {
+            "cameraDeviceName":{
                 "COMMENT_deviceType": "Supported types include 'WebCam', 'WebCam-320x240','WebCam-640x480','WebCam-1280x720'.",
                 "COMMENT_deviceType2": "If your behavior camera supports other resolutions you want to use you can add a new entry for it in deviceConfigs/videoDevices.json",
                 "deviceType": "WebCam-640x480",
@@ -149,6 +169,6 @@
                 "windowX": 800,
                 "windowY": 600
             }
-        ]
+       }
     }
 }

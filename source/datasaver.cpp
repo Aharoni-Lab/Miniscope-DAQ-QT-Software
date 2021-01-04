@@ -46,13 +46,13 @@ bool DataSaver::setupFilePaths()
         }
         else {
             qDebug() << "Path to" << baseDirectory << "created.";
-            sendMessage("Data being saved to : " + baseDirectory);
+            emit sendMessage("Data being saved to : " + baseDirectory);
         }
     }
     else {
         qDebug() << baseDirectory << " already exisits. This likely will cause issues";
-        sendMessage("Data being saved to : " + baseDirectory);
-        sendMessage("Warning: " + baseDirectory + " already exisits. This likely will cause issues.");
+        emit sendMessage("Data being saved to : " + baseDirectory);
+        emit sendMessage("Warning: " + baseDirectory + " already exisits. This likely will cause issues.");
     }
 
     // TODO: save metadata in base directory for experiment. Maybe some thing like saveBaseMetaDataJscon();
@@ -60,15 +60,18 @@ bool DataSaver::setupFilePaths()
     // Setup directories for each recording device
     QJsonObject devices = m_userConfig["devices"].toObject();
 
-    for (int i = 0; i < devices["miniscopes"].toArray().size(); i++) { // Miniscopes
-        tempString = devices["miniscopes"].toArray()[i].toObject()["deviceName"].toString();
+    QStringList deviceList;
+    deviceList = devices["miniscopes"].toObject().keys();
+    for (int i = 0; i < deviceList.length(); i++) { // Miniscopes
+        tempString = deviceList[i]; //devices["miniscopes"].toObject()[deviceList[i]].toObject()["deviceName"].toString();
         tempString2 = tempString;
         tempString2.replace(" ", "_");
         deviceDirectory[tempString] = baseDirectory + "/" + tempString2;
         QDir().mkdir(deviceDirectory[tempString]);
     }
-    for (int i = 0; i < devices["cameras"].toArray().size(); i++) { // Cameras
-        tempString = devices["cameras"].toArray()[i].toObject()["deviceName"].toString();
+    deviceList = devices["cameras"].toObject().keys();
+    for (int i = 0; i < deviceList.length(); i++) { // Cameras
+        tempString = deviceList[i]; //devices["cameras"].toArray()[i].toObject()["deviceName"].toString();
         tempString2 = tempString;
         tempString2.replace(" ", "_");
         deviceDirectory[tempString] = baseDirectory + "/" + tempString2;
@@ -123,8 +126,8 @@ void DataSaver::setupBaseDirectory()
 
                 if (tempString2.isEmpty()) {
                     // Entry does not exist in User Config JSON file
-                    sendMessage("Warning: " + tempString + " does not have associated value in User Config JSON file.");
-                    sendMessage("Warning: Using /" + tempString + "Missing/ as place holder in data path.");
+                    emit sendMessage("Warning: " + tempString + " does not have associated value in User Config JSON file.");
+                    emit sendMessage("Warning: Using /" + tempString + "Missing/ as place holder in data path.");
                     baseDirectory += "/" + tempString + "Missing";
                 }
                 else
@@ -193,7 +196,7 @@ void DataSaver::startRunning()
                         else
                             isColor = true;
                         // TODO: Add compression options here
-                        if (ROI.contains(names[i])) {
+                        if (ROI[names[i]][0] >= 0 && ROI[names[i]][1] >= 0 && ROI[names[i]][2] >= 0 && ROI[names[i]][3] >= 0) {
                             // Need to trim frame to ROI
 //                            qDebug() << ROI[names[i]][0] << ROI[names[i]][1] << ROI[names[i]][2] << ROI[names[i]][3];
                             videoWriter[names[i]]->open(tempStr.toUtf8().constData(),
@@ -227,7 +230,7 @@ void DataSaver::startRunning()
                     }
 
                     // TODO: Increment video file if reach max frame number per file
-                    if (ROI.contains(names[i])) {
+                    if (ROI[names[i]][0] >= 0 && ROI[names[i]][1] >= 0 && ROI[names[i]][2] >= 0 && ROI[names[i]][3] >= 0) {
                         videoWriter[names[i]]->write(frameBuffer[names[i]][bufPosition](cv::Rect(ROI[names[i]][0],ROI[names[i]][1],ROI[names[i]][2],ROI[names[i]][3])));
 
                     }
@@ -275,23 +278,26 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
         saveJson(jDoc, baseDirectory + "/metaData.json");
 
         QString deviceName;
+        QStringList deviceList;
         // For Miniscopes
-        for (int i = 0; i < m_userConfig["devices"].toObject()["miniscopes"].toArray().size(); i++) {
-            deviceName = m_userConfig["devices"].toObject()["miniscopes"].toArray()[i].toObject()["deviceName"].toString();
-            jDoc = constructDeviceMetaData("miniscopes",i);
+        deviceList = m_userConfig["devices"].toObject()["miniscopes"].toObject().keys();
+        for (int i = 0; i < deviceList.length(); i++) {
+            deviceName = deviceList[i];
+            jDoc = constructDeviceMetaData("miniscopes", deviceName);
             saveJson(jDoc, deviceDirectory[deviceName] + "/metaData.json");
 
             // Get user config frames per file
-            framesPerFile[deviceName] = m_userConfig["devices"].toObject()["miniscopes"].toArray()[i].toObject()["framesPerFile"].toInt(1000);
+            framesPerFile[deviceName] = m_userConfig["devices"].toObject()["miniscopes"].toObject()[deviceList[i]].toObject()["framesPerFile"].toInt(1000);
         }
         // For Cameras
-        for (int i = 0; i < m_userConfig["devices"].toObject()["cameras"].toArray().size(); i++) {
-            deviceName = m_userConfig["devices"].toObject()["cameras"].toArray()[i].toObject()["deviceName"].toString();
-            jDoc = constructDeviceMetaData("cameras", i);
+        deviceList = m_userConfig["devices"].toObject()["cameras"].toObject().keys();
+        for (int i = 0; i < deviceList.length(); i++) {
+            deviceName = deviceList[i];
+            jDoc = constructDeviceMetaData("cameras", deviceName);
             saveJson(jDoc, deviceDirectory[deviceName] + "/metaData.json");
 
             // Get user config frames per file
-            framesPerFile[deviceName] = m_userConfig["devices"].toObject()["cameras"].toArray()[i].toObject()["framesPerFile"].toInt(1000);
+            framesPerFile[deviceName] = m_userConfig["devices"].toObject()["cameras"].toObject()[deviceList[i]].toObject()["framesPerFile"].toInt(1000);
         }
 
         // For Behavior Tracker
@@ -477,13 +483,12 @@ QJsonDocument DataSaver::constructBaseDirectoryMetaData()
 
     //Device info
     QStringList list;
-    for (int i = 0; i < m_userConfig["devices"].toObject()["miniscopes"].toArray().size(); i++)
-        list.append(m_userConfig["devices"].toObject()["miniscopes"].toArray()[i].toObject()["deviceName"].toString());
+
+    list = m_userConfig["devices"].toObject()["miniscopes"].toObject().keys();
     metaData["miniscopes"] = QJsonArray().fromStringList(list);
 
     list.clear();
-    for (int i = 0; i < m_userConfig["devices"].toObject()["cameras"].toArray().size(); i++)
-        list.append(m_userConfig["devices"].toObject()["cameras"].toArray()[i].toObject()["deviceName"].toString());
+    list = m_userConfig["devices"].toObject()["cameras"].toObject().keys();
     metaData["cameras"] = QJsonArray().fromStringList(list);
 
     list.clear();
@@ -494,13 +499,12 @@ QJsonDocument DataSaver::constructBaseDirectoryMetaData()
     return jDoc;
 }
 
-QJsonDocument DataSaver::constructDeviceMetaData(QString type, int idx)
+QJsonDocument DataSaver::constructDeviceMetaData(QString type, QString deviceName)
 {
     QJsonObject metaData;
     QJsonDocument jDoc;
 
-    QJsonObject deviceObj = m_userConfig["devices"].toObject()[type].toArray()[idx].toObject();
-    QString deviceName = deviceObj["deviceName"].toString();
+    QJsonObject deviceObj = m_userConfig["devices"].toObject()[type].toObject()[deviceName].toObject();
 
     metaData["deviceName"] = deviceName;
     metaData["deviceType"] = deviceObj["deviceType"].toString();
@@ -509,7 +513,7 @@ QJsonDocument DataSaver::constructDeviceMetaData(QString type, int idx)
     metaData["framesPerFile"] = deviceObj["framesPerFile"].toInt(1000);
     metaData["compression"] = deviceObj["compression"].toString("FFV1");
 
-    if (ROI.contains(deviceName)) {
+    if (ROI[deviceName][0] >= 0 && ROI[deviceName][1] >= 0 && ROI[deviceName][2] >= 0 && ROI[deviceName][3] >= 0) {
         QJsonObject jROI;
         jROI["leftEdge"] = ROI[deviceName][0];
         jROI["topEdge"] = ROI[deviceName][1];

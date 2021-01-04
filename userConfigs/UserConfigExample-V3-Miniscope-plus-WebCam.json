@@ -1,0 +1,120 @@
+{
+    "dataDirectory": "C:/FILL/OUT/THIS/PATH",
+    "directoryStructure": [
+        "researcherName",
+        "experimentName",
+        "animalName",
+        "customEntry0",
+        "date",
+        "time"
+    ],
+    "researcherName": "Dr_Miniscope",
+    "experimentName": "Experiment0",
+    "animalName": "Fully Ball",
+    "customEntry0": "customEntValHere",
+
+    "recordLengthinSeconds": 600,
+
+    "executableOnStartRecording": {
+        "enabled": false,
+        "filePath": "C:/FILL/OUT/THIS/PATH.exe",
+        "arguments": ["arg1", "arg2"]
+    },
+    "executableOnStopRecording": {
+        "enabled": false,
+        "filePath": "C:/FILL/OUT/THIS/PATH.exe",
+        "arguments": ["arg1", "arg2", "arg3"]
+    },
+
+    "COMMENT_behaviorTracker": "The behavior tracker is currently in beta testing. It requires you to have a functional Python environment with DeepLabCut-Live setup.",
+    "COMMENT_behaviorTracker2": "For info on setting up DLC-Live go here, https://github.com/DeepLabCut/DeepLabCut-live",
+    "COMMENT_behaviorTracker3": "Currently only the type of 'DeepLabCut-Live' is supported. You need to provide an absolute path to your Pythong environment and DLC model.",
+    "COMMENT_behaviorTracker4": "If you don't to use the behaviorTracker either remove this section or set 'enabled' to false. More info can be found in the primary user config example file.",
+    "behaviorTracker": {
+        "enabled": false,
+        "type": "DeepLabCut-Live",
+        "pyEnvPath": "C:/PATH/TO/ENV",
+        "modelPath": "C:/PATH/TO/DLC/MODEL",
+        "resize": 0.5,
+        "pCutoffDisplay": 0.3,
+        "windowX": 200,
+        "windowY": 100,
+        "windowScale": 0.75,
+        "occupancyPlot": {
+            "enabled": true,
+            "numBinsX": 100,
+            "numBinsY": 100,
+            "poseIdxToUse": [0, 1, 2, 3, 4]
+        },
+
+        "poseIdxForTraceDisplay": ["0wh", "1w", "2w"],
+
+        "poseOverlay": {
+            "enabled": true,
+            "COMMENT": "Cant be 'point','line',or 'ribbon.",
+            "type": "point",
+            "numOfPastPoses": 6,
+            "markerSize": 20,
+            "skeleton": {
+                "enabled": true,
+                "connectedIndices": [
+                    [0, 1, 2, 3, 4, 5],
+                    [6, 7, 8, 9, 10, 11],
+                    [12, 13]
+                ]
+            }
+        }
+    }, 
+
+    "traceDisplay": {
+        "enabled": true,
+        "type": "scrolling",
+        "windowX": 100,
+        "windowY": 100,
+        "windowWidth": 600,
+        "windowHeight": 800
+    },
+
+    "devices": {
+        "miniscopes": {
+            "My V4 Miniscope": {
+                "deviceType": "Miniscope_V3",
+                "COMMENT": "Change the deviceID to match the input number of your Miniscope.",
+                "deviceID": 1,
+                "showSaturation": true,
+				"ROI": {
+					"leftEdge": 0,
+					"topEdge": 0,
+					"width": 500,
+					"height": 300
+                },
+                "compression": "FFV1",
+                "framesPerFile": 1000,
+                "windowScale": 0.75,
+                "windowX": 800,
+                "windowY": 100,
+                "gain": "Low",
+                "led0": 10,
+                "frameRate": "20FPS"
+            }
+        },
+       "cameras": {
+            "My WebCam":{
+                "deviceType": "WebCam",
+                "deviceID": 0,
+				"showSaturation": true,
+				"ROI": {
+					"leftEdge": 0,
+					"topEdge": 0,
+					"width": 640,
+					"height": 480
+				},
+                "compression": "MJPG",
+                "framesPerFile": 1000,
+                "windowScale": 0.5,
+                "windowX": 800,
+                "windowY": 600
+            }
+       }
+    }
+}

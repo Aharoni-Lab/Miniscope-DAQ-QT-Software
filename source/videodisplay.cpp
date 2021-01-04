@@ -155,6 +155,12 @@ void VideoDisplay::mouseReleaseEvent(QMouseEvent *event) {
         if (m_addTraceRoiSelectionActive ) {
             m_addTraceRoiSelectionActive = false;
             // Send new ROI to behavior camera class
+            if (width < 5 && height < 5) {
+                leftEdge -= 3;
+                topEdge -= 3;
+                width = 7;
+                height = 7;
+            }
             emit newAddTraceROISignal(leftEdge, topEdge, width, height);
             setAddTraceROI({leftEdge,topEdge,width,height,m_addTraceRoiSelectionActive});
 

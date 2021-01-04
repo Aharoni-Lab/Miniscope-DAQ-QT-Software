@@ -4,6 +4,7 @@
 #include <QQmlContext>
 #include <QDebug>
 #include <QObject>
+#include <QTreeView>
 
 #include <QThreadPool>
 
@@ -39,9 +40,14 @@ int main(int argc, char *argv[])
     backEnd backend;
     engine.rootContext()->setContextProperty("backend", &backend);
 
+//    QObject *rootObject = engine.rootObjects().first();
+//    QTreeView *qmlObject = engine.rootObjects().first()->findChild<QTreeView*>("treeView");
+
     engine.load(url);
 
     backend.setVersionNumber(VERSION_NUMBER);
+//    qDebug() << "TTTEEEE" << engine.rootObjects().first()->findChild<QObject*>("treeView");
+//    QObject::connect(engine.rootObjects().first()->findChild<QObject*>("treeView"), &QTreeView::clicked, &backend, &backEnd::treeViewclicked);
     QObject::connect(&backend, &backEnd::closeAll, &engine, &QQmlApplicationEngine::quit);
     return app.exec();
 }

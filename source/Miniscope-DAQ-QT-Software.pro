@@ -68,6 +68,7 @@ DISTFILES += \
     ../Scripts/DLCwrapper.py \
     ../deviceConfigs/behaviorCams.json \
     ../deviceConfigs/miniscopes.json \
+    ../deviceConfigs/userConfigProps.json \
     ../deviceConfigs/videoDevices.json
 
 win32 {
@@ -83,6 +84,9 @@ win32 {
 #    #DEPENDPATH +=
 
     # For libusb
+#    LIBS += -LC:/libusb-1.0.24/VS2017/MS64/dll/ -llibusb-1.0
+#    INCLUDEPATH += C:/libusb-1.0.24/include/libusb-1.0
+
 #    LIBS += -LC:/libusb-1.0.23/MS64/dll/ -llibusb-1.0
 #    INCLUDEPATH += C:/libusb-1.0.23/include/libusb-1.0
 
@@ -90,11 +94,11 @@ win32 {
 #    INCLUDEPATH += C:/Python38/include
 #    LIBS += -LC:/Python38/libs -lpython38
 
-    INCLUDEPATH += C:/Users/dbaha/.conda/envs/dlc-live/include
-    LIBS += -LC:/Users/dbaha/.conda/envs/dlc-live/libs -lpython37
+    INCLUDEPATH += C:/Users/dbaha/.conda/envs/basepy37/include
+    LIBS += -LC:/Users/dbaha/.conda/envs/basepy37/libs -lpython37
 
     # For numpy
-    INCLUDEPATH += C:/Users/dbaha/.conda/envs/dlc-live/Lib/site-packages/numpy/core/include
+    INCLUDEPATH += C:/Users/dbaha/.conda/envs/basepy37/Lib/site-packages/numpy/core/include
 
 } else {
     CONFIG += link_pkgconfig

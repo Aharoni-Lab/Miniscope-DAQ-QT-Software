@@ -31,6 +31,11 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     m_softwareStartTime(softwareStartTime)
 
 {
+    m_roiBoundingBox[0] = -1;
+    m_roiBoundingBox[1] = -1;
+    m_roiBoundingBox[2] = -1;
+    m_roiBoundingBox[3] = -1;
+
     m_traceDisplayStatus = false;
     m_ucDevice = ucDevice; // hold user config for this device
     parseUserConfigDevice();
@@ -270,12 +275,12 @@ void VideoDevice::parseUserConfigDevice() {
         m_roiBoundingBox[3] = m_ucDevice["ROI"].toObject()["height"].toInt(-1);
         // TODO: Throw error is values are incorrect or missing
     }
-    else {
-        m_roiBoundingBox[0] = 0;
-        m_roiBoundingBox[1] = 0;
-        m_roiBoundingBox[2] = m_cDevice["width"].toInt(-1);
-        m_roiBoundingBox[3] = m_cDevice["height"].toInt(-1);
-    }
+//    else {
+//        m_roiBoundingBox[0] = 0;
+//        m_roiBoundingBox[1] = 0;
+//        m_roiBoundingBox[2] = m_cDevice["width"].toInt(-1);
+//        m_roiBoundingBox[3] = m_cDevice["height"].toInt(-1);
+//    }
 }
 
 void VideoDevice::sendInitCommands()

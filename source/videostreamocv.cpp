@@ -224,6 +224,8 @@ void VideoStreamOCV::startStream()
                 if (!cam->read(frame)) {
                     // Try next file before fully giving up
                     m_playbackFileIndex++;
+//                    if (m_playbackFileIndex == 4)
+//                        m_playbackFileIndex = 0;
                     qDebug() << "FILE INDEX" << m_playbackFileIndex;
                     fileName = m_playbackFolderPath + "/" + m_playbackFilePrefix + QString::number(m_playbackFileIndex) + ".avi";
                     cam->release();

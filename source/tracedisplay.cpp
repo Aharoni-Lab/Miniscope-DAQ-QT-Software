@@ -84,7 +84,7 @@ TraceDisplay::TraceDisplay()
     // Initially sets x labels
     QList<QVariant> tempLabels;
     for (int i=0;i < 5; i++) {
-        tempLabels.append(QString::number(i ,'f',1) + "s");
+        tempLabels.append(QString::number(i*2 ,'f',1) + "s");
     }
     setXLabel(tempLabels);
 }
@@ -942,7 +942,7 @@ void TraceDisplayRenderer::paint()
 //    glClear(GL_COLOR_BUFFER_BIT);
 
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // Draws traces
     updateTraces();
@@ -962,7 +962,7 @@ void TraceDisplayRenderer::paint()
     glClear(GL_COLOR_BUFFER_BIT);
 
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // Draw rendered texture
     drawRenderTexture();

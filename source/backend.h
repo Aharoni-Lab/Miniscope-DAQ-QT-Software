@@ -6,6 +6,8 @@
 #include <QJsonArray>
 #include <QThread>
 #include <QString>
+#include <QStandardItemModel>
+#include <QStandardItem>
 
 #include "miniscope.h"
 #include "behaviorcam.h"
@@ -24,6 +26,9 @@ class backEnd : public QObject
     Q_PROPERTY(bool userConfigOK READ userConfigOK WRITE setUserConfigOK NOTIFY userConfigOKChanged)
     Q_PROPERTY(QString availableCodecList READ availableCodecList WRITE setAvailableCodecList NOTIFY availableCodecListChanged)
     Q_PROPERTY(QString versionNumber READ versionNumber WRITE setVersionNumber NOTIFY versionNumberChanged)
+
+    Q_PROPERTY(QStandardItemModel* jsonTreeModel READ jsonTreeModel WRITE setJsonTreeModel NOTIFY jsonTreeModelChanged)
+
 public:
     explicit backEnd(QObject *parent = nullptr);
 
@@ -42,6 +47,19 @@ public:
     QString versionNumber() { return m_versionNumber; }
     void setVersionNumber(const QString &input) { m_versionNumber = input; }
 
+    QStandardItemModel* jsonTreeModel() { return m_jsonTreeModel; }
+    void setJsonTreeModel(QStandardItemModel* model) { m_jsonTreeModel = model; }
+
+    void constructJsonTreeModel();
+    Q_INVOKABLE void treeViewTextChanged(const QModelIndex &index, QString text);
+    QStandardItem *handleJsonObject(QStandardItem* parent, QJsonObject obj, QJsonObject objProps);
+    QStandardItem *handleJsonArray(QStandardItem* parent, QJsonArray arry, QString type);
+    void generateUserConfigFromModel();
+    QJsonObject getObjectFromModel(QModelIndex index);
+    QJsonArray getArrayFromModel(QModelIndex index);
+    Q_INVOKABLE void saveConfigObject();
+
+
     void loadUserConfigFile();
     bool checkUserConfigForIssues();
     void constructUserConfigGUI();
@@ -52,12 +70,16 @@ public:
     bool checkForUniqueDeviceNames();
     bool checkForCompression();
 
+
+    void testLibusb();
+
 signals:
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();
     void userConfigOKChanged();
     void availableCodecListChanged();
     void versionNumberChanged();
+    void jsonTreeModelChanged();
 
     void closeAll();
     void showErrorMessage();
@@ -69,6 +91,8 @@ public slots:
     void onRecordClicked();
     void exitClicked();
     void handleUserConfigFileNameChanged();
+
+//    Q_INVOKABLE void treeViewclicked();
 //    void onStopClicked();
 
 private:
@@ -82,6 +106,7 @@ private:
     QString m_userConfigDisplay;
     bool m_userConfigOK;
     QJsonObject m_userConfig;
+    QJsonObject m_configProps;
 
     // Break down of different types in user config file
     // 'uc' stands for userConfig
@@ -92,8 +117,8 @@ private:
     QString animalName;
 
     QJsonObject ucExperiment;
-    QJsonArray ucMiniscopes;
-    QJsonArray ucBehaviorCams;
+    QJsonObject ucMiniscopes;
+    QJsonObject ucBehaviorCams;
     QJsonObject ucBehaviorTracker;
     QJsonObject ucTraceDisplay;
 
@@ -112,6 +137,10 @@ private:
     QVector<QString> unAvailableCodec;
 
     qint64 m_softwareStartTime;
+
+    QHash <int,QByteArray> roles;
+    QStandardItemModel* m_jsonTreeModel;
+    QVector<QStandardItem*> m_standardItem;
 
 };
 

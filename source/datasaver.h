@@ -48,7 +48,7 @@ public slots:
 
 private:
     QJsonDocument constructBaseDirectoryMetaData();
-    QJsonDocument constructDeviceMetaData(QString type, int deviceIndex);
+    QJsonDocument constructDeviceMetaData(QString type, QString deviceName);
     void saveJson(QJsonDocument document, QString fileName);
     QJsonObject m_userConfig;
     QString baseDirectory;

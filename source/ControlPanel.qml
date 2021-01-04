@@ -205,7 +205,7 @@ Item {
 
                                 }
                                 TextField {
-                                    property var validNumber : IntValidator { bottom:0;}
+                                    property var validNumber : DoubleValidator { bottom:0;}
                                     property var validAll : RegExpValidator{}
                                     width: parent.width - 10
                                     height:30
@@ -217,6 +217,8 @@ Item {
                                     font.family: "Arial"
                                     color: "green"
                                     enabled: !root.recording
+//                                    canPaste: true
+                                    selectByMouse: true
                                     validator: if(root.ucIsNumber[index]) {validNumber} else {validAll}
 
                                     onTextChanged: {

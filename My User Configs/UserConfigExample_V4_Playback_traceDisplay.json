@@ -30,8 +30,8 @@
         "type": "scrolling",
         "windowX": 100,
         "windowY": 100,
-        "width": 600,
-        "height": 400
+        "windowWidth": 600,
+        "windowHeight": 800
     },
     "devices": {
         "miniscopes": [
