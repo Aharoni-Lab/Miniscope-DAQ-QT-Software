@@ -84,7 +84,7 @@ TraceDisplay::TraceDisplay()
     // Initially sets x labels
     QList<QVariant> tempLabels;
     for (int i=0;i < 5; i++) {
-        tempLabels.append(QString::number(i ,'f',1) + "s");
+        tempLabels.append(QString::number(i*2 ,'f',1) + "s");
     }
     setXLabel(tempLabels);
 }

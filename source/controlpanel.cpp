@@ -127,11 +127,13 @@ void ControlPanel::onRecordActivated()
     if (m_userConfig.contains("executableOnStartRecording")) {
         // Lets setup a exe to execute
         exeInfo = m_userConfig["executableOnStartRecording"].toObject();
-        argArray = m_userConfig["arguments"].toArray();
-        for (int i=0; i < argArray.size(); i++) {
-            argList.append(argArray[i].toString());
+        if (exeInfo["enabled"].toBool(true)) {
+            argArray = m_userConfig["arguments"].toArray();
+            for (int i=0; i < argArray.size(); i++) {
+                argList.append(argArray[i].toString());
+            }
+            QProcess::startDetached(exeInfo["filePath"].toString(""), argList);
         }
-        QProcess::startDetached(exeInfo["filePath"].toString(""), argList);
     }
 
     // Construct uc props that might have been changed by user
@@ -162,11 +164,13 @@ void ControlPanel::onStopActivated()
     if (m_userConfig.contains("executableOnStopRecording")) {
         // Lets setup a exe to execute
         exeInfo = m_userConfig["executableOnStopRecording"].toObject();
-        argArray = m_userConfig["arguments"].toArray();
-        for (int i=0; i < argArray.size(); i++) {
-            argList.append(argArray[i].toString());
+        if (exeInfo["enabled"].toBool(true)) {
+            argArray = m_userConfig["arguments"].toArray();
+            for (int i=0; i < argArray.size(); i++) {
+                argList.append(argArray[i].toString());
+            }
+            QProcess::startDetached(exeInfo["filePath"].toString(""), argList);
         }
-        QProcess::startDetached(exeInfo["filePath"].toString(""), argList);
     }
 
     recordStop();

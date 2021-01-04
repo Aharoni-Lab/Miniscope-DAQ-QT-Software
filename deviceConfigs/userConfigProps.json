@@ -25,6 +25,10 @@
     },
 
     "executableOnStartRecording": {
+        "enabled": {
+            "type": "Bool",
+            "tips": "This enables or disabled the .exe file from being called."
+        },
         "filePath": {
             "type": "FilePath",
             "tips": "This is an absolute path to a .exe file you want to have executed at the start of recording. This is usually used to syncronize some third party hardware."
@@ -35,6 +39,10 @@
         }
     },
     "executableOnStopRecording": {
+        "enabled": {
+            "type": "Bool",
+            "tips": "This enables or disabled the .exe file from being called."
+        },
         "filePath": {
             "type": "FilePath",
             "tips": "This is an absolute path to a .exe file you want to have executed at the start of recording. This is usually used to syncronize some third party hardware."
@@ -277,7 +285,7 @@
                 },
                 "compression": {
                     "type": "String",
-                    "tips": "Imaging data is save in .avi file format. You can choose what type of video compression to apply when saving data. We suggest using a lossless compression CODEC for Miniscope data. This would be either GREY or FFV1. GREY does no compression. FFV1 losslessly compresses the data but can be CPU intensive. We generally use FFV1 is our computer can keep up with it. If you notice the frame buffer filling up completely while recording you should switch to GREY."
+                    "tips": "Imaging data is save in .avi file format. You can choose what type of video compression to apply when saving data. A Lossly compression CODEC is generally fine for behavior video data. We like to use MJPG or XVID. When you start the software it will tell you all supported CODECs on your computer."
                 },
                 "framesPerFile": {
                     "type": "Integer",
