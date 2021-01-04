@@ -18,9 +18,14 @@ vec4 colormap_jet(float x);
 
 void main(void)
 {
-    gl_FragColor = colormap_jet(v_color);
+    if (v_color == 2) {
+        gl_FragColor = vec4(1.0, 1.0, 1.0, 0.5);
+    }
+    else {
+        gl_FragColor = colormap_jet(v_color);
 
-    gl_FragColor.a = v_pastID;
+        gl_FragColor.a = v_pastID;
+    }
 
     if (v_pValue < u_pValueCutoff) {
 //        gl_FragColor = mix(gl_FragColor,vec4(0.0,0.0,0.0,0.0), 0.9);

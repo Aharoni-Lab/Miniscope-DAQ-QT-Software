@@ -25,6 +25,8 @@ Window {
         onAccepted: {
             // Send file name to c++ backend
             backend.userConfigFileName = fileDialog.fileUrl
+            treeView.visible = true;
+            view.visible = false;
 //            rbRun.enabled = true
         }
         onRejected: {

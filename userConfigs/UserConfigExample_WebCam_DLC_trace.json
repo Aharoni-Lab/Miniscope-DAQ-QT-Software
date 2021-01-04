@@ -23,7 +23,7 @@
         "modelPathDog": "C:/Users/dbaha/Documents/Data/DLC/DLC_Dog_resnet_50_iteration-0_shuffle-0",
         "modelPath": "C:/Users/dbaha/Documents/Data/DLC/DLC_human_dancing_resnet_101_iteration-0_shuffle-1",
         "resize": 1,
-        "pCutoffDisplay": 0.2,
+        "pCutoffDisplay": 0.3,
         "windowWidth": 640,
         "windowHeight": 480,
         "windowX": 100,
@@ -39,8 +39,8 @@
         "poseOverlay": {
             "enabled": true,
             "type": "ribbon",
-            "numOfPastPoses": 10,
-            "markerSize": 20,
+            "numOfPastPoses": 4,
+            "markerSize": 8,
             "skeleton": {
                 "enabled": true,
                 "connectedIndices": [

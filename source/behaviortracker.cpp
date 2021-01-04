@@ -412,7 +412,7 @@ void BehaviorTracker::sendNewFrame()
                     idx = overlaySkeleton[i].poseIdx;
                     overlaySkeleton[i].position[0] = overlayPose[idx].position[0];
                     overlaySkeleton[i].position[1] = overlayPose[idx].position[1];
-                    overlaySkeleton[i].color = overlayPose[idx].color;
+                    overlaySkeleton[i].color = 2; //overlayPose[idx].color;
                     overlaySkeleton[i].pValue = overlayPose[idx].pValue;
                 }
                 trackerDisplay->setSkeletonData(overlaySkeleton);

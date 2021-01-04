@@ -69,103 +69,10 @@ backEnd::backEnd(QObject *parent) :
 
     dataSaver = new DataSaver();
 
-
 #ifdef USE_USB
-        // ---- LIBUSB TEST ----
-    libusb_device **devs;
-    int r;
-    ssize_t cnt;
-
-    r = libusb_init(NULL);
-    if (r < 0)
-        qDebug() << "Problem 1 ";
-    else {
-        cnt = libusb_get_device_list(NULL, &devs);
-        if (cnt < 0){
-            libusb_exit(NULL);
-            qDebug() << "Problem 2";
-        }
-        else {
-            // -----------
-            libusb_device *dev;
-            int i = 0, j = 0;
-            uint8_t path[8];
-
-            while ((dev = devs[i++]) != NULL) {
-                struct libusb_device_descriptor desc;
-                struct libusb_config_descriptor **configDesc;
-                const struct libusb_endpoint_descriptor *epdesc;
-                const struct libusb_interface_descriptor *interdesc;
-                int r = libusb_get_device_descriptor(dev, &desc);
-                if (r < 0) {
-                    qDebug() << "failed to get device descriptor";
-                }
-                else {
-
-                    qDebug() << desc.idVendor << ":" << desc.idProduct << "bus" << libusb_get_bus_number(dev) << "device" << libusb_get_device_address(dev);
-
-                    r = libusb_get_port_numbers(dev, path, sizeof(path));
-                    if (r > 0) {
-                        qDebug() <<"path:" << path[0];
-                        for (j = 1; j < r; j++)
-                            qDebug() << " more paths:" << path[j];
-                    }
-
-
-
-
-                    libusb_device_handle *d_h = NULL;
-                    r = libusb_open(dev,&d_h);
-                    if ( r == 0) {
-                        unsigned char name[200];
-                        r = libusb_get_string_descriptor_ascii(d_h,desc.iProduct,name,200);
-                        if ( r > 0) {
-                            qDebug() << "name" << QString::fromUtf8((char *)name, r);
-                        }
- //                        libusb_set_configuration(d_h,0);
- //                        r = libusb_get_active_config_descriptor(dev,configDesc);
- //                        if (r < 0)
- //                            qDebug() << "Config Desc failed:" << r;
- //                        else {
- //                            qDebug() << "Number of alt settings:" << configDesc[0]->interface->num_altsetting;
- //                            interdesc = configDesc[0]->interface->altsetting;
-
- //                                qDebug() << "Number of endpoints: "<< interdesc->bNumEndpoints;
- //                                for(int k=0; k<(int)interdesc->bNumEndpoints; k++) {
- //                                    epdesc = &interdesc->endpoint[k];
- //                                    qDebug()<<"Descriptor Type: "<<(int)epdesc->bDescriptorType;
- //                                    qDebug()<<"EP Address: "<<(int)epdesc->bEndpointAddress;
- //                                }
- //                            }
- // //                        }
- //                        libusb_free_config_descriptor(configDesc[0]);
-
-                        libusb_claim_interface(d_h,2);
-                        uint8_t data[5] = {0,1,2,3,4};
-                        uint8_t inData[1024];
-                        int actualLength;
-                        qDebug() << "Sending" << data[0] << data[1] << data[2] << data[3] << data[4];
-                        r = libusb_bulk_transfer(d_h,0x04|LIBUSB_ENDPOINT_OUT,data,5,NULL,1000);
-                        if (r != 0)
-                            qDebug() << "Issue sending bulk transfer to device:" << r;
-                        else {
-                            libusb_bulk_transfer(d_h,0x04|LIBUSB_ENDPOINT_IN ,inData,1024,&actualLength,1000);
-                            qDebug() << "Receiving" << inData[0] << inData[1] << inData[2] << inData[3] << inData[4] << "inLength:" << actualLength;
-                        }
-                        libusb_close(d_h);
-                    }
-                    else {
-                        qDebug() << "Open Fail:" << r;
-                    }
-                }
-            }
-            // ---------------
-
-            libusb_free_device_list(devs, 1);
-            libusb_exit(NULL);
-        }
-    }
+    testLibusb();
 #endif
+
     testCodecSupport();
     QString tempStr;
     for (int i = 0; i < m_availableCodec.length(); i++)
@@ -1083,4 +990,207 @@ void backEnd::constructUserConfigGUI()
     }
 
     connectSnS();
+}
+
+void backEnd::testLibusb() {
+#ifdef USE_USB
+    int mcu_ep_out = 4;
+    int mcu_ep_in  = 3;
+    int mcu_device_id = 1003;
+    int mcu_product_id = 9251;
+
+    uint8_t data[1024];
+    uint8_t inData[1024];
+    for (int k=0 ; k < 1024; k++) {
+        data[k] = k&0xFF;
+        inData[k] = 0;
+    }
+
+    int actualLength = 0;
+
+    struct libusb_device_descriptor desc;
+
+    const struct libusb_endpoint_descriptor *epdesc;
+    const struct libusb_interface_descriptor *interdesc;
+    libusb_device_handle *d_h = NULL;
+    libusb_device *dev;
+
+    // Notes:
+    // When using cypress:
+    // Interface 2 with 0x04 endpoint for bulk seems to work.
+
+
+
+    libusb_device **devs;
+    int r;
+    ssize_t cnt;
+
+    r = libusb_init(NULL);
+//    libusb_set_debug(NULL, 4);
+    if (r < 0)
+        qDebug() << "Issue with libusb_init.";
+    else {
+        cnt = libusb_get_device_list(NULL, &devs);
+        if (cnt < 0){
+            libusb_exit(NULL);
+            qDebug() << "Issue with libusb_get_device_list.";
+        }
+        else {
+
+            int i = 0, j = 0;
+            uint8_t path[8];
+
+            while ((dev = devs[i++]) != NULL) {
+                // Loop through USB devices
+
+                int r = libusb_get_device_descriptor(dev, &desc);
+                if (r < 0) {
+                    qDebug() << "Failed to get device descriptor.";
+                }
+                else if (desc.idVendor == mcu_device_id && desc.idProduct == mcu_product_id){
+
+                    qDebug() << "VendorID: " << desc.idVendor << " | ProductID: " << desc.idProduct << " | Bus Number:" << libusb_get_bus_number(dev) << " | Device Address:" << libusb_get_device_address(dev);
+
+                    r = libusb_get_port_numbers(dev, path, sizeof(path));
+                    if (r > 0) {
+                        qDebug() <<"Paths:";
+                        for (j = 0; j < r; j++)
+                            qDebug() << "    " << j << ": " << path[j];
+                    }
+
+
+
+                    struct libusb_config_descriptor **configDesc;
+                    r = libusb_get_active_config_descriptor(dev,configDesc);
+
+                    if (r < 0)
+                        qDebug() << "Config Desc failed:" << r;
+                    else {
+                        int numAltSettings = configDesc[0]->interface->num_altsetting;
+                        qDebug() << "Number of alt settings: " << numAltSettings;
+                        interdesc = configDesc[0]->interface->altsetting;
+                        for (int w=0; w < numAltSettings; w++) {
+                            qDebug() << "Number of endpoints: "<< interdesc[w].bNumEndpoints;
+                            for(int m=0; m < interdesc[w].bNumEndpoints; m++) {
+                                epdesc = &interdesc[w].endpoint[m];
+                                qDebug()<<"Descriptor Type: "<<(int)epdesc->bDescriptorType;
+                                qDebug()<<"Attributes Type: "<<(int)epdesc->bmAttributes;
+                                qDebug()<<"EP Address: "<<(int)epdesc->bEndpointAddress;
+                            }
+                        }
+                        qDebug() << "HERE~!!";
+                        libusb_free_config_descriptor(*configDesc);
+                    }
+
+                    r = libusb_open(dev,&d_h);
+
+                    if (r < 0) {
+                        qDebug() << "libusb_open failed. Error code is: " << r;
+                    }
+                    else {
+                        unsigned char name[200];
+                        r = libusb_get_string_descriptor_ascii(d_h, desc.iProduct, name, 200);
+                        if ( r > 0) {
+                            qDebug() << "iProduct Name: " << QString::fromUtf8((char *)name, r);
+                        }
+
+                        // For Cypress Bulk, use interface 2 and endpoint 0x04|LIBUSB_ENDPOINT_ IN/OUT
+
+
+                        // I think windows is already setting up configuration 1 so an error in setting config is ok to skip???
+                        int conf;
+                        libusb_get_configuration(d_h,&conf);
+                        qDebug() << "Get Config: " << conf;
+                        r = libusb_set_configuration(d_h,1);
+                        if (r < 0)
+                            qDebug() << "set configuration issue: " << libusb_error_name(r);
+                         if (1){
+                            r = libusb_claim_interface(d_h,0);
+
+                            if (r < 0)
+                                qDebug() << "claim interface issue: " << r;
+                            else {
+                                r = libusb_set_interface_alt_setting(d_h,0,1);
+                                if (r < 0)
+                                    qDebug() << "set alt interface issue: " << r;
+                                else {
+
+                                    qDebug() <<  "Control Sending" << data[0] << data[1] << data[2] << data[3] << data[4];
+                                    r = libusb_control_transfer(d_h,LIBUSB_REQUEST_TYPE_VENDOR|LIBUSB_RECIPIENT_INTERFACE,0,0,0,data,sizeof(data),1000);
+//                                    r = libusb_interrupt_transfer(d_h,0x02,data,1024,NULL,1000);
+//                                    r = libusb_bulk_transfer(d_h, mcu_ep_out|LIBUSB_ENDPOINT_OUT, data, 1024, NULL, 1000);
+                                    if (r < 0)
+                                        qDebug() << "Issue sending bulk transfer to device:" << r;
+                                    if(1) {
+                                        r = libusb_control_transfer(d_h,LIBUSB_REQUEST_TYPE_VENDOR|LIBUSB_RECIPIENT_INTERFACE|LIBUSB_ENDPOINT_IN,0,0,0,inData,sizeof(inData),1000);
+//                                        r = libusb_interrupt_transfer(d_h, 0x01|LIBUSB_ENDPOINT_IN, inData, 1024, &actualLength, 1000);
+//                                        r = libusb_bulk_transfer(d_h, mcu_ep_in|LIBUSB_ENDPOINT_IN, inData, 1024, &actualLength, 1000);
+                                        if (r < 0) {
+                                            qDebug() << "Receiving issue: " << libusb_error_name(r);
+                                        }
+                                        else
+                                            qDebug() << "Receiving" << inData[0] << inData[1] << inData[2] << inData[3] << inData[4];
+                                    }
+
+
+                                    for (int k=0 ; k < 1024; k++) {
+                                        data[k] = k&0xFF;
+                                        inData[k] = 0;
+                                    }
+
+//
+                                    actualLength = 1024;
+                                    r = libusb_interrupt_transfer(d_h, 0x02, data, sizeof(data), NULL, 1000);
+                                    qDebug() <<  "Interrupt Sending" << data[0] << data[1] << data[2] << data[3] << data[4];
+                                    if (r < 0)
+                                        qDebug() << "Issue sending interrupt transfer to device:" << r;
+                                    if (1) {
+                                        actualLength = 0;
+//                                        r = libusb_control_transfer(d_h,LIBUSB_REQUEST_TYPE_VENDOR|LIBUSB_RECIPIENT_INTERFACE|LIBUSB_ENDPOINT_IN,0,0,0,inData,sizeof(inData),1000);
+                                        r = libusb_interrupt_transfer(d_h, 0x01|LIBUSB_ENDPOINT_IN, inData, sizeof(inData), &actualLength, 1000);
+//                                        r = libusb_bulk_transfer(d_h, mcu_ep_in|LIBUSB_ENDPOINT_IN, inData, 1024, &actualLength, 1000);
+                                        if (r < 0) {
+                                            qDebug() << "Receiving interrupt issue: " << libusb_error_name(r);
+                                            qDebug() << "interrupt Receiving" << inData[0] << inData[1] << inData[2] << inData[3] << inData[4] << "inLength:" << actualLength;
+                                        }
+                                        else
+                                            qDebug() << "interrupt Receiving" << inData[0] << inData[1] << inData[2] << inData[3] << inData[4] << "inLength:" << actualLength;
+                                    }
+
+
+
+                                    qDebug() <<  "Bulk Sending" << data[0] << data[1] << data[2] << data[3] << data[4];
+//                                    r = libusb_control_transfer(d_h,LIBUSB_REQUEST_TYPE_VENDOR|LIBUSB_RECIPIENT_INTERFACE,0,0,0,data,sizeof(data),1000);
+//                                    r = libusb_interrupt_transfer(d_h,0x02,data,1024,NULL,1000);
+                                    r = libusb_bulk_transfer(d_h, 0x04, data, 1024, NULL, 1000);
+                                    if (r < 0)
+                                        qDebug() << "Issue sending bulk transfer to device:" << r;
+                                    if (1) {
+//                                        r = libusb_control_transfer(d_h,LIBUSB_REQUEST_TYPE_VENDOR|LIBUSB_RECIPIENT_INTERFACE|LIBUSB_ENDPOINT_IN,0,0,0,inData,sizeof(inData),1000);
+//                                        r = libusb_interrupt_transfer(d_h, 0x01|LIBUSB_ENDPOINT_IN, inData, 1024, &actualLength, 1000);
+                                        r = libusb_bulk_transfer(d_h, 0x83, inData, 1024, &actualLength, 1000);
+                                        if (r < 0) {
+                                            qDebug() << "Bulk Receiving issue: " << libusb_error_name(r);
+                                            qDebug() << "Bulk Receiving" << inData[0] << inData[1] << inData[2] << inData[3] << inData[4] << "inLength:" << actualLength;
+                                        }
+                                        else
+                                            qDebug() << "Bulk Receiving" << inData[0] << inData[1] << inData[2] << inData[3] << inData[4] << "inLength:" << actualLength;
+                                    }
+                                }
+                            }
+                            libusb_release_interface(d_h, 0);
+                        }
+
+                    }
+                    libusb_close(d_h);
+                }
+                qDebug() << " ";
+            }
+            // ---------------
+
+            libusb_free_device_list(devs, 1);
+            libusb_exit(NULL);
+        }
+    }
+#endif
 }

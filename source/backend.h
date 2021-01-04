@@ -70,6 +70,9 @@ public:
     bool checkForUniqueDeviceNames();
     bool checkForCompression();
 
+
+    void testLibusb();
+
 signals:
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();

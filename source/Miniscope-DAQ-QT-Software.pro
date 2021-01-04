@@ -84,6 +84,9 @@ win32 {
 #    #DEPENDPATH +=
 
     # For libusb
+#    LIBS += -LC:/libusb-1.0.24/VS2017/MS64/dll/ -llibusb-1.0
+#    INCLUDEPATH += C:/libusb-1.0.24/include/libusb-1.0
+
 #    LIBS += -LC:/libusb-1.0.23/MS64/dll/ -llibusb-1.0
 #    INCLUDEPATH += C:/libusb-1.0.23/include/libusb-1.0
 
