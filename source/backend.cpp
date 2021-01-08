@@ -70,7 +70,7 @@ backEnd::backEnd(QObject *parent) :
     dataSaver = new DataSaver();
 
 #ifdef USE_USB
-    testLibusb();
+//    testLibusb();
 #endif
 
     testCodecSupport();
@@ -1019,6 +1019,8 @@ void backEnd::testLibusb() {
     // When using cypress:
     // Interface 2 with 0x04 endpoint for bulk seems to work.
 
+    // For Atmel MCU, use Zadig to install WinUSB driver for device. Software seems to still not handle getting active config well but transfers seem to work.
+
 
 
     libusb_device **devs;
@@ -1079,7 +1081,7 @@ void backEnd::testLibusb() {
                             }
                         }
                         qDebug() << "HERE~!!";
-                        libusb_free_config_descriptor(*configDesc);
+                        libusb_free_config_descriptor(configDesc[0]);
                     }
 
                     r = libusb_open(dev,&d_h);

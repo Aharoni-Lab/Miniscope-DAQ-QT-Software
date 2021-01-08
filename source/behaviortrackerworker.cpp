@@ -9,6 +9,8 @@
 #include <QGuiApplication>
 #include <QThread>
 #include <QDir>
+#include <QJsonArray>
+#include <QJsonObject>
 
 #ifdef USE_PYTHON
  #undef slots
@@ -23,7 +25,7 @@
 #define ERROR_INIT                  9
 #define ERROR_IMPORT                10
 #define ERROR_INSTANCE              11
-#define ERROR_SETUPDLC              12
+#define ERROR_SETUP              12
 #define ERROR_INIT_INF              13
 #define ERROR_GET_POSE              14
 #define ERROR_NUMPY_DLL             15
@@ -37,6 +39,17 @@ BehaviorTrackerWorker::BehaviorTrackerWorker(QObject *parent, QJsonObject behavT
     m_PythonError(ERROR_NONE)
 {
     m_btConfig = behavTrackerConfig;
+    m_trackerType = m_btConfig["type"].toString("None");
+    if (m_btConfig["modelPath"].isArray()) {
+        QJsonArray tempAry = m_btConfig["modelPath"].toArray();
+        for (int i=0 ; i < tempAry.size(); i++) {
+            m_modelPath.append(tempAry[i].toString());
+        }
+    }
+    else {
+        // It is a single string
+        m_modelPath.append(m_btConfig["modelPath"].toString());
+    }
 }
 
 void BehaviorTrackerWorker::initPython()
@@ -99,7 +112,7 @@ void BehaviorTrackerWorker::setUpDLCLive()
         pClass = PyDict_GetItemString(pDict, "MiniDLC");
 
         pArgs = PyTuple_New(2);
-        pValue = PyUnicode_FromString(m_btConfig["modelPath"].toString().toUtf8());
+        pValue = PyUnicode_FromString(m_modelPath[0].toUtf8());
         PyTuple_SetItem(pArgs, 0, pValue);
 
         pValue = PyFloat_FromDouble(m_btConfig["resize"].toDouble(1));
@@ -116,8 +129,56 @@ void BehaviorTrackerWorker::setUpDLCLive()
             pValue = PyObject_CallMethod(pInstance,"setupDLC", NULL);
             if (PyFloat_AsDouble(pValue) != 0) {
                 // Failure
-                m_PythonError = ERROR_SETUPDLC;
+                m_PythonError = ERROR_SETUP;
                 emit sendMessage("ERROR: 'setupDLC' failed in 'Scripts/DLCwrapper.py.");
+
+            }
+        }
+    }
+
+#endif
+}
+
+void BehaviorTrackerWorker::setUpSLEAP()
+{
+#ifdef USE_PYTHON
+    PyObject *pName;
+
+    pName = PyUnicode_DecodeFSDefault("Scripts.SLEAPwrapper");
+    pModule = PyImport_Import(pName);
+    Py_DECREF(pName);
+    if (pModule == NULL) {
+        m_PythonError = ERROR_IMPORT;
+        emit sendMessage("ERROR: Cannot import './Scripts/SLEAPwrapper'. This usually is due to either a PATH issue or a problem importing all the modules in this .py file.");
+    }
+    else {
+        pDict = PyModule_GetDict(pModule);
+        pClass = PyDict_GetItemString(pDict, "MiniSLEAP");
+
+        pArgs = PyTuple_New(m_modelPath.length());
+
+        // Set model path strings
+        for (int i=0; i < m_modelPath.length(); i++) {
+            pValue = PyUnicode_FromString(m_modelPath[i].toUtf8());
+            PyTuple_SetItem(pArgs, i, pValue);
+        }
+
+//        pValue = PyFloat_FromDouble(m_btConfig["resize"].toDouble(1));
+//        PyTuple_SetItem(pArgs, 1, pValue);
+
+        // Should create instance of MiniSLEAP class
+        pInstance = PyObject_CallObject(pClass,pArgs);
+        // If NULL something went wrong and we shouldn't do more with pInstance
+        if (pInstance == NULL) {
+            m_PythonError = ERROR_INSTANCE;
+            emit sendMessage("ERROR: Behavior Tracker couldn't create instance of MiniSLEAP class from Scripts/SLEAPwrapper.py script.");
+        }
+        else {
+            pValue = PyObject_CallMethod(pInstance,"setupSLEAP", NULL);
+            if (PyFloat_AsDouble(pValue) != 0) {
+                // Failure
+                m_PythonError = ERROR_SETUP;
+                emit sendMessage("ERROR: 'setupSLEAP' failed in 'Scripts/SLEAPwrapper.py.");
 
             }
         }
@@ -181,6 +242,51 @@ QVector<float> BehaviorTrackerWorker::getDLCLivePose(cv::Mat frame)
     return pose;
 }
 
+QVector<float> BehaviorTrackerWorker::getSLEAPPose(cv::Mat frame)
+{
+
+    QVector<float> pose;
+#ifdef USE_PYTHON
+    PyObject *mat;
+
+    uchar* m = frame.ptr(0);
+    npy_intp mdim[] = { frame.rows, frame.cols, frame.channels()};
+
+    if (frame.channels() == 1)
+        mat = PyArray_SimpleNewFromData(2, mdim, NPY_UINT8, m);
+    else
+        mat = PyArray_SimpleNewFromData(3, mdim, NPY_UINT8, m);
+
+    pValue = PyObject_CallMethod(pInstance,"getPose", "(O)", mat);
+    if (pValue == NULL) {
+        m_PythonError = ERROR_GET_POSE;
+        emit sendMessage("ERROR: Cannot get pose from DLC-Live in 'Scripts/DLCwrapper.py. Sometime you just need to restart the software.");
+    }
+    else {
+        PyArrayObject *np_ret = reinterpret_cast<PyArrayObject*>(pValue);
+
+        // Convert back to C++ array and print.
+
+        npy_intp *arraySize = PyArray_SHAPE(np_ret);
+        pose = QVector<float>(arraySize[0] * arraySize[1]);
+
+        float *c_out;
+        c_out = reinterpret_cast<float*>(PyArray_DATA(np_ret));
+
+        for (int i = 0; i < arraySize[0] * arraySize[1]; i++){
+                pose[i] = c_out[i];
+
+        }
+    }
+
+//    Py_DECREF(pValue);
+    Py_DECREF(mat);
+//    Py_DECREF(pArgs);
+
+#endif
+    return pose;
+}
+
 void BehaviorTrackerWorker::setParameters(QString name, cv::Mat *frameBuf, int bufSize, QAtomicInt *acqFrameNum)
 {
     frameBuffer[name] = frameBuf;
@@ -232,7 +338,10 @@ void BehaviorTrackerWorker::startRunning()
     if (m_PythonError == ERROR_NONE) {
         initNumpy(); // Inits import_array() and handles the return of it
 
-        setUpDLCLive();
+        if (m_trackerType == "DeepLabCut-Live" || m_trackerType == "DLC-Live")
+            setUpDLCLive();
+        else if (m_trackerType == "SLEAP" || m_trackerType == "sleap")
+            setUpSLEAP();
         if (m_PythonError == ERROR_NONE) {
 //            getColors(); // We don't used these colors anymore
 
@@ -248,7 +357,11 @@ void BehaviorTrackerWorker::startRunning()
                     if (acqFrameNum > currentFrameNumberProcessed[camNames[camNum]]) {
                         // New frame ready for behavior tracking
                         frameIdx = (acqFrameNum - 1) % bufferSize[camNames[camNum]];
-                        poseBuffer[idx % poseBufferSize] = getDLCLivePose(frameBuffer[camNames[camNum]][frameIdx]);
+                        if (m_trackerType == "DeepLabCut-Live" || m_trackerType == "DLC-Live")
+                            poseBuffer[idx % poseBufferSize] = getDLCLivePose(frameBuffer[camNames[camNum]][frameIdx]);
+                        else if (m_trackerType == "SLEAP" || m_trackerType == "sleap")
+                            poseBuffer[idx % poseBufferSize] = getSLEAPPose(frameBuffer[camNames[camNum]][frameIdx]);
+
                         if (m_PythonError != ERROR_NONE)
                             return;
                         poseFrameNumBuffer[idx % poseBufferSize] = (acqFrameNum - 1);

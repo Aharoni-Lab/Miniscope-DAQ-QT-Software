@@ -1,0 +1,88 @@
+{
+    "researcherName": "Dr_Miniscope",
+    "dataDirectory": "C:/Users/dbaha/Documents/Data",
+    "directoryStructure": [
+        "researcherName",
+        "experimentName",
+        "animalName",
+        "date",
+        "time"
+    ],
+    "animalName": "testMouse",
+    "experimentName": "Linear Track Test",
+    "recordLengthinSeconds": 600,
+    "experiment_Not_Implemented": {
+        "type": "linearTrack",
+        "units": "cm",
+        "trackLength": 200
+    },
+    "behaviorTracker": {
+        "enabled": true,
+        "type": "SLEAP",
+        "pyEnvPath": "C:/Users/dbaha/.conda/envs/sleap_alpha",
+        "modelPath": [
+            "C:/Users/dbaha/Documents/Data/SLEAP/models/210104_032000.centroid.1674",
+            "C:/Users/dbaha/Documents/Data/SLEAP/models/210104_031226.centered_instance.1673"
+        ],
+        "resize": 1,
+        "pCutoffDisplay": 0.3,
+        "windowWidth": 640,
+        "windowHeight": 480,
+        "windowX": 100,
+        "windowY": 100,
+        "windowScale": 1.0,
+        "occupancyPlot": {
+            "enabled": true,
+            "numBinsX": 100,
+            "numBinsY": 100,
+            "poseIdxToUse": [11,12]
+        },
+        "poseIdxForTraceDisplay": ["11wh", "12wh"],
+        "poseOverlay": {
+            "enabled": true,
+            "type": "ribbon",
+            "numOfPastPoses": 4,
+            "markerSize": 8,
+            "skeleton": {
+                "enabled": true,
+                "connectedIndices": [
+                    [0, 1, 2, 3, 4, 5],
+                    [6, 7, 8, 9, 10,11],
+                    [12, 13]
+                ]
+            }
+        }
+    }, 
+    "traceDisplay": {
+        "type": "scrolling",
+        "windowX": 100,
+        "windowY": 100,
+        "width": 600,
+        "height": 900
+    },
+    "devices": {
+       "cameras": [
+            {
+                "deviceName": "BehavCam 0",
+                "deviceType": "WebCam-640x480",
+                "deviceID": 0,
+				"showSaturation": true,
+				"ROI": {
+                    "notes": "This defines the bounding box of the portion of the video that is saved to disk",
+                    "note3": "Edge values are zero indexed",
+					"leftEdge": 0,
+					"topEdge": 0,
+					"width": 640,
+					"height": 480
+				},
+                "cameraCalibrationFileLocation": "",
+                "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
+                "compression": "MJPG",
+                "framesPerFile": 1000,
+                "windowScale": 0.5,
+                "windowX": 800,
+                "windowY": 600
+            }
+        ]
+    }
+}

@@ -70,8 +70,10 @@ int BehaviorTracker::initNumpy()
 void BehaviorTracker::parseUserConfigTracker()
 {
     m_btConfig = m_userConfig["behaviorTracker"].toObject();
-//    QJsonObject jTracker = m_userConfig["behaviorTracker"].toObject();
-//    m_trackerType = jTracker["type"].toString("None");
+    m_trackerType = m_btConfig["type"].toString("None");
+    if (m_trackerType == "None")
+        sendMessage("WARNING: Behavior Tracker is missing 'type' in your user configuration.");
+
     m_pCutoffDisplay = m_btConfig["pCutoffDisplay"].toDouble(0);
 
     if (m_btConfig.contains("occupancyPlot")) {

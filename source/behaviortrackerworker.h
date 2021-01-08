@@ -26,7 +26,9 @@ public:
     void initPython();
     int initNumpy();
     void setUpDLCLive();
+    void setUpSLEAP();
     QVector<float> getDLCLivePose(cv::Mat frame);
+    QVector<float> getSLEAPPose(cv::Mat frame);
     void setParameters(QString name, cv::Mat *frameBuf, int bufSize, QAtomicInt *acqFrameNum);
     void setPoseBufferParameters(QVector<float> *poseBuf, int *poseFrameNumBuf, int poseBufSize, QAtomicInt *btPoseFrameNum, QSemaphore *free, QSemaphore *used);
     void getColors();
@@ -41,6 +43,8 @@ public slots:
 
 private:
     QJsonObject m_btConfig;
+    QString m_trackerType;
+    QStringList m_modelPath;
 
     bool m_trackingRunning;
     bool m_DLCInitInfDone;
