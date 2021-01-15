@@ -84,6 +84,7 @@ public:
     float bnoBuffer[FRAME_BUFFER_SIZE*5]; //w,x,y,z,norm
     void setTraceDisplayStatus(bool status) {m_traceDisplayStatus = status; }
     bool getTraceDisplayStatus() { return m_traceDisplayStatus; }
+    virtual void calledOnClose() {};
 
 signals:
     // TODO: setup signals to configure camera in thread

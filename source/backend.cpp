@@ -31,6 +31,7 @@
 #include "behaviortracker.h"
 #include "tracedisplay.h"
 
+
 #ifdef USE_USB
  #include <libusb.h>
 #endif
@@ -401,7 +402,15 @@ void backEnd::generateUserConfigFromModel()
             jConfig[key] = getObjectFromModel(index);
         }
         else if (type.left(5) == "Array") {
+
              jConfig[key] = getArrayFromModel(index);
+        }
+        else if(type == "ModelPath") {
+            // Used to handle a String or Array for model path(s)
+            if (m_jsonTreeModel->hasChildren(index))
+                jConfig[key] = getArrayFromModel(index);
+            else
+                jConfig[key] = value;
         }
         else if (type == "String" || type == "DirPath" || type == "FilePath" || type == "CameraDeviceType" || type == "MiniscopeDeviceType") {
             jConfig[key] = value;
@@ -445,6 +454,13 @@ QJsonObject backEnd::getObjectFromModel(QModelIndex idx)
         else if (type.left(5) == "Array") {
              jObj[key] = getArrayFromModel(index);
         }
+        else if(type == "ModelPath") {
+            // Used to handle a String or Array for model path(s)
+            if (m_jsonTreeModel->hasChildren(index))
+                jObj[key] = getArrayFromModel(index);
+            else
+                jObj[key] = value;
+        }
         else if (type == "String" || type == "DirPath" || type == "FilePath" || type == "CameraDeviceType" || type == "MiniscopeDeviceType") {
             jObj[key] = value;
         }
@@ -481,7 +497,7 @@ QJsonArray backEnd::getArrayFromModel(QModelIndex idx)
              jAry.append(getArrayFromModel(index));
         }
         else if (type == "String" || type == "DirPath" || type == "FilePath" || type == "CameraDeviceType" || type == "MiniscopeDeviceType") {
-            qDebug() << "STRRRRIIINNNGGG" << value;
+
             jAry.append(value);
         }
         else if (type == "Bool") {

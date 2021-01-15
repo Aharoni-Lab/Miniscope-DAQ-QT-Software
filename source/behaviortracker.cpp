@@ -622,8 +622,21 @@ void TrackerDisplayRenderer::initPrograms()
 
 void TrackerDisplayRenderer::drawImage()
 {
-//    qDebug() << "DRAWING!";
+    if (m_newImage) {
+        if (m_textureImage->width() == m_displayImage.width() && m_textureImage->height() == m_displayImage.height())
+            m_textureImage->setData(m_displayImage);
+        else {
+            m_textureImage->destroy();
+            m_textureImage->create();
+            m_textureImage->setData(m_displayImage);
+        }
+        m_newImage = false;
+    }
+
     m_textureImage->bind(0);
+
+
+
     m_programImage->bind();
 
 
@@ -661,12 +674,7 @@ void TrackerDisplayRenderer::drawImage()
     m_programImage->disableAttributeArray(1);
 
 
-    if (m_newImage) {
-        m_textureImage->destroy();
-        m_textureImage->create();
-        m_textureImage->setData(m_displayImage);
-        m_newImage = false;
-    }
+
 
     m_programImage->release();
     m_textureImage->release(0);

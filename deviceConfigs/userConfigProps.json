@@ -66,7 +66,7 @@
             "tips": "The behavior tracker needs the absolute path to a functional Python virtual environment which can successfully run DeepLabCut-Live. The Miniscope Software initially checks this folder to make sure it contains this exact subfolder, '/Lib/site-packages/dlclive'"
         },
         "modelPath": {
-            "type": "FilePath",
+            "type": "ModelPath",
             "tips": "This is the absolute path to the DLC model you want to use."
         },
         "resize": {

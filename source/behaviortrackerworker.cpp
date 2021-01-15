@@ -41,6 +41,7 @@ BehaviorTrackerWorker::BehaviorTrackerWorker(QObject *parent, QJsonObject behavT
     m_btConfig = behavTrackerConfig;
     m_trackerType = m_btConfig["type"].toString("None");
     if (m_btConfig["modelPath"].isArray()) {
+
         QJsonArray tempAry = m_btConfig["modelPath"].toArray();
         for (int i=0 ; i < tempAry.size(); i++) {
             m_modelPath.append(tempAry[i].toString());
@@ -54,36 +55,103 @@ BehaviorTrackerWorker::BehaviorTrackerWorker(QObject *parent, QJsonObject behavT
 
 void BehaviorTrackerWorker::initPython()
 {
+    wchar_t array[100];
     // All the Python init stuff below needed to happen once the thread was running for some reason?!?!?!
 #ifdef USE_PYTHON
 
     // Check to see if environment path goes to a likely python env with dlc
-    if (QDir(m_btConfig["pyEnvPath"].toString() + "/Lib/site-packages/dlclive").exists()) {
+    if (m_trackerType == "DeepLabCut-Live") {
+        if (QDir(m_btConfig["pyEnvPath"].toString() + "/Lib/site-packages/dlclive").exists()) {
+            // Checks to make sure numpy .dll exists.
+            if (QDir(m_btConfig["pyEnvPath"].toString() + "/Lib/site-packages/numpy/.libs").exists()) {
 
-        // Checks to make sure numpy .dll exists.
-        if (QDir(m_btConfig["pyEnvPath"].toString() + "/Lib/site-packages/numpy/.libs").exists()) {
+                // likely a correct path
+#ifdef PY37
+                Py_SetPythonHome(m_btConfig["pyEnvPath"].toString().toStdWString().c_str());
+#endif
 
-            // likely a correct path
-            Py_SetPythonHome(m_btConfig["pyEnvPath"].toString().toStdWString().c_str());
-            Py_Initialize();
-            m_PythonInitialized = true;
-            PyObject* sysPath = PySys_GetObject((char*)"path");
-    //        qDebug() << "SYS PATH" << sysPath;
-    //        QString pathToLib = m_btConfig["pyEnvPath"].toString() + "/Library/bin";
-    //        PyList_Append(sysPath, PyUnicode_FromString(pathToLib.toStdString().c_str()));
-            PyList_Append(sysPath, PyUnicode_FromString(".")); // appends path with current dir
-            Py_DECREF(sysPath);
+#ifdef PY36
+                m_btConfig["pyEnvPath"].toString().toWCharArray(array);
+                Py_SetPythonHome(array);
+#endif
+
+#ifdef PY36
+                 QString tempS = m_btConfig["pyEnvPath"].toString();
+                 tempS.append("/lib");
+                 tempS.toWCharArray(array);
+                 Py_SetPath(array);
+#endif
+                Py_Initialize();
+                m_PythonInitialized = true;
+                PyObject* sysPath = PySys_GetObject((char*)"path");
+        //        qDebug() << "SYS PATH" << sysPath;
+        //        QString pathToLib = m_btConfig["pyEnvPath"].toString() + "/Library/bin";
+        //        PyList_Append(sysPath, PyUnicode_FromString(pathToLib.toStdString().c_str()));
+                PyList_Append(sysPath, PyUnicode_FromString(".")); // appends path with current dir
+
+
+                Py_DECREF(sysPath);
+            }
+            else {
+                m_PythonError = ERROR_NUMPY_DLL;
+                emit sendMessage("ERROR: Looks like your numpy install is missing a required DLL file. This happens if you use 'conda install numpy'. To fix, uninstall numpy from your environment and use 'pip install numpy' to reinstall it. <pyEnvPath>/Lib/site-packages/numpy/.libs should now exist.");
+            }
         }
         else {
-            m_PythonError = ERROR_NUMPY_DLL;
-            emit sendMessage("ERROR: Looks like your numpy install is missing a required DLL file. This happens if you use 'conda install numpy'. To fix, uninstall numpy from your environment and use 'pip install numpy' to reinstall it. <pyEnvPath>/Lib/site-packages/numpy/.libs should now exist.");
+            // couldn't find dlclive in expected location. Possibly a bad path
+            m_PythonError = ERROR_INIT;
+            m_PythonInitialized = false;
+            emit sendMessage("ERROR: Python not initialized. Check Python env path! Your path should contain: <pyEnvPath>/Lib/site-packages/dlclive.");
         }
     }
-    else {
-        // couldn't find dlclive in expected location. Possibly a bad path
-        m_PythonError = ERROR_INIT;
-        m_PythonInitialized = false;
-        emit sendMessage("ERROR: Python not initialized. Check Python env path! Your path should contain: <pyEnvPath>/Lib/site-packages/dlclive.");
+    else if (m_trackerType == "SLEAP") {
+         if (QDir(m_btConfig["pyEnvPath"].toString() + "/Lib/site-packages/sleap").exists()) {
+             // Checks to make sure numpy .dll exists.
+             if (QDir(m_btConfig["pyEnvPath"].toString() + "/Lib/site-packages/numpy/.libs").exists()) {
+
+                 // likely a correct path
+#ifdef PY37
+                 Py_SetPythonHome(m_btConfig["pyEnvPath"].toString().toStdWString().c_str());
+#endif
+
+#ifdef PY36
+                 m_btConfig["pyEnvPath"].toString().toWCharArray(array);
+                 Py_SetPythonHome(array);
+//                 Py_SetPath(array);
+#endif
+
+#ifdef PY36
+//                 QString tempS = m_btConfig["pyEnvPath"].toString();
+//                 tempS.append("/lib");
+//                 tempS.toWCharArray(array);
+//                 Py_SetPath(array);
+#endif
+                 Py_Initialize();
+                 m_PythonInitialized = true;
+                 PyObject* sysPath = PySys_GetObject((char*)"path");
+         //        qDebug() << "SYS PATH" << sysPath;
+         //        QString pathToLib = m_btConfig["pyEnvPath"].toString() + "/Library/bin";
+         //        PyList_Append(sysPath, PyUnicode_FromString(pathToLib.toStdString().c_str()));
+                 PyList_Append(sysPath, PyUnicode_FromString(".")); // appends path with current dir
+//                 PyList_Append(sysPath, PyUnicode_FromString("C:\\Users\\dbaha\\.conda\\envs\\sleap_alpha\\python36.zip"));
+//                 PyList_Append(sysPath, PyUnicode_FromString("'C:\\Users\\dbaha\\.conda\\envs\\sleap_alpha\\DLLs"));
+//                 PyList_Append(sysPath, PyUnicode_FromString("'C:\\Users\\dbaha\\.conda\\envs\\sleap_alpha"));
+//                 PyList_Append(sysPath, PyUnicode_FromString("C:\\Users\\dbaha\\.conda\\envs\\sleap_alpha\\lib\\site-packages"));
+//                 PyList_Append(sysPath, PyUnicode_FromString(m_btConfig["pyEnvPath"].toString().toStdString().c_str())); // appends path with current dir
+
+                 Py_DECREF(sysPath);
+             }
+             else {
+                 m_PythonError = ERROR_NUMPY_DLL;
+                 emit sendMessage("ERROR: Looks like your numpy install is missing a required DLL file. This happens if you use 'conda install numpy'. To fix, uninstall numpy from your environment and use 'pip install numpy' to reinstall it. <pyEnvPath>/Lib/site-packages/numpy/.libs should now exist.");
+             }
+         }
+         else {
+             // couldn't find dlclive in expected location. Possibly a bad path
+             m_PythonError = ERROR_INIT;
+             m_PythonInitialized = false;
+             emit sendMessage("ERROR: Python not initialized. Check Python env path! Your path should contain: <pyEnvPath>/Lib/site-packages/sleap.");
+         }
     }
 
 #endif
@@ -105,7 +173,7 @@ void BehaviorTrackerWorker::setUpDLCLive()
     Py_DECREF(pName);
     if (pModule == NULL) {
         m_PythonError = ERROR_IMPORT;
-        emit sendMessage("ERROR: Cannot import './Scripts/DLCwrapper'. This usually is due to either a PATH issue or a problem importing all the modules in this .py file.");
+        emit sendMessage("ERROR: Cannot import './Scripts/DLCwrapper.py'. This usually is due to either a PATH issue or a problem importing all the modules in this .py file.");
     }
     else {
         pDict = PyModule_GetDict(pModule);
@@ -146,10 +214,11 @@ void BehaviorTrackerWorker::setUpSLEAP()
 
     pName = PyUnicode_DecodeFSDefault("Scripts.SLEAPwrapper");
     pModule = PyImport_Import(pName);
+
     Py_DECREF(pName);
     if (pModule == NULL) {
         m_PythonError = ERROR_IMPORT;
-        emit sendMessage("ERROR: Cannot import './Scripts/SLEAPwrapper'. This usually is due to either a PATH issue or a problem importing all the modules in this .py file.");
+        emit sendMessage("ERROR: Cannot import './Scripts/SLEAPwrapper.py'. This usually is due to either a PATH issue or a problem importing all the modules in this .py file.");
     }
     else {
         pDict = PyModule_GetDict(pModule);
@@ -249,10 +318,15 @@ QVector<float> BehaviorTrackerWorker::getSLEAPPose(cv::Mat frame)
 #ifdef USE_PYTHON
     PyObject *mat;
 
-    uchar* m = frame.ptr(0);
-    npy_intp mdim[] = { frame.rows, frame.cols, frame.channels()};
+    cv::Mat frameC = frame.clone(); // might not be needed
 
-    if (frame.channels() == 1)
+//    qDebug() << frameC.cols << frameC.rows;
+//    frame = frame(cv::Rect(0,0,640,360));
+    uchar* m = frameC.ptr(0);
+    npy_intp mdim[] = { frameC.rows, frameC.cols, frameC.channels()};
+
+
+    if (frameC.channels() == 1)
         mat = PyArray_SimpleNewFromData(2, mdim, NPY_UINT8, m);
     else
         mat = PyArray_SimpleNewFromData(3, mdim, NPY_UINT8, m);
@@ -260,7 +334,7 @@ QVector<float> BehaviorTrackerWorker::getSLEAPPose(cv::Mat frame)
     pValue = PyObject_CallMethod(pInstance,"getPose", "(O)", mat);
     if (pValue == NULL) {
         m_PythonError = ERROR_GET_POSE;
-        emit sendMessage("ERROR: Cannot get pose from DLC-Live in 'Scripts/DLCwrapper.py. Sometime you just need to restart the software.");
+        emit sendMessage("ERROR: Cannot get pose from SLEAP in 'Scripts/SLEAPwrapper.py. Sometime you just need to restart the software.");
     }
     else {
         PyArrayObject *np_ret = reinterpret_cast<PyArrayObject*>(pValue);
@@ -277,6 +351,8 @@ QVector<float> BehaviorTrackerWorker::getSLEAPPose(cv::Mat frame)
                 pose[i] = c_out[i];
 
         }
+//        qDebug() << "Pose size" << arraySize[0] << arraySize[1];
+//        qDebug() << pose;
     }
 
 //    Py_DECREF(pValue);
@@ -335,6 +411,7 @@ void BehaviorTrackerWorker::startRunning()
     // Gets called when thread starts running
 
     initPython();
+
     if (m_PythonError == ERROR_NONE) {
         initNumpy(); // Inits import_array() and handles the return of it
 
@@ -342,6 +419,7 @@ void BehaviorTrackerWorker::startRunning()
             setUpDLCLive();
         else if (m_trackerType == "SLEAP" || m_trackerType == "sleap")
             setUpSLEAP();
+
         if (m_PythonError == ERROR_NONE) {
 //            getColors(); // We don't used these colors anymore
 

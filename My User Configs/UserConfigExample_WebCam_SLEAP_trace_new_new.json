@@ -1,0 +1,105 @@
+{
+    "animalName": "testMouse",
+    "behaviorTracker": {
+        "enabled": true,
+        "occupancyPlot": {
+            "enabled": true,
+            "numBinsX": 100,
+            "numBinsY": 100,
+            "poseIdxToUse": [
+                11,
+                12
+            ]
+        },
+        "pCutoffDisplay": 0.3,
+        "poseIdxForTraceDisplay": [
+            "11wh",
+            "12wh"
+        ],
+        "poseOverlay": {
+            "enabled": true,
+            "markerSize": 8,
+            "numOfPastPoses": 4,
+            "skeleton": {
+                "connectedIndices": [
+                    [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+                    ],
+                    [
+                        6,
+                        7,
+                        8,
+                        9,
+                        10,
+                        11
+                    ],
+                    [
+                        12,
+                        13
+                    ]
+                ],
+                "enabled": true
+            },
+            "type": "ribbon"
+        },
+        "pyEnvPath": "C:/Users/dbaha/.conda/envs/sleap_alpha",
+        "resize": 1,
+        "type": "SLEAP",
+        "windowHeight": 480,
+        "windowScale": 1,
+        "windowWidth": 640,
+        "windowX": 100,
+        "windowY": 100
+    },
+    "dataDirectory": "C:/Users/dbaha/Documents/Data",
+    "devices": {
+        "cameras": {
+            "BehavCam 0": {
+                "ROI": {
+                    "height": 480,
+                    "leftEdge": 0,
+                    "note3": "Edge values are zero indexed",
+                    "notes": "This defines the bounding box of the portion of the video that is saved to disk",
+                    "topEdge": 0,
+                    "width": 640
+                },
+                "cameraCalibrationFileLocation": "",
+                "compression": "MJPG",
+                "deviceID": 0,
+                "deviceType": "WebCam-640x480",
+                "framesPerFile": 1000,
+                "showSaturation": true,
+                "windowScale": 0.5,
+                "windowX": 800,
+                "windowY": 600
+            }
+        }
+    },
+    "directoryStructure": [
+        "researcherName",
+        "experimentName",
+        "animalName",
+        "date",
+        "time"
+    ],
+    "experimentName": "Linear Track Test",
+    "experiment_Not_Implemented": {
+        "trackLength": 200,
+        "type": "linearTrack",
+        "units": "cm"
+    },
+    "recordLengthinSeconds": 600,
+    "researcherName": "Dr_Miniscope",
+    "traceDisplay": {
+        "height": 900,
+        "type": "scrolling",
+        "width": 600,
+        "windowX": 100,
+        "windowY": 100
+    }
+}

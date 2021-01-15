@@ -169,7 +169,6 @@ void VideoStreamOCV::startStream()
     if (cam->isOpened()) {
         m_isStreaming = true;
         forever {
-
             if (m_stopStreaming == true) {
                 m_isStreaming = false;
                 break;

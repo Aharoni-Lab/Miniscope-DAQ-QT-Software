@@ -13,6 +13,9 @@ DEFINES += QT_DEPRECATED_WARNINGS
 DEFINES += USE_USB
 DEFINES += USE_PYTHON
 
+#DEFINES += PY36
+DEFINES += PY37
+
 # You can also make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
@@ -25,6 +28,7 @@ SOURCES += \
         behaviortrackerworker.cpp \
         controlpanel.cpp \
         datasaver.cpp \
+        ephysdevice.cpp \
         main.cpp \
         miniscope.cpp \
         newquickview.cpp \
@@ -56,6 +60,7 @@ HEADERS += \
     behaviortrackerworker.h \
     controlpanel.h \
     datasaver.h \
+    ephysdevice.h \
     miniscope.h \
     newquickview.h \
     tracedisplay.h \
@@ -68,6 +73,7 @@ DISTFILES += \
     ../Scripts/DLCwrapper.py \
     ../Scripts/SLEAPwrapper.py \
     ../deviceConfigs/behaviorCams.json \
+    ../deviceConfigs/ephysDevices.json \
     ../deviceConfigs/miniscopes.json \
     ../deviceConfigs/userConfigProps.json \
     ../deviceConfigs/videoDevices.json
@@ -95,11 +101,21 @@ win32 {
 #    INCLUDEPATH += C:/Python38/include
 #    LIBS += -LC:/Python38/libs -lpython38
 
+contains(DEFINES, PY36) {
+    INCLUDEPATH += C:/Users/dbaha/.conda/envs/basepy36/include
+    LIBS += -LC:/Users/dbaha/.conda/envs/basepy36/libs -lpython36
+
+    # For numpy
+    INCLUDEPATH += C:/Users/dbaha/.conda/envs/basepy36/Lib/site-packages/numpy/core/include
+}
+
+contains(DEFINES, PY37) {
     INCLUDEPATH += C:/Users/dbaha/.conda/envs/basepy37/include
     LIBS += -LC:/Users/dbaha/.conda/envs/basepy37/libs -lpython37
 
     # For numpy
     INCLUDEPATH += C:/Users/dbaha/.conda/envs/basepy37/Lib/site-packages/numpy/core/include
+}
 
 } else {
     CONFIG += link_pkgconfig

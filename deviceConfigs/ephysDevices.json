@@ -1,0 +1,12 @@
+{
+    "Miniscope-V4-Ephys": {
+        "vendorID": 1003,
+        "productID": 9251,
+        "endpointBulkIn": 3,
+        "endpointBulkOut": 4,
+        "usbConfiguration": 1,
+        "usbInterface": 0,
+        "usbAltSetting": 1,
+        "driverType": "WinUSB"
+    }
+}

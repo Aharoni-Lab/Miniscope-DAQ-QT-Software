@@ -17,6 +17,7 @@
 #include "videodisplay.h"
 #include "newquickview.h"
 #include "videodevice.h"
+#include "ephysdevice.h"
 
 #include <opencv2/opencv.hpp>
 
@@ -39,6 +40,7 @@ public:
 
 
     void setupBNOTraceDisplay() override; // overrides parent
+    void calledOnClose() override;
 public slots:
 //    void displayHasBeenCreated();
     void handleDFFSwitchChange(bool checked);
@@ -83,6 +85,8 @@ private:
 
 
     qint64 m_softwareStartTime;
+
+    EphysDevice* ephysDev;
 
 };
 

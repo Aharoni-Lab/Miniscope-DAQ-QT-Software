@@ -2,6 +2,7 @@
 #include "newquickview.h"
 #include "videodisplay.h"
 #include "videodevice.h"
+#include "ephysdevice.h"
 
 #include <QQuickView>
 #include <QQuickItem>
@@ -23,7 +24,8 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucDevice, qint64 softwareStart
     baselineFrameBufWritePos(0),
     baselinePreviousTimeStamp(0),
     m_displatState("Raw"),
-    m_softwareStartTime(softwareStartTime)
+    m_softwareStartTime(softwareStartTime),
+    ephysDev(nullptr)
 {
 
     // --------------------
@@ -38,6 +40,13 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucDevice, qint64 softwareStart
 
 //    QObject::connect(this, &VideoDevice::displayCreated, this, &Miniscope::displayHasBeenCreated);
 //    QObject::connect(this, &Miniscope::displayCreated, this, &Miniscope::displayHasBeenCreated);
+
+    if (m_ucDevice.contains("ephys")) {
+        if (m_ucDevice["ephys"].toObject()["enabled"].toBool("false") == true) {
+            ephysDev = new EphysDevice(this, m_ucDevice["ephys"].toObject(), softwareStartTime);
+            // TODO: Handling thread safe buffer stuff!
+        }
+    }
 
 }
 void Miniscope::setupDisplayObjectPointers()
@@ -125,6 +134,7 @@ void Miniscope::handleAddNewTraceROI(int leftEdge, int topEdge, int width, int h
 
     }
 }
+
 
 
 void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufIdx, VideoDisplay *vidDisp)
@@ -362,6 +372,13 @@ void Miniscope::setupBNOTraceDisplay()
 
             count++;
         }
+    }
+}
+
+void Miniscope::calledOnClose()
+{
+    if (ephysDev) {
+        ephysDev->close();
     }
 }
 

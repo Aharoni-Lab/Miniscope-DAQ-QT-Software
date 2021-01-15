@@ -18,6 +18,16 @@
         "isColor": true,
         "controlSettings": {
         }
+    }, 
+    "SLEAP-TEST-PLAYBACK": {
+        "qmlFile": "qrc:/behaviorCam.qml",
+        "sensor": "",
+        "frameRate": 30,
+        "width": 640,
+        "height": 360,
+        "isColor": true,
+        "controlSettings": {
+        }
     },
 	"WebCam-640x480": {
         "qmlFile": "qrc:/behaviorCam.qml",

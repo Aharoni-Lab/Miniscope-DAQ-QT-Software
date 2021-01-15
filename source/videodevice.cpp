@@ -744,6 +744,7 @@ void VideoDevice::handleAddNewTraceROI(int leftEdge, int topEdge, int width, int
 
 void VideoDevice::close()
 {
+    calledOnClose();
     if (m_camConnected)
         view->close();
 }

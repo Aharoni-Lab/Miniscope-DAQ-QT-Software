@@ -1,0 +1,50 @@
+{
+    "researcherName": "Dr_Miniscope",
+    "dataDirectory": "C:/Users/dbaha/Documents/Data",
+	"reserved terms for directoryStructure": ["time", "date"],
+    "directoryStructure": [
+        "researcherName",
+        "experimentName",
+        "animalID",
+        "date",
+        "time"
+    ],
+    "animalName": "testMouse",
+	"animalID": "ID42",
+    "experimentName": "Linear Track Test",
+	"test": "TEST",
+    "recordLengthinSeconds": 0,
+    "experiment_Not_Implemented": {
+        "type": "linearTrack",
+        "units": "cm",
+        "trackLength": 200
+    },
+    "devices": {
+        "miniscopes": {
+            "E-Scope": {
+                "deviceType": "Miniscope_V4_BNO",
+                "imageRegistration": "Off",
+				"headOrientation": {
+					"enable": true,
+					"filterBadData": true
+				},
+                "streamHeadOrientation_OLD": true,
+                "deviceID": 1,
+				"showSaturation": true,
+                "compression": "FFV1",
+                "framesPerFile": 1000,
+                "windowScale": 0.75,
+                "windowX": 800,
+                "windowY": 100,
+                "gain": "Low",
+                "ewl": 50,
+                "led0": 10,
+                "frameRate": "25FPS",
+                "ephys": {
+                    "enabled": true,
+                    "type": "Miniscope-V4-Ephys"
+                }
+            }
+        }
+    }
+}

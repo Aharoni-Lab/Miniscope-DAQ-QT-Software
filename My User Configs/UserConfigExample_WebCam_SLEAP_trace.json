@@ -19,7 +19,7 @@
     "behaviorTracker": {
         "enabled": true,
         "type": "SLEAP",
-        "pyEnvPath": "C:/Users/dbaha/.conda/envs/sleap_alpha",
+        "pyEnvPath": "C:/Users/dbaha/.conda/envs/sleap-alpha2",
         "modelPath": [
             "C:/Users/dbaha/Documents/Data/SLEAP/models/210104_032000.centroid.1674",
             "C:/Users/dbaha/Documents/Data/SLEAP/models/210104_031226.centered_instance.1673"
@@ -35,20 +35,19 @@
             "enabled": true,
             "numBinsX": 100,
             "numBinsY": 100,
-            "poseIdxToUse": [11,12]
+            "poseIdxToUse": [0]
         },
-        "poseIdxForTraceDisplay": ["11wh", "12wh"],
+        "poseIdxForTraceDisplay": ["0wh", "1wh"],
         "poseOverlay": {
             "enabled": true,
-            "type": "ribbon",
-            "numOfPastPoses": 4,
-            "markerSize": 8,
+            "type": "point",
+            "numOfPastPoses": 0,
+            "markerSize": 12,
             "skeleton": {
                 "enabled": true,
                 "connectedIndices": [
-                    [0, 1, 2, 3, 4, 5],
-                    [6, 7, 8, 9, 10,11],
-                    [12, 13]
+                    [0, 2],
+                    [1, 3]
                 ]
             }
         }
@@ -64,17 +63,14 @@
        "cameras": [
             {
                 "deviceName": "BehavCam 0",
-                "deviceType": "WebCam-640x480",
-                "deviceID": 0,
+                "deviceType": "SLEAP-TEST-PLAYBACK",
+                "deviceID222": 0,
+                "videoPlayback": {
+                    "folderPath": "C:/Users/dbaha/Documents/Data/SLEAP/fire_demo",
+                    "filePrefix": "sleap",
+                    "frameRate": 20
+                },
 				"showSaturation": true,
-				"ROI": {
-                    "notes": "This defines the bounding box of the portion of the video that is saved to disk",
-                    "note3": "Edge values are zero indexed",
-					"leftEdge": 0,
-					"topEdge": 0,
-					"width": 640,
-					"height": 480
-				},
                 "cameraCalibrationFileLocation": "",
                 "compressionOptions": ["MJPG","MJ2C","XVID","FFV1"],
                 "compression": "MJPG",
