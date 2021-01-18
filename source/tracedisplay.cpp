@@ -850,7 +850,7 @@ void TraceDisplayRenderer::drawTraces()
             m_programTraces->setAttributeArray("a_dataY", GL_FLOAT, &traces[num].dataY[arrayOffset], 1);
 
 
-            glLineWidth(5);
+            glLineWidth(3);
             glDrawArrays(GL_LINE_STRIP, 0, traces[num].numDataInBuffer[*traces[num].displayBufferNumber]);
 
 

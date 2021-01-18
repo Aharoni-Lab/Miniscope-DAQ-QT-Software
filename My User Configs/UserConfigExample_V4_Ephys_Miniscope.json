@@ -19,6 +19,14 @@
         "units": "cm",
         "trackLength": 200
     },
+    "traceDisplay": {
+        "enabled": true,
+        "type": "scrolling",
+        "windowX": 100,
+        "windowY": 100,
+        "windowWidth": 900,
+        "windowHeight": 1400
+    },
     "devices": {
         "miniscopes": {
             "E-Scope": {

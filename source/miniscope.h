@@ -40,6 +40,7 @@ public:
 
 
     void setupBNOTraceDisplay() override; // overrides parent
+    void handleEphsyTraceDisplaySetup();
     void calledOnClose() override;
 public slots:
 //    void displayHasBeenCreated();

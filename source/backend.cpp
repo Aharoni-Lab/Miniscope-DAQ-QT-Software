@@ -962,6 +962,7 @@ void backEnd::constructUserConfigGUI()
             miniscope.last()->setTraceDisplayStatus(traceDisplay != nullptr);
             miniscope.last()->createView();
             miniscope.last()->setupBNOTraceDisplay();
+            miniscope.last()->handleEphsyTraceDisplaySetup();
         }
     }
 

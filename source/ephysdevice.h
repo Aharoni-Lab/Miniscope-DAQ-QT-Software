@@ -14,13 +14,37 @@
 
 #include <libusb.h>
 
-#define SAMPLE_BUFFER_SIZE 1
+#define BUFFER_NUM_SAMPLES          (30000 * 30) // 30KSps * 30second = buffer length
+#define NUM_CHANNELS                32
 
+#define NUM_MAX_TRACES       32
+#define TRACE_DISPLAY_BUFFER_LENGTH   20000
 // ------------- ERRORS ----------------
 #define VIDEODEVICES_JSON_LOAD_FAIL     1
+
 // -------------------------------------
+
+#define NUM_TRANSFERS                   10
+#define USB_BUFFER_SIZE                 2048
+
 struct usb_device;
 struct usb_context;
+class EphysDevice;
+
+typedef struct transferUserData {
+    int transferNum;
+    libusb_transfer *transfer;
+    bool active;
+    uint8_t *bufIn;
+    EphysDevice *eDev;
+//    uint16_t *ephysBuffer;
+    qint64 *timeStampBufferSoft;
+    qint64 *timeStampBufferMCU;
+    QSemaphore *freeBufs;
+    QSemaphore *usedBufs;
+    QAtomicInt *acqNum;
+    int *idxInteral;
+} userData_t;
 
 typedef struct EphysDeviceProps{
     int vendorID;
@@ -35,9 +59,16 @@ typedef struct EphysDeviceProps{
     libusb_device_handle *d_h = NULL;
     struct libusb_device_descriptor desc;
 
-    libusb_transfer *transfer;
-    uint8_t bufOut[1024];
-    uint8_t bufIn[1024];
+    libusb_transfer *transfer[NUM_TRANSFERS];
+    userData_t *userData[NUM_TRANSFERS];
+    uint8_t bufIn[NUM_TRANSFERS][USB_BUFFER_SIZE];
+
+    libusb_transfer *outTransfer;
+    userData_t *userDataOut;
+    uint8_t bufOut[512];
+
+
+
 
     bool isConnected = false;
 
@@ -86,13 +117,19 @@ public:
     void findDevice();
     void openDevice();
     static void LIBUSB_CALL transferCB(struct libusb_transfer *transfer);
+    static void processPayload(userData_t *userData, uint8_t *payload, int payloadLength);
+    void setupTraceDisplay();
 
 
 signals:
     void sendMessage(QString msg);
+    void newDataAvailable();
+    void addTraceDisplay(QString, float c[3], float, QString, bool sameOffset, QAtomicInt*, QAtomicInt*, int , float*, float*);
+
 
 public slots:
     void close();
+    void handleNewData();
 
 
 private:
@@ -114,10 +151,21 @@ private:
 
 
     // ----- For thread safe buffer ---
-    qint64 timeStampBuffer[SAMPLE_BUFFER_SIZE];
+    uint16_t ephysBuffer[BUFFER_NUM_SAMPLES*NUM_CHANNELS];
+    qint64 timeStampBufferSoft[BUFFER_NUM_SAMPLES];
+    qint64 timeStampBufferMCU[BUFFER_NUM_SAMPLES];
     QSemaphore *freeBufs;
     QSemaphore *usedBufs;
     QAtomicInt *acqNum;
+    int idxInteral;
+    // ---------------------------------
+
+    // --------- For trace display -----
+    float m_traceColors[NUM_MAX_TRACES][3];
+    QAtomicInt m_traceDisplayBufNum[NUM_MAX_TRACES];
+    QAtomicInt m_traceNumDataInBuf[NUM_MAX_TRACES][2];
+    float m_traceDisplayY[NUM_MAX_TRACES][2][TRACE_DISPLAY_BUFFER_LENGTH];
+    float m_traceDisplayT[NUM_MAX_TRACES][2][TRACE_DISPLAY_BUFFER_LENGTH];
     // --------------------------------
 };
 

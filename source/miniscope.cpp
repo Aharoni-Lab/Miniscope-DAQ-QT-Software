@@ -44,6 +44,8 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucDevice, qint64 softwareStart
     if (m_ucDevice.contains("ephys")) {
         if (m_ucDevice["ephys"].toObject()["enabled"].toBool("false") == true) {
             ephysDev = new EphysDevice(this, m_ucDevice["ephys"].toObject(), softwareStartTime);
+            QObject::connect(ephysDev, &EphysDevice::addTraceDisplay, this, &Miniscope::addTraceDisplay);
+
             // TODO: Handling thread safe buffer stuff!
         }
     }
@@ -372,6 +374,13 @@ void Miniscope::setupBNOTraceDisplay()
 
             count++;
         }
+    }
+}
+
+void Miniscope::handleEphsyTraceDisplaySetup()
+{
+    if (ephysDev) {
+        ephysDev->setupTraceDisplay();
     }
 }
 
