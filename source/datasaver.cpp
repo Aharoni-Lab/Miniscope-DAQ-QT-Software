@@ -345,6 +345,7 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
         noteFile = new QFile(baseDirectory + "/notes.csv");
         noteFile->open(QFile::WriteOnly | QFile::Truncate);
         noteStream = new QTextStream(noteFile);
+        *noteStream << "Time Stamp (ms), Note" << endl;
 
         // TODO: Save camera calibration file to data directory for each behavioral camera
         m_recording = true;
@@ -382,7 +383,10 @@ void DataSaver::devicePropertyChanged(QString deviceName, QString propName, QVar
 {
     deviceProperties[deviceName][propName] = propValue;
     qDebug() << deviceName << propName << propValue;
-    // TODO: signal change to filing keeping track of changes during recording
+
+    QString s = deviceName + "," + propName + "," + propValue.toString();
+    // TODO: Make sure this writes changes in parameters correctly to the notes file
+    takeNote(s); // Sends this information to be written to the notes csv file
 }
 
 void DataSaver::takeScreenShot(QString type)
