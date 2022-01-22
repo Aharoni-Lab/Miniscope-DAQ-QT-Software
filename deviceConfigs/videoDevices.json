@@ -67,10 +67,10 @@
                 ]
             },
             "frameRate": {
-                "displaySpinBoxValues":["10FPS", "40FPS", "50FPS"],
-                "displayTextValues": [10, 40, 50],
-                "outputValues":[2048,1536,766],
-                "startValue": "50FPS",
+                "displaySpinBoxValues":["20FPS", "30FPS", "47FPS"],
+                "displayTextValues": [10, 30, 47],
+                "outputValues":[1900,1250,766],
+                "startValue": "47FPS",
                 "sendCommand": [
                     {
                         "protocol": "I2C",
@@ -288,9 +288,9 @@
                 ]
             },
             "frameRate": {
-                "displaySpinBoxValues":["10FPS", "15FPS", "20FPS", "25FPS", "30FPS"],
-                "displayTextValues": [10, 15, 20, 25, 30],
-                "outputValues":[10000,6667,5000, 4000, 3300],
+                "displaySpinBoxValues":["2FPS","5FPS","10FPS", "15FPS", "20FPS", "25FPS", "30FPS"],
+                "displayTextValues": [2, 5, 10, 15, 20, 25, 30],
+                "outputValues":[50000,20000,10000,6667,5000, 4000, 3300],
                 "startValue": "20FPS",
                 "sendCommand": [
 
