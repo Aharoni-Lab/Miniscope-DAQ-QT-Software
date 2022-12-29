@@ -30,6 +30,7 @@
 #include "datasaver.h"
 #include "behaviortracker.h"
 #include "tracedisplay.h"
+#include "tcpserver.h"
 
 #ifdef USE_USB
  #include <libusb.h>
@@ -919,6 +920,10 @@ void backEnd::constructUserConfigGUI()
     // Load main control GUI
     controlPanel = new ControlPanel(this, m_userConfig);
     QObject::connect(this, SIGNAL (sendMessage(QString) ), controlPanel, SLOT( receiveMessage(QString)));
+
+    // Create tcp server control GUI
+    TcpServer *tcpServer = new TcpServer(controlPanel, this);
+    tcpServer->on_socket_activate(true);
 
     // Make trace display
     if (!ucTraceDisplay.isEmpty()) {

@@ -16,6 +16,7 @@ public:
     void createView();
     void connectSnS();
     void fillUCEditText();
+    QObject *rootObject;
 //    void setUserConfig(QJsonObject userConfig) {m_userConfig = userConfig;}
 
 public slots:
@@ -36,10 +37,9 @@ signals:
 
 private:
     NewQuickView *view;
-    QObject *rootObject;
+
     QQuickItem  *messageTextArea;
     QQuickItem *recordTimeText;
-
     QJsonObject m_userConfig;
     double currentRecordTime;
     int m_ucRecordLengthinSeconds;
