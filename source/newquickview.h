@@ -2,7 +2,7 @@
 #define NEWQUICKVIEW_H
 
 #include <QObject>
-#include <QQuickView>
+#include <QtQuick/QQuickView>
 
 class NewQuickView: public QQuickView {
     // Class makes it so we can handle window closing events

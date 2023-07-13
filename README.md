@@ -16,3 +16,37 @@ This backwards compatible Miniscope DAQ software is an upgrade and replacement t
 **All information can be found on the [Miniscope DAQ Software Wiki page](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/wiki).**
 
 Along with this repository holding the software's source code, you can get built release versions of the software on the [Releases Page](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/releases).
+
+
+## Building From Source
+
+Version Compatibility
+
+- Python 3.7
+- Numpy <1.19
+- Qt 5.*
+- OpenCV (4.4.0 is specified in the project, compatibility unknown!)
+
+### Steps
+
+Edit the project file to specify the correct include directories for the above dependencies - Look for the area in the file that looks like this:
+
+```
+### UNTIL WE FIX THIS - you will need to substitute with your own include directories. These are just stubs to show what the include paths should look like
+INCLUDEPATH += python3.7/site-packages/numpy/core/include/
+INCLUDEPATH += include/python3.7m/
+INCLUDEPATH += /usr/local/include/opencv4/opencv2/
+```
+
+
+Create the Makefile from the Miniscope-DAQ-QT-Software.pro file with qmake:
+
+```shell
+qmake -makefile -o Makefile Miniscope-DAQ-QT-Software.pro
+```
+
+Make the dang stuff!
+
+```shell
+make
+```

@@ -103,7 +103,21 @@ win32 {
 } else {
     CONFIG += link_pkgconfig
     PKGCONFIG += opencv4
+
+    # Find the numpy include path
+    #NUMPYINCLUDE = $$system(python -c "import numpy; print(numpy.get_include())")
+    #INCLUDEPATH += $$system(python -c "import numpy; print(numpy.get_include())")
+
+    ### UNTIL WE FIX THIS - you will need to substitute with your own include directories. These are just stubs to show what the include paths should look like
+    INCLUDEPATH += ~/.pyenv/versions/3.7.12/lib/python3.7/site-packages/numpy/core/include/
+    INCLUDEPATH += ~/.pyenv/versions/3.7.12/include/python3.7m/
+    INCLUDEPATH += /usr/local/Cellar/opencv/4.8.0_1/include/opencv4/opencv2/
+
+
 }
+
+
+
 
 # Move user and device configs to build directory
 copydata.commands = $(COPY_DIR) \"$$shell_path($$PWD\\..\\deviceConfigs)\" \"$$shell_path($$OUT_PWD\\release\\deviceConfigs)\"
