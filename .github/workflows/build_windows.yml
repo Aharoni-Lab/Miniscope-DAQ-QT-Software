@@ -1,0 +1,35 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [ build ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.7'
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: "5.15.2"
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2019_64'
+          dir: '${{ github.workspace }}/qt5/'
+          install-deps: 'true'
+          cache: 'true'
+          cache-key-prefix: 'install-qt-action'
+      - name: Install OpenCV
+        run: |
+          $url = "https://gigenet.dl.sourceforge.net/project/opencvlibrary/4.4.0/opencv-4.4.0-vc14_vc15.exe"
+          $dest = "opencv-4.4.0-vc14_vc15.exe"
+          Invoke-Webrequest -Uri $url -OutFile $dest
+          & $dest 
+        shell: pwsh
