@@ -6,11 +6,11 @@
 #include <opencv2/opencv.hpp>
 
 #include <QtQuick/QQuickItem>
-#include <QtGui/QOpenGLShaderProgram>
-#include <QtGui/QOpenGLFunctions>
-#include <QtGui/QOpenGLTexture>
-#include <QtGui/QOpenGLBuffer>
-#include <QtGui/QOpenGLFramebufferObject>
+#include <QOpenGLShaderProgram>
+#include <QOpenGLFunctions>
+#include <QOpenGLTexture>
+#include <QOpenGLBuffer>
+#include <QOpenGLFramebufferObject>
 
 #include <QJsonObject>
 #include <QDebug>
@@ -840,7 +840,9 @@ void TrackerDisplayRenderer::paint()
 
     // Not strictly needed for this example, but generally useful for when
     // mixing with raw OpenGL.
-    m_window->resetOpenGLState();
+    // Deprecated in Qt6, moved to QQuickOpenGLUtils::resetOpenGLState
+    // removing for now and seeing if anything breaks since it's marked as not necessary -jls
+    // m_window->resetOpenGLState();
 }
 
 TrackerDisplay::TrackerDisplay():
@@ -930,7 +932,9 @@ void TrackerDisplay::handleWindowChanged(QQuickWindow *win)
         // If we allow QML to do the clearing, they would clear what we paint
         // and nothing would show.
 //! [3]
-        win->setClearBeforeRendering(false);
+    //Deprecated in Qt6 - https://doc.qt.io/qt-6/quick-changes-qt6.html#changes-to-qquick-api
+    // Removing for now, checking if things break since we aint got no tests
+//        win->setClearBeforeRendering(false);
     }
 }
 

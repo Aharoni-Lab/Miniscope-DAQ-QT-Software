@@ -15,6 +15,7 @@
 #include <QQuickItem>
 #include <QVariant>
 #include <QString>
+#include <QFile>
 
 #include "videostreamocv.h"
 #include "videodisplay.h"

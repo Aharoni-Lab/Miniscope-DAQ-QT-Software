@@ -2,9 +2,9 @@
 #define VIDEODISPLAY_H
 
 #include <QtQuick/QQuickItem>
-#include <QtGui/QOpenGLShaderProgram>
-#include <QtGui/QOpenGLFunctions>
-#include <QtGui/QOpenGLTexture>
+#include <QOpenGLShaderProgram>
+#include <QOpenGLFunctions>
+#include <QOpenGLTexture>
 
 #include <QImage>
 

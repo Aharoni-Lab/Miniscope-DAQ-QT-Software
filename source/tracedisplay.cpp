@@ -10,10 +10,10 @@
 #include <QtMath>
 
 #include <QtQuick/qquickwindow.h>
-#include <QtGui/QOpenGLShaderProgram>
-#include <QtGui/QOpenGLContext>
-#include <QtGui/QOpenGLTexture>
-#include <QtGui/QOpenGLFramebufferObject>
+#include <QOpenGLShaderProgram>
+#include <QOpenGLContext>
+#include <QOpenGLTexture>
+#include <QOpenGLFramebufferObject>
 
 TraceDisplayBackend::TraceDisplayBackend(QObject *parent, QJsonObject ucTraceDisplay, qint64 softwareStartTime):
     QObject(parent),
@@ -92,7 +92,9 @@ TraceDisplay::TraceDisplay()
 void TraceDisplay::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
-        lastMouseClickEvent = new QMouseEvent(*event);
+        lastMouseClickEvent = static_cast<QMouseEvent*>(event);
+    } else {
+        event -> ignore();
     }
 //    qDebug() << "Mouse Press" << event;
 }
@@ -103,12 +105,12 @@ void TraceDisplay::mouseMoveEvent(QMouseEvent *event)
 //    float deltaX, deltaY;
 //    if (event->buttons() == Qt::LeftButton) {
 //        if (lastMouseMoveEvent) {
-//            deltaX = lastMouseMoveEvent->x() - event->x();
-//            deltaY = lastMouseMoveEvent->y() - event->y();
+//            deltaX = lastMouseMoveEvent->position().x() - event->position().x();
+//            deltaY = lastMouseMoveEvent->position().y() - event->position().y();
 //        }
 //        else {
-//            deltaX = lastMouseClickEvent->x() - event->x();
-//            deltaY = lastMouseClickEvent->y() - event->y();
+//            deltaX = lastMouseClickEvent->position().x() - event->position().x();
+//            deltaY = lastMouseClickEvent->position().y() - event->position().y();
 //        }
 //        lastMouseMoveEvent = new QMouseEvent(*event);
 
@@ -122,8 +124,10 @@ void TraceDisplay::mouseMoveEvent(QMouseEvent *event)
 void TraceDisplay::mouseReleaseEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
-        lastMouseReleaseEvent = new QMouseEvent(*event);
+        lastMouseReleaseEvent = static_cast<QMouseEvent*>(event);
         lastMouseMoveEvent = nullptr;
+    } else {
+        event -> ignore();
     }
 //    qDebug() << "Mouse Release" << event;
 }
@@ -152,7 +156,7 @@ void TraceDisplay::mouseDoubleClickEvent(QMouseEvent *event)
 {
 
     if (event->button() == Qt::LeftButton) {
-        m_renderer->doubleClickEvent(event->x(), event->y());
+        m_renderer->doubleClickEvent(event->position().x(), event->position().y());
     }
     if (m_renderer->m_selectedTrace.isEmpty()) {
             // This is really poorly done!!!
@@ -251,7 +255,7 @@ void TraceDisplay::handleWindowChanged(QQuickWindow *win)
         // If we allow QML to do the clearing, they would clear what we paint
         // and nothing would show.
 //! [3]
-        win->setClearBeforeRendering(false);
+//        win->setClearBeforeRendering(false);
     }
 }
 
@@ -992,7 +996,7 @@ void TraceDisplayRenderer::paint()
 
 //    // Not strictly needed for this example, but generally useful for when
 //    // mixing with raw OpenGL.
-    m_window->resetOpenGLState();
+//    m_window->resetOpenGLState();
 
 }
 

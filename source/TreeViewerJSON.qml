@@ -1,118 +1,125 @@
-import QtQuick 2.0
-import QtQuick.Controls 1.4
-    import QtQuick.Controls 2.12 as QTQC2
-import QtQuick.Layouts 1.3
-import QtQuick.Controls.Styles 1.4
+import QtQuick
+import QtQuick.Controls
+    import QtQuick.Controls as QTQC2
+import QtQuick.Layouts
+import Qt.labs.qmlmodels
 
 TreeView {
     property string toolTipText
     id:root
-    rowDelegate: Rectangle {
-            width: parent.width
-            height: 25
+    delegate: Rectangle {
+           width: parent.width
+           height: 25
 
-        }
+       }
 
-    TableViewColumn {
-        title: "Key"
-        role: "key"
-        width: 200
+    model: TableModel {
+        TableModelColumn { display: "key" }
+        TableModelColumn { display: "value" }
+        TableModelColumn { display: "type" }
 
-        delegate: Loader {
-            property string modelType: model.type
-            property string modelTips: model.tips
-            Rectangle {
-                id: rectangle
-                width: parent.width
-                height: parent.height
-
-                color: {
-                    if (modelType === "Number") {"#cfe2f3"}
-                    else if (modelType === "Integer") {"#cfe2f3"}
-                    else if (modelType === "Double") {"#cfe2f3"}
-                    else if (modelType === "String") {"#d9d2e9"}
-                    else if (modelType === "DirPath") {"#ead1dc"}
-                    else if (modelType === "FilePath") {"#ead1dc"}
-                    else {"#f3f3f3"}
-                }
-
-                border.color: "black"
-                border.width: 1
-                anchors.fill: parent
-                Text {
-                    text: model.key
-                    anchors.left: parent.left
-                    anchors.leftMargin: 3
-                    font.pointSize: 10
-
-//                    color:  if (model.type === "Number") {"black"} else {"black"}
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: {
-                            root.toolTipText = modelTips;
-
-                    }
-                }
-            }
-        }
     }
 
-    TableViewColumn {
-        title: "Value"
-        role: "value"
-        width: 400
-        delegate: Loader {
-            property string modelValue: model.value
-            property string modelType: model.type
-            property string modelTips: model.tips
-            sourceComponent:
-            {
-                if (model.type === "Bool") {checkBoxDelegate}
-                else {textFieldDelegate}
-            }
-
+//    Column {
+//        title: "Key"
+//        role: "key"
+//        width: 200
+//
 //        delegate: Loader {
-//            property var modelTwo: model.value
-//            sourceComponent: stringDelegate
-//            function updateValue(value) {
-//                model.value = value;
-//            }
-        }
-    }
-
-    TableViewColumn {
-        title: "Type"
-        role: "type"
-        width: 90
-        delegate: Loader {
-            property string modelType: model.type
-            Rectangle {
-                width: parent.width
-                height: parent.height
-                color: {
-                    if (modelType === "Number") {"#cfe2f3"}
-                    else if (modelType === "Integer") {"#cfe2f3"}
-                    else if (modelType === "Double") {"#cfe2f3"}
-                    else if (modelType === "String") {"#d9d2e9"}
-                    else if (modelType === "DirPath") {"#ead1dc"}
-                    else if (modelType === "FilePath") {"#ead1dc"}
-                    else {"#f3f3f3"}
-                }
-
-                border.color: "black"
-                border.width: 1
+//            property string modelType: model.type
+//            property string modelTips: model.tips
+//            Rectangle {
+//                id: rectangle
+//                width: parent.width
+//                height: parent.height
+//
+//                color: {
+//                    if (modelType === "Number") {"#cfe2f3"}
+//                    else if (modelType === "Integer") {"#cfe2f3"}
+//                    else if (modelType === "Double") {"#cfe2f3"}
+//                    else if (modelType === "String") {"#d9d2e9"}
+//                    else if (modelType === "DirPath") {"#ead1dc"}
+//                    else if (modelType === "FilePath") {"#ead1dc"}
+//                    else {"#f3f3f3"}
+//                }
+//
+//                border.color: "black"
+//                border.width: 1
 //                anchors.fill: parent
-                Text {
-                    text: model.type
-                    anchors.left: parent.left
-                    anchors.leftMargin: 3
-                    font.pointSize: 10
-//                    color:  if (model.type === "Number") {"black"} else {"black"}
-                }
-            }
-        }
-    }
+//                Text {
+//                    text: model.key
+//                    anchors.left: parent.left
+//                    anchors.leftMargin: 3
+//                    font.pointSize: 10
+//
+////                    color:  if (model.type === "Number") {"black"} else {"black"}
+//                }
+//                MouseArea {
+//                    anchors.fill: parent
+//                    onClicked: {
+//                            root.toolTipText = modelTips;
+//
+//                    }
+//                }
+//            }
+//        }
+//    }
+//
+//    Column {
+//        title: "Value"
+//        role: "value"
+//        width: 400
+//        delegate: Loader {
+//            property string modelValue: model.value
+//            property string modelType: model.type
+//            property string modelTips: model.tips
+//            sourceComponent:
+//            {
+//                if (model.type === "Bool") {checkBoxDelegate}
+//                else {textFieldDelegate}
+//            }
+//
+////        delegate: Loader {
+////            property var modelTwo: model.value
+////            sourceComponent: stringDelegate
+////            function updateValue(value) {
+////                model.value = value;
+////            }
+//        }
+//    }
+//
+//    Column {
+//        title: "Type"
+//        role: "type"
+//        width: 90
+//        delegate: Loader {
+//            property string modelType: model.type
+//            Rectangle {
+//                width: parent.width
+//                height: parent.height
+//                color: {
+//                    if (modelType === "Number") {"#cfe2f3"}
+//                    else if (modelType === "Integer") {"#cfe2f3"}
+//                    else if (modelType === "Double") {"#cfe2f3"}
+//                    else if (modelType === "String") {"#d9d2e9"}
+//                    else if (modelType === "DirPath") {"#ead1dc"}
+//                    else if (modelType === "FilePath") {"#ead1dc"}
+//                    else {"#f3f3f3"}
+//                }
+//
+//                border.color: "black"
+//                border.width: 1
+////                anchors.fill: parent
+//                Text {
+//                    text: model.type
+//                    anchors.left: parent.left
+//                    anchors.leftMargin: 3
+//                    font.pointSize: 10
+////                    color:  if (model.type === "Number") {"black"} else {"black"}
+//                }
+//            }
+//        }
+//    }
 
 
     Component {
@@ -177,8 +184,8 @@ TreeView {
                 }
             property var validInt : IntValidator { bottom:0;}
             property var validDouble : DoubleValidator { bottom:0;}
-            property var validPath : RegExpValidator{regExp: /^[^\\]+$/}
-            property var validAll : RegExpValidator{}
+            property var validPath : RegularExpressionValidator{ regularExpression: /^[^\\]+$/}
+            property var validAll : RegularExpressionValidator{}
 
             validator: {
 

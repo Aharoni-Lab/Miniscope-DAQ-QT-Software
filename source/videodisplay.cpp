@@ -1,9 +1,9 @@
 #include "videodisplay.h"
 
 #include <QtQuick/qquickwindow.h>
-#include <QtGui/QOpenGLShaderProgram>
-#include <QtGui/QOpenGLContext>
-#include <QtGui/QOpenGLTexture>
+#include <QOpenGLShaderProgram>
+#include <QOpenGLContext>
+#include <QOpenGLTexture>
 
 #include <QImage>
 
@@ -68,7 +68,7 @@ void VideoDisplay::handleWindowChanged(QQuickWindow *win)
         // If we allow QML to do the clearing, they would clear what we paint
         // and nothing would show.
 //! [3]
-        win->setClearBeforeRendering(false);
+//        win->setClearBeforeRendering(false);
     }
 }
 //! [3]
@@ -108,7 +108,7 @@ void VideoDisplay::sync()
 void VideoDisplay::mousePressEvent(QMouseEvent *event){
     if ((m_roiSelectionActive || m_addTraceRoiSelectionActive) && event->button() == Qt::LeftButton) {
         // TODO: Send info to shader to draw rectangle
-        lastMouseClickEvent = new QMouseEvent(*event);
+        lastMouseClickEvent = static_cast<QMouseEvent*>(event);
     }
 //        qDebug() << "Mouse Press" << event;
 }
@@ -116,19 +116,19 @@ void VideoDisplay::mousePressEvent(QMouseEvent *event){
 void VideoDisplay::mouseMoveEvent(QMouseEvent *event) {
 
     if (m_roiSelectionActive /*&& event->button() == Qt::LeftButton*/ && lastMouseClickEvent != nullptr) {
-        int leftEdge = (lastMouseClickEvent->x() < event->x()) ? (lastMouseClickEvent->x()) : (event->x());
-        int topEdge = (lastMouseClickEvent->y() < event->y()) ? (lastMouseClickEvent->y()) : (event->y());
-        int width = abs(lastMouseClickEvent->x() - event->x());
-        int height = abs(lastMouseClickEvent->y() - event->y());
+        int leftEdge = (lastMouseClickEvent-> position().x() < event-> position().x()) ? (lastMouseClickEvent->position().x()) : (event->position().x());
+        int topEdge = (lastMouseClickEvent->position().y() < event->position().y()) ? (lastMouseClickEvent->position().y()) : (event->position().y());
+        int width = abs(lastMouseClickEvent->position().x() - event->position().x());
+        int height = abs(lastMouseClickEvent->position().y() - event->position().y());
 
         setROI({leftEdge,topEdge,width,height,m_roiSelectionActive});
         qDebug() << "Mouse Move" << event;
     }
     if (m_addTraceRoiSelectionActive /*&& event->button() == Qt::LeftButton*/ && lastMouseClickEvent != nullptr) {
-        int leftEdge = (lastMouseClickEvent->x() < event->x()) ? (lastMouseClickEvent->x()) : (event->x());
-        int topEdge = (lastMouseClickEvent->y() < event->y()) ? (lastMouseClickEvent->y()) : (event->y());
-        int width = abs(lastMouseClickEvent->x() - event->x());
-        int height = abs(lastMouseClickEvent->y() - event->y());
+        int leftEdge = (lastMouseClickEvent->position().x() < event->position().x()) ? (lastMouseClickEvent->position().x()) : (event->position().x());
+        int topEdge = (lastMouseClickEvent->position().y() < event->position().y()) ? (lastMouseClickEvent->position().y()) : (event->position().y());
+        int width = abs(lastMouseClickEvent->position().x() - event->position().x());
+        int height = abs(lastMouseClickEvent->position().y() - event->position().y());
 
         setAddTraceROI({leftEdge,topEdge,width,height,m_addTraceRoiSelectionActive});
 //        qDebug() << "Mouse Move" << event;
@@ -140,10 +140,10 @@ void VideoDisplay::mouseReleaseEvent(QMouseEvent *event) {
         lastMouseReleaseEvent = event;
 
         // Calculate ROI properties
-        int leftEdge = (lastMouseClickEvent->x() < lastMouseReleaseEvent->x()) ? (lastMouseClickEvent->x()) : (lastMouseReleaseEvent->x());
-        int topEdge = (lastMouseClickEvent->y() < lastMouseReleaseEvent->y()) ? (lastMouseClickEvent->y()) : (lastMouseReleaseEvent->y());
-        int width = abs(lastMouseClickEvent->x() - lastMouseReleaseEvent->x());
-        int height = abs(lastMouseClickEvent->y() - lastMouseReleaseEvent->y());
+        int leftEdge = (lastMouseClickEvent->position().x() < lastMouseReleaseEvent->position().x()) ? (lastMouseClickEvent->position().x()) : (lastMouseReleaseEvent->position().x());
+        int topEdge = (lastMouseClickEvent->position().y() < lastMouseReleaseEvent->position().y()) ? (lastMouseClickEvent->position().y()) : (lastMouseReleaseEvent->position().y());
+        int width = abs(lastMouseClickEvent->position().x() - lastMouseReleaseEvent->position().x());
+        int height = abs(lastMouseClickEvent->position().y() - lastMouseReleaseEvent->position().y());
 
         if (m_roiSelectionActive ) {
             m_roiSelectionActive = false;
@@ -259,7 +259,7 @@ void VideoDisplayRenderer::paint()
 
     // Not strictly needed for this example, but generally useful for when
     // mixing with raw OpenGL.
-    m_window->resetOpenGLState();
+    // m_window->resetOpenGLState();
 
     if (m_newFrame) {
 //        qDebug() << "Set new texture QImage";

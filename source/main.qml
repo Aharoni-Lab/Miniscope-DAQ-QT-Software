@@ -1,8 +1,10 @@
-import QtQuick 2.12
-import QtQuick.Window 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.3
-import QtQuick.Dialogs 1.2
+import QtQuick
+import QtQuick.Window
+// import QtQuick.Controls
+import QtQuick.Layouts
+import QtQuick.Dialogs
+import Qt.labs.platform
+import QtQuick.Controls.Material
 
 Window {
     id: root
@@ -20,11 +22,11 @@ Window {
 
         id: fileDialog
         title: "Please choose a user configuration file."
-        folder: shortcuts.home
+        // folder: shortcuts.home
         nameFilters: [ "JSON files (*.json)", "All files (*)" ]
         onAccepted: {
             // Send file name to c++ backend
-            backend.userConfigFileName = fileDialog.fileUrl
+            backend.userConfigFileName = fileDialog.file
             treeView.visible = true;
             view.visible = false;
 //            rbRun.enabled = true
@@ -47,7 +49,7 @@ Window {
 
             TextArea {
                 text: "Miniscope DAQ Software version " + backend.versionNumber + "<br/>" +
-                      "Your OpenGL verions: " + OpenGLInfo.majorVersion + "." + OpenGLInfo.minorVersion + "<br/>" +
+                      "Your OpenGL verions: " + GraphicsInfo.majorVersion + "." + GraphicsInfo.minorVersion + "<br/>" +
                       "Developed by the <a href='https://aharoni-lab.github.io/'>Aharoni Lab</a>, UCLA <br/> " +
                       "Overview of the UCLA Miniscope project: <a href='http://www.miniscope.org'>click here</a> <br/>" +
                       "Miniscope Wiki for newest projects: <a href='https://github.com/Aharoni-Lab/Miniscope-v4/wiki'>click here</a> <br/>" +
@@ -165,7 +167,7 @@ Window {
                     border.width: 1
                     color: "#a8a7fd"
                 }
-                onClicked: fileDialog.setVisible(1)
+                onClicked: fileDialog.open()
                 onHoveredChanged: hovered ? configRect.color = "#f8a7fd" : configRect.color = "#a8a7fd"
 
             }
@@ -389,11 +391,11 @@ Window {
 
     Connections{
         target: backend
-        onShowErrorMessage: errorMessageDialog.visible = true
+        onShowErrorMessage: (errorMessageDialog) => {errorMessageDialog.visible = true}
     }
     Connections{
         target: backend
-        onShowErrorMessageCompression: errorMessageDialogCompression.visible = true
+        onShowErrorMessageCompression: (errorMessageDialogCompression) => {errorMessageDialogCompression.visible = true}
     }
     Component.onCompleted: {
         setX(Screen.width / 2 - width / 2);

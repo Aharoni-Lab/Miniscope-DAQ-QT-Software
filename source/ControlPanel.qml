@@ -1,4 +1,4 @@
-import QtQuick 2.0
+import QtQuick
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
 
@@ -206,7 +206,7 @@ Item {
                                 }
                                 TextField {
                                     property var validNumber : DoubleValidator { bottom:0;}
-                                    property var validAll : RegExpValidator{}
+                                    property var validAll : RegularExpressionValidator {}
                                     width: parent.width - 10
                                     height:30
                                     text: root.ucValues[index]
@@ -318,7 +318,7 @@ Item {
     }
     Connections{
         target: root
-        onCurrentRecordTimeChanged: {
+        onCurrentRecordTimeChanged: () => {
             if ((root.currentRecordTime >= root.ucRecordLength) && root.ucRecordLength > 0) {
                 bStop.enabled = false;
                 bRecord.enabled = true;
