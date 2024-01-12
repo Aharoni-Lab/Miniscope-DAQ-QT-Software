@@ -1,4 +1,4 @@
-QT += qml quick widgets
+QT += qml quick widgets network
 CONFIG += c++11
 
 QT += 3dcore
@@ -28,6 +28,7 @@ SOURCES += \
         main.cpp \
         miniscope.cpp \
         newquickview.cpp \
+        tcpserver.cpp \
         tracedisplay.cpp \
         videodevice.cpp \
         videodisplay.cpp \
@@ -58,6 +59,7 @@ HEADERS += \
     datasaver.h \
     miniscope.h \
     newquickview.h \
+    tcpserver.h \
     tracedisplay.h \
     videodevice.h \
     videodisplay.h \
