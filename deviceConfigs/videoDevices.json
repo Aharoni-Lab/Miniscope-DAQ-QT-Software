@@ -310,10 +310,10 @@
             "led0": {
                 "startValue": 0,
                 "min": 0,
-                "max": 100,
+                "max": 255,
                 "stepSize": 1,
-                "displayValueScale": -2.55,
-                "displayValueOffset": -255,
+                "displayValueScale": 1,
+                "displayValueOffset": 255,
                 "sendCommand": [
                     {
                         "protocol": "I2C",
@@ -523,10 +523,10 @@
             "led0": {
                 "startValue": 0,
                 "min": 0,
-                "max": 100,
+                "max": 255,
                 "stepSize": 1,
-                "displayValueScale": -2.55,
-                "displayValueOffset": -255,
+                "displayValueScale": 1,
+                "displayValueOffset": 255,
                 "sendCommand": [
                     {
                         "protocol": "I2C",
