@@ -1,0 +1,257 @@
+{
+    "WebCam": {
+        "sensor": "",
+        "frameRate": 30,
+        "width": 640,
+        "height": 480,
+        "isColor": true,
+        "controlSettings": {
+        }
+    },
+    "WebCam-320x240": {
+        "sensor": "",
+        "frameRate": 30,
+        "width": 320,
+        "height": 240,
+        "isColor": true,
+        "controlSettings": {
+        }
+    },
+	"WebCam-640x480": {
+        "sensor": "",
+        "frameRate": 30,
+        "width": 640,
+        "height": 480,
+        "isColor": true,
+        "controlSettings": {
+        }
+    },
+    "WebCam-1280x720": {
+        "sensor": "",
+        "frameRate": 30,
+        "width": 1280,
+        "height": 720,
+        "isColor": true,
+        "controlSettings": {
+        }
+    },
+	"Minicam-Mono-XGA": {
+        "qmlFile": "qrc:/behaviorCam.qml",
+        "sensor": "MT9P031",
+        "frameRate": "adjustable",
+        "width": 1024,
+        "height": 768,
+        "pixelClock": 96,
+        "headOrientation": false,
+        "isColor": false,
+        "controlSettings": {
+            "gain": {
+                "displaySpinBoxValues":["1X", "8X", "16X", "32X"],
+                "displayTextValues": [1, 8, 16,32],
+                "outputValues":[8,96,2144,6240],
+                "startValue": "1X",
+                "sendCommand": [
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0xBA",
+                        "regLength": "1",
+                        "reg0": "0x35",
+                        "dataLength": "2",
+                        "data0": "valueH",
+                        "data1": "valueL"
+                    }
+                ]
+            },
+            "frameRate": {
+                "displaySpinBoxValues":["10FPS", "40FPS", "50FPS"],
+                "displayTextValues": [10, 40, 50],
+                "outputValues":[2048,1536,766],
+                "startValue": "50FPS",
+                "sendCommand": [
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0xBA",
+                        "regLength": "1",
+                        "reg0": "0x09",
+                        "dataLength": "2",
+                        "data0": "valueH",
+                        "data1": "valueL"
+                    }
+                ]
+            },
+           "led0": {
+                "startValue": 20,
+                "min": 0,
+                "max": 100,
+                "stepSize": 1,
+                "displayValueScale": 0.31,
+                "displayValueOffset": 0,
+                "sendCommand": [
+                    {
+                        "protocol": "I2C",
+                        "addressW": "0x6C",
+                        "regLength": "1",
+                        "reg0": "0b10100000",
+                        "dataLength": "1",
+                        "data0": "value"
+                    }
+                ]
+            }
+        },
+	      
+        "initialize": [ 
+            {
+                "description": "Make sure DES has SER ADDR",
+                "protocol": "I2C",
+                "addressW": "0xC0",
+                "regLength": "1",
+                "reg0": "0x07",
+                "dataLength": "1",
+                "data0": "0xB0"
+            },
+            {
+                "description": "Speed up i2c bus timer to 50us max",
+                "protocol": "I2C",
+                "addressW": "0xC0",
+                "regLength": "1",
+                "reg0": "0x22",
+                "dataLength": "1",
+                "data0": "0b00000010"
+            },
+            {
+                "description": "Decrease BCC timeout, units in 2ms XX",
+                "protocol": "I2C",
+                "addressW": "0xC0",
+                "regLength": "1",
+                "reg0": "0x20",
+                "dataLength": "1",
+                "data0": "0b00001010"
+            },
+            {
+                "description": "Speed up I2c bus timer to 50u Max",
+                "protocol": "I2C",
+                "addressW": "0xB0",
+                "regLength": "1",
+                "reg0": "0x0F",
+                "dataLength": "1",
+                "data0": "0b00000010"
+            },
+            {
+                "description": "Decrease BCC timeout, units in 2ms",
+                "protocol": "I2C",
+                "addressW": "0xB0",
+                "regLength": "1",
+                "reg0": "0x1E",
+                "dataLength": "1",
+                "data0": "0b00001010"
+            },
+            {
+                "description": "sets allowable i2c addresses to send through serializer",
+                "protocol": "I2C",
+                "addressW": "0xC0",
+                "regLength": "1",
+                "reg0": "0x08",
+                "dataLength": "2",
+                "device0": "MT9P031",
+                "data0": "0xBA",
+               "device1": "Digital LED Driver",
+                "data1": "0x6C"
+                
+            },
+            {
+                "description": "sets sudo allowable i2c addresses to send through serializer",
+                "protocol": "I2C",
+                "addressW": "0xC0",
+                "regLength": "1",
+                "reg0": "0x10",
+                "dataLength": "2",
+                "device0": "MT9P031",
+                "data0": "0xBA",
+                 "device1": "Digital LED Driver",
+                "data1": "0x6C"
+            },
+		    {
+				"description": "1535 Rows",
+                "protocol": "I2C",
+                "addressW": "0xBA",
+                "regLength": "1",
+                "reg0": "0x03",
+                "dataLength": "2",
+                "data0": "0b00000101",
+				"data1": "0b11111111"
+			},
+			{
+				"description": "2047 Colums",
+                "protocol": "I2C",
+                "addressW": "0xBA",
+                "regLength": "1",
+                "reg0": "0x04",
+                "dataLength": "2",
+                "data0": "0b00000111",
+				"data1": "0b11111111"
+			},
+           
+			{
+				"description": "2x subsamp and binning 1",
+                "protocol": "I2C",
+                "addressW": "0xBA",
+                "regLength": "1",
+                "reg0": "0x22",
+                "dataLength": "2",
+                "data0": "0x00",
+				"data1": "0b00010001"
+			},
+			{
+				"description": "2x subsamp and binning 2",
+                "protocol": "I2C",
+                "addressW": "0xBA",
+                "regLength": "1",
+                "reg0": "0x23",
+                "dataLength": "2",
+                "data0": "0x00",
+				"data1": "0b00010001"
+			},
+			{
+				"description": "Set column binning to summing instead of averaging",
+                "protocol": "I2C",
+                "addressW": "0xBA",
+                "regLength": "1",
+                "reg0": "0x20",
+                "dataLength": "2",
+                "data0": "0x00",
+				"data1": "0b01100000"
+			},
+	        {
+				"description": "Set R0X03E to 0X00C0 when Sensor Gain>4",
+                "protocol": "I2C",
+                "addressW": "0xBA",
+                "regLength": "1",
+                "reg0": "0x3E",
+                "dataLength": "2",
+                "data0": "0x00",
+				"data1": "0xC0"
+			},
+			{
+				"description": "Change shutter width",
+                "protocol": "I2C",
+                "addressW": "0xBA",
+                "regLength": "1",
+                "reg0": "0x09",
+                "dataLength": "2",
+                "data0": "0b00000010",
+				"data1": "0b11111111"
+			},		
+			{
+				"description": "LED Driver LM3509",
+                "protocol": "I2C",
+                "addressW": "0x6C",
+                "regLength": "1",
+                "reg0": "0x10",
+                "dataLength": "1",
+                "data0": "0b11010111"
+				
+			}
+
+        ]
+    }
+}

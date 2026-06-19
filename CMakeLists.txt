@@ -32,6 +32,10 @@ set(CMAKE_AUTORCC ON)   # compiles source/qml.qrc automatically
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Qml Quick Widgets OpenGL)
 qt_standard_project_setup(REQUIRES 6.5)
 
+# This project has no .ui files (the UI is all QML), so AUTOUIC is unnecessary.
+# qt_standard_project_setup() turns it on, so turn it back off here.
+set(CMAKE_AUTOUIC OFF)
+
 # --- OpenCV ----------------------------------------------------------------
 find_package(OpenCV REQUIRED)
 
@@ -72,6 +76,12 @@ qt_add_executable(MiniscopeDAQ
     ${HEADERS}
     source/qml.qrc
 )
+
+# conda-forge's qmlimportscanner can fail to launch (exit 0xc0000139) during
+# the automatic QML import scan that Qt runs at target finalization. That scan
+# only produces QML *plugin deployment* hints and is not needed to build or to
+# run from the conda env, so skip it.
+set_target_properties(MiniscopeDAQ PROPERTIES QT_QML_MODULE_NO_IMPORT_SCAN ON)
 
 # Windows: GUI app (no console) + application icon, replacing qmake RC_ICONS.
 if(WIN32)

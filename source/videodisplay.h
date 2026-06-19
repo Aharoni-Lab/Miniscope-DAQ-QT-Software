@@ -4,7 +4,7 @@
 #include <QtQuick/QQuickItem>
 #include <QtOpenGL/QOpenGLShaderProgram>   // Qt6: moved from QtGui to the Qt6::OpenGL module
 #include <QtGui/QOpenGLFunctions>
-#include <QtGui/QOpenGLTexture>
+#include <QtOpenGL/QOpenGLTexture>   // Qt6: moved from QtGui to Qt6::OpenGL
 
 #include <QImage>
 

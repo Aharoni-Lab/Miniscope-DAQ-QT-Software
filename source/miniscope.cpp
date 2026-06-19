@@ -97,27 +97,27 @@ void Miniscope::handleAddNewTraceROI(int leftEdge, int topEdge, int width, int h
 
         tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceROIx"));
         tempProp.append(leftEdge);
-        varParams.setValue<QList<double>>( tempProp );
+        varParams.setValue( tempProp );  // Qt6: setValue is setValue(T&&); explicit <T> would force an rvalue-ref param
         vidDisplay->setProperty("traceROIx", varParams);
 
         tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceROIy"));
         tempProp.append(topEdge);
-        varParams.setValue<QList<double>>( tempProp );
+        varParams.setValue( tempProp );  // Qt6: setValue is setValue(T&&); explicit <T> would force an rvalue-ref param
         vidDisplay->setProperty("traceROIy", varParams);
 
         tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceROIw"));
         tempProp.append(width);
-        varParams.setValue<QList<double>>( tempProp );
+        varParams.setValue( tempProp );  // Qt6: setValue is setValue(T&&); explicit <T> would force an rvalue-ref param
         vidDisplay->setProperty("traceROIw", varParams);
 
         tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceROIh"));
         tempProp.append(height);
-        varParams.setValue<QList<double>>( tempProp );
+        varParams.setValue( tempProp );  // Qt6: setValue is setValue(T&&); explicit <T> would force an rvalue-ref param
         vidDisplay->setProperty("traceROIh", varParams);
 
         tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceColor"));
         tempProp.append(m_traceColors[m_numTraces][0]);
-        varParams.setValue<QList<double>>( tempProp );
+        varParams.setValue( tempProp );  // Qt6: setValue is setValue(T&&); explicit <T> would force an rvalue-ref param
         vidDisplay->setProperty("traceColor", varParams);
 
 

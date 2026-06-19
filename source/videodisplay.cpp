@@ -3,7 +3,7 @@
 #include <QtQuick/qquickwindow.h>
 #include <QtOpenGL/QOpenGLShaderProgram>   // Qt6: moved from QtGui to Qt6::OpenGL
 #include <QtGui/QOpenGLContext>
-#include <QtGui/QOpenGLTexture>
+#include <QtOpenGL/QOpenGLTexture>   // Qt6: moved from QtGui to Qt6::OpenGL
 
 #include <QImage>
 

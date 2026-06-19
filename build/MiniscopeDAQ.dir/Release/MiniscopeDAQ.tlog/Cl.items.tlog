@@ -1,0 +1,15 @@
+C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\source\backend.cpp;C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ.dir\Release\backend.obj
+C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\source\behaviorcam.cpp;C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ.dir\Release\behaviorcam.obj
+C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\source\behaviortracker.cpp;C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ.dir\Release\behaviortracker.obj
+C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\source\behaviortrackerworker.cpp;C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ.dir\Release\behaviortrackerworker.obj
+C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\source\controlpanel.cpp;C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ.dir\Release\controlpanel.obj
+C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\source\datasaver.cpp;C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ.dir\Release\datasaver.obj
+C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\source\main.cpp;C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ.dir\Release\main.obj
+C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\source\miniscope.cpp;C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ.dir\Release\miniscope.obj
+C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\source\newquickview.cpp;C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ.dir\Release\newquickview.obj
+C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\source\tracedisplay.cpp;C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ.dir\Release\tracedisplay.obj
+C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\source\videodevice.cpp;C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ.dir\Release\videodevice.obj
+C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\source\videodisplay.cpp;C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ.dir\Release\videodisplay.obj
+C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\source\videostreamocv.cpp;C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ.dir\Release\videostreamocv.obj
+C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ_autogen\mocs_compilation_Release.cpp;C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ.dir\Release\mocs_compilation_Release.obj
+C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ_autogen\CAWN4ZDDTK\qrc_qml_Release.cpp;C:\Users\fsang\OneDrive\Documentos\Miniscope-DAQ-QT-Software\build\MiniscopeDAQ.dir\Release\qrc_qml_Release.obj

@@ -1,0 +1,3 @@
+C:/Users/fsang/OneDrive/Documentos/Miniscope-DAQ-QT-Software/build/CMakeFiles/MiniscopeDAQ.dir
+C:/Users/fsang/OneDrive/Documentos/Miniscope-DAQ-QT-Software/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/fsang/OneDrive/Documentos/Miniscope-DAQ-QT-Software/build/CMakeFiles/ZERO_CHECK.dir
