@@ -8,11 +8,11 @@
 #include <opencv2/opencv.hpp>
 
 #include <QtQuick/QQuickItem>
-#include <QtGui/QOpenGLShaderProgram>
+#include <QtOpenGL/QOpenGLShaderProgram>     // Qt6: moved from QtGui to Qt6::OpenGL
 #include <QtGui/QOpenGLFunctions>
 #include <QtGui/QOpenGLTexture>
-#include <QtGui/QOpenGLBuffer>
-#include <QtGui/QOpenGLFramebufferObject>
+#include <QtOpenGL/QOpenGLBuffer>            // Qt6: moved from QtGui to Qt6::OpenGL
+#include <QtOpenGL/QOpenGLFramebufferObject> // Qt6: moved from QtGui to Qt6::OpenGL
 
 #include <QObject>
 #include <QJsonObject>
