@@ -8,6 +8,9 @@
 
 #include <QThreadPool>
 
+#include <QQuickWindow>
+#include <QSGRendererInterface>
+
 #include "backend.h"
 
 #define VERSION_NUMBER "1.10"
@@ -17,11 +20,15 @@
 //C:\Qt\5.12.6>C:\Qt\5.12.6\msvc2017_64\bin\windeployqt.exe --qmldir C:\Users\DBAharoni\Documents\Projects\Miniscope-DAQ-QT-Software\Miniscope-DAQ-QT-Software\ C:\Users\DBAharoni\Documents\Projects\Miniscope-DAQ-QT-Software\build-Miniscope-DAQ-QT-Software-Desktop_Qt_5_12_6_MSVC2017_64bit-Release\release\Miniscope-DAQ-QT-Software.exe
 int main(int argc, char *argv[])
 {
-    QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+    // Qt6: high-DPI scaling is always on, so AA_EnableHighDpiScaling is gone
+    // (it was a no-op / deprecated).
 
-    QApplication::setAttribute(Qt::AA_UseDesktopOpenGL);
+    // The custom video/trace/tracker renderers issue raw OpenGL commands, so
+    // force the scene graph's RHI backend to OpenGL. Qt6 defaults to Direct3D 11
+    // on Windows, under which the raw-GL code would not work. This must be called
+    // before any QQuickWindow is created.
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     QCoreApplication::setAttribute(Qt::AA_UseDesktopOpenGL);
-    QGuiApplication::setAttribute(Qt::AA_UseDesktopOpenGL);
 
     QGuiApplication app(argc, argv);
 
