@@ -10,10 +10,10 @@
 #include <QtMath>
 
 #include <QtQuick/qquickwindow.h>
-#include <QtGui/QOpenGLShaderProgram>
+#include <QtOpenGL/QOpenGLShaderProgram>        // Qt6: moved from QtGui to Qt6::OpenGL
 #include <QtGui/QOpenGLContext>
 #include <QtGui/QOpenGLTexture>
-#include <QtGui/QOpenGLFramebufferObject>
+#include <QtOpenGL/QOpenGLFramebufferObject>    // Qt6: moved from QtGui to Qt6::OpenGL
 
 TraceDisplayBackend::TraceDisplayBackend(QObject *parent, QJsonObject ucTraceDisplay, qint64 softwareStartTime):
     QObject(parent),
@@ -71,9 +71,6 @@ void TraceDisplayBackend::close()
 TraceDisplay::TraceDisplay()
     : m_t(0),
       m_renderer(nullptr),
-      lastMouseClickEvent(nullptr),
-      lastMouseReleaseEvent(nullptr),
-      lastMouseMoveEvent(nullptr),
       m_softwareStartTime(0)
 {
 
@@ -91,9 +88,10 @@ TraceDisplay::TraceDisplay()
 
 void TraceDisplay::mousePressEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton) {
-        lastMouseClickEvent = new QMouseEvent(*event);
-    }
+    // Qt6: cloning QMouseEvent is no longer the pattern. The drag logic in
+    // mouseMoveEvent() that consumed the stored event is disabled, so nothing
+    // is kept here.
+    Q_UNUSED(event)
 //    qDebug() << "Mouse Press" << event;
 }
 
@@ -121,10 +119,8 @@ void TraceDisplay::mouseMoveEvent(QMouseEvent *event)
 
 void TraceDisplay::mouseReleaseEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton) {
-        lastMouseReleaseEvent = new QMouseEvent(*event);
-        lastMouseMoveEvent = nullptr;
-    }
+    // Qt6: see mousePressEvent() - no stored event needed while drag is disabled.
+    Q_UNUSED(event)
 //    qDebug() << "Mouse Release" << event;
 }
 
@@ -152,7 +148,9 @@ void TraceDisplay::mouseDoubleClickEvent(QMouseEvent *event)
 {
 
     if (event->button() == Qt::LeftButton) {
-        m_renderer->doubleClickEvent(event->x(), event->y());
+        // Qt6: QMouseEvent::x()/y() are deprecated; use position().
+        const QPoint pos = event->position().toPoint();
+        m_renderer->doubleClickEvent(pos.x(), pos.y());
     }
     if (m_renderer->m_selectedTrace.isEmpty()) {
             // This is really poorly done!!!
@@ -247,11 +245,8 @@ void TraceDisplay::handleWindowChanged(QQuickWindow *win)
     if (win) {
         connect(win, &QQuickWindow::beforeSynchronizing, this, &TraceDisplay::sync, Qt::DirectConnection);
         connect(win, &QQuickWindow::sceneGraphInvalidated, this, &TraceDisplay::cleanup, Qt::DirectConnection);
-//! [1]
-        // If we allow QML to do the clearing, they would clear what we paint
-        // and nothing would show.
-//! [3]
-        win->setClearBeforeRendering(false);
+        // Qt6: setClearBeforeRendering() was removed; set the clear color instead.
+        win->setColor(Qt::black);
     }
 }
 
@@ -261,7 +256,8 @@ void TraceDisplay::sync()
         m_renderer = new TraceDisplayRenderer(nullptr, window()->size() * window()->devicePixelRatio(), m_softwareStartTime);
 //        m_renderer->setShowSaturation(m_showSaturation);
 //        m_renderer->setDisplayFrame(QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
-        connect(window(), &QQuickWindow::beforeRendering, m_renderer, &TraceDisplayRenderer::paint, Qt::DirectConnection);
+        // Qt6: underlay must draw during render-pass recording (see videodisplay.cpp).
+        connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &TraceDisplayRenderer::paint, Qt::DirectConnection);
 
         for (int i=0; i < m_tempTraces.length(); i++) {
             m_renderer->addNewTrace(m_tempTraces[i]);
@@ -909,6 +905,17 @@ void TraceDisplayRenderer::paint()
 {
     currentTime =  QDateTime().currentMSecsSinceEpoch();
 
+    // Qt6: bracket all raw OpenGL with begin/endExternalCommands (replaces resetOpenGLState).
+    m_window->beginExternalCommands();
+
+    // Qt6: under the RHI the scene graph's render target is NOT framebuffer 0, so
+    // capture the currently bound framebuffer and restore it after our FBO pass,
+    // instead of relying on QOpenGLFramebufferObject::release() binding 0 (which
+    // would send the grid/bar drawing to the wrong target and break compositing
+    // with the QML axis labels drawn on top).
+    GLint prevFbo = 0;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
+
     if (m_clearDisplayOnNextDraw)
         initGridH();
 //    m_texture->bind();
@@ -948,7 +955,8 @@ void TraceDisplayRenderer::paint()
     updateTraces();
     drawTraces();
 
-    m_fbo->release();
+    // Qt6: restore the scene graph's framebuffer (was m_fbo->release(), which binds 0).
+    glBindFramebuffer(GL_FRAMEBUFFER, prevFbo);
 //    QImage fboImage(m_fbo->toImage());
 //    fboImage.save("fboImage.png");
 //    m_texture->release();
@@ -988,11 +996,8 @@ void TraceDisplayRenderer::paint()
 
     m_lastTimeDisplayed = currentTime;
 
-
-
-//    // Not strictly needed for this example, but generally useful for when
-//    // mixing with raw OpenGL.
-    m_window->resetOpenGLState();
+    // Qt6: replaces the removed m_window->resetOpenGLState().
+    m_window->endExternalCommands();
 
 }
 
