@@ -10,6 +10,7 @@
 
 #include <QQuickWindow>
 #include <QSGRendererInterface>
+#include <QQuickStyle>
 
 #include "backend.h"
 
@@ -31,6 +32,11 @@ int main(int argc, char *argv[])
     QCoreApplication::setAttribute(Qt::AA_UseDesktopOpenGL);
 
     QGuiApplication app(argc, argv);
+
+    // Qt6: the default Controls style on Windows is the native style, which does
+    // not allow customizing control backgrounds (the QML relies on that). "Basic"
+    // is Qt6's renamed, fully-customizable "Default" style from Qt5.
+    QQuickStyle::setStyle("Basic");
 
     qRegisterMetaType < QVector<quint8> >("QVector<quint8>");
 

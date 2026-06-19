@@ -29,7 +29,7 @@ set(CMAKE_AUTORCC ON)   # compiles source/qml.qrc automatically
 # QOpenGLFramebufferObject moved out of QtGui into the separate Qt6::OpenGL
 # module. The custom renderers (videodisplay, tracedisplay, behaviortracker)
 # need it.
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Qml Quick Widgets OpenGL)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Widgets OpenGL)
 qt_standard_project_setup(REQUIRES 6.5)
 
 # This project has no .ui files (the UI is all QML), so AUTOUIC is unnecessary.
@@ -102,6 +102,7 @@ target_link_libraries(MiniscopeDAQ PRIVATE
     Qt6::Gui
     Qt6::Qml
     Qt6::Quick
+    Qt6::QuickControls2
     Qt6::Widgets
     Qt6::OpenGL
     ${OpenCV_LIBS}
