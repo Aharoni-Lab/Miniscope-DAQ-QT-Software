@@ -123,30 +123,12 @@ if(USE_PYTHON)
     target_link_libraries(MiniscopeDAQ PRIVATE Python3::Python Python3::NumPy)
 endif()
 
-# --- Double-click launcher (Windows + conda) -------------------------------
-# conda packages run from inside their environment, not standalone: OpenCV is
-# split across ~30 module DLLs plus FFmpeg/codec/image deps, and Python is
-# embedded too. Rather than chase a fragile full bundle (windeployqt only
-# handles Qt), generate a launcher that puts the env on PATH and starts the
-# exe, so it can be double-clicked from Explorer.
-if(WIN32)
-    if(DEFINED ENV{CONDA_PREFIX})
-        file(TO_NATIVE_PATH "$ENV{CONDA_PREFIX}" MS_ENV_NATIVE)
-        configure_file(
-            "${CMAKE_CURRENT_SOURCE_DIR}/cmake/launcher.bat.in"
-            "${CMAKE_CURRENT_BINARY_DIR}/MiniscopeDAQ-launch.bat"
-            @ONLY)
-        add_custom_command(TARGET MiniscopeDAQ POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${CMAKE_CURRENT_BINARY_DIR}/MiniscopeDAQ-launch.bat"
-                "$<TARGET_FILE_DIR:MiniscopeDAQ>/MiniscopeDAQ-launch.bat"
-            COMMENT "Placing double-click launcher (MiniscopeDAQ-launch.bat) next to the exe")
-    else()
-        message(STATUS "CONDA_PREFIX not set at configure time; "
-                       "skipping double-click launcher generation. "
-                       "Configure from an activated conda env to enable it.")
-    endif()
-endif()
+# Note: there used to be a second "MiniscopeDAQ-launch.bat" launcher here that
+# just put the conda env on PATH and started the dev exe. It was superseded by
+# the standalone `deploy` target below (which bundles every dependency, so the
+# result needs no conda env at all) and only cluttered build/Release with an
+# extra artifact that confused users, so it was removed. To run the dev build
+# in place, launch from an activated conda env.
 
 # --- Standalone deployment target ------------------------------------------
 # Bundle Qt + OpenCV + OpenBLAS + plugins + QML modules next to the exe so it
