@@ -28,6 +28,7 @@ class backEnd : public QObject
     Q_PROPERTY(bool userConfigOK READ userConfigOK WRITE setUserConfigOK NOTIFY userConfigOKChanged)
     Q_PROPERTY(QString availableCodecList READ availableCodecList WRITE setAvailableCodecList NOTIFY availableCodecListChanged)
     Q_PROPERTY(QStringList availableCodecs READ availableCodecs CONSTANT)
+    Q_PROPERTY(QStringList availableLUTs READ availableLUTs CONSTANT)
     Q_PROPERTY(QString versionNumber READ versionNumber WRITE setVersionNumber NOTIFY versionNumberChanged)
     Q_PROPERTY(QString buildInfo READ buildInfo WRITE setBuildInfo NOTIFY buildInfoChanged)
 
@@ -50,6 +51,11 @@ public:
 
     // List of host-supported codecs, for the compression dropdown in the tree editor.
     QStringList availableCodecs() const { return QStringList(m_availableCodec.begin(), m_availableCodec.end()); }
+
+    // Display LUTs (colormaps) offered in the tree editor's "lut" dropdown. Must
+    // stay in sync with the lutMode mapping in VideoDevice::createView and the
+    // shader. "None" = grayscale.
+    QStringList availableLUTs() const { return {"None", "Green", "Red", "Inferno"}; }
 
     QString versionNumber() { return m_versionNumber; }
     void setVersionNumber(const QString &input) { m_versionNumber = input; emit versionNumberChanged(); }
@@ -75,6 +81,9 @@ public:
     Q_INVOKABLE void saveConfigObject();
     // Save the (edited) user config to a user-chosen path from the Save-As dialog.
     Q_INVOKABLE void saveConfigObjectAs(const QString &filePath);
+    // Enumerate connected video devices as "deviceID N: <name>" lines so the user
+    // can see which deviceID maps to which camera. Windows (DirectShow) only.
+    Q_INVOKABLE QString scanVideoDevices();
 
 
     void loadUserConfigFile();

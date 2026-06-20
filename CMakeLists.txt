@@ -102,6 +102,10 @@ if(WIN32)
     set_target_properties(MiniscopeLauncher PROPERTIES
         OUTPUT_NAME "MiniscopeDAQ-launcher"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/launcher")
+
+    # DirectShow video-device enumeration (backEnd::scanVideoDevices): strmiids
+    # provides the CLSID/IID symbols, ole32/oleaut32 the COM + VARIANT helpers.
+    target_link_libraries(MiniscopeDAQ PRIVATE strmiids ole32 oleaut32)
 endif()
 
 target_include_directories(MiniscopeDAQ PRIVATE

@@ -136,6 +136,10 @@ TreeView {
                 // The compression value is a video codec: offer the host-supported
                 // codecs as a dropdown instead of a free-text field.
                 readonly property bool isCompression: cell.model.key === "compression" && !cell.hasKids
+                // The lut value is a display colormap: offer the available LUTs.
+                readonly property bool isLut: cell.model.key === "lut" && !cell.hasKids
+                // Either of the above renders a dropdown instead of a text field.
+                readonly property bool isChoice: isCompression || isLut
 
                 IntValidator    { id: intV; bottom: 0 }
                 DoubleValidator { id: dblV; bottom: 0 }
@@ -146,7 +150,7 @@ TreeView {
                     anchors.right: valueCell.isPath ? browseBtn.left : parent.right
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
-                    visible: cell.model.type !== "Bool" && !valueCell.isCompression
+                    visible: cell.model.type !== "Bool" && !valueCell.isChoice
                     enabled: cell.model.type !== "Object" && cell.model.type !== "Array"
                     text: cell.model.value === undefined ? "" : cell.model.value
                     font.pointSize: 10
@@ -197,20 +201,22 @@ TreeView {
                 }
 
                 ComboBox {
-                    id: compBox
-                    visible: valueCell.isCompression
+                    id: choiceBox
+                    visible: valueCell.isChoice
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     font.pointSize: 10
-                    // Current stored codec; coerce to string in case the model hands
+                    // Options: codecs for "compression", colormaps for "lut".
+                    readonly property var choices: valueCell.isLut ? backend.availableLUTs
+                                                                    : backend.availableCodecs
+                    // Current stored value; coerce to string in case the model hands
                     // back a non-string.
                     readonly property string curVal: cell.model.value === undefined ? "" : "" + cell.model.value
-                    // Host-supported codecs; keep an existing-but-unsupported value in
-                    // the list so it stays visible (and the user can change it).
+                    // Keep an existing-but-unlisted value visible so the user can change it.
                     model: {
-                        var list = backend.availableCodecs.slice();
+                        var list = choiceBox.choices.slice();
                         if (curVal !== "" && list.indexOf(curVal) === -1)
                             list.unshift(curVal);
                         return list;

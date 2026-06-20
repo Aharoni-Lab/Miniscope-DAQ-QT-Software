@@ -23,6 +23,9 @@ Item {
     signal calibrateCameraQuit()
 
     signal saturationSwitchChanged(bool value)
+    // Declared (no UI switch) so the shared VideoDevice lutSwitchChanged connect
+    // resolves cleanly; the green LUT toggle lives on the Miniscope window only.
+    signal lutSwitchChanged(bool value)
 
     Keys.onPressed: {
         if (event.key === Qt.Key_H) {

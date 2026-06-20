@@ -15,6 +15,7 @@ Item {
     signal takeScreenShotSignal()
     signal dFFSwitchChanged(bool value)
     signal saturationSwitchChanged(bool value)
+    signal lutSwitchChanged(bool value)
 
     signal setRoiClicked()
     signal addTraceRoiClicked()
@@ -199,6 +200,19 @@ Item {
                 font.family: "Arial"
                 Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
                 Layout.column: 0
+                Layout.row: 0
+            }
+
+            Switch {
+                id: lutSwitch
+                objectName: "lutSwitch"
+                text: qsTr("Apply LUT")
+                hoverEnabled: false
+
+                font.bold: true
+                font.family: "Arial"
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
+                Layout.column: 1
                 Layout.row: 0
             }
 
@@ -446,6 +460,10 @@ Item {
     Connections{
         target: saturationSwitch
         function onClicked() { saturationSwitchChanged(saturationSwitch.checked) }
+    }
+    Connections{
+        target: lutSwitch
+        function onClicked() { lutSwitchChanged(lutSwitch.checked) }
     }
 
     states: [

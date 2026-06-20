@@ -12,6 +12,7 @@ VideoDisplay::VideoDisplay()
     : m_t(0),
       m_acqFPS(0),
       m_renderer(nullptr),
+      m_lutMode(0),
       m_roiSelectionActive(false),
       m_ROI({0,0,10,10,0}),
       m_hasPressPos(false)
@@ -50,6 +51,14 @@ void VideoDisplay::setShowSaturation(double value)
     m_showSaturation = value;
     if (m_renderer) {
         m_renderer->setShowSaturation(value);
+    }
+}
+
+void VideoDisplay::setLutMode(double value)
+{
+    m_lutMode = value;
+    if (m_renderer) {
+        m_renderer->setLutMode(value);
     }
 }
 //void VideoDisplayRenderer::setDisplayFrame(QImage frame) {
@@ -94,6 +103,7 @@ void VideoDisplay::sync()
     if (!m_renderer) {
         m_renderer = new VideoDisplayRenderer();
         m_renderer->setShowSaturation(m_showSaturation);
+        m_renderer->setLutMode(m_lutMode);
 //        m_renderer->setDisplayFrame(QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
         // Qt6: draw during render-pass recording. beforeRendering now fires before
         // the render pass begins, when there is no bound framebuffer to draw into,
@@ -246,6 +256,7 @@ void VideoDisplayRenderer::paint()
     m_program->setUniformValue("alpha", (float) m_alpha);
     m_program->setUniformValue("beta", (float) m_beta);
     m_program->setUniformValue("showSaturation", (float) m_showStaturation);
+    m_program->setUniformValue("lutMode", (float) m_lutMode);
 
     glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
 

@@ -38,6 +38,7 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     m_roiBoundingBox[3] = -1;
 
     m_traceDisplayStatus = false;
+    m_lutColormap = 1; // default to the green LUT when toggled on
     m_ucDevice = ucDevice; // hold user config for this device
     parseUserConfigDevice();
     m_cDevice = getDeviceConfig(m_ucDevice["deviceType"].toString()); // holds specific Miniscope configuration
@@ -196,6 +197,9 @@ void VideoDevice::createView()
         QObject::connect(rootObject, SIGNAL( saturationSwitchChanged(bool) ),
                              this, SLOT( handleSaturationSwitchChanged(bool) ));
 
+        QObject::connect(rootObject, SIGNAL( lutSwitchChanged(bool) ),
+                             this, SLOT( handleLutSwitchChanged(bool) ));
+
         configureDeviceControls();
         vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
         vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
@@ -210,6 +214,21 @@ void VideoDevice::createView()
             vidDisplay->setShowSaturation(0);
             rootObject->findChild<QQuickItem*>("saturationSwitch")->setProperty("checked", false);
         }
+
+        // Display LUT (colormap) chosen in the user config. The colormap is stored
+        // in m_lutColormap (used by the on-window "Apply LUT" toggle); the switch
+        // starts on when the config selects a real LUT. "None"/absent keeps the
+        // green default available for when the user toggles it.
+        const QString lutName = m_ucDevice["lut"].toString("None");
+        bool lutOn = true;
+        if (lutName == "Red")          m_lutColormap = 2;
+        else if (lutName == "Inferno") m_lutColormap = 3;
+        else if (lutName == "Green")   m_lutColormap = 1;
+        else { m_lutColormap = 1; lutOn = false; } // "None" / unrecognized
+        vidDisplay->setLutMode(lutOn ? m_lutColormap : 0);
+        QQuickItem *lutSwitch = rootObject->findChild<QQuickItem*>("lutSwitch");
+        if (lutSwitch) // only the Miniscope window has the switch
+            lutSwitch->setProperty("checked", lutOn);
 
         // Set ROI Stuff
         QObject::connect(rootObject, SIGNAL( setRoiClicked() ), this, SLOT( handleSetRoiClicked()));
@@ -658,6 +677,12 @@ void VideoDevice::handleTakeScreenShotSignal()
 void VideoDevice::handleSaturationSwitchChanged(bool checked)
 {
     vidDisplay->setShowSaturation(checked);
+}
+
+void VideoDevice::handleLutSwitchChanged(bool checked)
+{
+    // Apply the config-selected colormap, or grayscale (0) when toggled off.
+    vidDisplay->setLutMode(checked ? m_lutColormap : 0);
 }
 
 void VideoDevice::handleSetExtTriggerTrackingState(bool state)
