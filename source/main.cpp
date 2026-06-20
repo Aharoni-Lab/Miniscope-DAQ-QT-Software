@@ -11,6 +11,7 @@
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include <QQuickStyle>
+#include <QStyleHints>
 
 #include "backend.h"
 
@@ -37,6 +38,11 @@ int main(int argc, char *argv[])
     // not allow customizing control backgrounds (the QML relies on that). "Basic"
     // is Qt6's renamed, fully-customizable "Default" style from Qt5.
     QQuickStyle::setStyle("Basic");
+
+    // Qt6 follows the OS dark/light theme, but this UI is designed for light
+    // backgrounds with implicit (palette) text colors; under Windows dark mode
+    // the default text becomes light and is invisible. Force the light scheme.
+    app.styleHints()->setColorScheme(Qt::ColorScheme::Light);
 
     qRegisterMetaType < QVector<quint8> >("QVector<quint8>");
 
