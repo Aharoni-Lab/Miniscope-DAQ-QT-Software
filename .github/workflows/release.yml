@@ -1,0 +1,75 @@
+# Build the standalone Windows distribution and publish it as a GitHub Release.
+#
+# Triggers:
+#   * push a tag like v1.10  -> builds and creates/updates a Release with the zip
+#   * manual "Run workflow"  -> builds and uploads the zip as a run artifact only
+#
+# The build mirrors the local recipe exactly (conda env from environment.yml,
+# CMake + MSVC, then the `deploy` target which bundles every dependency into
+# build/Release/dist/). deploy.py verifies the bundle and exits non-zero if any
+# conda dependency is missing, so a broken bundle fails the job.
+#
+# NOTE: not yet validated on GitHub's runners - the first tag push / manual run
+# will shake out any runner-specific issues (conda activation, solve time).
+name: Build & Release (Windows)
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write          # needed to create the Release on tag pushes
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh        # matches the local PowerShell build recipe
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up conda env (Miniforge + environment.yml)
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          environment-file: environment.yml
+          activate-environment: miniscope-qt6
+          auto-activate-base: false
+
+      - name: Configure (CMake + MSVC)
+        run: >
+          cmake -B build -S . -G "Visual Studio 17 2022" -A x64
+          -DCMAKE_PREFIX_PATH="$env:CONDA_PREFIX/Library"
+          -DPython3_EXECUTABLE="$env:CONDA_PREFIX/python.exe"
+          -DUSE_PYTHON=ON
+
+      - name: Build (Release)
+        run: cmake --build build --config Release
+
+      - name: Deploy standalone bundle (build/Release/dist/)
+        run: cmake --build build --config Release --target deploy
+
+      - name: Package dist/ into a zip
+        run: |
+          $name = if ($env:GITHUB_REF_TYPE -eq 'tag') { "MiniscopeDAQ-$env:GITHUB_REF_NAME-Windows-x64.zip" } else { "MiniscopeDAQ-Windows-x64.zip" }
+          Compress-Archive -Path build/Release/dist/* -DestinationPath $name -Force
+          "ZIP_NAME=$name" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "Built $name"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MiniscopeDAQ-Windows-x64
+          path: ${{ env.ZIP_NAME }}
+          retention-days: 14
+
+      - name: Publish Release (tag pushes only)
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          generate_release_notes: true
