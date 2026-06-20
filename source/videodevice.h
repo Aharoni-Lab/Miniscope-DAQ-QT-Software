@@ -105,6 +105,7 @@ public slots:
     void handleTakeScreenShotSignal();
 
     void handleSaturationSwitchChanged(bool checked);
+    void handleLutSwitchChanged(bool checked);
     void handleSetExtTriggerTrackingState(bool state);
     void handleRecordStart(); // Currently used to toggle LED on and off
     void handleRecordStop(); // Currently used to toggle LED on and off
@@ -180,6 +181,10 @@ private:
 
     qint64 m_softwareStartTime;
     bool m_traceDisplayStatus;
+
+    // Display LUT (colormap) selected in the user config: 1=green, 2=red,
+    // 3=inferno; the on-window switch toggles between this and 0 (grayscale).
+    int m_lutColormap;
 };
 
 #endif // VIDEODEVICE_H
