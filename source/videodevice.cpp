@@ -167,8 +167,17 @@ void VideoDevice::createView()
         view->setX(m_ucDevice["windowX"].toInt(1));
         view->setY(m_ucDevice["windowY"].toInt(1));
 
+        // Let the video display scale with the window, locked to the camera's
+        // aspect ratio (the full-screen video quad would otherwise distort).
+        view->setResizeMode(QQuickView::SizeRootObjectToView);
+        view->setMinimumSize(QSize(view->width() / 2, view->height() / 2));
+        view->setLockedAspectRatio((qreal)view->width() / (qreal)view->height());
+
 #ifdef Q_OS_WINDOWS
-        view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
+        // Resizable (border drag) + minimizable; no maximize since that would break
+        // the locked aspect ratio.
+        view->setFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+                       | Qt::WindowMinimizeButtonHint);
 #endif
         view->show();
         // --------------------
@@ -217,13 +226,17 @@ void VideoDevice::createView()
         QObject::connect(view, &NewQuickView::closing, deviceStream, &VideoStreamOCV::stopSteam);
         QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &VideoDevice::sendNewFrame);
 
+        // Keep the ROI overlay tracking the video as the window is resized.
+        QObject::connect(vidDisplay, &QQuickItem::widthChanged, this, &VideoDevice::handleDisplayResized);
+
         sendMessage(m_deviceName + " is connected.");
 
         if (m_ucDevice.contains("ROI")) {
-            vidDisplay->setROI({(int)round(m_roiBoundingBox[0] * m_ucDevice["windowScale"].toDouble(1)),
-                                (int)round(m_roiBoundingBox[1] * m_ucDevice["windowScale"].toDouble(1)),
-                                (int)round(m_roiBoundingBox[2] * m_ucDevice["windowScale"].toDouble(1)),
-                                (int)round(m_roiBoundingBox[3] * m_ucDevice["windowScale"].toDouble(1)),
+            const QSizeF scale = displayPerCameraScale();
+            vidDisplay->setROI({(int)round(m_roiBoundingBox[0] * scale.width()),
+                                (int)round(m_roiBoundingBox[1] * scale.height()),
+                                (int)round(m_roiBoundingBox[2] * scale.width()),
+                                (int)round(m_roiBoundingBox[3] * scale.height()),
                                 0});
         }
 
@@ -689,6 +702,35 @@ void VideoDevice::handleInitCommandsRequest()
     sendInitCommands();
 }
 
+QSizeF VideoDevice::displayPerCameraScale()
+{
+    // The video fills the display item, so display/camera gives pixels-per-camera-
+    // pixel. Computed live so it stays correct as the window is resized; falls back
+    // to the static config windowScale before the display exists.
+    const double camW = m_cDevice["width"].toInt(-1);
+    const double camH = m_cDevice["height"].toInt(-1);
+    if (vidDisplay && camW > 0 && camH > 0 && vidDisplay->width() > 0 && vidDisplay->height() > 0)
+        return QSizeF(vidDisplay->width() / camW, vidDisplay->height() / camH);
+
+    const double s = m_ucDevice["windowScale"].toDouble(1);
+    return QSizeF(s, s);
+}
+
+void VideoDevice::handleDisplayResized()
+{
+    // Reposition the committed ROI overlay for the new display size. The ROI is
+    // stored in camera pixels (m_roiBoundingBox); scale it back to display pixels.
+    if (!vidDisplay || m_roiBoundingBox[0] < 0)
+        return;
+
+    const QSizeF scale = displayPerCameraScale();
+    vidDisplay->setROI({(int)round(m_roiBoundingBox[0] * scale.width()),
+                        (int)round(m_roiBoundingBox[1] * scale.height()),
+                        (int)round(m_roiBoundingBox[2] * scale.width()),
+                        (int)round(m_roiBoundingBox[3] * scale.height()),
+                        0});
+}
+
 void VideoDevice::handleSetRoiClicked()
 {
     // TODO: Don't allow this if recording is active!!!!
@@ -711,11 +753,13 @@ void VideoDevice::handleAddTraceRoiClicked()
 void VideoDevice::handleNewROI(int leftEdge, int topEdge, int width, int height)
 {
     m_roiIsDefined = true;
-    // First scale the local position values to pixel values
-    m_roiBoundingBox[0] = round(leftEdge/m_ucDevice["windowScale"].toDouble(1));
-    m_roiBoundingBox[1] = round(topEdge/m_ucDevice["windowScale"].toDouble(1));
-    m_roiBoundingBox[2] = round(width/m_ucDevice["windowScale"].toDouble(1));
-    m_roiBoundingBox[3] = round(height/m_ucDevice["windowScale"].toDouble(1));
+    // Map the selection (in live display pixels) back to camera pixels using the
+    // current display scale, so the ROI is correct even after the window is resized.
+    const QSizeF scale = displayPerCameraScale();
+    m_roiBoundingBox[0] = round(leftEdge / scale.width());
+    m_roiBoundingBox[1] = round(topEdge / scale.height());
+    m_roiBoundingBox[2] = round(width / scale.width());
+    m_roiBoundingBox[3] = round(height / scale.height());
 
     if ((m_roiBoundingBox[0] + m_roiBoundingBox[2]) > m_cDevice["width"].toInt(-1)) {
         // Edge is off screen

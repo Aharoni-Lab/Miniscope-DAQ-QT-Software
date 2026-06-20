@@ -6,6 +6,8 @@
 #include <QJsonArray>
 #include <QThread>
 #include <QString>
+#include <QStringList>
+#include <QUrl>
 #include <QStandardItemModel>
 #include <QStandardItem>
 
@@ -25,7 +27,9 @@ class backEnd : public QObject
     Q_PROPERTY(QString userConfigDisplay READ userConfigDisplay WRITE setUserConfigDisplay NOTIFY userConfigDisplayChanged)
     Q_PROPERTY(bool userConfigOK READ userConfigOK WRITE setUserConfigOK NOTIFY userConfigOKChanged)
     Q_PROPERTY(QString availableCodecList READ availableCodecList WRITE setAvailableCodecList NOTIFY availableCodecListChanged)
+    Q_PROPERTY(QStringList availableCodecs READ availableCodecs CONSTANT)
     Q_PROPERTY(QString versionNumber READ versionNumber WRITE setVersionNumber NOTIFY versionNumberChanged)
+    Q_PROPERTY(QString buildInfo READ buildInfo WRITE setBuildInfo NOTIFY buildInfoChanged)
 
     Q_PROPERTY(QStandardItemModel* jsonTreeModel READ jsonTreeModel WRITE setJsonTreeModel NOTIFY jsonTreeModelChanged)
 
@@ -44,20 +48,33 @@ public:
     QString availableCodecList(){ return m_availableCodecList; }
     void setAvailableCodecList(const QString &input);
 
+    // List of host-supported codecs, for the compression dropdown in the tree editor.
+    QStringList availableCodecs() const { return QStringList(m_availableCodec.begin(), m_availableCodec.end()); }
+
     QString versionNumber() { return m_versionNumber; }
-    void setVersionNumber(const QString &input) { m_versionNumber = input; }
+    void setVersionNumber(const QString &input) { m_versionNumber = input; emit versionNumberChanged(); }
+
+    QString buildInfo() { return m_buildInfo; }
+    void setBuildInfo(const QString &input) { m_buildInfo = input; emit buildInfoChanged(); }
 
     QStandardItemModel* jsonTreeModel() { return m_jsonTreeModel; }
     void setJsonTreeModel(QStandardItemModel* model) { m_jsonTreeModel = model; }
 
     void constructJsonTreeModel();
     Q_INVOKABLE void treeViewTextChanged(const QModelIndex &index, QString text);
+    // Convert a file:// URL from a QML folder/file dialog to a native path, so
+    // the path-browse buttons in the config tree editor can store a plain path.
+    Q_INVOKABLE QString urlToLocalFile(const QUrl &url) const { return url.toLocalFile(); }
+    // Inverse of urlToLocalFile: build a file:// URL to seed the Save-As dialog.
+    Q_INVOKABLE QUrl localFileToUrl(const QString &path) const { return QUrl::fromLocalFile(path); }
     QStandardItem *handleJsonObject(QStandardItem* parent, QJsonObject obj, QJsonObject objProps);
     QStandardItem *handleJsonArray(QStandardItem* parent, QJsonArray arry, QString type);
     void generateUserConfigFromModel();
     QJsonObject getObjectFromModel(QModelIndex index);
     QJsonArray getArrayFromModel(QModelIndex index);
     Q_INVOKABLE void saveConfigObject();
+    // Save the (edited) user config to a user-chosen path from the Save-As dialog.
+    Q_INVOKABLE void saveConfigObjectAs(const QString &filePath);
 
 
     void loadUserConfigFile();
@@ -79,6 +96,7 @@ signals:
     void userConfigOKChanged();
     void availableCodecListChanged();
     void versionNumberChanged();
+    void buildInfoChanged();
     void jsonTreeModelChanged();
 
     void closeAll();
@@ -102,6 +120,7 @@ private:
     void testCodecSupport();
 
     QString m_versionNumber;
+    QString m_buildInfo;
     QString m_userConfigFileName;
     QString m_userConfigDisplay;
     bool m_userConfigOK;

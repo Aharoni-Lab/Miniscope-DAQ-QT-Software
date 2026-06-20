@@ -117,10 +117,17 @@ public slots:
     void handleNewROI(int leftEdge, int topEdge, int width, int height);
     virtual void handleAddNewTraceROI(int leftEdge, int topEdge, int width, int height);
 
+    // Re-applies the stored ROI overlay at the current display size so it tracks
+    // window resizes.
+    void handleDisplayResized();
+
 private:
 
     QSize m_resolution;
     void configureDeviceControls();
+    // Live display-pixels-per-camera-pixel (x, y). Used to map ROI selections to
+    // camera coordinates and back, correctly at any (resized) window size.
+    QSizeF displayPerCameraScale();
     QVector<QMap<QString, int>> parseSendCommand(QJsonArray sendCommand);
     int processString2Int(QString s);
     QMap<QString,quint16> deviceAddr; //only used with Miniscopes???

@@ -64,7 +64,8 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64
 
 int BehaviorTracker::initNumpy()
 {
-    import_array1(-1);
+    import_array1(-1); // expands to `return -1` on failure; fall through = success
+    return 0;
 }
 
 void BehaviorTracker::parseUserConfigTracker()
@@ -216,8 +217,17 @@ void BehaviorTracker::createView(QSize resolution)
     view->setX(btConfig["windowX"].toInt(1));
     view->setY(btConfig["windowY"].toInt(1));
 
+    // Let the tracker display scale with the window, locked to the camera's
+    // aspect ratio.
+    view->setResizeMode(QQuickView::SizeRootObjectToView);
+    view->setMinimumSize(QSize(view->width() / 2, view->height() / 2));
+    view->setLockedAspectRatio((qreal)view->width() / (qreal)view->height());
+
 #ifdef Q_OS_WINDOWS
-    view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
+    // Resizable (border drag) + minimizable; no maximize since that would break
+    // the locked aspect ratio.
+    view->setFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+                   | Qt::WindowMinimizeButtonHint);
 #endif
 
 

@@ -1,0 +1,37 @@
+# Reproducible build environment for Miniscope-DAQ-QT-Software (Qt6 / Windows).
+#
+# Create it once, then build per the CMake instructions in CMakeLists.txt:
+#     conda env create -f environment.yml
+#     conda activate miniscope-qt6
+#     cmake -B build -S . -G "Visual Studio 17 2022" -A x64 ^
+#         -DCMAKE_PREFIX_PATH="%CONDA_PREFIX%/Library" ^
+#         -DPython3_EXECUTABLE="%CONDA_PREFIX%/python.exe" -DUSE_PYTHON=ON
+#     cmake --build build --config Release
+#     cmake --build build --config Release --target deploy   # -> build/Release/dist/
+#
+# To update an existing env after editing this file:
+#     conda env update -f environment.yml --prune
+#
+# IMPORTANT - BLAS provider MUST be OpenBLAS, not MKL.
+# OpenCV's LAPACK/BLAS under MKL pulls mkl_rt plus ~565 MB of dynamically-loaded
+# kernels that tools/deploy.py cannot see (and so cannot bundle), which makes the
+# standalone dist/ fail on a machine without MKL. The `libblas=*=*openblas` pin
+# below forces the small, bundleable OpenBLAS variant. Do not remove it.
+#
+# Versions are pinned to major.minor for a reproducible-yet-maintainable build.
+# For byte-for-byte reproducibility (identical DLL set every time), generate a
+# lock file with conda-lock and install from that instead.
+name: miniscope-qt6
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - qt6-main=6.11
+  - libopencv=4.13
+  - numpy=2.4
+  - cmake
+  - ninja
+  - "libblas=*=*openblas"   # force OpenBLAS, never MKL (see note above)
+  - pip
+  - pip:
+      - pefile              # deploy.py walks the PE import table to find DLL deps

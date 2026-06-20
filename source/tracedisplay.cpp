@@ -47,17 +47,33 @@ void TraceDisplayBackend::createView()
     view->setX(m_ucTraceDisplay["windowX"].toInt(1));
     view->setY(m_ucTraceDisplay["windowY"].toInt(1));
 
+    // Let the QML content scale with the window, and lock resizing to the window's
+    // native aspect ratio.
+    view->setResizeMode(QQuickView::SizeRootObjectToView);
+    view->setMinimumSize(QSize(view->width() / 2, view->height() / 2));
+    view->setLockedAspectRatio((qreal)view->width() / (qreal)view->height());
+
 #ifdef Q_OS_WINDOWS
-    view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
+    // Resizable window with a system menu + close (X) button. The trace window is
+    // meant to be user-closeable; no maximize button since that would break the
+    // locked aspect ratio.
+    view->setFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+                   | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
 #endif
     view->show();
 
     m_traceDisplay = view->rootObject()->findChild<TraceDisplay*>("traceDisplay");
     m_traceDisplay->setSoftwareStartTime(m_softwareStartTime);
+
+    // Tear down cleanly when the window is closed (user X button or app exit).
+    QObject::connect(view, &NewQuickView::closing, this, &TraceDisplayBackend::handleWindowClosing);
 }
 
 void TraceDisplayBackend::addNewTrace(QString name, float color[3], float scale, QString units, bool sameOffset, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY)
 {
+    // The window may have been closed at runtime; drop trace additions once it's gone.
+    if (!m_traceDisplay)
+        return;
 
     trace_t newTrace = trace_t(name, color, scale, units, sameOffset, displayBufNum, numDataInBuf, bufSize, dataT, dataY);
     m_traceDisplay->addNewTrace(newTrace);
@@ -65,7 +81,21 @@ void TraceDisplayBackend::addNewTrace(QString name, float color[3], float scale,
 
 void TraceDisplayBackend::close()
 {
-    view->close();
+    // Routes through handleWindowClosing() via NewQuickView::closing. Guard against
+    // a second close (e.g. closeAll() after the user already closed the window).
+    if (view)
+        view->close();
+}
+
+void TraceDisplayBackend::handleWindowClosing()
+{
+    // Null the QML item first so a late addNewTrace() can't touch a dying object,
+    // then defer the view deletion (we're inside the view's own close event).
+    m_traceDisplay = nullptr;
+    if (view) {
+        view->deleteLater();
+        view = nullptr;
+    }
 }
 
 TraceDisplay::TraceDisplay()
@@ -455,6 +485,12 @@ void TraceDisplayRenderer::drawRenderTexture()
 {
 //    m_texture->bind(m_fbo->takeTexture());
     GLuint textUnit = m_fbo->texture();
+    // Qt6/RHI: the scene graph may leave a texture unit other than 0 active, so a
+    // bare glBindTexture() would attach our FBO color texture to the wrong unit
+    // while the shader samples unit 0 -> the traces never composite onto the
+    // screen (videodisplay avoids this because QOpenGLTexture::bind(0) selects
+    // the unit implicitly). Explicitly select unit 0 before binding.
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, textUnit);
 //    m_texture = new QOpenGLTexture(QImage(":/img/MiniscopeLogo.png").rgbSwapped());
 //    qDebug() << "Texture num" << m_fbo->texture();
@@ -915,6 +951,14 @@ void TraceDisplayRenderer::paint()
     // with the QML axis labels drawn on top).
     GLint prevFbo = 0;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
+
+    // The render-target FBO is created once at the initial size; recreate it if the
+    // window was resized so the trace texture matches the new viewport.
+    if (m_viewportSize.isValid() && (!m_fbo || m_fbo->size() != m_viewportSize)) {
+        delete m_fbo;
+        m_fbo = new QOpenGLFramebufferObject(m_viewportSize);
+        m_clearDisplayOnNextDraw = true;
+    }
 
     if (m_clearDisplayOnNextDraw)
         initGridH();

@@ -35,11 +35,27 @@ Window {
         visible: false
     }
 
+    FileDialog {
+        // Save-As dialog: lets the user choose the folder and filename to save the
+        // (possibly edited) user config to.
+        id: saveConfigDialog
+        title: "Save user configuration as…"
+        fileMode: FileDialog.SaveFile
+        nameFilters: [ "JSON files (*.json)", "All files (*)" ]
+        defaultSuffix: "json"
+        onAccepted: {
+            var path = backend.urlToLocalFile(saveConfigDialog.selectedFile)
+            backend.saveConfigObjectAs(path)
+            saveMessageDialog.savedPath = path
+            saveMessageDialog.open()
+        }
+    }
+
 
     Window {
         id: helpDialog
         width: 600
-        height: 200
+        height: 260
         visible: false
         title: "Miniscope DAQ Help"
         ColumnLayout {
@@ -47,13 +63,12 @@ Window {
 
             TextArea {
                 text: "Miniscope DAQ Software version " + backend.versionNumber + "<br/>" +
-                      // Qt6: OpenGLInfo attached type was removed; dropped the GL version line.
+                      "<font color='#555555'>" + backend.buildInfo + "</font><br/> <br/>" +
                       "Developed by the <a href='https://aharoni-lab.github.io/'>Aharoni Lab</a>, UCLA <br/> " +
                       "Overview of the UCLA Miniscope project: <a href='http://www.miniscope.org'>click here</a> <br/>" +
                       "Miniscope Wiki for newest projects: <a href='https://github.com/Aharoni-Lab/Miniscope-v4/wiki'>click here</a> <br/>" +
                       "Miniscope Discussion Board: <a href='https://groups.google.com/d/forum/miniscope'>click here</a> <br/>" +
-                      "Please submit issues, comments, suggestions to the Miniscope DAQ Software Github Repository: <a href='https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software'>click here</a> <br/>" +
-                      "Miniscope Twitter Link: <a href='https://twitter.com/MiniscopeTeam'>click here</a> <br/> <br/>" +
+                      "Please submit issues, comments, suggestions to the Miniscope DAQ Software Github Repository: <a href='https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software'>click here</a> <br/> <br/>" +
                       "Icons from <a href='https://icons8.com/'>icon8</a>"
                 verticalAlignment: Text.AlignVCenter
                 horizontalAlignment: Text.AlignHCenter
@@ -111,9 +126,9 @@ Window {
 
     MessageDialog {
         id: saveMessageDialog
-        property string fName: backend.userConfigFileName
+        property string savedPath: ""
         title: "User Config File Saved"
-        text:  "The user config file has been saved to " + fName.replace(".json", "_new.json")
+        text:  "The user config file has been saved to " + savedPath
         onAccepted: {
             visible = false
         }
@@ -197,9 +212,10 @@ Window {
                     color: "#a8a7fd"
                 }
                 onClicked: {
-
-                    backend.saveConfigObject()
-                    saveMessageDialog.open()   // Qt6: open() instead of visible = true
+                    // Seed the dialog with the loaded config's folder + name, then
+                    // let the user pick the folder/filename to save to.
+                    saveConfigDialog.selectedFile = backend.localFileToUrl(backend.userConfigFileName)
+                    saveConfigDialog.open()
                 }
                 onHoveredChanged: hovered ? configSaveRect.color = "#f8a7fd" : configSaveRect.color = "#a8a7fd"
 

@@ -15,7 +15,7 @@
 # ---------------------------------------------------------------------------
 cmake_minimum_required(VERSION 3.21)
 
-project(MiniscopeDAQ VERSION 1.10 LANGUAGES CXX)
+project(MiniscopeDAQ VERSION 1.2 LANGUAGES CXX)
 
 option(USE_PYTHON "Build the DeepLabCut-Live behaviour tracker (embedded Python)" ON)
 
@@ -91,11 +91,17 @@ if(WIN32)
          "IDI_ICON1 ICON \"${CMAKE_CURRENT_SOURCE_DIR}/source/miniscope_icon.ico\"\n")
     target_sources(MiniscopeDAQ PRIVATE "${APP_ICON_RC}")
 
-    # Tiny launcher exe for a clean distribution layout: the launcher sits at the
-    # top with the app icon; the real app + all DLLs live in a bin/ subfolder.
-    # deploy.py assembles dist/{MiniscopeDAQ.exe(=launcher), bin/...}.
+    # Tiny launcher that becomes dist/MiniscopeDAQ.exe: it keeps the top of the
+    # distribution to a single loose file (the executable) and runs
+    # bin/MiniscopeDAQ.exe with the working dir set to the top, so the DLL clutter
+    # hides in bin/ while the configs stay visible at the top (see
+    # tools/launcher.cpp + tools/deploy.py). Built into a side folder, NOT
+    # build/Release, so the build output dir stays uncluttered; deploy.py picks it
+    # up via its CMake target-file path.
     add_executable(MiniscopeLauncher WIN32 tools/launcher.cpp "${APP_ICON_RC}")
-    set_target_properties(MiniscopeLauncher PROPERTIES OUTPUT_NAME "MiniscopeDAQ-launcher")
+    set_target_properties(MiniscopeLauncher PROPERTIES
+        OUTPUT_NAME "MiniscopeDAQ-launcher"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/launcher")
 endif()
 
 target_include_directories(MiniscopeDAQ PRIVATE
@@ -123,35 +129,20 @@ if(USE_PYTHON)
     target_link_libraries(MiniscopeDAQ PRIVATE Python3::Python Python3::NumPy)
 endif()
 
-# --- Double-click launcher (Windows + conda) -------------------------------
-# conda packages run from inside their environment, not standalone: OpenCV is
-# split across ~30 module DLLs plus FFmpeg/codec/image deps, and Python is
-# embedded too. Rather than chase a fragile full bundle (windeployqt only
-# handles Qt), generate a launcher that puts the env on PATH and starts the
-# exe, so it can be double-clicked from Explorer.
-if(WIN32)
-    if(DEFINED ENV{CONDA_PREFIX})
-        file(TO_NATIVE_PATH "$ENV{CONDA_PREFIX}" MS_ENV_NATIVE)
-        configure_file(
-            "${CMAKE_CURRENT_SOURCE_DIR}/cmake/launcher.bat.in"
-            "${CMAKE_CURRENT_BINARY_DIR}/MiniscopeDAQ-launch.bat"
-            @ONLY)
-        add_custom_command(TARGET MiniscopeDAQ POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${CMAKE_CURRENT_BINARY_DIR}/MiniscopeDAQ-launch.bat"
-                "$<TARGET_FILE_DIR:MiniscopeDAQ>/MiniscopeDAQ-launch.bat"
-            COMMENT "Placing double-click launcher (MiniscopeDAQ-launch.bat) next to the exe")
-    else()
-        message(STATUS "CONDA_PREFIX not set at configure time; "
-                       "skipping double-click launcher generation. "
-                       "Configure from an activated conda env to enable it.")
-    endif()
-endif()
+# Note: there used to be a second "MiniscopeDAQ-launch.bat" launcher here that
+# just put the conda env on PATH and started the dev exe. It was superseded by
+# the standalone `deploy` target below (which bundles every dependency, so the
+# result needs no conda env at all) and only cluttered build/Release with an
+# extra artifact that confused users, so it was removed. To run the dev build
+# in place, launch from an activated conda env.
 
 # --- Standalone deployment target ------------------------------------------
-# Bundle Qt + OpenCV + OpenBLAS + plugins + QML modules next to the exe so it
-# runs by double-click with NO conda env on PATH, and the build/Release folder
-# can be copied to any Windows PC. Run after building:
+# Assemble a clean, standalone dist/ folder that runs by double-click with NO
+# conda env on PATH and can be copied to any Windows PC. Layout (see deploy.py):
+#     dist/MiniscopeDAQ.exe                 <- launcher (the only loose file)
+#     dist/deviceConfigs|userConfigs|Scripts<- configs, visible at the top
+#     dist/bin/                             <- real exe + all DLLs + plugins + qml
+# Output: build/Release/dist/. Run after building:
 #     cmake --build build --config Release --target deploy
 # Requires: run from the activated conda env, and `pip install pefile`.
 # IMPORTANT: the env must use the OpenBLAS BLAS variant, not MKL (MKL is 565 MB
@@ -165,7 +156,7 @@ if(WIN32 AND DEFINED ENV{CONDA_PREFIX})
         DEPENDS MiniscopeDAQ MiniscopeLauncher
         USES_TERMINAL
         VERBATIM
-        COMMENT "Bundling dependencies into dist/ (launcher + bin/) for a standalone build")
+        COMMENT "Bundling dependencies into a standalone dist/ (exe at top, DLLs in bin/)")
 endif()
 
 # --- Runtime data ----------------------------------------------------------
