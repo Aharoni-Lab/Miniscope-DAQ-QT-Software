@@ -47,12 +47,18 @@ void TraceDisplayBackend::createView()
     view->setX(m_ucTraceDisplay["windowX"].toInt(1));
     view->setY(m_ucTraceDisplay["windowY"].toInt(1));
 
+    // Let the QML content scale with the window, and lock resizing to the window's
+    // native aspect ratio.
+    view->setResizeMode(QQuickView::SizeRootObjectToView);
+    view->setMinimumSize(QSize(view->width() / 2, view->height() / 2));
+    view->setLockedAspectRatio((qreal)view->width() / (qreal)view->height());
+
 #ifdef Q_OS_WINDOWS
-    // Unlike the device windows, the trace window is meant to be user-closeable, so
-    // give it a system menu + close (X) button. WindowTitleHint alone draws a title
-    // bar with no close button on Windows.
-    view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint
-                   | Qt::WindowSystemMenuHint | Qt::WindowCloseButtonHint);
+    // Resizable window with a system menu + close (X) button. The trace window is
+    // meant to be user-closeable; no maximize button since that would break the
+    // locked aspect ratio.
+    view->setFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+                   | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
 #endif
     view->show();
 
@@ -945,6 +951,14 @@ void TraceDisplayRenderer::paint()
     // with the QML axis labels drawn on top).
     GLint prevFbo = 0;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
+
+    // The render-target FBO is created once at the initial size; recreate it if the
+    // window was resized so the trace texture matches the new viewport.
+    if (m_viewportSize.isValid() && (!m_fbo || m_fbo->size() != m_viewportSize)) {
+        delete m_fbo;
+        m_fbo = new QOpenGLFramebufferObject(m_viewportSize);
+        m_clearDisplayOnNextDraw = true;
+    }
 
     if (m_clearDisplayOnNextDraw)
         initGridH();
