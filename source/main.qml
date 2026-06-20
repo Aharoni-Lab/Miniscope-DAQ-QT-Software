@@ -35,6 +35,22 @@ Window {
         visible: false
     }
 
+    FileDialog {
+        // Save-As dialog: lets the user choose the folder and filename to save the
+        // (possibly edited) user config to.
+        id: saveConfigDialog
+        title: "Save user configuration as…"
+        fileMode: FileDialog.SaveFile
+        nameFilters: [ "JSON files (*.json)", "All files (*)" ]
+        defaultSuffix: "json"
+        onAccepted: {
+            var path = backend.urlToLocalFile(saveConfigDialog.selectedFile)
+            backend.saveConfigObjectAs(path)
+            saveMessageDialog.savedPath = path
+            saveMessageDialog.open()
+        }
+    }
+
 
     Window {
         id: helpDialog
@@ -110,9 +126,9 @@ Window {
 
     MessageDialog {
         id: saveMessageDialog
-        property string fName: backend.userConfigFileName
+        property string savedPath: ""
         title: "User Config File Saved"
-        text:  "The user config file has been saved to " + fName.replace(".json", "_new.json")
+        text:  "The user config file has been saved to " + savedPath
         onAccepted: {
             visible = false
         }
@@ -196,9 +212,10 @@ Window {
                     color: "#a8a7fd"
                 }
                 onClicked: {
-
-                    backend.saveConfigObject()
-                    saveMessageDialog.open()   // Qt6: open() instead of visible = true
+                    // Seed the dialog with the loaded config's folder + name, then
+                    // let the user pick the folder/filename to save to.
+                    saveConfigDialog.selectedFile = backend.localFileToUrl(backend.userConfigFileName)
+                    saveConfigDialog.open()
                 }
                 onHoveredChanged: hovered ? configSaveRect.color = "#f8a7fd" : configSaveRect.color = "#a8a7fd"
 

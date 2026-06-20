@@ -133,6 +133,9 @@ TreeView {
                 id: valueCell
                 width: 360; height: cell.height
                 readonly property bool isPath: cell.model.type === "DirPath" || cell.model.type === "FilePath"
+                // The compression value is a video codec: offer the host-supported
+                // codecs as a dropdown instead of a free-text field.
+                readonly property bool isCompression: cell.model.key === "compression" && !cell.hasKids
 
                 IntValidator    { id: intV; bottom: 0 }
                 DoubleValidator { id: dblV; bottom: 0 }
@@ -143,7 +146,7 @@ TreeView {
                     anchors.right: valueCell.isPath ? browseBtn.left : parent.right
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
-                    visible: cell.model.type !== "Bool"
+                    visible: cell.model.type !== "Bool" && !valueCell.isCompression
                     enabled: cell.model.type !== "Object" && cell.model.type !== "Array"
                     text: cell.model.value === undefined ? "" : cell.model.value
                     font.pointSize: 10
@@ -190,6 +193,30 @@ TreeView {
                     visible: cell.model.type === "Bool"
                     checked: cell.model.value === true || cell.model.value === "true"
                     onToggled: backend.treeViewTextChanged(root.index(cell.row, 0), checked ? "true" : "false")
+                    onActiveFocusChanged: if (activeFocus) root.toolTipText = cell.model.tips
+                }
+
+                ComboBox {
+                    id: compBox
+                    visible: valueCell.isCompression
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    font.pointSize: 10
+                    // Current stored codec; coerce to string in case the model hands
+                    // back a non-string.
+                    readonly property string curVal: cell.model.value === undefined ? "" : "" + cell.model.value
+                    // Host-supported codecs; keep an existing-but-unsupported value in
+                    // the list so it stays visible (and the user can change it).
+                    model: {
+                        var list = backend.availableCodecs.slice();
+                        if (curVal !== "" && list.indexOf(curVal) === -1)
+                            list.unshift(curVal);
+                        return list;
+                    }
+                    currentIndex: Math.max(0, model.indexOf(curVal))
+                    onActivated: backend.treeViewTextChanged(root.index(cell.row, 0), currentText)
                     onActiveFocusChanged: if (activeFocus) root.toolTipText = cell.model.tips
                 }
             }

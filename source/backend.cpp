@@ -516,6 +516,22 @@ void backEnd::saveConfigObject()
     file.close();
 }
 
+void backEnd::saveConfigObjectAs(const QString &filePath)
+{
+    generateUserConfigFromModel();
+    QJsonDocument d;
+    d.setObject(m_userConfig);
+    QFile file(filePath);
+    if (file.open(QFile::WriteOnly | QFile::Text | QFile::Truncate)) {
+        file.write(d.toJson());
+        file.close();
+        sendMessage("User config saved to " + filePath);
+    }
+    else {
+        sendMessage("ERROR: could not save user config to " + filePath);
+    }
+}
+
 void backEnd::loadUserConfigFile()
 {
     int count;
