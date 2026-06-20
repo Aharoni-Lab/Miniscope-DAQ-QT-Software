@@ -6,6 +6,7 @@
 #include <QJsonArray>
 #include <QThread>
 #include <QString>
+#include <QUrl>
 #include <QStandardItemModel>
 #include <QStandardItem>
 
@@ -52,6 +53,9 @@ public:
 
     void constructJsonTreeModel();
     Q_INVOKABLE void treeViewTextChanged(const QModelIndex &index, QString text);
+    // Convert a file:// URL from a QML folder/file dialog to a native path, so
+    // the path-browse buttons in the config tree editor can store a plain path.
+    Q_INVOKABLE QString urlToLocalFile(const QUrl &url) const { return url.toLocalFile(); }
     QStandardItem *handleJsonObject(QStandardItem* parent, QJsonObject obj, QJsonObject objProps);
     QStandardItem *handleJsonArray(QStandardItem* parent, QJsonArray arry, QString type);
     void generateUserConfigFromModel();
