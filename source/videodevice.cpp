@@ -11,6 +11,7 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QJsonArray>
+#include <QFile>   // Qt6: no longer pulled in transitively
 #include <QQmlApplicationEngine>
 #include <QVector>
 

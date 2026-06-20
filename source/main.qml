@@ -2,7 +2,7 @@ import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.3
-import QtQuick.Dialogs 1.2
+import QtQuick.Dialogs
 
 Window {
     id: root
@@ -20,11 +20,11 @@ Window {
 
         id: fileDialog
         title: "Please choose a user configuration file."
-        folder: shortcuts.home
+        // Qt6: 'folder: shortcuts.home' removed (shortcuts gone); FileDialog defaults are fine.
         nameFilters: [ "JSON files (*.json)", "All files (*)" ]
         onAccepted: {
-            // Send file name to c++ backend
-            backend.userConfigFileName = fileDialog.fileUrl
+            // Send file name to c++ backend  (Qt6: fileUrl -> selectedFile)
+            backend.userConfigFileName = fileDialog.selectedFile
             treeView.visible = true;
             view.visible = false;
 //            rbRun.enabled = true
@@ -47,7 +47,7 @@ Window {
 
             TextArea {
                 text: "Miniscope DAQ Software version " + backend.versionNumber + "<br/>" +
-                      "Your OpenGL verions: " + OpenGLInfo.majorVersion + "." + OpenGLInfo.minorVersion + "<br/>" +
+                      // Qt6: OpenGLInfo attached type was removed; dropped the GL version line.
                       "Developed by the <a href='https://aharoni-lab.github.io/'>Aharoni Lab</a>, UCLA <br/> " +
                       "Overview of the UCLA Miniscope project: <a href='http://www.miniscope.org'>click here</a> <br/>" +
                       "Miniscope Wiki for newest projects: <a href='https://github.com/Aharoni-Lab/Miniscope-v4/wiki'>click here</a> <br/>" +
@@ -165,7 +165,7 @@ Window {
                     border.width: 1
                     color: "#a8a7fd"
                 }
-                onClicked: fileDialog.setVisible(1)
+                onClicked: fileDialog.open()   // Qt6: open() instead of setVisible(1)
                 onHoveredChanged: hovered ? configRect.color = "#f8a7fd" : configRect.color = "#a8a7fd"
 
             }
@@ -199,7 +199,7 @@ Window {
                 onClicked: {
 
                     backend.saveConfigObject()
-                    saveMessageDialog.visible = true
+                    saveMessageDialog.open()   // Qt6: open() instead of visible = true
                 }
                 onHoveredChanged: hovered ? configSaveRect.color = "#f8a7fd" : configSaveRect.color = "#a8a7fd"
 
@@ -389,11 +389,12 @@ Window {
 
     Connections{
         target: backend
-        onShowErrorMessage: errorMessageDialog.visible = true
+        // Qt6: Connections requires the function syntax instead of onSignal: ...
+        function onShowErrorMessage() { errorMessageDialog.open() }
     }
     Connections{
         target: backend
-        onShowErrorMessageCompression: errorMessageDialogCompression.visible = true
+        function onShowErrorMessageCompression() { errorMessageDialogCompression.open() }
     }
     Component.onCompleted: {
         setX(Screen.width / 2 - width / 2);

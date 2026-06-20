@@ -937,7 +937,11 @@ void backEnd::constructUserConfigGUI()
 
         // Connect send and receive message to textbox in controlPanel
         QObject::connect(miniscope.last(), SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
-        QObject::connect(miniscope.last(), &Miniscope::addTraceDisplay, traceDisplay, &TraceDisplayBackend::addNewTrace);
+        // Qt6: connecting to a null receiver dereferences it (r->d_func() reads
+        // offset 8 of nullptr) and crashes. traceDisplay is null unless a trace
+        // display is configured + enabled, so guard the connection.
+        if (traceDisplay)
+            QObject::connect(miniscope.last(), &Miniscope::addTraceDisplay, traceDisplay, &TraceDisplayBackend::addNewTrace);
         if (miniscope.last()->getErrors() != 0) {
             // Errors have occured in creating this object
             sendMessage("ERROR: " + miniscope.last()->getDeviceName() + " has error: " + QString::number(miniscope.last()->getErrors()));
@@ -976,14 +980,15 @@ void backEnd::constructUserConfigGUI()
 
     // Make behavior tracker interface
     if (!ucBehaviorTracker.isEmpty()) {
-        if (ucBehaviorTracker["enabled"].toBool(true)) {
+        if (ucBehaviorTracker["enabled"].toBool(true) && !behavCam.isEmpty()) {
             // Behav tracker currently is hardcoded to use first behavior camera
             QSize camRes = behavCam.first()->getResolution();
 
             behavTracker = new BehaviorTracker(NULL, m_userConfig, m_softwareStartTime);
 
             QObject::connect(behavTracker, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
-            QObject::connect(behavTracker, &BehaviorTracker::addTraceDisplay, traceDisplay, &TraceDisplayBackend::addNewTrace);
+            if (traceDisplay)  // Qt6: avoid connecting to a null receiver (crash)
+                QObject::connect(behavTracker, &BehaviorTracker::addTraceDisplay, traceDisplay, &TraceDisplayBackend::addNewTrace);
             behavTracker->createView(camRes);
             setupBehaviorTracker();
         }

@@ -2,9 +2,9 @@
 #define VIDEODISPLAY_H
 
 #include <QtQuick/QQuickItem>
-#include <QtGui/QOpenGLShaderProgram>
+#include <QtOpenGL/QOpenGLShaderProgram>   // Qt6: moved from QtGui to the Qt6::OpenGL module
 #include <QtGui/QOpenGLFunctions>
-#include <QtGui/QOpenGLTexture>
+#include <QtOpenGL/QOpenGLTexture>   // Qt6: moved from QtGui to Qt6::OpenGL
 
 #include <QImage>
 
@@ -142,8 +142,11 @@ private:
     double m_windowScaleValue;
     QList<int> m_ROI;
     QList<int> m_addTraceROI;
-    QMouseEvent *lastMouseClickEvent;
-    QMouseEvent *lastMouseReleaseEvent;
+    // Qt6: store the press position instead of cloning the QMouseEvent.
+    // QMouseEvent::x()/y() are deprecated (use position()), and copying pointer
+    // events is no longer the right pattern.
+    QPoint m_pressPos;
+    bool m_hasPressPos;
 };
 //! [2]
 
