@@ -206,7 +206,7 @@ Item {
                                 }
                                 TextField {
                                     property var validNumber : DoubleValidator { bottom:0;}
-                                    property var validAll : RegExpValidator{}
+                                    property var validAll : RegularExpressionValidator{}  // Qt6: RegExpValidator removed
                                     width: parent.width - 10
                                     height:30
                                     text: root.ucValues[index]
@@ -318,7 +318,8 @@ Item {
     }
     Connections{
         target: root
-        onCurrentRecordTimeChanged: {
+        // Qt6: Connections requires function syntax instead of onSignal: ...
+        function onCurrentRecordTimeChanged() {
             if ((root.currentRecordTime >= root.ucRecordLength) && root.ucRecordLength > 0) {
                 bStop.enabled = false;
                 bRecord.enabled = true;
