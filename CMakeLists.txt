@@ -90,12 +90,6 @@ if(WIN32)
     file(WRITE "${APP_ICON_RC}"
          "IDI_ICON1 ICON \"${CMAKE_CURRENT_SOURCE_DIR}/source/miniscope_icon.ico\"\n")
     target_sources(MiniscopeDAQ PRIVATE "${APP_ICON_RC}")
-
-    # Tiny launcher exe for a clean distribution layout: the launcher sits at the
-    # top with the app icon; the real app + all DLLs live in a bin/ subfolder.
-    # deploy.py assembles dist/{MiniscopeDAQ.exe(=launcher), bin/...}.
-    add_executable(MiniscopeLauncher WIN32 tools/launcher.cpp "${APP_ICON_RC}")
-    set_target_properties(MiniscopeLauncher PROPERTIES OUTPUT_NAME "MiniscopeDAQ-launcher")
 endif()
 
 target_include_directories(MiniscopeDAQ PRIVATE
@@ -131,9 +125,10 @@ endif()
 # in place, launch from an activated conda env.
 
 # --- Standalone deployment target ------------------------------------------
-# Bundle Qt + OpenCV + OpenBLAS + plugins + QML modules next to the exe so it
-# runs by double-click with NO conda env on PATH, and the build/Release folder
-# can be copied to any Windows PC. Run after building:
+# Assemble a flat, standalone dist/ folder: the exe plus Qt + OpenCV + OpenBLAS
+# + plugins + QML + the device/user configs, all in one directory that runs by
+# double-click with NO conda env on PATH and can be copied to any Windows PC.
+# Output: build/Release/dist/ (see tools/deploy.py). Run after building:
 #     cmake --build build --config Release --target deploy
 # Requires: run from the activated conda env, and `pip install pefile`.
 # IMPORTANT: the env must use the OpenBLAS BLAS variant, not MKL (MKL is 565 MB
@@ -143,11 +138,10 @@ if(WIN32 AND DEFINED ENV{CONDA_PREFIX})
     add_custom_target(deploy
         COMMAND python "${CMAKE_CURRENT_SOURCE_DIR}/tools/deploy.py"
                 "$<TARGET_FILE:MiniscopeDAQ>" "$ENV{CONDA_PREFIX}"
-                "$<TARGET_FILE:MiniscopeLauncher>"
-        DEPENDS MiniscopeDAQ MiniscopeLauncher
+        DEPENDS MiniscopeDAQ
         USES_TERMINAL
         VERBATIM
-        COMMENT "Bundling dependencies into dist/ (launcher + bin/) for a standalone build")
+        COMMENT "Bundling dependencies into a flat, standalone dist/ folder")
 endif()
 
 # --- Runtime data ----------------------------------------------------------
