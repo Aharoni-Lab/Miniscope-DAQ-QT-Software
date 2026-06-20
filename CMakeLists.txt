@@ -90,6 +90,12 @@ if(WIN32)
     file(WRITE "${APP_ICON_RC}"
          "IDI_ICON1 ICON \"${CMAKE_CURRENT_SOURCE_DIR}/source/miniscope_icon.ico\"\n")
     target_sources(MiniscopeDAQ PRIVATE "${APP_ICON_RC}")
+
+    # Tiny launcher exe for a clean distribution layout: the launcher sits at the
+    # top with the app icon; the real app + all DLLs live in a bin/ subfolder.
+    # deploy.py assembles dist/{MiniscopeDAQ.exe(=launcher), bin/...}.
+    add_executable(MiniscopeLauncher WIN32 tools/launcher.cpp "${APP_ICON_RC}")
+    set_target_properties(MiniscopeLauncher PROPERTIES OUTPUT_NAME "MiniscopeDAQ-launcher")
 endif()
 
 target_include_directories(MiniscopeDAQ PRIVATE
@@ -155,10 +161,11 @@ if(WIN32 AND DEFINED ENV{CONDA_PREFIX})
     add_custom_target(deploy
         COMMAND python "${CMAKE_CURRENT_SOURCE_DIR}/tools/deploy.py"
                 "$<TARGET_FILE:MiniscopeDAQ>" "$ENV{CONDA_PREFIX}"
-        DEPENDS MiniscopeDAQ
+                "$<TARGET_FILE:MiniscopeLauncher>"
+        DEPENDS MiniscopeDAQ MiniscopeLauncher
         USES_TERMINAL
         VERBATIM
-        COMMENT "Bundling dependencies for a standalone, double-clickable build")
+        COMMENT "Bundling dependencies into dist/ (launcher + bin/) for a standalone build")
 endif()
 
 # --- Runtime data ----------------------------------------------------------

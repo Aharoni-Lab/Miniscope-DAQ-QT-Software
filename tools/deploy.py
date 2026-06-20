@@ -1,22 +1,28 @@
 #!/usr/bin/env python3
 """
-Make MiniscopeDAQ.exe self-contained (double-clickable) from a conda build.
+Assemble a clean, standalone, double-clickable distribution from a conda build.
+
+Output layout (under <build>/Release/dist/):
+
+    dist/
+      MiniscopeDAQ.exe      <- tiny launcher (top level, app icon)
+      bin/
+        MiniscopeDAQ.exe    <- the real application
+        *.dll               <- Qt, OpenCV, OpenBLAS, Python, ... (bundled)
+        platforms/ imageformats/ iconengines/ styles/   <- Qt plugins
+        qml/                <- Qt QML modules
+        deviceConfigs/ userConfigs/ Scripts/            <- runtime data
+
+The launcher starts bin\\MiniscopeDAQ.exe with the working dir set to bin\\, so
+the real exe finds its DLLs (same folder) and configs (cwd). The whole dist/
+folder is portable - copy it to any Windows PC and double-click MiniscopeDAQ.exe.
 
 conda-forge's windeployqt is broken for the conda layout, so we deploy manually:
+copy the needed plugins + QML modules, then walk the import graph and copy every
+conda DLL dependency. The dynamically-loaded OpenBLAS BLAS chain (which import
+scanning can't see) is copied explicitly. The env must use OpenBLAS, not MKL.
 
-  1. Copy the needed Qt plugins directly into <exedir>/<category>/ (platforms,
-     imageformats, ...). Qt auto-searches the application directory for these,
-     so the platform plugin (loaded before main) is found without any config.
-  2. Copy the Qt QML modules into <exedir>/qml/ (main.cpp adds this to the QML
-     import path at startup).
-  3. Walk the import tables of the exe + every plugin/QML DLL and copy each
-     dependency that lives in the conda environment (Qt, OpenCV, FFmpeg,
-     Python, image/codec libs, ...) next to the exe. System DLLs are left alone.
-  4. Verify completeness.
-
-After this, the exe runs by double-click with no conda env on PATH.
-
-Usage:  python deploy.py <path-to-exe> <conda-prefix>
+Usage:  python deploy.py <real-exe> <conda-prefix> [<launcher-exe>]
 Requires: pefile (pip install pefile)
 """
 import os, sys, shutil, glob
@@ -24,22 +30,21 @@ import pefile
 
 EXE = os.path.abspath(sys.argv[1])
 ENV = os.path.abspath(sys.argv[2])
-exedir = os.path.dirname(EXE)
+LAUNCHER = os.path.abspath(sys.argv[3]) if len(sys.argv) > 3 else None
+
+srcdir = os.path.dirname(EXE)
+dist = os.path.join(srcdir, "dist")
+bindir = os.path.join(dist, "bin")
 qt6 = os.path.join(ENV, "Library", "lib", "qt6")
 
 search_dirs = [os.path.join(ENV, "Library", "bin"), ENV, os.path.join(ENV, "DLLs")]
 system32 = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "System32")
 
-# Only the plugin categories this GUI app actually needs at runtime. (Avoid
-# sqldrivers etc. - they pull deps like libpq that the app never uses and that
-# would fail to load if Qt enumerated them.)
 PLUGIN_CATS = ["platforms", "imageformats", "iconengines", "styles"]
-
-# DLLs loaded dynamically by NAME (not via import tables), so the dependency
-# walker can't discover them. The conda BLAS stack is the case here: OpenCV's
-# liblapack/libcblas load libblas, which loads the OpenBLAS backend by name.
-# (Requires the env to use the OpenBLAS BLAS variant, not MKL, so nothing pulls
-# in mkl_rt and its 565 MB of dynamically-loaded kernels.)
+DATA_DIRS = ["deviceConfigs", "userConfigs", "Scripts"]
+# Dynamically-loaded by name (invisible to import-table scanning): the conda
+# OpenBLAS BLAS chain that OpenCV uses. Requires the OpenBLAS BLAS variant (not
+# MKL) - see CMakeLists.txt.
 EXTRA_DYNAMIC = ["openblas.dll", "libblas.dll", "liblapack.dll",
                  "libcblas.dll", "liblapacke.dll"]
 
@@ -68,42 +73,38 @@ def imports_of(path):
     except Exception:
         return []
 
-# --- 0. clean any previous deploy layout --------------------------------
-for old in ["plugins", "qt.conf"]:
-    p = os.path.join(exedir, old)
-    if os.path.isdir(p):
-        shutil.rmtree(p)
-    elif os.path.isfile(p):
-        os.remove(p)
+# --- fresh dist/bin ------------------------------------------------------
+print("[1/6] preparing dist/bin ...")
+if os.path.isdir(dist):
+    shutil.rmtree(dist)
+os.makedirs(bindir)
+shutil.copy2(EXE, os.path.join(bindir, os.path.basename(EXE)))
+for d in DATA_DIRS:
+    s = os.path.join(srcdir, d)
+    if os.path.isdir(s):
+        shutil.copytree(s, os.path.join(bindir, d))
 
-# --- 1. plugins -> exedir/<category> ------------------------------------
-print("[1/4] copying Qt plugins ...")
+# --- plugins + QML -------------------------------------------------------
+print("[2/6] copying Qt plugins ...")
 for cat in PLUGIN_CATS:
-    src = os.path.join(qt6, "plugins", cat)
-    if os.path.isdir(src):
-        shutil.copytree(src, os.path.join(exedir, cat), dirs_exist_ok=True)
-        print("      ", cat)
+    s = os.path.join(qt6, "plugins", cat)
+    if os.path.isdir(s):
+        shutil.copytree(s, os.path.join(bindir, cat))
+print("[3/6] copying QML modules ...")
+shutil.copytree(os.path.join(qt6, "qml"), os.path.join(bindir, "qml"))
 
-# --- 2. QML modules -> exedir/qml ---------------------------------------
-print("[2/4] copying QML modules ...")
-shutil.copytree(os.path.join(qt6, "qml"), os.path.join(exedir, "qml"), dirs_exist_ok=True)
-
-# --- 3. dependency walk -------------------------------------------------
-print("[3/4] copying conda dependencies ...")
-roots = [EXE]
+# --- dependency walk -----------------------------------------------------
+print("[4/6] copying conda dependencies ...")
+roots = [os.path.join(bindir, os.path.basename(EXE))]
 for cat in PLUGIN_CATS:
-    roots += glob.glob(os.path.join(exedir, cat, "**", "*.dll"), recursive=True)
-roots += glob.glob(os.path.join(exedir, "qml", "**", "*.dll"), recursive=True)
-
-# Seed the walk with the dynamically-loaded extras (copy them first, overwriting
-# any stale copies from a previous deploy / different BLAS variant).
+    roots += glob.glob(os.path.join(bindir, cat, "**", "*.dll"), recursive=True)
+roots += glob.glob(os.path.join(bindir, "qml", "**", "*.dll"), recursive=True)
 for name in EXTRA_DYNAMIC:
-    src = find_in_env(name)
-    if src:
-        dst = os.path.join(exedir, name)
-        shutil.copy2(src, dst)
-        roots.append(dst)
-
+    s = find_in_env(name)
+    if s:
+        d = os.path.join(bindir, name)
+        shutil.copy2(s, d)
+        roots.append(d)
 copied, processed, queue = set(), set(), list(roots)
 while queue:
     cur = queue.pop()
@@ -114,22 +115,29 @@ while queue:
         low = dll.lower()
         if is_system(dll) or low in copied:
             continue
-        src = find_in_env(dll)
-        if not src:
+        s = find_in_env(dll)
+        if not s:
             continue
-        # Always overwrite so a re-deploy refreshes DLLs to the current env
-        # (e.g. after switching BLAS variants).
-        shutil.copy2(src, os.path.join(exedir, dll))
+        shutil.copy2(s, os.path.join(bindir, dll))
         copied.add(low)
-        queue.append(os.path.join(exedir, dll))
+        queue.append(os.path.join(bindir, dll))
 print("      copied %d conda DLLs" % len(copied))
 
-# --- 4. verify ----------------------------------------------------------
-print("[4/4] verifying ...")
+# --- launcher at top -----------------------------------------------------
+print("[5/6] placing launcher ...")
+if LAUNCHER and os.path.isfile(LAUNCHER):
+    shutil.copy2(LAUNCHER, os.path.join(dist, "MiniscopeDAQ.exe"))
+    print("      dist/MiniscopeDAQ.exe (launcher) -> bin/MiniscopeDAQ.exe")
+else:
+    print("      WARNING: launcher exe not provided; run bin/MiniscopeDAQ.exe directly")
+
+# --- verify --------------------------------------------------------------
+print("[6/6] verifying ...")
 local = {os.path.basename(p).lower()
-         for p in glob.glob(os.path.join(exedir, "**", "*.dll"), recursive=True)}
+         for p in glob.glob(os.path.join(bindir, "**", "*.dll"), recursive=True)}
 missing = set()
-for f in [EXE] + glob.glob(os.path.join(exedir, "**", "*.dll"), recursive=True):
+for f in [os.path.join(bindir, os.path.basename(EXE))] + \
+         glob.glob(os.path.join(bindir, "**", "*.dll"), recursive=True):
     for dll in imports_of(f):
         if is_system(dll) or dll.lower() in local:
             continue
@@ -140,4 +148,5 @@ if missing:
     for m in sorted(missing):
         print("    ", m)
     sys.exit(1)
-print("  OK - self-contained. Double-click %s should work." % os.path.basename(EXE))
+print("  OK -> %s" % dist)
+print("  Double-click dist/MiniscopeDAQ.exe (or copy the whole dist/ folder anywhere).")
