@@ -135,6 +135,14 @@ Window {
         visible: false
     }
 
+    MessageDialog {
+        id: deviceScanDialog
+        title: "Connected Video Devices"
+        text: ""
+        onAccepted: visible = false
+        visible: false
+    }
+
 
     ColumnLayout {
         id: columnLayout
@@ -219,6 +227,38 @@ Window {
                 }
                 onHoveredChanged: hovered ? configSaveRect.color = "#f8a7fd" : configSaveRect.color = "#a8a7fd"
 
+            }
+
+            RoundButton {
+                id: rbScanDevices
+                height: 40
+                text: "Scan Devices"
+                Layout.minimumHeight: 40
+                Layout.preferredHeight: 40
+                Layout.fillHeight: false
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                Layout.fillWidth: true
+                font.family: "Arial"
+                font.pointSize: 18
+                font.bold: true
+                font.weight: Font.Normal
+                radius: 10
+
+                Layout.minimumWidth: 100
+                Layout.preferredWidth: 200
+                Layout.maximumWidth: 700
+
+                background: Rectangle {
+                    id: scanRect
+                    radius: rbScanDevices.radius
+                    border.width: 1
+                    color: "#a8a7fd"
+                }
+                onClicked: {
+                    deviceScanDialog.text = backend.scanVideoDevices()
+                    deviceScanDialog.open()
+                }
+                onHoveredChanged: hovered ? scanRect.color = "#f8a7fd" : scanRect.color = "#a8a7fd"
             }
         }
         ColumnLayout {

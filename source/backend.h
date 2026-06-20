@@ -81,6 +81,9 @@ public:
     Q_INVOKABLE void saveConfigObject();
     // Save the (edited) user config to a user-chosen path from the Save-As dialog.
     Q_INVOKABLE void saveConfigObjectAs(const QString &filePath);
+    // Enumerate connected video devices as "deviceID N: <name>" lines so the user
+    // can see which deviceID maps to which camera. Windows (DirectShow) only.
+    Q_INVOKABLE QString scanVideoDevices();
 
 
     void loadUserConfigFile();

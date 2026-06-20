@@ -36,6 +36,12 @@
  #include <libusb.h>
 #endif
 
+#ifdef Q_OS_WINDOWS
+// DirectShow video-device enumeration for scanVideoDevices().
+#define NOMINMAX
+#include <dshow.h>
+#endif
+
 backEnd::backEnd(QObject *parent) :
     QObject(parent),
     m_versionNumber(""),
@@ -530,6 +536,60 @@ void backEnd::saveConfigObjectAs(const QString &filePath)
     else {
         sendMessage("ERROR: could not save user config to " + filePath);
     }
+}
+
+QString backEnd::scanVideoDevices()
+{
+#ifdef Q_OS_WINDOWS
+    // Enumerate DirectShow video input devices. Their order matches the index
+    // OpenCV's CAP_DSHOW backend uses, so the position == the config deviceID.
+    QStringList lines;
+
+    const HRESULT hrInit = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    const bool balanceUninit = SUCCEEDED(hrInit); // S_OK or S_FALSE (already init)
+
+    ICreateDevEnum *devEnum = nullptr;
+    HRESULT hr = CoCreateInstance(CLSID_SystemDeviceEnum, nullptr, CLSCTX_INPROC_SERVER,
+                                  IID_PPV_ARGS(&devEnum));
+    if (SUCCEEDED(hr) && devEnum) {
+        IEnumMoniker *enumMon = nullptr;
+        hr = devEnum->CreateClassEnumerator(CLSID_VideoInputDeviceCategory, &enumMon, 0);
+        if (hr == S_OK && enumMon) { // S_FALSE => no devices in this category
+            IMoniker *moniker = nullptr;
+            int idx = 0;
+            while (enumMon->Next(1, &moniker, nullptr) == S_OK) {
+                IPropertyBag *propBag = nullptr;
+                if (SUCCEEDED(moniker->BindToStorage(nullptr, nullptr, IID_PPV_ARGS(&propBag)))) {
+                    VARIANT var;
+                    VariantInit(&var);
+                    QString name;
+                    if (SUCCEEDED(propBag->Read(L"FriendlyName", &var, nullptr)) && var.bstrVal)
+                        name = QString::fromWCharArray(var.bstrVal);
+                    VariantClear(&var);
+                    lines << QString("    deviceID %1:  %2")
+                                 .arg(idx)
+                                 .arg(name.isEmpty() ? QStringLiteral("(unknown)") : name);
+                    propBag->Release();
+                }
+                moniker->Release();
+                idx++;
+            }
+            enumMon->Release();
+        }
+        devEnum->Release();
+    }
+    if (balanceUninit)
+        CoUninitialize();
+
+    if (lines.isEmpty())
+        return QStringLiteral("No video devices detected.");
+    return QStringLiteral("Detected video devices:\n") + lines.join("\n")
+           + QStringLiteral("\n\nUse these deviceID numbers in your user config. "
+                            "Note: a Miniscope might appear under a generic name "
+                            "(e.g. \"USB Video Device\").");
+#else
+    return QStringLiteral("Device scan is only available on Windows.");
+#endif
 }
 
 void backEnd::loadUserConfigFile()
