@@ -64,7 +64,8 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64
 
 int BehaviorTracker::initNumpy()
 {
-    import_array1(-1);
+    import_array1(-1); // expands to `return -1` on failure; fall through = success
+    return 0;
 }
 
 void BehaviorTracker::parseUserConfigTracker()
