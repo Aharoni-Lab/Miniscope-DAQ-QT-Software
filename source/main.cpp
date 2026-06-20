@@ -15,7 +15,13 @@
 
 #include "backend.h"
 
-#define VERSION_NUMBER "1.10"
+#include <opencv2/core/version.hpp>   // CV_VERSION (e.g. "4.13.0"); macro-only header
+
+#ifdef USE_PYTHON
+#include <patchlevel.h>   // PY_VERSION (e.g. "3.12.7"); pure macro header, safe alone
+#endif
+
+#define VERSION_NUMBER "1.2"
 // TODO: have exit button close everything
 
 // For Window's deployment
@@ -69,6 +75,18 @@ int main(int argc, char *argv[])
     engine.load(url);
 
     backend.setVersionNumber(VERSION_NUMBER);
+
+    // Build/runtime info shown in the Help dialog.
+#ifdef USE_PYTHON
+    const QString pythonVersion = QStringLiteral(PY_VERSION);
+#else
+    const QString pythonVersion = QStringLiteral("not built");
+#endif
+    backend.setBuildInfo(QStringLiteral("Qt %1 | OpenCV %2 | Python %3 | Built %4")
+                             .arg(QString::fromLatin1(qVersion()))
+                             .arg(QStringLiteral(CV_VERSION))
+                             .arg(pythonVersion)
+                             .arg(QStringLiteral(__DATE__)));
 //    qDebug() << "TTTEEEE" << engine.rootObjects().first()->findChild<QObject*>("treeView");
 //    QObject::connect(engine.rootObjects().first()->findChild<QObject*>("treeView"), &QTreeView::clicked, &backend, &backEnd::treeViewclicked);
     QObject::connect(&backend, &backEnd::closeAll, &engine, &QQmlApplicationEngine::quit);

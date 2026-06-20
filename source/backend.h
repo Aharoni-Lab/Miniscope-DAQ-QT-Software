@@ -27,6 +27,7 @@ class backEnd : public QObject
     Q_PROPERTY(bool userConfigOK READ userConfigOK WRITE setUserConfigOK NOTIFY userConfigOKChanged)
     Q_PROPERTY(QString availableCodecList READ availableCodecList WRITE setAvailableCodecList NOTIFY availableCodecListChanged)
     Q_PROPERTY(QString versionNumber READ versionNumber WRITE setVersionNumber NOTIFY versionNumberChanged)
+    Q_PROPERTY(QString buildInfo READ buildInfo WRITE setBuildInfo NOTIFY buildInfoChanged)
 
     Q_PROPERTY(QStandardItemModel* jsonTreeModel READ jsonTreeModel WRITE setJsonTreeModel NOTIFY jsonTreeModelChanged)
 
@@ -46,7 +47,10 @@ public:
     void setAvailableCodecList(const QString &input);
 
     QString versionNumber() { return m_versionNumber; }
-    void setVersionNumber(const QString &input) { m_versionNumber = input; }
+    void setVersionNumber(const QString &input) { m_versionNumber = input; emit versionNumberChanged(); }
+
+    QString buildInfo() { return m_buildInfo; }
+    void setBuildInfo(const QString &input) { m_buildInfo = input; emit buildInfoChanged(); }
 
     QStandardItemModel* jsonTreeModel() { return m_jsonTreeModel; }
     void setJsonTreeModel(QStandardItemModel* model) { m_jsonTreeModel = model; }
@@ -83,6 +87,7 @@ signals:
     void userConfigOKChanged();
     void availableCodecListChanged();
     void versionNumberChanged();
+    void buildInfoChanged();
     void jsonTreeModelChanged();
 
     void closeAll();
@@ -106,6 +111,7 @@ private:
     void testCodecSupport();
 
     QString m_versionNumber;
+    QString m_buildInfo;
     QString m_userConfigFileName;
     QString m_userConfigDisplay;
     bool m_userConfigOK;

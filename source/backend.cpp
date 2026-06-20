@@ -39,6 +39,7 @@
 backEnd::backEnd(QObject *parent) :
     QObject(parent),
     m_versionNumber(""),
+    m_buildInfo(""),
     m_userConfigFileName(""),
     m_userConfigOK(false),
     traceDisplay(nullptr),
