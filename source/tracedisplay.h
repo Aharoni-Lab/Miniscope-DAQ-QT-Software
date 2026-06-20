@@ -248,6 +248,10 @@ public slots:
     void addNewTrace(QString name, float color[3], float scale, QString units, bool sameOffset, QAtomicInt* displayBufNum, QAtomicInt* numDataInBuf, int bufSize, float* dataT, float* dataY);
     void close();
 
+private slots:
+    // Tears the window down when the user closes it (X button) or on app exit.
+    void handleWindowClosing();
+
 private:
     NewQuickView *view;
     TraceDisplay* m_traceDisplay;

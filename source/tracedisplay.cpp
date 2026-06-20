@@ -48,16 +48,26 @@ void TraceDisplayBackend::createView()
     view->setY(m_ucTraceDisplay["windowY"].toInt(1));
 
 #ifdef Q_OS_WINDOWS
-    view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
+    // Unlike the device windows, the trace window is meant to be user-closeable, so
+    // give it a system menu + close (X) button. WindowTitleHint alone draws a title
+    // bar with no close button on Windows.
+    view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint
+                   | Qt::WindowSystemMenuHint | Qt::WindowCloseButtonHint);
 #endif
     view->show();
 
     m_traceDisplay = view->rootObject()->findChild<TraceDisplay*>("traceDisplay");
     m_traceDisplay->setSoftwareStartTime(m_softwareStartTime);
+
+    // Tear down cleanly when the window is closed (user X button or app exit).
+    QObject::connect(view, &NewQuickView::closing, this, &TraceDisplayBackend::handleWindowClosing);
 }
 
 void TraceDisplayBackend::addNewTrace(QString name, float color[3], float scale, QString units, bool sameOffset, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY)
 {
+    // The window may have been closed at runtime; drop trace additions once it's gone.
+    if (!m_traceDisplay)
+        return;
 
     trace_t newTrace = trace_t(name, color, scale, units, sameOffset, displayBufNum, numDataInBuf, bufSize, dataT, dataY);
     m_traceDisplay->addNewTrace(newTrace);
@@ -65,7 +75,21 @@ void TraceDisplayBackend::addNewTrace(QString name, float color[3], float scale,
 
 void TraceDisplayBackend::close()
 {
-    view->close();
+    // Routes through handleWindowClosing() via NewQuickView::closing. Guard against
+    // a second close (e.g. closeAll() after the user already closed the window).
+    if (view)
+        view->close();
+}
+
+void TraceDisplayBackend::handleWindowClosing()
+{
+    // Null the QML item first so a late addNewTrace() can't touch a dying object,
+    // then defer the view deletion (we're inside the view's own close event).
+    m_traceDisplay = nullptr;
+    if (view) {
+        view->deleteLater();
+        view = nullptr;
+    }
 }
 
 TraceDisplay::TraceDisplay()

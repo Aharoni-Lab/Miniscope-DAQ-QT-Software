@@ -630,7 +630,9 @@ void backEnd::connectSnS()
     QObject::connect((controlPanel), SIGNAL( sendNote(QString) ), dataSaver, SLOT ( takeNote(QString) ));
     QObject::connect(this, SIGNAL( closeAll()), controlPanel, SLOT (close()));
 
-
+    // Trace window is optional; only tear it down on exit if it was created.
+    if (traceDisplay)
+        QObject::connect(this, SIGNAL( closeAll()), traceDisplay, SLOT (close()));
 
     QObject::connect(dataSaver, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
 
