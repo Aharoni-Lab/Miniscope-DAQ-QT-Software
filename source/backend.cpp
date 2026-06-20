@@ -10,6 +10,7 @@
 #include <QObject>
 #include <QVariant>
 #include <QDir>
+#include <QFile>
 #include <QVector>
 #include <QUrl>
 #include <QString>
@@ -714,12 +715,15 @@ void backEnd::setupDataSaver()
 
 void backEnd::testCodecSupport()
 {
-    // This function will test which codecs are supported on host's machine
+    // This function will test which codecs are supported on host's machine.
+    // Probe into a temp file (then delete it) so codec detection never leaves a
+    // stray "test.avi" behind in the working directory / distribution folder.
     cv::VideoWriter testVid;
-//    testVid.open("test.avi", -1,20, cv::Size(640, 480), true);
+    const QString probePath = QDir(QDir::tempPath()).filePath("miniscope_codec_probe.avi");
+    const std::string probe = probePath.toStdString();
     QVector<QString> possibleCodec({"DIB ", "MJPG", "MJ2C", "XVID", "FFV1", "DX50", "FLV1", "H264", "I420","MPEG","mp4v", "0000", "LAGS", "ASV1", "GREY"});
     for (int i = 0; i < possibleCodec.length(); i++) {
-        testVid.open("test.avi", cv::VideoWriter::fourcc(possibleCodec[i].toStdString()[0],possibleCodec[i].toStdString()[1],possibleCodec[i].toStdString()[2],possibleCodec[i].toStdString()[3]),
+        testVid.open(probe, cv::VideoWriter::fourcc(possibleCodec[i].toStdString()[0],possibleCodec[i].toStdString()[1],possibleCodec[i].toStdString()[2],possibleCodec[i].toStdString()[3]),
                 20, cv::Size(640, 480), true);
         if (testVid.isOpened()) {
             m_availableCodec.append(possibleCodec[i]);
@@ -729,7 +733,7 @@ void backEnd::testCodecSupport()
         else
             unAvailableCodec.append(possibleCodec[i]);
     }
-
+    QFile::remove(probePath);   // remove the throwaway probe file
 }
 
 bool backEnd::checkUserConfigForIssues()
