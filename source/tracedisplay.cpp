@@ -455,6 +455,12 @@ void TraceDisplayRenderer::drawRenderTexture()
 {
 //    m_texture->bind(m_fbo->takeTexture());
     GLuint textUnit = m_fbo->texture();
+    // Qt6/RHI: the scene graph may leave a texture unit other than 0 active, so a
+    // bare glBindTexture() would attach our FBO color texture to the wrong unit
+    // while the shader samples unit 0 -> the traces never composite onto the
+    // screen (videodisplay avoids this because QOpenGLTexture::bind(0) selects
+    // the unit implicitly). Explicitly select unit 0 before binding.
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, textUnit);
 //    m_texture = new QOpenGLTexture(QImage(":/img/MiniscopeLogo.png").rgbSwapped());
 //    qDebug() << "Texture num" << m_fbo->texture();
