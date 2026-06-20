@@ -47,6 +47,10 @@ int main(int argc, char *argv[])
     qRegisterMetaType < QVector<quint8> >("QVector<quint8>");
 
     QQmlApplicationEngine engine;
+    // For a deployed (standalone) build, find the bundled QML modules next to
+    // the exe. Harmless when running against the conda env. (Qt auto-finds the
+    // platform/image plugins in <appdir>/<category>.)
+    engine.addImportPath(QCoreApplication::applicationDirPath() + "/qml");
     const QUrl url(QStringLiteral("qrc:/main.qml"));
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
                      &app, [url](QObject *obj, const QUrl &objUrl) {

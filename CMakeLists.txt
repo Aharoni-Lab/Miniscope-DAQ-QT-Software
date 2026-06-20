@@ -142,6 +142,25 @@ if(WIN32)
     endif()
 endif()
 
+# --- Standalone deployment target ------------------------------------------
+# Bundle Qt + OpenCV + OpenBLAS + plugins + QML modules next to the exe so it
+# runs by double-click with NO conda env on PATH, and the build/Release folder
+# can be copied to any Windows PC. Run after building:
+#     cmake --build build --config Release --target deploy
+# Requires: run from the activated conda env, and `pip install pefile`.
+# IMPORTANT: the env must use the OpenBLAS BLAS variant, not MKL (MKL is 565 MB
+# of dynamically-loaded kernels that can't be bundled). Switch once with:
+#     conda install "libblas=*=*openblas"
+if(WIN32 AND DEFINED ENV{CONDA_PREFIX})
+    add_custom_target(deploy
+        COMMAND python "${CMAKE_CURRENT_SOURCE_DIR}/tools/deploy.py"
+                "$<TARGET_FILE:MiniscopeDAQ>" "$ENV{CONDA_PREFIX}"
+        DEPENDS MiniscopeDAQ
+        USES_TERMINAL
+        VERBATIM
+        COMMENT "Bundling dependencies for a standalone, double-clickable build")
+endif()
+
 # --- Runtime data ----------------------------------------------------------
 # Copy the JSON device/user configs and helper scripts next to the binary,
 # replicating the old qmake copydata steps.
