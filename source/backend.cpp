@@ -102,6 +102,7 @@ backEnd::backEnd(QObject *parent) :
         file.close();
         QJsonDocument d = QJsonDocument::fromJson(jsonFile.toUtf8());
         jObj = d.object();
+        m_deviceCatalog = jObj;   // retained for the user-config generator (Add Device)
         supportedDevices = jObj.keys();
     }
 
@@ -536,6 +537,183 @@ void backEnd::saveConfigObjectAs(const QString &filePath)
     else {
         sendMessage("ERROR: could not save user config to " + filePath);
     }
+}
+
+// ---------------------------------------------------------------------------
+// User-config generator
+//
+// Lets the user build a valid user config in-app without starting from an example
+// file. newUserConfig() synthesizes a complete default skeleton straight from the
+// schema (deviceConfigs/userConfigProps.json); addDevice() inserts a device built
+// from the matching schema template, enriched with sensible starting values pulled
+// from the device catalog (deviceConfigs/videoDevices.json). Both then rebuild the
+// tree model and re-run the validity check (which enables Save / Run). All of the
+// existing editor, serialization and save machinery is reused unchanged.
+// ---------------------------------------------------------------------------
+
+QJsonValue backEnd::defaultForType(const QString &type)
+{
+    if (type == "Bool")
+        return false;
+    if (type == "Integer" || type == "Number" || type == "Double")
+        return 0;
+    if (type.startsWith("Array"))
+        return QJsonArray();
+    // String, DirPath, FilePath, MiniscopeDeviceType, CameraDeviceType, ...
+    return QString("");
+}
+
+QJsonValue backEnd::defaultFromProps(const QJsonValue &propNode)
+{
+    const QJsonObject obj = propNode.toObject();
+
+    // Leaf node: { "type": "<string>", "tips": "..." }. A branch node's "type"
+    // child (e.g. behaviorTracker.type) is itself an object, so testing that the
+    // "type" value is a string reliably tells leaves from branches.
+    if (obj.value("type").isString())
+        return defaultForType(obj.value("type").toString());
+
+    // Branch node: recurse into each sub-property (skipping COMMENT keys).
+    QJsonObject out;
+    const QStringList keys = obj.keys();
+    for (const QString &k : keys) {
+        if (k.contains("COMMENT"))
+            continue;
+        out[k] = defaultFromProps(obj.value(k));
+    }
+    return out;
+}
+
+void backEnd::newUserConfig()
+{
+    QJsonObject cfg;
+    const QStringList keys = m_configProps.keys();
+    for (const QString &k : keys) {
+        if (k.contains("COMMENT"))
+            continue;
+        cfg[k] = defaultFromProps(m_configProps.value(k));
+    }
+
+    // A few helpful, non-zero seeds so the fresh config is immediately usable.
+    cfg["directoryStructure"] = QJsonArray{ "researcherName", "experimentName",
+                                            "animalName", "date", "time" };
+    QJsonObject devices;
+    devices["miniscopes"] = QJsonObject();
+    devices["cameras"]    = QJsonObject();
+    cfg["devices"] = devices;
+
+    // Pre-fill the single valid value for these "type" fields.
+    if (cfg.contains("traceDisplay")) {
+        QJsonObject td = cfg["traceDisplay"].toObject();
+        td["type"] = "scrolling";
+        cfg["traceDisplay"] = td;
+    }
+    if (cfg.contains("behaviorTracker")) {
+        QJsonObject bt = cfg["behaviorTracker"].toObject();
+        bt["type"] = "DeepLabCut-Live";
+        cfg["behaviorTracker"] = bt;
+    }
+
+    m_userConfig = cfg;
+    m_userConfigFileName.clear();   // brand-new config: unseed the Save-As dialog
+
+    constructJsonTreeModel();
+    checkUserConfigForIssues();     // emits userConfigOKChanged() -> enables Save/Run
+}
+
+void backEnd::enrichDeviceDefaults(QJsonObject &device, const QString &category,
+                                   const QString &deviceType)
+{
+    device["deviceType"]     = deviceType;
+    device["deviceID"]       = 0;
+    device["showSaturation"] = true;
+    device["framesPerFile"]  = 1000;
+    device["windowScale"]    = 0.75;
+    device["windowX"]        = 100;
+    device["windowY"]        = 100;
+
+    const QJsonObject cat = m_deviceCatalog.value(deviceType).toObject();
+
+    // ROI defaults to the device's native resolution.
+    if (device.contains("ROI")) {
+        QJsonObject roi = device["ROI"].toObject();
+        roi["leftEdge"] = 0;
+        roi["topEdge"]  = 0;
+        if (cat.contains("width"))  roi["width"]  = cat.value("width");
+        if (cat.contains("height")) roi["height"] = cat.value("height");
+        device["ROI"] = roi;
+    }
+
+    // Control settings (gain / frameRate / led0 / ewl): use the catalog's
+    // startValue for whichever ones this device template actually has.
+    const QJsonObject controls = cat.value("controlSettings").toObject();
+    const QStringList controlKeys = { "gain", "frameRate", "led0", "ewl" };
+    for (const QString &ck : controlKeys) {
+        if (device.contains(ck) && controls.contains(ck)) {
+            const QJsonValue sv = controls.value(ck).toObject().value("startValue");
+            if (!sv.isUndefined())
+                device[ck] = sv;
+        }
+    }
+
+    // Head orientation follows the catalog flag; default the plotted axes.
+    if (device.contains("headOrientation")) {
+        QJsonObject ho = device["headOrientation"].toObject();
+        ho["enabled"]       = cat.value("headOrientation").toBool(false);
+        ho["filterBadData"] = false;
+        ho["plotTrace"]     = QJsonArray{ "roll", "pitch", "yaw" };
+        device["headOrientation"] = ho;
+    }
+
+    // Display LUT is grayscale by default (miniscope only).
+    if (device.contains("lut"))
+        device["lut"] = "None";
+
+    // Compression: pick a host-supported codec, preferring a sensible default per
+    // device class, then any available, then GREY as a last resort.
+    if (device.contains("compression")) {
+        const QString preferred = (category == "miniscopes") ? "FFV1" : "MJPG";
+        QString codec;
+        if (m_availableCodec.contains(preferred))
+            codec = preferred;
+        else if (!m_availableCodec.isEmpty())
+            codec = m_availableCodec.first();
+        else
+            codec = "GREY";
+        device["compression"] = codec;
+    }
+}
+
+void backEnd::addDevice(const QString &category, const QString &deviceType,
+                        const QString &deviceName)
+{
+    if (deviceName.trimmed().isEmpty() || deviceType.isEmpty())
+        return;
+    if (category != "miniscopes" && category != "cameras")
+        return;
+
+    // Capture any edits already made in the tree before we rebuild it.
+    generateUserConfigFromModel();
+
+    QJsonObject devices = m_userConfig.value("devices").toObject();
+    QJsonObject section = devices.value(category).toObject();
+    if (section.contains(deviceName))
+        return;   // names are kept unique within a category
+
+    // Build the device from its schema template, then fill catalog-derived defaults.
+    const QString templateKey = (category == "miniscopes") ? "miniscopeDeviceName"
+                                                           : "cameraDeviceName";
+    const QJsonValue tmpl = m_configProps.value("devices").toObject()
+                                .value(category).toObject().value(templateKey);
+    QJsonObject device = defaultFromProps(tmpl).toObject();
+    enrichDeviceDefaults(device, category, deviceType);
+
+    section[deviceName]     = device;
+    devices[category]       = section;
+    m_userConfig["devices"] = devices;
+
+    constructJsonTreeModel();
+    checkUserConfigForIssues();
 }
 
 QString backEnd::scanVideoDevices()

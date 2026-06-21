@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QJsonValue>
 #include <QThread>
 #include <QString>
 #include <QStringList>
@@ -85,6 +86,18 @@ public:
     // can see which deviceID maps to which camera. Windows (DirectShow) only.
     Q_INVOKABLE QString scanVideoDevices();
 
+    // --- User-config generator -----------------------------------------------
+    // Device types available to add (keys of deviceConfigs/videoDevices.json), for
+    // the Add-Device dialog's dropdown.
+    Q_INVOKABLE QStringList deviceTypes() const { return m_deviceCatalog.keys(); }
+    // Seed a fresh, valid user config from the schema (no example file needed) and
+    // show it in the tree editor.
+    Q_INVOKABLE void newUserConfig();
+    // Add a device of the given catalog type under devices.<category> (category is
+    // "miniscopes" or "cameras"), with sensible catalog-derived defaults, then
+    // rebuild the tree. Names must be non-empty and unique within their category.
+    Q_INVOKABLE void addDevice(const QString &category, const QString &deviceType, const QString &deviceName);
+
 
     void loadUserConfigFile();
     bool checkUserConfigForIssues();
@@ -128,6 +141,14 @@ private:
 
     void testCodecSupport();
 
+    // User-config generator helpers. defaultFromProps walks a userConfigProps.json
+    // node and returns a default value matching its declared types; defaultForType
+    // maps a single type string to its zero value; enrichDeviceDefaults fills a
+    // freshly-templated device with sensible, catalog-derived starting values.
+    QJsonValue defaultFromProps(const QJsonValue &propNode);
+    QJsonValue defaultForType(const QString &type);
+    void enrichDeviceDefaults(QJsonObject &device, const QString &category, const QString &deviceType);
+
     QString m_versionNumber;
     QString m_buildInfo;
     QString m_userConfigFileName;
@@ -135,6 +156,7 @@ private:
     bool m_userConfigOK;
     QJsonObject m_userConfig;
     QJsonObject m_configProps;
+    QJsonObject m_deviceCatalog;   // deviceConfigs/videoDevices.json (device types + defaults)
 
     // Break down of different types in user config file
     // 'uc' stands for userConfig

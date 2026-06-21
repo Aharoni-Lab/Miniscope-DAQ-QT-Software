@@ -143,6 +143,13 @@ Window {
         visible: false
     }
 
+    AddDeviceDialog {
+        id: addDeviceDialog
+        // Insert the chosen device into the config being edited, then the tree
+        // rebuilds itself from the backend model.
+        onAccepted: backend.addDevice(category, deviceType, deviceName)
+    }
+
 
     ColumnLayout {
         id: columnLayout
@@ -191,6 +198,40 @@ Window {
                 onClicked: fileDialog.open()   // Qt6: open() instead of setVisible(1)
                 onHoveredChanged: hovered ? configRect.color = "#f8a7fd" : configRect.color = "#a8a7fd"
 
+            }
+
+            RoundButton {
+                id: rbNewConfig
+                height: 40
+                text: "New Config"
+                Layout.minimumHeight: 40
+                Layout.preferredHeight: 40
+                Layout.fillHeight: false
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                Layout.fillWidth: true
+                font.family: "Arial"
+                font.pointSize: 18
+                font.bold: true
+                font.weight: Font.Normal
+                radius: 10
+
+                Layout.minimumWidth: 100
+                Layout.preferredWidth: 200
+                Layout.maximumWidth: 700
+
+                background: Rectangle {
+                    id: newConfigRect
+                    radius: rbNewConfig.radius
+                    border.width: 1
+                    color: "#a8a7fd"
+                }
+                onClicked: {
+                    // Generate a fresh skeleton config and open it in the tree editor.
+                    backend.newUserConfig()
+                    treeView.visible = true
+                    view.visible = false
+                }
+                onHoveredChanged: hovered ? newConfigRect.color = "#f8a7fd" : newConfigRect.color = "#a8a7fd"
             }
 
             RoundButton {
@@ -262,6 +303,28 @@ Window {
             }
         }
         ColumnLayout {
+            RoundButton {
+                id: rbAddDevice
+                text: "Add Device"
+                visible: treeView.visible
+                Layout.fillWidth: true
+                Layout.preferredHeight: 36
+                Layout.minimumHeight: 36
+                font.family: "Arial"
+                font.pointSize: 14
+                font.bold: true
+                font.weight: Font.Normal
+                radius: 10
+                background: Rectangle {
+                    id: addDeviceRect
+                    radius: rbAddDevice.radius
+                    border.width: 1
+                    color: "#a8a7fd"
+                }
+                onClicked: addDeviceDialog.open()
+                onHoveredChanged: hovered ? addDeviceRect.color = "#f8a7fd" : addDeviceRect.color = "#a8a7fd"
+            }
+
             TreeViewerJSON {
                 id: treeView
                 objectName: "treeView"
