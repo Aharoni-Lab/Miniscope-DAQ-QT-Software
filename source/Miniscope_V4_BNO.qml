@@ -311,6 +311,9 @@ Item {
         spacing: 0
         anchors.verticalCenter: parent.verticalCenter
 
+        // "Add Neuron ROI": arms ROI-selection mode so the next click/drag on the
+        // video defines a neuron trace. Safe now that VideoDisplay initializes its
+        // selection flag to false (a plain click does nothing until this is clicked).
         RoundButton {
             id: addTraceRoi
             objectName: "addTraceRoi"

@@ -14,6 +14,8 @@ VideoDisplay::VideoDisplay()
       m_renderer(nullptr),
       m_lutMode(0),
       m_roiSelectionActive(false),
+      m_addTraceRoiSelectionActive(false),   // was uninitialized: garbage-true made a
+                                             // plain click on the video spawn a neuron
       m_ROI({0,0,10,10,0}),
       m_hasPressPos(false)
 {
