@@ -2,26 +2,29 @@
 """
 Assemble a clean, standalone, double-clickable distribution from a conda build.
 
-Output layout under <build>/Release/dist/:
+This makes the build output dir itself (<build>/Release/) the portable release -
+there is no nested dist/ subfolder. The real exe is built straight into bin/ and
+the configs are placed at the top by CMake (POST_BUILD); this script bundles the
+DLLs into bin/ and drops the launcher on top:
 
-    dist/
+    <build>/Release/
       MiniscopeDAQ.exe          <- tiny launcher (the only loose file at the top)
       deviceConfigs/            <- runtime configs, kept visible at the top
       userConfigs/
       Scripts/
       bin/
-        MiniscopeDAQ.exe        <- the real application
+        MiniscopeDAQ.exe        <- the real application (built here by CMake)
         *.dll                   <- Qt, OpenCV, OpenBLAS, Python, ... (bundled)
         platforms/ imageformats/ iconengines/ styles/   <- Qt plugins
         qml/                    <- Qt QML modules
 
-The top level stays uncluttered - just the executable plus folders - so the app
-is easy to find. The launcher (tools/launcher.cpp) starts bin\\MiniscopeDAQ.exe
-with the working dir set to the top, so the real exe finds its DLLs (its own
-bin\\ dir), its plugins/QML (applicationDirPath() == bin\\, see main.cpp), and
-its configs (./deviceConfigs etc., read from the working dir = the top). The
-whole dist/ folder is portable - copy it anywhere and double-click
-MiniscopeDAQ.exe; no conda env required.
+The top level stays uncluttered - just the launcher plus folders - so the app is
+easy to find. The launcher (tools/launcher.cpp) starts bin\\MiniscopeDAQ.exe with
+the working dir set to the top, so the real exe finds its DLLs (its own bin\\
+dir), its plugins/QML (applicationDirPath() == bin\\, see main.cpp), and its
+configs (./deviceConfigs etc., read from the working dir = the top). The whole
+folder is portable - copy it anywhere and double-click MiniscopeDAQ.exe; no conda
+env required.
 
 conda-forge's windeployqt is broken for the conda layout, so we deploy manually:
 copy the needed plugins + QML modules, then walk the import graph and copy every
@@ -38,9 +41,8 @@ EXE = os.path.abspath(sys.argv[1])
 ENV = os.path.abspath(sys.argv[2])
 LAUNCHER = os.path.abspath(sys.argv[3]) if len(sys.argv) > 3 else None
 
-srcdir = os.path.dirname(EXE)
-dist = os.path.join(srcdir, "dist")
-bindir = os.path.join(dist, "bin")
+bindir = os.path.dirname(EXE)            # the real exe is built straight into bin/
+dist = os.path.dirname(bindir)           # release top = build/<config>/
 qt6 = os.path.join(ENV, "Library", "lib", "qt6")
 
 search_dirs = [os.path.join(ENV, "Library", "bin"), ENV, os.path.join(ENV, "DLLs")]
@@ -79,16 +81,22 @@ def imports_of(path):
     except Exception:
         return []
 
-# --- fresh dist: real exe + DLLs in bin/, configs at the top -------------
-print("[1/6] preparing dist (configs at top, app in bin/) ...")
-if os.path.isdir(dist):
-    shutil.rmtree(dist)
-os.makedirs(bindir)
-shutil.copy2(EXE, os.path.join(bindir, os.path.basename(EXE)))
-for d in DATA_DIRS:                       # configs go at the TOP (read from cwd)
-    s = os.path.join(srcdir, d)
-    if os.path.isdir(s):
-        shutil.copytree(s, os.path.join(dist, d))
+# --- clean previously-deployed files in bin/ (keep the freshly-built exe) -
+# The real exe is built straight into bin/ and the configs are placed at the top
+# by CMake, so we assemble in place rather than nuking the folder. Wipe only what a
+# previous deploy added to bin/ (stale DLLs + plugin/QML dirs) so re-runs start
+# from a clean bin/ without deleting the exe or the configs at the top.
+print("[1/6] cleaning previously-deployed files in bin/ ...")
+for p in glob.glob(os.path.join(bindir, "*.dll")):
+    os.remove(p)
+for sub in PLUGIN_CATS + ["qml"]:
+    d = os.path.join(bindir, sub)
+    if os.path.isdir(d):
+        shutil.rmtree(d)
+missing_cfg = [d for d in DATA_DIRS if not os.path.isdir(os.path.join(dist, d))]
+if missing_cfg:
+    print("      note: configs missing at the top (%s) - build MiniscopeDAQ first "
+          "so its POST_BUILD step copies them" % ", ".join(missing_cfg))
 
 # --- plugins + QML (next to the real exe, in bin/) -----------------------
 print("[2/6] copying Qt plugins ...")
@@ -133,7 +141,7 @@ print("      copied %d conda DLLs" % len(copied))
 print("[5/6] placing launcher ...")
 if LAUNCHER and os.path.isfile(LAUNCHER):
     shutil.copy2(LAUNCHER, os.path.join(dist, "MiniscopeDAQ.exe"))
-    print("      dist/MiniscopeDAQ.exe (launcher) -> bin/MiniscopeDAQ.exe")
+    print("      MiniscopeDAQ.exe (launcher at top) -> bin/MiniscopeDAQ.exe")
 else:
     print("      WARNING: launcher exe not provided; run bin/MiniscopeDAQ.exe directly")
 
@@ -155,4 +163,5 @@ if missing:
         print("    ", m)
     sys.exit(1)
 print("  OK -> %s" % dist)
-print("  Double-click dist/MiniscopeDAQ.exe (or copy the whole dist/ folder anywhere).")
+print("  Double-click MiniscopeDAQ.exe (or copy the whole %s folder anywhere)."
+      % os.path.basename(dist))

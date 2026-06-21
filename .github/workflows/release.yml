@@ -6,8 +6,9 @@
 #
 # The build mirrors the local recipe exactly (conda env from environment.yml,
 # CMake + MSVC, then the `deploy` target which bundles every dependency into
-# build/Release/dist/). deploy.py verifies the bundle and exits non-zero if any
-# conda dependency is missing, so a broken bundle fails the job.
+# build/Release/ itself - launcher + configs at the top, real exe + DLLs in bin/).
+# deploy.py verifies the bundle and exits non-zero if any conda dependency is
+# missing, so a broken bundle fails the job.
 #
 # NOTE: not yet validated on GitHub's runners - the first tag push / manual run
 # will shake out any runner-specific issues (conda activation, solve time).
@@ -50,13 +51,13 @@ jobs:
       - name: Build (Release)
         run: cmake --build build --config Release
 
-      - name: Deploy standalone bundle (build/Release/dist/)
+      - name: Deploy standalone bundle (into build/Release/)
         run: cmake --build build --config Release --target deploy
 
-      - name: Package dist/ into a zip
+      - name: Package the release folder into a zip
         run: |
           $name = if ($env:GITHUB_REF_TYPE -eq 'tag') { "MiniscopeDAQ-$env:GITHUB_REF_NAME-Windows-x64.zip" } else { "MiniscopeDAQ-Windows-x64.zip" }
-          Compress-Archive -Path build/Release/dist/* -DestinationPath $name -Force
+          Compress-Archive -Path build/Release/* -DestinationPath $name -Force
           "ZIP_NAME=$name" | Out-File -FilePath $env:GITHUB_ENV -Append
           "Built $name"
 
