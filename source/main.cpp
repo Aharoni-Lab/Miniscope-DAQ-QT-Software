@@ -21,7 +21,7 @@
 #include <patchlevel.h>   // PY_VERSION (e.g. "3.12.7"); pure macro header, safe alone
 #endif
 
-#define VERSION_NUMBER "1.2"
+#define VERSION_NUMBER "2.0"
 // TODO: have exit button close everything
 
 // For Window's deployment

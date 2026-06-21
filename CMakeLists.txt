@@ -15,7 +15,7 @@
 # ---------------------------------------------------------------------------
 cmake_minimum_required(VERSION 3.21)
 
-project(MiniscopeDAQ VERSION 1.2 LANGUAGES CXX)
+project(MiniscopeDAQ VERSION 2.0 LANGUAGES CXX)
 
 option(USE_PYTHON "Build the DeepLabCut-Live behaviour tracker (embedded Python)" ON)
 
