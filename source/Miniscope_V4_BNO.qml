@@ -311,9 +311,29 @@ Item {
         spacing: 0
         anchors.verticalCenter: parent.verticalCenter
 
-        // The "Add Neuron ROI" button was removed: clicking the miniscope window
-        // to spawn a neuron trace was unwanted. The signal (addTraceRoiClicked) is
-        // left declared so existing C++ connections stay valid; it's never emitted.
+        // "Add Neuron ROI": arms ROI-selection mode so the next click/drag on the
+        // video defines a neuron trace. Safe now that VideoDisplay initializes its
+        // selection flag to false (a plain click does nothing until this is clicked).
+        RoundButton {
+            id: addTraceRoi
+            objectName: "addTraceRoi"
+            text: "Add Neuron ROI"
+            font.family: "Arial"
+            font.pointSize: 10
+            font.bold: true
+            font.weight: Font.Normal
+            radius: 4
+            enabled: true
+            background: Rectangle {
+                id: addTraceRoiRect
+                radius: addTraceRoi.radius
+                border.width: 1
+                color: "#a8a7fd"
+            }
+            onHoveredChanged: hovered ? addTraceRoiRect.color = "#f8a7fd" : addTraceRoiRect.color = "#a8a7fd"
+            onClicked: root.addTraceRoiClicked()
+
+        }
 
         RoundButton {
             id: setRoi

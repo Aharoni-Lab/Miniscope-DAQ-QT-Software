@@ -46,8 +46,9 @@ void Miniscope::setupDisplayObjectPointers()
     rootDisplayObject = getRootDisplayObject();
     if (getHeadOrienataionStreamState())
         bnoDisplay = getRootDisplayChild("bno");
-    // The "Add Neuron ROI" button was removed (clicking the video to spawn a
-    // neuron trace was unwanted), so there is no "addTraceRoi" object to enable.
+    QObject* temp = getRootDisplayChild("addTraceRoi");
+    if (temp)   // only present when the trace display is in use
+        temp->setProperty("enabled", getTraceDisplayStatus());
     vidDisplay = getVideoDisplay();
 }
 void Miniscope::handleDFFSwitchChange(bool checked)
