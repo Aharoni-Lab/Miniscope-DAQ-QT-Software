@@ -4,29 +4,35 @@ import QtQuick.Layouts
 
 // Modal dialog for the user-config generator's "Add Device" action. The user
 // picks a category (Miniscope vs Camera), a device type from the catalog
-// (backend.deviceTypes()), and a name. On OK the chosen values are exposed via the
-// category / deviceType / deviceName properties and the built-in accepted() signal
-// fires; main.qml forwards them to backend.addDevice().
+// (backend.deviceTypes()), a deviceID, and a name. A live scan of the connected
+// video devices (backend.scanVideoDevices()) is shown as a hint so the deviceID
+// can be matched to the right camera. On OK the chosen values are exposed via the
+// category / deviceType / deviceID / deviceName properties and the built-in
+// accepted() signal fires; main.qml forwards them to backend.addDevice().
 Dialog {
     id: control
     title: "Add a device"
     modal: true
     parent: Overlay.overlay
     anchors.centerIn: parent
-    width: 440
+    width: 480
     standardButtons: Dialog.Ok | Dialog.Cancel
     closePolicy: Popup.CloseOnEscape
 
     // Results read by the caller (main.qml) on accept.
     property string category:   catCombo.currentText === "Miniscope" ? "miniscopes" : "cameras"
     property string deviceType: typeCombo.currentText
+    property int    deviceID:   deviceIdSpin.value
     property string deviceName: nameField.text.trim()
+    property string detectedDevices: ""
 
-    // Reset the fields each time the dialog is shown.
+    // Reset the fields and refresh the connected-device scan each time it opens.
     onAboutToShow: {
         catCombo.currentIndex = 0;
         typeCombo.currentIndex = 0;
+        deviceIdSpin.value = 0;
         nameField.text = catCombo.currentText === "Miniscope" ? "My Miniscope" : "My Camera";
+        detectedDevices = backend.scanVideoDevices();
     }
 
     // Keep OK disabled until a name is entered (backend.addDevice also guards).
@@ -67,6 +73,16 @@ Dialog {
             model: backend.deviceTypes()
         }
 
+        Label { text: "Device ID"; font.pointSize: 12 }
+        SpinBox {
+            id: deviceIdSpin
+            from: 0
+            to: 63
+            value: 0
+            editable: true
+            font.pointSize: 12
+        }
+
         Label { text: "Name"; font.pointSize: 12 }
         TextField {
             id: nameField
@@ -74,6 +90,31 @@ Dialog {
             font.pointSize: 12
             selectByMouse: true
             placeholderText: "e.g. My V4 Miniscope"
+        }
+
+        // Connected-device hint (deviceID -> name), spanning both columns.
+        Label {
+            Layout.columnSpan: 2
+            Layout.topMargin: 6
+            text: "Connected devices (use these IDs above):"
+            font.pointSize: 11
+            font.bold: true
+        }
+        Frame {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            Layout.preferredHeight: 120
+            ScrollView {
+                anchors.fill: parent
+                clip: true
+                TextArea {
+                    readOnly: true
+                    wrapMode: TextArea.WordWrap
+                    font.pointSize: 10
+                    text: control.detectedDevices === "" ? "(no devices detected)"
+                                                         : control.detectedDevices
+                }
+            }
         }
     }
 }

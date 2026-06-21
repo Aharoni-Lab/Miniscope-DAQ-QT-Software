@@ -147,7 +147,7 @@ Window {
         id: addDeviceDialog
         // Insert the chosen device into the config being edited, then the tree
         // rebuilds itself from the backend model.
-        onAccepted: backend.addDevice(category, deviceType, deviceName)
+        onAccepted: backend.addDevice(category, deviceType, deviceName, deviceID)
     }
 
 
@@ -438,7 +438,8 @@ Window {
             height: 40
             radius: 10
             text: "Run"
-            enabled: backend.userConfigOK
+            // Need a valid config AND at least one device (miniscope or camera).
+            enabled: backend.userConfigOK && backend.hasDevices
             Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             Layout.preferredHeight: 40
             font.family: "Arial"

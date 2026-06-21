@@ -27,6 +27,7 @@ class backEnd : public QObject
     Q_PROPERTY(QString userConfigFileName READ userConfigFileName WRITE setUserConfigFileName NOTIFY userConfigFileNameChanged)
     Q_PROPERTY(QString userConfigDisplay READ userConfigDisplay WRITE setUserConfigDisplay NOTIFY userConfigDisplayChanged)
     Q_PROPERTY(bool userConfigOK READ userConfigOK WRITE setUserConfigOK NOTIFY userConfigOKChanged)
+    Q_PROPERTY(bool hasDevices READ hasDevices NOTIFY hasDevicesChanged)
     Q_PROPERTY(QString availableCodecList READ availableCodecList WRITE setAvailableCodecList NOTIFY availableCodecListChanged)
     Q_PROPERTY(QStringList availableCodecs READ availableCodecs CONSTANT)
     Q_PROPERTY(QStringList availableLUTs READ availableLUTs CONSTANT)
@@ -43,6 +44,10 @@ public:
 
     bool userConfigOK() {return m_userConfigOK;}
     void setUserConfigOK(bool userConfigOK) {m_userConfigOK = userConfigOK;}
+
+    // True when the config has at least one device (miniscope or camera). The Run
+    // button is gated on this so you can't run a config with nothing to record.
+    bool hasDevices() const { return m_hasDevices; }
 
     QString userConfigDisplay(){ return m_userConfigDisplay; }
     void setUserConfigDisplay(const QString &input);
@@ -96,7 +101,7 @@ public:
     // Add a device of the given catalog type under devices.<category> (category is
     // "miniscopes" or "cameras"), with sensible catalog-derived defaults, then
     // rebuild the tree. Names must be non-empty and unique within their category.
-    Q_INVOKABLE void addDevice(const QString &category, const QString &deviceType, const QString &deviceName);
+    Q_INVOKABLE void addDevice(const QString &category, const QString &deviceType, const QString &deviceName, int deviceID);
 
 
     void loadUserConfigFile();
@@ -116,6 +121,7 @@ signals:
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();
     void userConfigOKChanged();
+    void hasDevicesChanged();
     void availableCodecListChanged();
     void versionNumberChanged();
     void buildInfoChanged();
@@ -154,6 +160,7 @@ private:
     QString m_userConfigFileName;
     QString m_userConfigDisplay;
     bool m_userConfigOK;
+    bool m_hasDevices = false;
     QJsonObject m_userConfig;
     QJsonObject m_configProps;
     QJsonObject m_deviceCatalog;   // deviceConfigs/videoDevices.json (device types + defaults)

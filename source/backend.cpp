@@ -716,7 +716,7 @@ void backEnd::enrichDeviceDefaults(QJsonObject &device, const QString &category,
 }
 
 void backEnd::addDevice(const QString &category, const QString &deviceType,
-                        const QString &deviceName)
+                        const QString &deviceName, int deviceID)
 {
     if (deviceName.trimmed().isEmpty() || deviceType.isEmpty())
         return;
@@ -738,6 +738,7 @@ void backEnd::addDevice(const QString &category, const QString &deviceType,
                                 .value(category).toObject().value(templateKey);
     QJsonObject device = defaultFromProps(tmpl).toObject();
     enrichDeviceDefaults(device, category, deviceType);
+    device["deviceID"] = deviceID;   // user-chosen ID from the Add-Device dialog
 
     section[deviceName]     = device;
     devices[category]       = section;
@@ -1026,6 +1027,15 @@ void backEnd::testCodecSupport()
 
 bool backEnd::checkUserConfigForIssues()
 {
+    // Track whether the config has any devices (the Run button is gated on this).
+    const QJsonObject devs = m_userConfig.value("devices").toObject();
+    const bool has = (devs.value("miniscopes").toObject().size()
+                      + devs.value("cameras").toObject().size()) > 0;
+    if (has != m_hasDevices) {
+        m_hasDevices = has;
+        emit hasDevicesChanged();
+    }
+
     if (checkForUniqueDeviceNames() == false) {
         // Need to tell user that user config has error(s)
         setUserConfigOK(false);

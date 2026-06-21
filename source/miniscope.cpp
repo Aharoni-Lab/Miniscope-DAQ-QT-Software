@@ -46,8 +46,8 @@ void Miniscope::setupDisplayObjectPointers()
     rootDisplayObject = getRootDisplayObject();
     if (getHeadOrienataionStreamState())
         bnoDisplay = getRootDisplayChild("bno");
-    QObject* temp = getRootDisplayChild("addTraceRoi");
-    temp->setProperty("enabled", getTraceDisplayStatus());
+    // The "Add Neuron ROI" button was removed (clicking the video to spawn a
+    // neuron trace was unwanted), so there is no "addTraceRoi" object to enable.
     vidDisplay = getVideoDisplay();
 }
 void Miniscope::handleDFFSwitchChange(bool checked)
@@ -323,9 +323,12 @@ void Miniscope::setupBNOTraceDisplay()
         bnoNumDataInBuf[i][1] = 0;
 
     }
-    bnoScale[0] = 1.0f/3.141592f;
-    bnoScale[1] = 1.0f/3.141592f;
-    bnoScale[2] = 1.0f/3.141592f;
+    // Match the neuron-trace amplitude. A neuron trace maps its full +/-127.5 px
+    // range through scale 1/255 to a half-amplitude of 0.5; BNO Euler angles span
+    // +/-pi, so 1/(2*pi) gives them the same 0.5 half-amplitude in the display.
+    bnoScale[0] = 1.0f/(2.0f*3.141592f);
+    bnoScale[1] = 1.0f/(2.0f*3.141592f);
+    bnoScale[2] = 1.0f/(2.0f*3.141592f);
 
     if (getHeadOrienataionStreamState()) {
         QJsonArray tempArray = m_ucDevice["headOrientation"].toObject()["plotTrace"].toArray();
