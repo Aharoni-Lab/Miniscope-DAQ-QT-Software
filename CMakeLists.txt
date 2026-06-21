@@ -86,6 +86,18 @@ set_target_properties(MiniscopeDAQ PROPERTIES QT_QML_MODULE_NO_IMPORT_SCAN ON)
 # Windows: GUI app (no console) + application icon, replacing qmake RC_ICONS.
 if(WIN32)
     set_target_properties(MiniscopeDAQ PROPERTIES WIN32_EXECUTABLE ON)
+
+    # Make build/<config>/ itself the portable release. The real exe (and, after
+    # the `deploy` target runs, all its DLLs / Qt plugins / QML) lives in a bin/
+    # subfolder, leaving the top of build/<config>/ for just the launcher and the
+    # configs. So the folder a user opens IS the double-clickable release - no
+    # nested dist/, no loose dev exe that fails to launch. The genexp keeps the
+    # multi-config generator from appending a second per-config subdir (so the exe
+    # lands in build/Release/bin, not build/Release/bin/Release). See
+    # tools/launcher.cpp + tools/deploy.py.
+    set(MINISCOPE_RELEASE_TOP "${CMAKE_BINARY_DIR}/$<CONFIG>")
+    set_target_properties(MiniscopeDAQ PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${MINISCOPE_RELEASE_TOP}/bin")
     set(APP_ICON_RC "${CMAKE_CURRENT_BINARY_DIR}/appicon.rc")
     file(WRITE "${APP_ICON_RC}"
          "IDI_ICON1 ICON \"${CMAKE_CURRENT_SOURCE_DIR}/source/miniscope_icon.ico\"\n")
@@ -106,6 +118,10 @@ if(WIN32)
     # DirectShow video-device enumeration (backEnd::scanVideoDevices): strmiids
     # provides the CLSID/IID symbols, ole32/oleaut32 the COM + VARIANT helpers.
     target_link_libraries(MiniscopeDAQ PRIVATE strmiids ole32 oleaut32)
+else()
+    # No bin/ split off-Windows (no launcher/deploy target there yet): the configs
+    # sit next to the exe, exactly as before.
+    set(MINISCOPE_RELEASE_TOP "$<TARGET_FILE_DIR:MiniscopeDAQ>")
 endif()
 
 target_include_directories(MiniscopeDAQ PRIVATE
@@ -141,12 +157,15 @@ endif()
 # in place, launch from an activated conda env.
 
 # --- Standalone deployment target ------------------------------------------
-# Assemble a clean, standalone dist/ folder that runs by double-click with NO
-# conda env on PATH and can be copied to any Windows PC. Layout (see deploy.py):
-#     dist/MiniscopeDAQ.exe                 <- launcher (the only loose file)
-#     dist/deviceConfigs|userConfigs|Scripts<- configs, visible at the top
-#     dist/bin/                             <- real exe + all DLLs + plugins + qml
-# Output: build/Release/dist/. Run after building:
+# Turn build/<config>/ itself into a clean, standalone release that runs by
+# double-click with NO conda env on PATH and can be copied to any Windows PC. The
+# configs are already at the top (POST_BUILD step above) and the real exe is
+# already built into bin/, so deploy just bundles the DLLs into bin/ and drops the
+# launcher on top (see deploy.py):
+#     build/<config>/MiniscopeDAQ.exe                  <- launcher (the only loose file)
+#     build/<config>/deviceConfigs|userConfigs|Scripts <- configs, visible at the top
+#     build/<config>/bin/                              <- real exe + all DLLs + plugins + qml
+# Run after building:
 #     cmake --build build --config Release --target deploy
 # Requires: run from the activated conda env, and `pip install pefile`.
 # IMPORTANT: the env must use the OpenBLAS BLAS variant, not MKL (MKL is 565 MB
@@ -160,18 +179,20 @@ if(WIN32 AND DEFINED ENV{CONDA_PREFIX})
         DEPENDS MiniscopeDAQ MiniscopeLauncher
         USES_TERMINAL
         VERBATIM
-        COMMENT "Bundling dependencies into a standalone dist/ (exe at top, DLLs in bin/)")
+        COMMENT "Bundling dependencies into build/<config>/ (launcher + configs at top, real exe + DLLs in bin/)")
 endif()
 
 # --- Runtime data ----------------------------------------------------------
-# Copy the JSON device/user configs and helper scripts next to the binary,
-# replicating the old qmake copydata steps.
+# Copy the JSON device/user configs and helper scripts to the top of the release
+# folder - a SINGLE copy, no duplication - where the app finds ./deviceConfigs etc.
+# via its working directory. On Windows that top is build/<config>/ (the exe itself
+# lives in build/<config>/bin/); elsewhere it is the exe's own directory.
 foreach(data_dir deviceConfigs userConfigs Scripts)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${data_dir}")
         add_custom_command(TARGET MiniscopeDAQ POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory
                 "${CMAKE_CURRENT_SOURCE_DIR}/${data_dir}"
-                "$<TARGET_FILE_DIR:MiniscopeDAQ>/${data_dir}"
-            COMMENT "Copying ${data_dir} to build output")
+                "${MINISCOPE_RELEASE_TOP}/${data_dir}"
+            COMMENT "Copying ${data_dir} to the release top")
     endif()
 endforeach()

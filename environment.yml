@@ -7,7 +7,7 @@
 #         -DCMAKE_PREFIX_PATH="%CONDA_PREFIX%/Library" ^
 #         -DPython3_EXECUTABLE="%CONDA_PREFIX%/python.exe" -DUSE_PYTHON=ON
 #     cmake --build build --config Release
-#     cmake --build build --config Release --target deploy   # -> build/Release/dist/
+#     cmake --build build --config Release --target deploy   # -> build/Release/
 #
 # To update an existing env after editing this file:
 #     conda env update -f environment.yml --prune
