@@ -594,23 +594,54 @@ void backEnd::newUserConfig()
         cfg[k] = defaultFromProps(m_configProps.value(k));
     }
 
-    // A few helpful, non-zero seeds so the fresh config is immediately usable.
+    // Seed sensible, non-empty defaults so a fresh config is immediately usable
+    // instead of being full of blanks/zeros the user has to fill in.
+    cfg["researcherName"] = "Researcher";
+    cfg["experimentName"] = "Experiment";
+    cfg["animalName"]     = "Animal";
+    // Default the data directory to a "Data" folder next to the running app (the
+    // working directory, where ./deviceConfigs etc. are read from).
+    cfg["dataDirectory"] = QDir::currentPath() + "/Data";
+
     cfg["directoryStructure"] = QJsonArray{ "researcherName", "experimentName",
                                             "animalName", "date", "time" };
+
     QJsonObject devices;
     devices["miniscopes"] = QJsonObject();
     devices["cameras"]    = QJsonObject();
     cfg["devices"] = devices;
 
-    // Pre-fill the single valid value for these "type" fields.
+    // Trace display: on by default with a real window size, so it actually appears
+    // (a 0x0 window never shows). "type" has a single valid value.
     if (cfg.contains("traceDisplay")) {
         QJsonObject td = cfg["traceDisplay"].toObject();
-        td["type"] = "scrolling";
+        td["enabled"]      = true;
+        td["type"]         = "scrolling";
+        td["windowX"]      = 100;
+        td["windowY"]      = 100;
+        td["windowWidth"]  = 600;
+        td["windowHeight"] = 800;
         cfg["traceDisplay"] = td;
     }
+
+    // Behavior tracker stays off (it needs an external Python/DLC-Live setup), but
+    // give it sane non-zero values so the section isn't all blanks/zeros if enabled.
     if (cfg.contains("behaviorTracker")) {
         QJsonObject bt = cfg["behaviorTracker"].toObject();
-        bt["type"] = "DeepLabCut-Live";
+        bt["type"]           = "DeepLabCut-Live";
+        bt["resize"]         = 0.5;
+        bt["pCutoffDisplay"] = 0.3;
+        bt["windowX"]        = 200;
+        bt["windowY"]        = 100;
+        bt["windowScale"]    = 0.75;
+        QJsonObject op = bt["occupancyPlot"].toObject();
+        op["numBinsX"] = 100;
+        op["numBinsY"] = 100;
+        bt["occupancyPlot"] = op;
+        QJsonObject po = bt["poseOverlay"].toObject();
+        po["numOfPastPoses"] = 6;
+        po["markerSize"]     = 20;
+        bt["poseOverlay"] = po;
         cfg["behaviorTracker"] = bt;
     }
 

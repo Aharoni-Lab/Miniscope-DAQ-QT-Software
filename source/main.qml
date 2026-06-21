@@ -233,6 +233,18 @@ Window {
                 }
                 onHoveredChanged: hovered ? newConfigRect.color = "#f8a7fd" : newConfigRect.color = "#a8a7fd"
             }
+        }
+
+        RowLayout {
+            // Second row of top-level buttons, so the four don't crowd into one
+            // row (their labels would otherwise overlap).
+            id: rowLayoutTop2
+            height: 40
+            Layout.minimumHeight: 40
+            Layout.preferredHeight: 40
+            Layout.fillHeight: false
+            Layout.fillWidth: true
+            spacing: 10
 
             RoundButton {
                 id: rbSaveUserConfig
