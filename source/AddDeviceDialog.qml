@@ -4,11 +4,13 @@ import QtQuick.Layouts
 
 // Modal dialog for the user-config generator's "Add Device" action. The user
 // picks a category (Miniscope vs Camera), a device type from the catalog
-// (backend.deviceTypes()), a deviceID, and a name. A live scan of the connected
-// video devices (backend.scanVideoDevices()) is shown as a hint so the deviceID
-// can be matched to the right camera. On OK the chosen values are exposed via the
-// category / deviceType / deviceID / deviceName properties and the built-in
-// accepted() signal fires; main.qml forwards them to backend.addDevice().
+// (backend.deviceTypes()), a deviceID, and a name. The deviceID dropdown only
+// offers IDs not already used by another device (backend.availableDeviceIDs()),
+// each labelled with the connected-device name when known, so two devices can't
+// share an ID. A full scan of connected devices is also shown as a hint. On OK
+// the chosen values are exposed via the category / deviceType / deviceID /
+// deviceName properties and the built-in accepted() signal fires; main.qml
+// forwards them to backend.addDevice().
 Dialog {
     id: control
     title: "Add a device"
@@ -19,19 +21,21 @@ Dialog {
     standardButtons: Dialog.Ok | Dialog.Cancel
     closePolicy: Popup.CloseOnEscape
 
-    // Results read by the caller (main.qml) on accept.
+    // Results read by the caller (main.qml) on accept. deviceID is the leading
+    // integer of the dropdown label (e.g. "0  (Asus Webcam)" -> 0).
     property string category:   catCombo.currentText === "Miniscope" ? "miniscopes" : "cameras"
     property string deviceType: typeCombo.currentText
-    property int    deviceID:   deviceIdSpin.value
+    property int    deviceID:   idCombo.currentText.length > 0 ? parseInt(idCombo.currentText) : 0
     property string deviceName: nameField.text.trim()
     property string detectedDevices: ""
 
-    // Reset the fields and refresh the connected-device scan each time it opens.
+    // Reset the fields and refresh the live device info each time it opens.
     onAboutToShow: {
         catCombo.currentIndex = 0;
         typeCombo.currentIndex = 0;
-        deviceIdSpin.value = 0;
         nameField.text = catCombo.currentText === "Miniscope" ? "My Miniscope" : "My Camera";
+        idCombo.model = backend.availableDeviceIDs();   // unused IDs only
+        idCombo.currentIndex = 0;
         detectedDevices = backend.scanVideoDevices();
     }
 
@@ -74,13 +78,11 @@ Dialog {
         }
 
         Label { text: "Device ID"; font.pointSize: 12 }
-        SpinBox {
-            id: deviceIdSpin
-            from: 0
-            to: 63
-            value: 0
-            editable: true
+        ComboBox {
+            id: idCombo
+            Layout.fillWidth: true
             font.pointSize: 12
+            // Populated in onAboutToShow with only the unused IDs.
         }
 
         Label { text: "Name"; font.pointSize: 12 }
@@ -92,11 +94,11 @@ Dialog {
             placeholderText: "e.g. My V4 Miniscope"
         }
 
-        // Connected-device hint (deviceID -> name), spanning both columns.
+        // Full connected-device scan (incl. already-used IDs), spanning both columns.
         Label {
             Layout.columnSpan: 2
             Layout.topMargin: 6
-            text: "Connected devices (use these IDs above):"
+            text: "Connected devices:"
             font.pointSize: 11
             font.bold: true
         }

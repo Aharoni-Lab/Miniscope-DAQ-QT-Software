@@ -95,6 +95,10 @@ public:
     // Device types available to add (keys of deviceConfigs/videoDevices.json), for
     // the Add-Device dialog's dropdown.
     Q_INVOKABLE QStringList deviceTypes() const { return m_deviceCatalog.keys(); }
+    // Device IDs not already used by another device in the config, each labelled with
+    // the connected-device name when known. Drives the Add-Device dialog's ID
+    // dropdown so two devices can't be assigned the same deviceID.
+    Q_INVOKABLE QStringList availableDeviceIDs();
     // Seed a fresh, valid user config from the schema (no example file needed) and
     // show it in the tree editor.
     Q_INVOKABLE void newUserConfig();
@@ -154,6 +158,10 @@ private:
     QJsonValue defaultFromProps(const QJsonValue &propNode);
     QJsonValue defaultForType(const QString &type);
     void enrichDeviceDefaults(QJsonObject &device, const QString &category, const QString &deviceType);
+
+    // Connected video-device names indexed by deviceID (DirectShow order, which
+    // matches OpenCV's CAP_DSHOW index). Empty off-Windows or when none are found.
+    QStringList enumerateVideoDevices();
 
     QString m_versionNumber;
     QString m_buildInfo;
