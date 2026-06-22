@@ -217,6 +217,10 @@
                     "type": "String",
                     "tips": "Imaging data is save in .avi file format. You can choose what type of video compression to apply when saving data. We suggest using a lossless compression CODEC for Miniscope data. This would be either GREY or FFV1. GREY does no compression. FFV1 losslessly compresses the data but can be CPU intensive. We generally use FFV1 is our computer can keep up with it. If you notice the frame buffer filling up completely while recording you should switch to GREY."
                 },
+                "lut": {
+                    "type": "String",
+                    "tips": "Optional display colormap (LUT) for the live Miniscope video. Choose None (grayscale), Green (GCaMP/GFP, ~530 nm), Red (red indicators such as jRGECO/RCaMP/tdTomato), or Inferno. This is DISPLAY ONLY - it does not affect the recorded data, which is always saved in grayscale. The 'Apply LUT' switch on the device window toggles it on/off at runtime."
+                },
                 "framesPerFile": {
                     "type": "Integer",
                     "tips": "We generally set this to 1000. It defines how large each .avi file will be in your recording."

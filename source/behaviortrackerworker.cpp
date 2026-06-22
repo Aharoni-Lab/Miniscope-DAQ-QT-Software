@@ -78,7 +78,8 @@ void BehaviorTrackerWorker::initPython()
 
 int BehaviorTrackerWorker::initNumpy()
 {
-    import_array1(-1);
+    import_array1(-1); // expands to `return -1` on failure; fall through = success
+    return 0;
 }
 
 void BehaviorTrackerWorker::setUpDLCLive()

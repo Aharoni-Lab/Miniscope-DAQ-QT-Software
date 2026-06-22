@@ -19,7 +19,7 @@ void main() {
     }
     else if (gl_FragColor.g == -2.0 && gl_FragColor.b == -2.0) {
         // Use parula colormap_parula
-        gl_FragColor = colormap_gnu_plot(gl_FragColor.r, 33.0, 13.0, 10.0);
+        gl_FragColor = colormap_gnu_plot(gl_FragColor.r, 33, 13, 10);
     }
     else if (gl_FragColor.g == -3.0 && gl_FragColor.b == -3.0) {
         // Use parula colormap_parula

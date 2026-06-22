@@ -26,3 +26,12 @@ This backwards compatible Miniscope DAQ software is an upgrade and replacement t
 **All information can be found on the [Miniscope DAQ Software Wiki page](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/wiki).**
 
 Along with this repository holding the software's source code, you can get built release versions of the software on the [Releases Page](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/releases).
+
+## Installation (Windows)
+
+Each release on the [Releases Page](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/releases) ships in two forms — pick whichever suits you:
+
+- **Installer — `MiniscopeDAQ-<version>-Setup.exe`** (recommended). A standard Windows setup wizard. It installs per-user (no administrator rights required), adds a Start Menu shortcut (and an optional desktop shortcut), and registers an entry under *Add or Remove Programs* so it can be uninstalled cleanly.
+- **Portable zip — `MiniscopeDAQ-<version>-Windows-x64.zip`**. Unzip it anywhere and double-click `MiniscopeDAQ.exe` — nothing is installed, and you can remove it just by deleting the folder. Handy when you can't run an installer or want to carry it on a USB drive.
+
+Both are fully self-contained: all dependencies (Qt, OpenCV, Python, …) are bundled, so no separate installation is needed.

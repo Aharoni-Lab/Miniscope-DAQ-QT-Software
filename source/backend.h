@@ -4,8 +4,11 @@
 #include <QObject>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QJsonValue>
 #include <QThread>
 #include <QString>
+#include <QStringList>
+#include <QUrl>
 #include <QStandardItemModel>
 #include <QStandardItem>
 
@@ -24,8 +27,12 @@ class backEnd : public QObject
     Q_PROPERTY(QString userConfigFileName READ userConfigFileName WRITE setUserConfigFileName NOTIFY userConfigFileNameChanged)
     Q_PROPERTY(QString userConfigDisplay READ userConfigDisplay WRITE setUserConfigDisplay NOTIFY userConfigDisplayChanged)
     Q_PROPERTY(bool userConfigOK READ userConfigOK WRITE setUserConfigOK NOTIFY userConfigOKChanged)
+    Q_PROPERTY(bool hasDevices READ hasDevices NOTIFY hasDevicesChanged)
     Q_PROPERTY(QString availableCodecList READ availableCodecList WRITE setAvailableCodecList NOTIFY availableCodecListChanged)
+    Q_PROPERTY(QStringList availableCodecs READ availableCodecs CONSTANT)
+    Q_PROPERTY(QStringList availableLUTs READ availableLUTs CONSTANT)
     Q_PROPERTY(QString versionNumber READ versionNumber WRITE setVersionNumber NOTIFY versionNumberChanged)
+    Q_PROPERTY(QString buildInfo READ buildInfo WRITE setBuildInfo NOTIFY buildInfoChanged)
 
     Q_PROPERTY(QStandardItemModel* jsonTreeModel READ jsonTreeModel WRITE setJsonTreeModel NOTIFY jsonTreeModelChanged)
 
@@ -38,26 +45,67 @@ public:
     bool userConfigOK() {return m_userConfigOK;}
     void setUserConfigOK(bool userConfigOK) {m_userConfigOK = userConfigOK;}
 
+    // True when the config has at least one device (miniscope or camera). The Run
+    // button is gated on this so you can't run a config with nothing to record.
+    bool hasDevices() const { return m_hasDevices; }
+
     QString userConfigDisplay(){ return m_userConfigDisplay; }
     void setUserConfigDisplay(const QString &input);
 
     QString availableCodecList(){ return m_availableCodecList; }
     void setAvailableCodecList(const QString &input);
 
+    // List of host-supported codecs, for the compression dropdown in the tree editor.
+    QStringList availableCodecs() const { return QStringList(m_availableCodec.begin(), m_availableCodec.end()); }
+
+    // Display LUTs (colormaps) offered in the tree editor's "lut" dropdown. Must
+    // stay in sync with the lutMode mapping in VideoDevice::createView and the
+    // shader. "None" = grayscale.
+    QStringList availableLUTs() const { return {"None", "Green", "Red", "Inferno"}; }
+
     QString versionNumber() { return m_versionNumber; }
-    void setVersionNumber(const QString &input) { m_versionNumber = input; }
+    void setVersionNumber(const QString &input) { m_versionNumber = input; emit versionNumberChanged(); }
+
+    QString buildInfo() { return m_buildInfo; }
+    void setBuildInfo(const QString &input) { m_buildInfo = input; emit buildInfoChanged(); }
 
     QStandardItemModel* jsonTreeModel() { return m_jsonTreeModel; }
     void setJsonTreeModel(QStandardItemModel* model) { m_jsonTreeModel = model; }
 
     void constructJsonTreeModel();
     Q_INVOKABLE void treeViewTextChanged(const QModelIndex &index, QString text);
+    // Convert a file:// URL from a QML folder/file dialog to a native path, so
+    // the path-browse buttons in the config tree editor can store a plain path.
+    Q_INVOKABLE QString urlToLocalFile(const QUrl &url) const { return url.toLocalFile(); }
+    // Inverse of urlToLocalFile: build a file:// URL to seed the Save-As dialog.
+    Q_INVOKABLE QUrl localFileToUrl(const QString &path) const { return QUrl::fromLocalFile(path); }
     QStandardItem *handleJsonObject(QStandardItem* parent, QJsonObject obj, QJsonObject objProps);
     QStandardItem *handleJsonArray(QStandardItem* parent, QJsonArray arry, QString type);
     void generateUserConfigFromModel();
     QJsonObject getObjectFromModel(QModelIndex index);
     QJsonArray getArrayFromModel(QModelIndex index);
     Q_INVOKABLE void saveConfigObject();
+    // Save the (edited) user config to a user-chosen path from the Save-As dialog.
+    Q_INVOKABLE void saveConfigObjectAs(const QString &filePath);
+    // Enumerate connected video devices as "deviceID N: <name>" lines so the user
+    // can see which deviceID maps to which camera. Windows (DirectShow) only.
+    Q_INVOKABLE QString scanVideoDevices();
+
+    // --- User-config generator -----------------------------------------------
+    // Device types available to add (keys of deviceConfigs/videoDevices.json), for
+    // the Add-Device dialog's dropdown.
+    Q_INVOKABLE QStringList deviceTypes() const { return m_deviceCatalog.keys(); }
+    // Device IDs not already used by another device in the config, each labelled with
+    // the connected-device name when known. Drives the Add-Device dialog's ID
+    // dropdown so two devices can't be assigned the same deviceID.
+    Q_INVOKABLE QStringList availableDeviceIDs();
+    // Seed a fresh, valid user config from the schema (no example file needed) and
+    // show it in the tree editor.
+    Q_INVOKABLE void newUserConfig();
+    // Add a device of the given catalog type under devices.<category> (category is
+    // "miniscopes" or "cameras"), with sensible catalog-derived defaults, then
+    // rebuild the tree. Names must be non-empty and unique within their category.
+    Q_INVOKABLE void addDevice(const QString &category, const QString &deviceType, const QString &deviceName, int deviceID);
 
 
     void loadUserConfigFile();
@@ -77,8 +125,10 @@ signals:
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();
     void userConfigOKChanged();
+    void hasDevicesChanged();
     void availableCodecListChanged();
     void versionNumberChanged();
+    void buildInfoChanged();
     void jsonTreeModelChanged();
 
     void closeAll();
@@ -101,12 +151,27 @@ private:
 
     void testCodecSupport();
 
+    // User-config generator helpers. defaultFromProps walks a userConfigProps.json
+    // node and returns a default value matching its declared types; defaultForType
+    // maps a single type string to its zero value; enrichDeviceDefaults fills a
+    // freshly-templated device with sensible, catalog-derived starting values.
+    QJsonValue defaultFromProps(const QJsonValue &propNode);
+    QJsonValue defaultForType(const QString &type);
+    void enrichDeviceDefaults(QJsonObject &device, const QString &category, const QString &deviceType);
+
+    // Connected video-device names indexed by deviceID (DirectShow order, which
+    // matches OpenCV's CAP_DSHOW index). Empty off-Windows or when none are found.
+    QStringList enumerateVideoDevices();
+
     QString m_versionNumber;
+    QString m_buildInfo;
     QString m_userConfigFileName;
     QString m_userConfigDisplay;
     bool m_userConfigOK;
+    bool m_hasDevices = false;
     QJsonObject m_userConfig;
     QJsonObject m_configProps;
+    QJsonObject m_deviceCatalog;   // deviceConfigs/videoDevices.json (device types + defaults)
 
     // Break down of different types in user config file
     // 'uc' stands for userConfig
