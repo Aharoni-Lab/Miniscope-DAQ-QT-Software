@@ -15,6 +15,7 @@ Item {
     signal takeScreenShotSignal()
     signal dFFSwitchChanged(bool value)
     signal saturationSwitchChanged(bool value)
+    signal lutSwitchChanged(bool value)
 
     signal setRoiClicked()
     signal addTraceRoiClicked()
@@ -203,6 +204,19 @@ Item {
             }
 
             Switch {
+                id: lutSwitch
+                objectName: "lutSwitch"
+                text: qsTr("Apply LUT")
+                hoverEnabled: false
+
+                font.bold: true
+                font.family: "Arial"
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
+                Layout.column: 1
+                Layout.row: 0
+            }
+
+            Switch {
                 id: saturationSwitch
                 objectName: "saturationSwitch"
                 text: qsTr("Show Saturation")
@@ -297,6 +311,9 @@ Item {
         spacing: 0
         anchors.verticalCenter: parent.verticalCenter
 
+        // "Add Neuron ROI": arms ROI-selection mode so the next click/drag on the
+        // video defines a neuron trace. Safe now that VideoDisplay initializes its
+        // selection flag to false (a plain click does nothing until this is clicked).
         RoundButton {
             id: addTraceRoi
             objectName: "addTraceRoi"
@@ -413,39 +430,43 @@ Item {
 
     Connections{
         target: led0
-        onValueChangedSignal: vidPropChangedSignal(led0.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(led0.objectName, displayValue, i2cValue, i2cValue2) }
     }
     Connections{
         target: led1
-        onValueChangedSignal: vidPropChangedSignal(led1.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(led1.objectName, displayValue, i2cValue, i2cValue2) }
     }
     Connections{
         target: ewl
-        onValueChangedSignal: vidPropChangedSignal(ewl.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(ewl.objectName, displayValue, i2cValue, i2cValue2) }
     }
     Connections{
         target: gain
-        onValueChangedSignal: vidPropChangedSignal(gain.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(gain.objectName, displayValue, i2cValue, i2cValue2) }
     }
     Connections{
         target: frameRate
-        onValueChangedSignal: vidPropChangedSignal(frameRate.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(frameRate.objectName, displayValue, i2cValue, i2cValue2) }
     }
     Connections{
         target: alpha
-        onValueChangedSignal: vidPropChangedSignal(alpha.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(alpha.objectName, displayValue, i2cValue, i2cValue2) }
     }
     Connections{
         target: beta
-        onValueChangedSignal: vidPropChangedSignal(beta.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(beta.objectName, displayValue, i2cValue, i2cValue2) }
     }
     Connections{
         target: dFFSwitch
-        onClicked: dFFSwitchChanged(dFFSwitch.checked)
+        function onClicked() { dFFSwitchChanged(dFFSwitch.checked) }
     }
     Connections{
         target: saturationSwitch
-        onClicked: saturationSwitchChanged(saturationSwitch.checked)
+        function onClicked() { saturationSwitchChanged(saturationSwitch.checked) }
+    }
+    Connections{
+        target: lutSwitch
+        function onClicked() { lutSwitchChanged(lutSwitch.checked) }
     }
 
     states: [

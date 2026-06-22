@@ -2,7 +2,7 @@ import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.3
-import QtQuick.Dialogs 1.2
+import QtQuick.Dialogs
 
 Window {
     id: root
@@ -20,11 +20,11 @@ Window {
 
         id: fileDialog
         title: "Please choose a user configuration file."
-        folder: shortcuts.home
+        // Qt6: 'folder: shortcuts.home' removed (shortcuts gone); FileDialog defaults are fine.
         nameFilters: [ "JSON files (*.json)", "All files (*)" ]
         onAccepted: {
-            // Send file name to c++ backend
-            backend.userConfigFileName = fileDialog.fileUrl
+            // Send file name to c++ backend  (Qt6: fileUrl -> selectedFile)
+            backend.userConfigFileName = fileDialog.selectedFile
             treeView.visible = true;
             view.visible = false;
 //            rbRun.enabled = true
@@ -35,11 +35,27 @@ Window {
         visible: false
     }
 
+    FileDialog {
+        // Save-As dialog: lets the user choose the folder and filename to save the
+        // (possibly edited) user config to.
+        id: saveConfigDialog
+        title: "Save user configuration as…"
+        fileMode: FileDialog.SaveFile
+        nameFilters: [ "JSON files (*.json)", "All files (*)" ]
+        defaultSuffix: "json"
+        onAccepted: {
+            var path = backend.urlToLocalFile(saveConfigDialog.selectedFile)
+            backend.saveConfigObjectAs(path)
+            saveMessageDialog.savedPath = path
+            saveMessageDialog.open()
+        }
+    }
+
 
     Window {
         id: helpDialog
         width: 600
-        height: 200
+        height: 260
         visible: false
         title: "Miniscope DAQ Help"
         ColumnLayout {
@@ -47,13 +63,12 @@ Window {
 
             TextArea {
                 text: "Miniscope DAQ Software version " + backend.versionNumber + "<br/>" +
-                      "Your OpenGL verions: " + OpenGLInfo.majorVersion + "." + OpenGLInfo.minorVersion + "<br/>" +
+                      "<font color='#555555'>" + backend.buildInfo + "</font><br/> <br/>" +
                       "Developed by the <a href='https://aharoni-lab.github.io/'>Aharoni Lab</a>, UCLA <br/> " +
                       "Overview of the UCLA Miniscope project: <a href='http://www.miniscope.org'>click here</a> <br/>" +
                       "Miniscope Wiki for newest projects: <a href='https://github.com/Aharoni-Lab/Miniscope-v4/wiki'>click here</a> <br/>" +
                       "Miniscope Discussion Board: <a href='https://groups.google.com/d/forum/miniscope'>click here</a> <br/>" +
-                      "Please submit issues, comments, suggestions to the Miniscope DAQ Software Github Repository: <a href='https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software'>click here</a> <br/>" +
-                      "Miniscope Twitter Link: <a href='https://twitter.com/MiniscopeTeam'>click here</a> <br/> <br/>" +
+                      "Please submit issues, comments, suggestions to the Miniscope DAQ Software Github Repository: <a href='https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software'>click here</a> <br/> <br/>" +
                       "Icons from <a href='https://icons8.com/'>icon8</a>"
                 verticalAlignment: Text.AlignVCenter
                 horizontalAlignment: Text.AlignHCenter
@@ -111,13 +126,28 @@ Window {
 
     MessageDialog {
         id: saveMessageDialog
-        property string fName: backend.userConfigFileName
+        property string savedPath: ""
         title: "User Config File Saved"
-        text:  "The user config file has been saved to " + fName.replace(".json", "_new.json")
+        text:  "The user config file has been saved to " + savedPath
         onAccepted: {
             visible = false
         }
         visible: false
+    }
+
+    MessageDialog {
+        id: deviceScanDialog
+        title: "Connected Video Devices"
+        text: ""
+        onAccepted: visible = false
+        visible: false
+    }
+
+    AddDeviceDialog {
+        id: addDeviceDialog
+        // Insert the chosen device into the config being edited, then the tree
+        // rebuilds itself from the backend model.
+        onAccepted: backend.addDevice(category, deviceType, deviceName, deviceID)
     }
 
 
@@ -165,10 +195,56 @@ Window {
                     border.width: 1
                     color: "#a8a7fd"
                 }
-                onClicked: fileDialog.setVisible(1)
+                onClicked: fileDialog.open()   // Qt6: open() instead of setVisible(1)
                 onHoveredChanged: hovered ? configRect.color = "#f8a7fd" : configRect.color = "#a8a7fd"
 
             }
+
+            RoundButton {
+                id: rbNewConfig
+                height: 40
+                text: "New Config"
+                Layout.minimumHeight: 40
+                Layout.preferredHeight: 40
+                Layout.fillHeight: false
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                Layout.fillWidth: true
+                font.family: "Arial"
+                font.pointSize: 18
+                font.bold: true
+                font.weight: Font.Normal
+                radius: 10
+
+                Layout.minimumWidth: 100
+                Layout.preferredWidth: 200
+                Layout.maximumWidth: 700
+
+                background: Rectangle {
+                    id: newConfigRect
+                    radius: rbNewConfig.radius
+                    border.width: 1
+                    color: "#a8a7fd"
+                }
+                onClicked: {
+                    // Generate a fresh skeleton config and open it in the tree editor.
+                    backend.newUserConfig()
+                    treeView.visible = true
+                    view.visible = false
+                }
+                onHoveredChanged: hovered ? newConfigRect.color = "#f8a7fd" : newConfigRect.color = "#a8a7fd"
+            }
+        }
+
+        RowLayout {
+            // Second row of top-level buttons, so the four don't crowd into one
+            // row (their labels would otherwise overlap).
+            id: rowLayoutTop2
+            height: 40
+            Layout.minimumHeight: 40
+            Layout.preferredHeight: 40
+            Layout.fillHeight: false
+            Layout.fillWidth: true
+            spacing: 10
 
             RoundButton {
                 id: rbSaveUserConfig
@@ -197,15 +273,70 @@ Window {
                     color: "#a8a7fd"
                 }
                 onClicked: {
-
-                    backend.saveConfigObject()
-                    saveMessageDialog.visible = true
+                    // Seed the dialog with the loaded config's folder + name, then
+                    // let the user pick the folder/filename to save to.
+                    saveConfigDialog.selectedFile = backend.localFileToUrl(backend.userConfigFileName)
+                    saveConfigDialog.open()
                 }
                 onHoveredChanged: hovered ? configSaveRect.color = "#f8a7fd" : configSaveRect.color = "#a8a7fd"
 
             }
+
+            RoundButton {
+                id: rbScanDevices
+                height: 40
+                text: "Scan Devices"
+                Layout.minimumHeight: 40
+                Layout.preferredHeight: 40
+                Layout.fillHeight: false
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                Layout.fillWidth: true
+                font.family: "Arial"
+                font.pointSize: 18
+                font.bold: true
+                font.weight: Font.Normal
+                radius: 10
+
+                Layout.minimumWidth: 100
+                Layout.preferredWidth: 200
+                Layout.maximumWidth: 700
+
+                background: Rectangle {
+                    id: scanRect
+                    radius: rbScanDevices.radius
+                    border.width: 1
+                    color: "#a8a7fd"
+                }
+                onClicked: {
+                    deviceScanDialog.text = backend.scanVideoDevices()
+                    deviceScanDialog.open()
+                }
+                onHoveredChanged: hovered ? scanRect.color = "#f8a7fd" : scanRect.color = "#a8a7fd"
+            }
         }
         ColumnLayout {
+            RoundButton {
+                id: rbAddDevice
+                text: "Add Device"
+                visible: treeView.visible
+                Layout.fillWidth: true
+                Layout.preferredHeight: 36
+                Layout.minimumHeight: 36
+                font.family: "Arial"
+                font.pointSize: 14
+                font.bold: true
+                font.weight: Font.Normal
+                radius: 10
+                background: Rectangle {
+                    id: addDeviceRect
+                    radius: rbAddDevice.radius
+                    border.width: 1
+                    color: "#a8a7fd"
+                }
+                onClicked: addDeviceDialog.open()
+                onHoveredChanged: hovered ? addDeviceRect.color = "#f8a7fd" : addDeviceRect.color = "#a8a7fd"
+            }
+
             TreeViewerJSON {
                 id: treeView
                 objectName: "treeView"
@@ -307,7 +438,8 @@ Window {
             height: 40
             radius: 10
             text: "Run"
-            enabled: backend.userConfigOK
+            // Need a valid config AND at least one device (miniscope or camera).
+            enabled: backend.userConfigOK && backend.hasDevices
             Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             Layout.preferredHeight: 40
             font.family: "Arial"
@@ -389,11 +521,12 @@ Window {
 
     Connections{
         target: backend
-        onShowErrorMessage: errorMessageDialog.visible = true
+        // Qt6: Connections requires the function syntax instead of onSignal: ...
+        function onShowErrorMessage() { errorMessageDialog.open() }
     }
     Connections{
         target: backend
-        onShowErrorMessageCompression: errorMessageDialogCompression.visible = true
+        function onShowErrorMessageCompression() { errorMessageDialogCompression.open() }
     }
     Component.onCompleted: {
         setX(Screen.width / 2 - width / 2);

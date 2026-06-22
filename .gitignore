@@ -69,6 +69,12 @@ Thumbs.db
 # Builds
 build-*
 
+# CMake build directory + artifacts
+/build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
 # Binaries
 # --------
 *.dll

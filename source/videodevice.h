@@ -105,6 +105,7 @@ public slots:
     void handleTakeScreenShotSignal();
 
     void handleSaturationSwitchChanged(bool checked);
+    void handleLutSwitchChanged(bool checked);
     void handleSetExtTriggerTrackingState(bool state);
     void handleRecordStart(); // Currently used to toggle LED on and off
     void handleRecordStop(); // Currently used to toggle LED on and off
@@ -117,10 +118,17 @@ public slots:
     void handleNewROI(int leftEdge, int topEdge, int width, int height);
     virtual void handleAddNewTraceROI(int leftEdge, int topEdge, int width, int height);
 
+    // Re-applies the stored ROI overlay at the current display size so it tracks
+    // window resizes.
+    void handleDisplayResized();
+
 private:
 
     QSize m_resolution;
     void configureDeviceControls();
+    // Live display-pixels-per-camera-pixel (x, y). Used to map ROI selections to
+    // camera coordinates and back, correctly at any (resized) window size.
+    QSizeF displayPerCameraScale();
     QVector<QMap<QString, int>> parseSendCommand(QJsonArray sendCommand);
     int processString2Int(QString s);
     QMap<QString,quint16> deviceAddr; //only used with Miniscopes???
@@ -173,6 +181,10 @@ private:
 
     qint64 m_softwareStartTime;
     bool m_traceDisplayStatus;
+
+    // Display LUT (colormap) selected in the user config: 1=green, 2=red,
+    // 3=inferno; the on-window switch toggles between this and 0 (grayscale).
+    int m_lutColormap;
 };
 
 #endif // VIDEODEVICE_H
