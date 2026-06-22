@@ -10,7 +10,6 @@
 #include <QObject>
 #include <QVariant>
 #include <QDir>
-#include <QFile>
 #include <QVector>
 #include <QUrl>
 #include <QString>
@@ -36,16 +35,9 @@
  #include <libusb.h>
 #endif
 
-#ifdef Q_OS_WINDOWS
-// DirectShow video-device enumeration for scanVideoDevices().
-#define NOMINMAX
-#include <dshow.h>
-#endif
-
 backEnd::backEnd(QObject *parent) :
     QObject(parent),
     m_versionNumber(""),
-    m_buildInfo(""),
     m_userConfigFileName(""),
     m_userConfigOK(false),
     traceDisplay(nullptr),
@@ -102,7 +94,6 @@ backEnd::backEnd(QObject *parent) :
         file.close();
         QJsonDocument d = QJsonDocument::fromJson(jsonFile.toUtf8());
         jObj = d.object();
-        m_deviceCatalog = jObj;   // retained for the user-config generator (Add Device)
         supportedDevices = jObj.keys();
     }
 
@@ -523,329 +514,6 @@ void backEnd::saveConfigObject()
     file.close();
 }
 
-void backEnd::saveConfigObjectAs(const QString &filePath)
-{
-    generateUserConfigFromModel();
-    QJsonDocument d;
-    d.setObject(m_userConfig);
-    QFile file(filePath);
-    if (file.open(QFile::WriteOnly | QFile::Text | QFile::Truncate)) {
-        file.write(d.toJson());
-        file.close();
-        sendMessage("User config saved to " + filePath);
-    }
-    else {
-        sendMessage("ERROR: could not save user config to " + filePath);
-    }
-}
-
-// ---------------------------------------------------------------------------
-// User-config generator
-//
-// Lets the user build a valid user config in-app without starting from an example
-// file. newUserConfig() synthesizes a complete default skeleton straight from the
-// schema (deviceConfigs/userConfigProps.json); addDevice() inserts a device built
-// from the matching schema template, enriched with sensible starting values pulled
-// from the device catalog (deviceConfigs/videoDevices.json). Both then rebuild the
-// tree model and re-run the validity check (which enables Save / Run). All of the
-// existing editor, serialization and save machinery is reused unchanged.
-// ---------------------------------------------------------------------------
-
-QJsonValue backEnd::defaultForType(const QString &type)
-{
-    if (type == "Bool")
-        return false;
-    if (type == "Integer" || type == "Number" || type == "Double")
-        return 0;
-    if (type.startsWith("Array"))
-        return QJsonArray();
-    // String, DirPath, FilePath, MiniscopeDeviceType, CameraDeviceType, ...
-    return QString("");
-}
-
-QJsonValue backEnd::defaultFromProps(const QJsonValue &propNode)
-{
-    const QJsonObject obj = propNode.toObject();
-
-    // Leaf node: { "type": "<string>", "tips": "..." }. A branch node's "type"
-    // child (e.g. behaviorTracker.type) is itself an object, so testing that the
-    // "type" value is a string reliably tells leaves from branches.
-    if (obj.value("type").isString())
-        return defaultForType(obj.value("type").toString());
-
-    // Branch node: recurse into each sub-property (skipping COMMENT keys).
-    QJsonObject out;
-    const QStringList keys = obj.keys();
-    for (const QString &k : keys) {
-        if (k.contains("COMMENT"))
-            continue;
-        out[k] = defaultFromProps(obj.value(k));
-    }
-    return out;
-}
-
-void backEnd::newUserConfig()
-{
-    QJsonObject cfg;
-    const QStringList keys = m_configProps.keys();
-    for (const QString &k : keys) {
-        if (k.contains("COMMENT"))
-            continue;
-        cfg[k] = defaultFromProps(m_configProps.value(k));
-    }
-
-    // Seed sensible, non-empty defaults so a fresh config is immediately usable
-    // instead of being full of blanks/zeros the user has to fill in.
-    cfg["researcherName"] = "Researcher";
-    cfg["experimentName"] = "Experiment";
-    cfg["animalName"]     = "Animal";
-    // Default the data directory to a "Data" folder next to the running app (the
-    // working directory, where ./deviceConfigs etc. are read from).
-    cfg["dataDirectory"] = QDir::currentPath() + "/Data";
-
-    cfg["directoryStructure"] = QJsonArray{ "researcherName", "experimentName",
-                                            "animalName", "date", "time" };
-
-    QJsonObject devices;
-    devices["miniscopes"] = QJsonObject();
-    devices["cameras"]    = QJsonObject();
-    cfg["devices"] = devices;
-
-    // Trace display: on by default with a real window size, so it actually appears
-    // (a 0x0 window never shows). "type" has a single valid value.
-    if (cfg.contains("traceDisplay")) {
-        QJsonObject td = cfg["traceDisplay"].toObject();
-        td["enabled"]      = true;
-        td["type"]         = "scrolling";
-        td["windowX"]      = 100;
-        td["windowY"]      = 100;
-        td["windowWidth"]  = 600;
-        td["windowHeight"] = 800;
-        cfg["traceDisplay"] = td;
-    }
-
-    // Behavior tracker stays off (it needs an external Python/DLC-Live setup), but
-    // give it sane non-zero values so the section isn't all blanks/zeros if enabled.
-    if (cfg.contains("behaviorTracker")) {
-        QJsonObject bt = cfg["behaviorTracker"].toObject();
-        bt["type"]           = "DeepLabCut-Live";
-        bt["resize"]         = 0.5;
-        bt["pCutoffDisplay"] = 0.3;
-        bt["windowX"]        = 200;
-        bt["windowY"]        = 100;
-        bt["windowScale"]    = 0.75;
-        QJsonObject op = bt["occupancyPlot"].toObject();
-        op["numBinsX"] = 100;
-        op["numBinsY"] = 100;
-        bt["occupancyPlot"] = op;
-        QJsonObject po = bt["poseOverlay"].toObject();
-        po["numOfPastPoses"] = 6;
-        po["markerSize"]     = 20;
-        bt["poseOverlay"] = po;
-        cfg["behaviorTracker"] = bt;
-    }
-
-    m_userConfig = cfg;
-    m_userConfigFileName.clear();   // brand-new config: unseed the Save-As dialog
-
-    constructJsonTreeModel();
-    checkUserConfigForIssues();     // emits userConfigOKChanged() -> enables Save/Run
-}
-
-void backEnd::enrichDeviceDefaults(QJsonObject &device, const QString &category,
-                                   const QString &deviceType)
-{
-    device["deviceType"]     = deviceType;
-    device["deviceID"]       = 0;
-    device["showSaturation"] = true;
-    device["framesPerFile"]  = 1000;
-    device["windowScale"]    = 0.75;
-    device["windowX"]        = 100;
-    device["windowY"]        = 100;
-
-    const QJsonObject cat = m_deviceCatalog.value(deviceType).toObject();
-
-    // ROI defaults to the device's native resolution.
-    if (device.contains("ROI")) {
-        QJsonObject roi = device["ROI"].toObject();
-        roi["leftEdge"] = 0;
-        roi["topEdge"]  = 0;
-        if (cat.contains("width"))  roi["width"]  = cat.value("width");
-        if (cat.contains("height")) roi["height"] = cat.value("height");
-        device["ROI"] = roi;
-    }
-
-    // Control settings (gain / frameRate / led0 / ewl): use the catalog's
-    // startValue for whichever ones this device template actually has.
-    const QJsonObject controls = cat.value("controlSettings").toObject();
-    const QStringList controlKeys = { "gain", "frameRate", "led0", "ewl" };
-    for (const QString &ck : controlKeys) {
-        if (device.contains(ck) && controls.contains(ck)) {
-            const QJsonValue sv = controls.value(ck).toObject().value("startValue");
-            if (!sv.isUndefined())
-                device[ck] = sv;
-        }
-    }
-
-    // Head orientation follows the catalog flag; default the plotted axes.
-    if (device.contains("headOrientation")) {
-        QJsonObject ho = device["headOrientation"].toObject();
-        ho["enabled"]       = cat.value("headOrientation").toBool(false);
-        ho["filterBadData"] = false;
-        ho["plotTrace"]     = QJsonArray{ "roll", "pitch", "yaw" };
-        device["headOrientation"] = ho;
-    }
-
-    // Display LUT is grayscale by default (miniscope only).
-    if (device.contains("lut"))
-        device["lut"] = "None";
-
-    // Compression: pick a host-supported codec, preferring a sensible default per
-    // device class, then any available, then GREY as a last resort.
-    if (device.contains("compression")) {
-        const QString preferred = (category == "miniscopes") ? "FFV1" : "MJPG";
-        QString codec;
-        if (m_availableCodec.contains(preferred))
-            codec = preferred;
-        else if (!m_availableCodec.isEmpty())
-            codec = m_availableCodec.first();
-        else
-            codec = "GREY";
-        device["compression"] = codec;
-    }
-}
-
-void backEnd::addDevice(const QString &category, const QString &deviceType,
-                        const QString &deviceName, int deviceID)
-{
-    if (deviceName.trimmed().isEmpty() || deviceType.isEmpty())
-        return;
-    if (category != "miniscopes" && category != "cameras")
-        return;
-
-    // Capture any edits already made in the tree before we rebuild it.
-    generateUserConfigFromModel();
-
-    QJsonObject devices = m_userConfig.value("devices").toObject();
-    QJsonObject section = devices.value(category).toObject();
-    if (section.contains(deviceName))
-        return;   // names are kept unique within a category
-
-    // Build the device from its schema template, then fill catalog-derived defaults.
-    const QString templateKey = (category == "miniscopes") ? "miniscopeDeviceName"
-                                                           : "cameraDeviceName";
-    const QJsonValue tmpl = m_configProps.value("devices").toObject()
-                                .value(category).toObject().value(templateKey);
-    QJsonObject device = defaultFromProps(tmpl).toObject();
-    enrichDeviceDefaults(device, category, deviceType);
-    device["deviceID"] = deviceID;   // user-chosen ID from the Add-Device dialog
-
-    section[deviceName]     = device;
-    devices[category]       = section;
-    m_userConfig["devices"] = devices;
-
-    constructJsonTreeModel();
-    checkUserConfigForIssues();
-}
-
-QStringList backEnd::enumerateVideoDevices()
-{
-    QStringList names;
-#ifdef Q_OS_WINDOWS
-    // Enumerate DirectShow video input devices. Their order matches the index
-    // OpenCV's CAP_DSHOW backend uses, so the position == the config deviceID.
-    const HRESULT hrInit = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-    const bool balanceUninit = SUCCEEDED(hrInit); // S_OK or S_FALSE (already init)
-
-    ICreateDevEnum *devEnum = nullptr;
-    HRESULT hr = CoCreateInstance(CLSID_SystemDeviceEnum, nullptr, CLSCTX_INPROC_SERVER,
-                                  IID_PPV_ARGS(&devEnum));
-    if (SUCCEEDED(hr) && devEnum) {
-        IEnumMoniker *enumMon = nullptr;
-        hr = devEnum->CreateClassEnumerator(CLSID_VideoInputDeviceCategory, &enumMon, 0);
-        if (hr == S_OK && enumMon) { // S_FALSE => no devices in this category
-            IMoniker *moniker = nullptr;
-            while (enumMon->Next(1, &moniker, nullptr) == S_OK) {
-                IPropertyBag *propBag = nullptr;
-                QString name;
-                if (SUCCEEDED(moniker->BindToStorage(nullptr, nullptr, IID_PPV_ARGS(&propBag)))) {
-                    VARIANT var;
-                    VariantInit(&var);
-                    if (SUCCEEDED(propBag->Read(L"FriendlyName", &var, nullptr)) && var.bstrVal)
-                        name = QString::fromWCharArray(var.bstrVal);
-                    VariantClear(&var);
-                    propBag->Release();
-                }
-                names << name;            // index in this list == deviceID
-                moniker->Release();
-            }
-            enumMon->Release();
-        }
-        devEnum->Release();
-    }
-    if (balanceUninit)
-        CoUninitialize();
-#endif
-    return names;
-}
-
-QString backEnd::scanVideoDevices()
-{
-#ifndef Q_OS_WINDOWS
-    return QStringLiteral("Device scan is only available on Windows.");
-#else
-    const QStringList names = enumerateVideoDevices();
-    if (names.isEmpty())
-        return QStringLiteral("No video devices detected.");
-    QStringList lines;
-    for (int i = 0; i < names.size(); i++)
-        lines << QString("    deviceID %1:  %2")
-                     .arg(i)
-                     .arg(names[i].isEmpty() ? QStringLiteral("(unknown)") : names[i]);
-    return QStringLiteral("Detected video devices:\n") + lines.join("\n")
-           + QStringLiteral("\n\nUse these deviceID numbers in your user config. "
-                            "Note: a Miniscope might appear under a generic name "
-                            "(e.g. \"USB Video Device\").");
-#endif
-}
-
-QStringList backEnd::availableDeviceIDs()
-{
-    // Capture any edits made in the tree so the used-ID set reflects the live config.
-    generateUserConfigFromModel();
-
-    // IDs already assigned to a device in the config.
-    QList<int> used;
-    const QJsonObject devs = m_userConfig.value("devices").toObject();
-    const QStringList cats = { QStringLiteral("miniscopes"), QStringLiteral("cameras") };
-    for (const QString &cat : cats) {
-        const QJsonObject section = devs.value(cat).toObject();
-        const QStringList devNames = section.keys();
-        for (const QString &n : devNames)
-            used << section.value(n).toObject().value("deviceID").toInt();
-    }
-
-    // One entry per connected device (fall back to 0..15 if none detected), and
-    // always at least one ID past the highest used so the list is never empty.
-    const QStringList names = enumerateVideoDevices();
-    int maxIDs = names.isEmpty() ? 16 : names.size();
-    int highestUsed = -1;
-    for (int u : used)
-        highestUsed = qMax(highestUsed, u);
-    maxIDs = qMax(maxIDs, highestUsed + 2);
-
-    QStringList out;
-    for (int id = 0; id < maxIDs; id++) {
-        if (used.contains(id))
-            continue;
-        if (id < names.size() && !names[id].isEmpty())
-            out << QString("%1  (%2)").arg(id).arg(names[id]);   // e.g. "0  (Asus Webcam)"
-        else
-            out << QString::number(id);
-    }
-    return out;
-}
-
 void backEnd::loadUserConfigFile()
 {
     int count;
@@ -961,9 +629,7 @@ void backEnd::connectSnS()
     QObject::connect((controlPanel), SIGNAL( sendNote(QString) ), dataSaver, SLOT ( takeNote(QString) ));
     QObject::connect(this, SIGNAL( closeAll()), controlPanel, SLOT (close()));
 
-    // Trace window is optional; only tear it down on exit if it was created.
-    if (traceDisplay)
-        QObject::connect(this, SIGNAL( closeAll()), traceDisplay, SLOT (close()));
+
 
     QObject::connect(dataSaver, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
 
@@ -1048,15 +714,12 @@ void backEnd::setupDataSaver()
 
 void backEnd::testCodecSupport()
 {
-    // This function will test which codecs are supported on host's machine.
-    // Probe into a temp file (then delete it) so codec detection never leaves a
-    // stray "test.avi" behind in the working directory / distribution folder.
+    // This function will test which codecs are supported on host's machine
     cv::VideoWriter testVid;
-    const QString probePath = QDir(QDir::tempPath()).filePath("miniscope_codec_probe.avi");
-    const std::string probe = probePath.toStdString();
+//    testVid.open("test.avi", -1,20, cv::Size(640, 480), true);
     QVector<QString> possibleCodec({"DIB ", "MJPG", "MJ2C", "XVID", "FFV1", "DX50", "FLV1", "H264", "I420","MPEG","mp4v", "0000", "LAGS", "ASV1", "GREY"});
     for (int i = 0; i < possibleCodec.length(); i++) {
-        testVid.open(probe, cv::VideoWriter::fourcc(possibleCodec[i].toStdString()[0],possibleCodec[i].toStdString()[1],possibleCodec[i].toStdString()[2],possibleCodec[i].toStdString()[3]),
+        testVid.open("test.avi", cv::VideoWriter::fourcc(possibleCodec[i].toStdString()[0],possibleCodec[i].toStdString()[1],possibleCodec[i].toStdString()[2],possibleCodec[i].toStdString()[3]),
                 20, cv::Size(640, 480), true);
         if (testVid.isOpened()) {
             m_availableCodec.append(possibleCodec[i]);
@@ -1066,20 +729,11 @@ void backEnd::testCodecSupport()
         else
             unAvailableCodec.append(possibleCodec[i]);
     }
-    QFile::remove(probePath);   // remove the throwaway probe file
+
 }
 
 bool backEnd::checkUserConfigForIssues()
 {
-    // Track whether the config has any devices (the Run button is gated on this).
-    const QJsonObject devs = m_userConfig.value("devices").toObject();
-    const bool has = (devs.value("miniscopes").toObject().size()
-                      + devs.value("cameras").toObject().size()) > 0;
-    if (has != m_hasDevices) {
-        m_hasDevices = has;
-        emit hasDevicesChanged();
-    }
-
     if (checkForUniqueDeviceNames() == false) {
         // Need to tell user that user config has error(s)
         setUserConfigOK(false);
@@ -1283,11 +937,7 @@ void backEnd::constructUserConfigGUI()
 
         // Connect send and receive message to textbox in controlPanel
         QObject::connect(miniscope.last(), SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
-        // Qt6: connecting to a null receiver dereferences it (r->d_func() reads
-        // offset 8 of nullptr) and crashes. traceDisplay is null unless a trace
-        // display is configured + enabled, so guard the connection.
-        if (traceDisplay)
-            QObject::connect(miniscope.last(), &Miniscope::addTraceDisplay, traceDisplay, &TraceDisplayBackend::addNewTrace);
+        QObject::connect(miniscope.last(), &Miniscope::addTraceDisplay, traceDisplay, &TraceDisplayBackend::addNewTrace);
         if (miniscope.last()->getErrors() != 0) {
             // Errors have occured in creating this object
             sendMessage("ERROR: " + miniscope.last()->getDeviceName() + " has error: " + QString::number(miniscope.last()->getErrors()));
@@ -1326,15 +976,14 @@ void backEnd::constructUserConfigGUI()
 
     // Make behavior tracker interface
     if (!ucBehaviorTracker.isEmpty()) {
-        if (ucBehaviorTracker["enabled"].toBool(true) && !behavCam.isEmpty()) {
+        if (ucBehaviorTracker["enabled"].toBool(true)) {
             // Behav tracker currently is hardcoded to use first behavior camera
             QSize camRes = behavCam.first()->getResolution();
 
             behavTracker = new BehaviorTracker(NULL, m_userConfig, m_softwareStartTime);
 
             QObject::connect(behavTracker, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
-            if (traceDisplay)  // Qt6: avoid connecting to a null receiver (crash)
-                QObject::connect(behavTracker, &BehaviorTracker::addTraceDisplay, traceDisplay, &TraceDisplayBackend::addNewTrace);
+            QObject::connect(behavTracker, &BehaviorTracker::addTraceDisplay, traceDisplay, &TraceDisplayBackend::addNewTrace);
             behavTracker->createView(camRes);
             setupBehaviorTracker();
         }

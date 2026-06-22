@@ -47,8 +47,7 @@ void Miniscope::setupDisplayObjectPointers()
     if (getHeadOrienataionStreamState())
         bnoDisplay = getRootDisplayChild("bno");
     QObject* temp = getRootDisplayChild("addTraceRoi");
-    if (temp)   // only present when the trace display is in use
-        temp->setProperty("enabled", getTraceDisplayStatus());
+    temp->setProperty("enabled", getTraceDisplayStatus());
     vidDisplay = getVideoDisplay();
 }
 void Miniscope::handleDFFSwitchChange(bool checked)
@@ -98,27 +97,27 @@ void Miniscope::handleAddNewTraceROI(int leftEdge, int topEdge, int width, int h
 
         tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceROIx"));
         tempProp.append(leftEdge);
-        varParams.setValue( tempProp );  // Qt6: setValue is setValue(T&&); explicit <T> would force an rvalue-ref param
+        varParams.setValue<QList<double>>( tempProp );
         vidDisplay->setProperty("traceROIx", varParams);
 
         tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceROIy"));
         tempProp.append(topEdge);
-        varParams.setValue( tempProp );  // Qt6: setValue is setValue(T&&); explicit <T> would force an rvalue-ref param
+        varParams.setValue<QList<double>>( tempProp );
         vidDisplay->setProperty("traceROIy", varParams);
 
         tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceROIw"));
         tempProp.append(width);
-        varParams.setValue( tempProp );  // Qt6: setValue is setValue(T&&); explicit <T> would force an rvalue-ref param
+        varParams.setValue<QList<double>>( tempProp );
         vidDisplay->setProperty("traceROIw", varParams);
 
         tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceROIh"));
         tempProp.append(height);
-        varParams.setValue( tempProp );  // Qt6: setValue is setValue(T&&); explicit <T> would force an rvalue-ref param
+        varParams.setValue<QList<double>>( tempProp );
         vidDisplay->setProperty("traceROIh", varParams);
 
         tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceColor"));
         tempProp.append(m_traceColors[m_numTraces][0]);
-        varParams.setValue( tempProp );  // Qt6: setValue is setValue(T&&); explicit <T> would force an rvalue-ref param
+        varParams.setValue<QList<double>>( tempProp );
         vidDisplay->setProperty("traceColor", varParams);
 
 
@@ -324,11 +323,9 @@ void Miniscope::setupBNOTraceDisplay()
         bnoNumDataInBuf[i][1] = 0;
 
     }
-    // BNO Euler angles span +/-pi. 1/(4*pi) maps that to a +/-0.25 half-amplitude
-    // (half of a neuron trace's +/-0.5), which reads well next to the neuron traces.
-    bnoScale[0] = 1.0f/(4.0f*3.141592f);
-    bnoScale[1] = 1.0f/(4.0f*3.141592f);
-    bnoScale[2] = 1.0f/(4.0f*3.141592f);
+    bnoScale[0] = 1.0f/3.141592f;
+    bnoScale[1] = 1.0f/3.141592f;
+    bnoScale[2] = 1.0f/3.141592f;
 
     if (getHeadOrienataionStreamState()) {
         QJsonArray tempArray = m_ucDevice["headOrientation"].toObject()["plotTrace"].toArray();

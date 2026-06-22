@@ -1,4 +1,4 @@
-import QtQuick          // Qt6: unversioned so RegularExpressionValidator (QtQuick 2.14+) resolves
+import QtQuick 2.0
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
 
@@ -206,7 +206,7 @@ Item {
                                 }
                                 TextField {
                                     property var validNumber : DoubleValidator { bottom:0;}
-                                    property var validAll : RegularExpressionValidator{}  // Qt6: RegExpValidator removed
+                                    property var validAll : RegExpValidator{}
                                     width: parent.width - 10
                                     height:30
                                     text: root.ucValues[index]
@@ -318,8 +318,7 @@ Item {
     }
     Connections{
         target: root
-        // Qt6: Connections requires function syntax instead of onSignal: ...
-        function onCurrentRecordTimeChanged() {
+        onCurrentRecordTimeChanged: {
             if ((root.currentRecordTime >= root.ucRecordLength) && root.ucRecordLength > 0) {
                 bStop.enabled = false;
                 bRecord.enabled = true;
