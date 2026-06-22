@@ -55,4 +55,31 @@ bool NewQuickView::nativeEvent(const QByteArray &eventType, void *message, qintp
     }
     return QQuickView::nativeEvent(eventType, message, result);
 }
+#else // !Q_OS_WINDOWS
+
+#include <QResizeEvent>
+#include <QtGlobal>
+
+// On non-Windows platforms there is no WM_SIZING hook to constrain the live
+// drag, so we let the window manager resize freely and then snap the height to
+// keep the locked width:height ratio. Width drives height (horizontal drags
+// feel natural; vertical/corner drags get corrected to match).
+void NewQuickView::resizeEvent(QResizeEvent *e)
+{
+    QQuickView::resizeEvent(e);
+
+    if (m_aspectRatio <= 0.0 || m_adjustingResize)
+        return;
+
+    const QSize s = e->size();
+    if (s.width() <= 0 || s.height() <= 0)
+        return;
+
+    const int targetH = qRound(s.width() / m_aspectRatio);
+    if (targetH > 0 && targetH != s.height()) {
+        m_adjustingResize = true;
+        resize(QSize(s.width(), targetH));
+        m_adjustingResize = false;
+    }
+}
 #endif

@@ -42,6 +42,16 @@
 #include <dshow.h>
 #endif
 
+#ifdef Q_OS_LINUX
+// V4L2 video-device enumeration for scanVideoDevices().
+#include <QDir>
+#include <algorithm>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <linux/videodev2.h>
+#endif
+
 backEnd::backEnd(QObject *parent) :
     QObject(parent),
     m_versionNumber(""),
@@ -791,9 +801,61 @@ QStringList backEnd::enumerateVideoDevices()
 
 QString backEnd::scanVideoDevices()
 {
-#ifndef Q_OS_WINDOWS
-    return QStringLiteral("Device scan is only available on Windows.");
-#else
+#if defined(Q_OS_LINUX)
+    // Enumerate /dev/videoN via V4L2. Each physical UVC camera usually exposes
+    // two nodes (a capture node and a metadata node), so we query each node's
+    // capabilities and mark which one to use as the deviceID.
+    struct Node { int id; QString name; bool capture; };
+    QVector<Node> nodes;
+
+    QDir v4lDir(QStringLiteral("/sys/class/video4linux"));
+    const QStringList entries = v4lDir.entryList(QStringList() << QStringLiteral("video*"),
+                                                 QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QString &entry : entries) {
+        bool ok = false;
+        const int id = entry.mid(5).toInt(&ok); // strip "video"
+        if (!ok)
+            continue;
+
+        // Human-readable name from sysfs.
+        QString name;
+        QFile nameFile(QStringLiteral("/sys/class/video4linux/%1/name").arg(entry));
+        if (nameFile.open(QIODevice::ReadOnly | QIODevice::Text))
+            name = QString::fromUtf8(nameFile.readLine()).trimmed();
+
+        // Capture capability via VIDIOC_QUERYCAP.
+        bool isCapture = false;
+        const QString devPath = QStringLiteral("/dev/%1").arg(entry);
+        const int fd = ::open(devPath.toLocal8Bit().constData(), O_RDONLY | O_NONBLOCK);
+        if (fd >= 0) {
+            struct v4l2_capability cap;
+            if (::ioctl(fd, VIDIOC_QUERYCAP, &cap) == 0) {
+                const unsigned int caps = (cap.capabilities & V4L2_CAP_DEVICE_CAPS)
+                                              ? cap.device_caps : cap.capabilities;
+                isCapture = caps & V4L2_CAP_VIDEO_CAPTURE;
+            }
+            ::close(fd);
+        }
+        nodes.append({id, name.isEmpty() ? QStringLiteral("(unknown)") : name, isCapture});
+    }
+
+    if (nodes.isEmpty())
+        return QStringLiteral("No video devices detected (no /dev/video* nodes).");
+
+    std::sort(nodes.begin(), nodes.end(), [](const Node &a, const Node &b){ return a.id < b.id; });
+
+    QStringList lines;
+    for (const Node &n : nodes)
+        lines << QString("    deviceID %1:  %2  %3")
+                     .arg(n.id)
+                     .arg(n.name)
+                     .arg(n.capture ? QStringLiteral("[capture - use this]")
+                                    : QStringLiteral("[metadata/other - not usable]"));
+    return QStringLiteral("Detected video devices:\n") + lines.join("\n")
+           + QStringLiteral("\n\nUse the [capture] deviceID for each device in your user "
+                            "config. A single camera often lists two nodes; only the "
+                            "[capture] one streams video.");
+#elif defined(Q_OS_WINDOWS)
     const QStringList names = enumerateVideoDevices();
     if (names.isEmpty())
         return QStringLiteral("No video devices detected.");
@@ -806,6 +868,8 @@ QString backEnd::scanVideoDevices()
            + QStringLiteral("\n\nUse these deviceID numbers in your user config. "
                             "Note: a Miniscope might appear under a generic name "
                             "(e.g. \"USB Video Device\").");
+#else
+    return QStringLiteral("Device scan is not available on this platform.");
 #endif
 }
 

@@ -384,7 +384,11 @@ void VideoStreamLibUVC::startStream()
         if (!sendCommandQueue.isEmpty())
             sendCommands();
     }
+    // Stream loop only exits on stopSteam() (device window closing). Release the
+    // device so uvc_close re-attaches the kernel uvcvideo driver and /dev/videoN
+    // comes back for the next run / for Scan Devices.
     closeStream();
+    closeDevice();
 }
 
 bool VideoStreamLibUVC::attemptReconnect()

@@ -32,6 +32,13 @@ protected:
     // Constrains live resizing to m_aspectRatio by adjusting the proposed window
     // rect on WM_SIZING (see newquickview.cpp).
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
+#else
+protected:
+    // Cross-platform (X11 / Wayland / macOS) aspect-ratio lock: after the window
+    // manager resizes us, snap the height back so width:height keeps m_aspectRatio.
+    // There is no portable equivalent of Windows' WM_SIZING to constrain the live
+    // drag, so we correct once the new size arrives (see newquickview.cpp).
+    void resizeEvent(QResizeEvent *e) override;
 #endif
 
 signals:
@@ -40,7 +47,8 @@ signals:
 public slots:
 
 private:
-    qreal m_aspectRatio = 0.0; // 0 => unlocked (free resize)
+    qreal m_aspectRatio = 0.0;       // 0 => unlocked (free resize)
+    bool m_adjustingResize = false;  // re-entrancy guard for resizeEvent correction
 
 };
 
