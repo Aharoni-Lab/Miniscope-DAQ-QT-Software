@@ -35,3 +35,25 @@ Each release on the [Releases Page](https://github.com/Aharoni-Lab/Miniscope-DAQ
 - **Portable zip — `MiniscopeDAQ-<version>-Windows-x64.zip`**. Unzip it anywhere and double-click `MiniscopeDAQ.exe` — nothing is installed, and you can remove it just by deleting the folder. Handy when you can't run an installer or want to carry it on a USB drive.
 
 Both are fully self-contained: all dependencies (Qt, OpenCV, Python, …) are bundled, so no separate installation is needed.
+
+## Installation (Linux)
+
+A portable **AppImage** is published on the [Releases Page](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/releases): `Miniscope_DAQ-<version>-x86_64.AppImage`. It bundles Qt, OpenCV, libuvc and libusb, so nothing else needs installing (tested on Ubuntu 24.04).
+
+```bash
+chmod +x Miniscope_DAQ-*-x86_64.AppImage
+./Miniscope_DAQ-*-x86_64.AppImage
+```
+
+> On GNOME, double-clicking an AppImage may do nothing — either run it from a terminal as above, or create a launcher / use [AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher).
+
+**First run** asks where to keep your user-config files and your recordings (defaulting to `~/Documents/Miniscope/…`). To choose again later, delete `~/.config/MiniscopeDAQ/paths.conf`.
+
+**USB permissions.** On a normal desktop login the Miniscope is accessible out of the box. For headless/remote sessions (or if you hit a USB access error), install the bundled udev rule once:
+
+```bash
+sudo cp packaging/99-miniscope.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules && sudo udevadm trigger   # then re-plug the Miniscope
+```
+
+> **Note on the Linux build.** The Miniscope is driven directly via **libuvc** on Linux (the kernel `uvcvideo` driver caches UVC control reads, so it can't return the live frame counter or BNO head-orientation data). The DeepLabCut-Live behavior tracker is **not** included in the AppImage. To build from source (and to enable the tracker with `-DUSE_PYTHON=ON`), see [`BUILD_LINUX.md`](BUILD_LINUX.md).
