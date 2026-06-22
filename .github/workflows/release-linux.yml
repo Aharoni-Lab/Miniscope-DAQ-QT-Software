@@ -14,11 +14,6 @@ on:
   push:
     tags:
       - "v*"
-    branches:
-      # TEMPORARY: validate the Linux CI on the port branch before it lands on the
-      # default branch (workflow_dispatch only works from the default branch).
-      # Remove this `branches:` block before merging.
-      - "ubuntu-port"
   workflow_dispatch:
 
 permissions:
