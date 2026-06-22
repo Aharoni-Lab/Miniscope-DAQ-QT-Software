@@ -13,37 +13,33 @@
 #include <QMap>
 #include <QVector>
 
+#include "videostreambase.h"
 
-class VideoStreamOCV : public QObject
+
+class VideoStreamOCV : public VideoStreamBase
 {
     Q_OBJECT
 public:
     explicit VideoStreamOCV(QObject *parent = nullptr, int width = 0, int height = 0, double pixelClock = 0);
-    ~VideoStreamOCV();
+    ~VideoStreamOCV() override;
 //    void setCameraID(int cameraID);
     void setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf,
                              int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS,
-                             QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber);
-    int connect2Camera(int cameraID);
-    int connect2Video(QString folderPath, QString filePrefix, float playbackFPS);
-    void setHeadOrientationConfig(bool enableState, bool filterState) { m_headOrientationStreamState = enableState; m_headOrientationFilterState = filterState; }
-    void setIsColor(bool isColor) { m_isColor = isColor; }
-    void setDeviceName(QString name) { m_deviceName = name; }
-
-signals:
-    void sendMessage(QString msg);
-    void newFrameAvailable(QString name, int frameNum);
-    void extTriggered(bool triggerState);
-    void requestInitCommands();
+                             QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber) override;
+    int connect2Camera(int cameraID) override;
+    int connect2Video(QString folderPath, QString filePrefix, float playbackFPS) override;
+    void setHeadOrientationConfig(bool enableState, bool filterState) override { m_headOrientationStreamState = enableState; m_headOrientationFilterState = filterState; }
+    void setIsColor(bool isColor) override { m_isColor = isColor; }
+    void setDeviceName(QString name) override { m_deviceName = name; }
 
 public slots:
-    void startStream();
-    void stopSteam();
-    void setPropertyI2C(long preambleKey, QVector<quint8> packet);
-    void setExtTriggerTrackingState(bool state);
-    void startRecording();
-    void stopRecording();
-    void openCamPropsDialog();
+    void startStream() override;
+    void stopSteam() override;
+    void setPropertyI2C(long preambleKey, QVector<quint8> packet) override;
+    void setExtTriggerTrackingState(bool state) override;
+    void startRecording() override;
+    void stopRecording() override;
+    void openCamPropsDialog() override;
 
 private:
     void sendCommands();

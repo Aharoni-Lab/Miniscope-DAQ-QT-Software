@@ -15,10 +15,11 @@
 #include <QQmlApplicationEngine>
 #include <QVector>
 
-VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime) :
+VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime, bool preferLibUVC) :
     QObject(parent),
     m_camConnected(false),
     deviceStream(nullptr),
+    m_preferLibUVCBackend(preferLibUVC),
     rootObject(nullptr),
     vidDisplay(nullptr),
     m_previousDisplayFrameNum(0),
@@ -49,9 +50,27 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     freeFrames->release(FRAME_BUFFER_SIZE);
     // -------------------------
 
-    // Setup OpenCV camera stream
+    // Setup camera stream backend.
     m_resolution = QSize(m_cDevice["width"].toInt(-1), m_cDevice["height"].toInt(-1));
-    deviceStream = new VideoStreamOCV(nullptr, m_cDevice["width"].toInt(-1), m_cDevice["height"].toInt(-1), m_cDevice["pixelClock"].toDouble(-1));
+    const int devWidth = m_cDevice["width"].toInt(-1);
+    const int devHeight = m_cDevice["height"].toInt(-1);
+    const double devPixelClock = m_cDevice["pixelClock"].toDouble(-1);
+
+    // On Linux, Miniscopes use the libuvc backend: the kernel uvcvideo driver
+    // caches UVC control reads, so OpenCV/V4L2 cannot read the live frame
+    // counter or BNO head-orientation registers the Miniscope streams back.
+    // libuvc issues a fresh GET_CUR and bypasses that cache. A real live camera
+    // (deviceID) is required - video-file playback always uses OpenCV.
+    deviceStream = nullptr;
+#ifdef HAVE_LIBUVC
+    const bool liveCamera = m_ucDevice.contains("deviceID") && !m_ucDevice["deviceID"].isNull();
+    if (m_preferLibUVCBackend && liveCamera) {
+        deviceStream = new VideoStreamLibUVC(nullptr, devWidth, devHeight, devPixelClock);
+        qDebug() << "Using libuvc capture backend for" << m_deviceName;
+    }
+#endif
+    if (deviceStream == nullptr)
+        deviceStream = new VideoStreamOCV(nullptr, devWidth, devHeight, devPixelClock);
     deviceStream->setDeviceName(m_deviceName);
 
     // Checks to make sure user config and miniscope device type are supporting BNO streaming
@@ -108,18 +127,18 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
         QObject::connect(videoStreamThread, SIGNAL (finished()), videoStreamThread, SLOT (deleteLater()));
 
         // Pass send message signal through
-        QObject::connect(deviceStream, &VideoStreamOCV::sendMessage, this, &VideoDevice::sendMessage);
+        QObject::connect(deviceStream, &VideoStreamBase::sendMessage, this, &VideoDevice::sendMessage);
 
         // Handle request for reinitialization of commands
-        QObject::connect(deviceStream, &VideoStreamOCV::requestInitCommands, this, &VideoDevice::handleInitCommandsRequest);
+        QObject::connect(deviceStream, &VideoStreamBase::requestInitCommands, this, &VideoDevice::handleInitCommandsRequest);
 
         // --- USED ONLY FOR MINISCOPE INITIALLY -------------------------------
         // Handle external triggering passthrough
-        QObject::connect(this, &VideoDevice::setExtTriggerTrackingState, deviceStream, &VideoStreamOCV::setExtTriggerTrackingState);
-        QObject::connect(deviceStream, &VideoStreamOCV::extTriggered, this, &VideoDevice::extTriggered);
+        QObject::connect(this, &VideoDevice::setExtTriggerTrackingState, deviceStream, &VideoStreamBase::setExtTriggerTrackingState);
+        QObject::connect(deviceStream, &VideoStreamBase::extTriggered, this, &VideoDevice::extTriggered);
 
-        QObject::connect(this, &VideoDevice::startRecording, deviceStream, &VideoStreamOCV::startRecording);
-        QObject::connect(this, &VideoDevice::stopRecording, deviceStream, &VideoStreamOCV::stopRecording);
+        QObject::connect(this, &VideoDevice::startRecording, deviceStream, &VideoStreamBase::startRecording);
+        QObject::connect(this, &VideoDevice::stopRecording, deviceStream, &VideoStreamBase::stopRecording);
         // ----------------------------------------------
 
         // Signal/Slots for handling LED toggling during external trigger
@@ -242,7 +261,7 @@ void VideoDevice::createView()
         // Link up Add Trace ROI signal and slot
         QObject::connect(vidDisplay, &VideoDisplay::newAddTraceROISignal, this, &VideoDevice::handleAddNewTraceROI);
 
-        QObject::connect(view, &NewQuickView::closing, deviceStream, &VideoStreamOCV::stopSteam);
+        QObject::connect(view, &NewQuickView::closing, deviceStream, &VideoStreamBase::stopSteam);
         QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &VideoDevice::sendNewFrame);
 
         // Keep the ROI overlay tracking the video as the window is resized.

@@ -19,7 +19,10 @@
 
 
 Miniscope::Miniscope(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime) :
-    VideoDevice(parent, ucDevice, softwareStartTime),
+    // Prefer the libuvc backend for Miniscopes (active on Linux only, where CMake
+    // defines HAVE_LIBUVC; ignored elsewhere). Fixes BNO + frame-counter reads
+    // that the kernel uvcvideo driver would otherwise cache.
+    VideoDevice(parent, ucDevice, softwareStartTime, /*preferLibUVC=*/true),
     baselineFrameBufWritePos(0),
     baselinePreviousTimeStamp(0),
     m_displatState("Raw"),

@@ -29,8 +29,8 @@ set(CMAKE_AUTORCC ON)   # compiles source/qml.qrc automatically
 # QOpenGLFramebufferObject moved out of QtGui into the separate Qt6::OpenGL
 # module. The custom renderers (videodisplay, tracedisplay, behaviortracker)
 # need it.
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Widgets OpenGL)
-qt_standard_project_setup(REQUIRES 6.5)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Widgets OpenGL)
+qt_standard_project_setup(REQUIRES 6.4)
 
 # This project has no .ui files (the UI is all QML), so AUTOUIC is unnecessary.
 # qt_standard_project_setup() turns it on, so turn it back off here.
@@ -54,6 +54,7 @@ set(SOURCES
     source/videodevice.cpp
     source/videodisplay.cpp
     source/videostreamocv.cpp
+    source/videostreamlibuvc.cpp
 )
 
 set(HEADERS
@@ -69,6 +70,8 @@ set(HEADERS
     source/videodevice.h
     source/videodisplay.h
     source/videostreamocv.h
+    source/videostreambase.h
+    source/videostreamlibuvc.h
 )
 
 qt_add_executable(MiniscopeDAQ
@@ -139,6 +142,31 @@ target_link_libraries(MiniscopeDAQ PRIVATE
     Qt6::OpenGL
     ${OpenCV_LIBS}
 )
+
+# --- libuvc backend (Linux Miniscope capture) ------------------------------
+# On Linux the kernel uvcvideo driver caches UVC control reads, so OpenCV/V4L2
+# cannot read the Miniscope's live frame-counter / BNO head-orientation
+# registers (which the firmware streams back through UVC GET_CUR). libuvc talks
+# to the device directly over libusb and issues a fresh GET_CUR each read,
+# bypassing that cache. Enabled only when found; used only for Miniscopes on
+# Linux (see VideoStreamLibUVC). Everything else stays on OpenCV.
+if(UNIX AND NOT APPLE)
+    find_path(LIBUVC_INCLUDE_DIR libuvc/libuvc.h)
+    find_library(LIBUVC_LIBRARY NAMES uvc)
+    find_library(LIBUSB1_LIBRARY NAMES usb-1.0)
+    if(LIBUVC_INCLUDE_DIR AND LIBUVC_LIBRARY)
+        message(STATUS "libuvc found (${LIBUVC_LIBRARY}); Miniscope Linux capture backend enabled")
+        target_include_directories(MiniscopeDAQ PRIVATE ${LIBUVC_INCLUDE_DIR})
+        target_link_libraries(MiniscopeDAQ PRIVATE ${LIBUVC_LIBRARY})
+        if(LIBUSB1_LIBRARY)
+            target_link_libraries(MiniscopeDAQ PRIVATE ${LIBUSB1_LIBRARY})
+        endif()
+        target_compile_definitions(MiniscopeDAQ PRIVATE HAVE_LIBUVC)
+    else()
+        message(WARNING "libuvc not found; Miniscopes on Linux will fall back to the "
+                        "OpenCV backend (no live BNO / frame counter). Install libuvc to enable.")
+    endif()
+endif()
 
 # --- Embedded Python (DeepLabCut-Live) -------------------------------------
 if(USE_PYTHON)

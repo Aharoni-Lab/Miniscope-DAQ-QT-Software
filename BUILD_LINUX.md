@@ -1,27 +1,32 @@
-# Building the Miniscope DAQ on Ubuntu (Linux port)
+# Building & running the Miniscope DAQ on Ubuntu (Linux port)
 
-Checklist for getting the Qt6 build compiling, launching, and running on Ubuntu
-(targeting **Ubuntu 24.04 LTS**, which ships Qt 6.4 + OpenCV 4.6). Work happens on
-the **`ubuntu-port`** branch.
+Status: **working on Ubuntu 24.04 LTS** — builds, launches (Wayland or X11),
+streams Miniscope + webcam video, records, all device controls work, **and the
+BNO head-orientation traces + frame counter work** (see the libuvc section
+below for why that took special handling). Work happens on the **`ubuntu-port`**
+branch.
 
-The C++ and CMake are already cross-platform: every Windows-specific bit is gated
-behind `if(WIN32)` (CMake) or `#ifdef Q_OS_WINDOWS` (C++), and the OpenGL renderers
-use legacy GLSL that compiles against Linux's OpenGL compatibility profile with no
-changes. So this is mostly "install deps, configure, build."
+The C++/CMake were already cross-platform: every Windows-specific bit is gated
+behind `if(WIN32)` (CMake) or `#ifdef Q_OS_WINDOWS` (C++), and the OpenGL
+renderers use legacy GLSL that compiles against Linux's GL compatibility profile
+unchanged. The two Linux-specific additions made for this port are:
+
+1. The CMake Qt floor was lowered `6.5 → 6.4` (harmless; satisfied by any newer Qt).
+2. A **libuvc capture backend** for Miniscopes (`VideoStreamLibUVC`), because the
+   kernel `uvcvideo` driver caches UVC control reads — see below.
 
 ---
 
-## Decision: system packages (apt) vs. conda
+## Toolchain: conda (validated) vs. apt
 
-**Use apt (recommended).** On Linux the *system* Qt links natively against the
-distro's OpenGL / X11 / Wayland / V4L2 stack, which is exactly what this app needs
-(raw OpenGL rendering + camera capture). Conda's Qt on Linux is prone to `xcb`
-platform-plugin and `libGL`/`libstdc++` conflicts — the opposite of the Windows
-situation, where conda was the pragmatic choice. apt is also the natural path toward
-a `.deb` later.
+**Use the conda environment (`environment.yml`).** It pins the *exact* same
+Qt/OpenCV/Python as the Windows CI build (Qt 6.11, OpenCV 4.13, Python 3.12), and
+it has been validated end-to-end on Ubuntu 24.04 — including launching natively on
+**Wayland** with no `xcb`/`libGL` friction (the historical conda-Qt-on-Linux
+worry did **not** materialize here).
 
-Conda remains a **fallback** (see bottom) — `environment.yml` is in the repo and is
-conda-forge, so it resolves on Linux too.
+apt's Qt 6.4 / OpenCV 4.6 should also work now that the CMake floor is 6.4, and is
+the natural path toward a `.deb`, but conda is the tested path documented here.
 
 ---
 
@@ -33,146 +38,133 @@ cd Miniscope-DAQ-QT-Software
 git checkout ubuntu-port
 ```
 
-- [ ] On branch `ubuntu-port`
-- [ ] `git status` clean
-
 ---
 
-## 2. Install build dependencies
-
-**Core toolchain + Qt6 + OpenCV + Python** (high-confidence package names on 24.04):
+## 2. Create the build environment
 
 ```bash
-sudo apt update
-sudo apt install -y \
-  build-essential cmake git pkg-config \
-  qt6-base-dev qt6-declarative-dev \
-  libgl1-mesa-dev \
-  libopencv-dev \
-  python3-dev python3-numpy \
-  libxcb-cursor0 v4l-utils
+conda env create -f environment.yml      # creates miniscope-qt6 (conda-forge)
+conda activate miniscope-qt6
+conda install -c conda-forge libuvc      # Linux Miniscope capture backend (see below)
 ```
 
-**QML runtime modules** (separate command so a name typo doesn't block the core
-install). These are needed at *runtime* for the QML UI to load:
+`libuvc` (and its `libusb-1.0` dependency) are needed for the Miniscope on Linux.
+If libuvc is absent, the app still builds and runs, but Miniscopes fall back to the
+OpenCV/V4L2 backend (no live BNO / frame counter — see below).
 
-```bash
-sudo apt install -y \
-  qml6-module-qtquick qml6-module-qtquick-window \
-  qml6-module-qtquick-controls qml6-module-qtquick-templates \
-  qml6-module-qtquick-layouts qml6-module-qtquick-dialogs \
-  qml6-module-qtqml-workerscript
-```
-
-- [ ] Core deps installed
-- [ ] QML modules installed
-
-> If a `qml6-module-*` name is rejected, run `apt search qml6-module` to find the
-> exact name on your release. You can also defer this — at launch the app prints the
-> *exact* missing import (e.g. `module "QtQuick.Dialogs" is not installed`), so you
-> can install precisely what it asks for.
+- [ ] `conda activate miniscope-qt6` works
+- [ ] `libuvc` present (`ls $CONDA_PREFIX/lib/libuvc.so`)
 
 ---
 
 ## 3. Configure & build
 
-Unlike the Windows recipe (VS multi-config, explicit `CMAKE_PREFIX_PATH`), apt's Qt6
-and OpenCV are auto-discovered by CMake. Single-config generator, so set the build
-type explicitly:
+apt/conda Qt6 + OpenCV are auto-discovered. Single-config generator, so set the
+build type explicitly. Point CMake at the conda env:
 
 ```bash
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DUSE_PYTHON=ON
+cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" \
+  -DPython3_EXECUTABLE="$CONDA_PREFIX/bin/python" -DUSE_PYTHON=ON
 cmake --build build -j"$(nproc)"
 ```
 
-- [ ] CMake configure finds Qt6, OpenCV, and Python3 + NumPy (check the configure log)
-- [ ] Build completes
+Look for `libuvc found (...); Miniscope Linux capture backend enabled` in the
+configure log. Keep `USE_PYTHON=ON` (the DeepLabCut tracker's `PyObject` members
+in `behaviortrackerworker.h` aren't `#ifdef`-guarded, so `OFF` doesn't compile yet).
 
-> **Keep `USE_PYTHON=ON` for the first build.** `USE_PYTHON=OFF` does *not* compile
-> yet — `PyObject` members in `behaviortrackerworker.h` aren't `#ifdef`-guarded.
-> `python3-dev` + `python3-numpy` are enough to **compile and launch**; you only need
-> `deeplabcut-live` (pip) if you actually run the behavior tracker.
-> *(Optional cleanup task for this branch: guard those members so `USE_PYTHON=OFF`
-> builds — then the tracker becomes truly opt-in.)*
+- [ ] Configure finds Qt6, OpenCV, Python3+NumPy, **and libuvc**
+- [ ] Build completes; `build/MiniscopeDAQ` exists
 
 ---
 
 ## 4. Run
 
-Single-config build puts the binary directly under `build/` (not `build/Release/`):
-
 ```bash
-# locate it if unsure:
-find build -name MiniscopeDAQ -type f -executable
-
 # run from the REPO ROOT so it finds ./deviceConfigs ./userConfigs ./Scripts:
 ./build/MiniscopeDAQ
 ```
 
-The app reads `./deviceConfigs`, `./userConfigs`, `./Scripts` **relative to the
-current directory** (backend.cpp), and those folders live at the repo root — so run
-from the repo root.
+Qt/QML diagnostics print straight to the terminal. For the Miniscope you should
+see `Using libuvc capture backend for "<name>"`.
 
-- [ ] Main window launches and renders (button styling, device/codec lists populate)
-- [ ] Load a user config → device windows open
-- [ ] Click **Run** → live video renders (this exercises the OpenGL renderers)
-- [ ] Trace window plots (BNO / neuron traces)
-
-> On Linux a GUI app prints Qt/QML diagnostics straight to the terminal — no
-> `QT_FORCE_STDERR_LOGGING` needed. Watch the terminal for missing-module or
-> shader-compile messages.
+- [ ] Main window launches and renders
+- [ ] Load a user config → device windows open → **Run** → live video renders
+- [ ] (V4-BNO) roll/pitch/yaw traces plot and move when the scope is rotated
 
 ---
 
-## 5. Expected first-failure points (and fixes)
+## 5. Picking the right `deviceID` (Linux)
+
+On Linux a config's `deviceID` is the OpenCV/V4L2 index = `/dev/video<deviceID>`.
+A single UVC camera usually exposes **two** `/dev/videoN` nodes — a capture node
+and a metadata node — so the right index is not always obvious. Map them with:
+
+```bash
+for d in /sys/class/video4linux/video*; do echo "$(basename $d): $(cat $d/name)"; done
+```
+
+Pick the **capture** node for each device. Example seen during this port:
+`/dev/video0` = webcam capture, `/dev/video1` = webcam metadata (not capturable),
+`/dev/video2` = **Miniscope capture**, `/dev/video3` = Miniscope metadata. So the
+Miniscope needed `deviceID: 2`, not `1`.
+
+> The **Scan Devices** button is Windows-only (DirectShow, `#ifdef Q_OS_WINDOWS`);
+> set `deviceID` manually on Linux.
+
+---
+
+## 6. The libuvc Miniscope backend (the important part)
+
+**Why it exists.** The Miniscope streams data *back* to the host by overloading
+UVC Processing-Unit controls: the DAQ frame counter is read from `CONTRAST`, the
+BNO head-orientation quaternion from `SATURATION/HUE/GAIN/BRIGHTNESS`, and the
+external-trigger state from `GAMMA`. On Windows, DirectShow issues a fresh
+`GET_CUR` on every read, so these always return live values. On **Linux**, the
+kernel `uvcvideo` driver **caches** UVC control values and only re-queries the
+device on a *write* — so OpenCV/V4L2 `cap.get()` returns stale data: the BNO never
+updates (registers are never written), and the frame counter freezes between
+control writes (its lost-frame counter then runs away negative).
+
+**The fix.** For Miniscopes on Linux the app uses `VideoStreamLibUVC` instead of
+OpenCV. libuvc talks to the device directly over libusb (detaching `uvcvideo`
+while open) and issues a fresh UVC `GET_CUR` on every read, bypassing the cache.
+It also handles streaming (YUYV 608×608) and all control *writes* (LED/gain/EWL/
+framerate) via the same I²C-over-UVC packing the OpenCV path used. Backend
+selection lives in `VideoDevice`'s constructor: Linux + Miniscope + a live
+`deviceID` → libuvc; everything else (webcams, Windows, video-file playback) →
+OpenCV. Both backends implement the `VideoStreamBase` interface, so the rest of
+the app is unchanged and the Windows/OpenCV path is untouched.
+
+**One behavioral note.** Continuous BNO/frame-register refresh on the DAQ is
+enabled by a `SET_CUR SATURATION = 0x0001` "start" command. The app wires that to
+the **Record** button; the libuvc backend instead sends it at **stream start** so
+head orientation is live during **Run**, not only while recording.
+
+**Permissions.** libusb needs access to `/dev/bus/usb/...`; on a desktop Ubuntu
+session this is granted to the logged-in user automatically (no udev rule/root
+needed). If you run headless or hit `LIBUSB_ERROR_ACCESS`, add a udev rule for
+VID:PID `04b4:00f9` (Cypress FX3 / Miniscope).
+
+---
+
+## 7. Troubleshooting
 
 | Symptom | Fix |
 |---|---|
-| `module "QtQuick.X" is not installed` at launch | Install `qml6-module-qtquick-<x>` (lower-cased, dashed). |
-| `Could not load the Qt platform plugin "xcb"` | `libxcb-cursor0` (in the list above). Still failing? Force X11: `QT_QPA_PLATFORM=xcb ./build/MiniscopeDAQ`. |
-| Black window / no GL / Wayland weirdness | Ubuntu 24.04 defaults to Wayland; try `QT_QPA_PLATFORM=xcb` (runs via XWayland). Verify GL with `glxinfo \| grep "OpenGL version"` (`sudo apt install mesa-utils`). |
-| CMake can't find NumPy | `python3-numpy`; confirm `find_package(Python3 ... NumPy)` succeeds in the configure log. |
-| Camera not found / permission denied | `ls -l /dev/video*`; ensure your user is in the `video` group (`groups`; if not: `sudo usermod -aG video $USER` then re-login). List devices: `v4l2-ctl --list-devices`. |
-| **Scan Devices** button says "only on Windows" | Expected — that button is `#ifdef Q_OS_WINDOWS` (DirectShow). On Linux, set the `deviceID` manually (0, 1, …; map names via `v4l2-ctl --list-devices`). *(Optional enhancement: add a V4L2 enumeration path.)* |
-| Shaders fail to compile (blank trace/tracker) | Already fixed in this codebase (GLSL 1.10 int→float issues). If it recurs, grep the terminal log for shader compile errors. |
+| `module "QtQuick.X" is not installed` at launch | Missing QML runtime module — with the conda env this shouldn't happen; on apt install `qml6-module-qtquick-<x>`. |
+| `Could not load the Qt platform plugin "xcb"` | Force X11: `QT_QPA_PLATFORM=xcb ./build/MiniscopeDAQ` (validated build used Wayland fine). |
+| `libuvc not found` at configure | `conda install -c conda-forge libuvc`; re-run cmake. Without it Miniscopes lose live BNO / frame counter. |
+| Miniscope opens but no BNO / frozen orientation | Confirm the log says `Using libuvc capture backend`; confirm device is a `Miniscope_V4_BNO` and `headOrientation.enabled` is true in the user config. |
+| `could not open ... via libuvc (device busy?)` | Another process holds the device; close other viewers. After libuvc closes, `uvcvideo` re-attaches and `/dev/videoN` returns. |
+| Wrong/te no video | Wrong `deviceID` — re-check the `/sys/class/video4linux` mapping in §5. |
 
 ---
 
-## 6. The real test: Miniscope control over V4L2 (hardware)
+## 8. Packaging (later)
 
-Even once it compiles and the UI runs, the **one genuine runtime unknown** is whether
-Miniscope control works. The app tunnels device control through standard UVC video
-properties (`cap.set(cv::CAP_PROP_SATURATION/GAMMA/CONTRAST, …)`). On Windows that
-goes through DirectShow; on Linux OpenCV's **V4L2** backend may not forward those
-arbitrary UVC property writes the same way. This needs **hands-on testing with the
-actual Miniscope** and is likely harder than the build itself. Verify excitation LED,
-gain, focus, and framerate actually change the device.
+- **AppImage** (`linuxdeploy` + Qt plugin) — bundle Qt/OpenCV/libuvc/libusb/QML.
+- **`.deb`** — CPack `DEB` or a `debian/` dir depending on `libqt6*`, `libopencv*`,
+  `libuvc0`, `libusb-1.0-0`, `python3`.
 
----
-
-## 7. Packaging (later, after it runs)
-
-- **AppImage** (recommended first): `linuxdeployqt` or `linuxdeploy` + the Qt plugin —
-  bundles Qt/OpenCV/plugins/QML, portable across distros.
-- **`.deb`**: CPack `DEB` generator or a `debian/` dir with `Depends:` on
-  `libqt6*`, `libopencv*`, `python3` — smaller, but couples to one release's versions.
-
----
-
-## Fallback: conda build
-
-If apt's Qt 6.4 hits a version wall:
-
-```bash
-conda env create -f environment.yml   # creates the miniscope-qt6 env (conda-forge)
-conda activate miniscope-qt6
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" \
-  -DPython3_EXECUTABLE="$CONDA_PREFIX/bin/python3" -DUSE_PYTHON=ON
-cmake --build build -j"$(nproc)"
-```
-
-Watch for the conda-Qt `xcb` plugin issue: if the platform plugin won't load, you may
-need `QT_QPA_PLATFORM_PLUGIN_PATH="$CONDA_PREFIX/lib/qt6/plugins/platforms"` and/or
-system `libxcb-cursor0`. This is exactly the friction that makes apt the better first
-choice on Linux.
+Either way, ship a udev rule for `04b4:00f9` so non-desktop sessions get USB access.

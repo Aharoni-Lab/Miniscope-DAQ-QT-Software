@@ -16,7 +16,9 @@
 #include <QVariant>
 #include <QString>
 
+#include "videostreambase.h"
 #include "videostreamocv.h"
+#include "videostreamlibuvc.h"
 #include "videodisplay.h"
 #include "newquickview.h"
 #include <opencv2/opencv.hpp>
@@ -48,12 +50,12 @@ class VideoDevice : public QObject
 {
     Q_OBJECT
 public:
-    explicit VideoDevice(QObject *parent = nullptr, QJsonObject ucDevice = QJsonObject(), qint64 softwareStartTime = 0);
+    explicit VideoDevice(QObject *parent = nullptr, QJsonObject ucDevice = QJsonObject(), qint64 softwareStartTime = 0, bool preferLibUVC = false);
     QJsonObject getDeviceConfig(QString deviceType);
     QObject* getRootDisplayObject() { return rootObject; }
     QQuickItem* getRootDisplayChild(QString childName) { return rootObject->findChild<QQuickItem*>(childName); }
     VideoDisplay* getVideoDisplay() { return vidDisplay; }
-    VideoStreamOCV* getDeviceStream() { return deviceStream; }
+    VideoStreamBase* getDeviceStream() { return deviceStream; }
     virtual void setupDisplayObjectPointers() { }; // Child class should override this!
     bool getHeadOrienataionStreamState() { return m_headOrientationStreamState;}
     bool getHeadOrienataionFilterState() { return m_headOrientationFilterState;}
@@ -135,7 +137,8 @@ private:
 
     int m_camConnected;
     NewQuickView *view;
-    VideoStreamOCV *deviceStream;
+    VideoStreamBase *deviceStream;
+    bool m_preferLibUVCBackend;
     QThread *videoStreamThread;
     cv::Mat frameBuffer[FRAME_BUFFER_SIZE];
     qint64 timeStampBuffer[FRAME_BUFFER_SIZE];
