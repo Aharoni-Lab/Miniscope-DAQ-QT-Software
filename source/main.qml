@@ -531,5 +531,13 @@ Window {
     Component.onCompleted: {
         setX(Screen.width / 2 - width / 2);
         setY(Screen.height / 2 - height / 2);
+
+        // Default the user-config open/save dialogs to the configured folder
+        // (set via MINISCOPE_USERCONFIG_DIR, e.g. by the AppImage first-run prompt).
+        var cfgFolder = backend.defaultUserConfigFolderUrl();
+        if (cfgFolder && cfgFolder.toString().length > 0) {
+            fileDialog.currentFolder = cfgFolder;
+            saveConfigDialog.currentFolder = cfgFolder;
+        }
     }
 }

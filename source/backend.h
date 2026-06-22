@@ -79,6 +79,13 @@ public:
     Q_INVOKABLE QString urlToLocalFile(const QUrl &url) const { return url.toLocalFile(); }
     // Inverse of urlToLocalFile: build a file:// URL to seed the Save-As dialog.
     Q_INVOKABLE QUrl localFileToUrl(const QString &path) const { return QUrl::fromLocalFile(path); }
+    // Folder the user-config open/save dialogs should default to. Driven by
+    // MINISCOPE_USERCONFIG_DIR (set by the Linux AppImage's first-run prompt);
+    // empty URL when unset, in which case QML leaves the dialog default alone.
+    Q_INVOKABLE QUrl defaultUserConfigFolderUrl() const {
+        const QString dir = qEnvironmentVariable("MINISCOPE_USERCONFIG_DIR");
+        return dir.isEmpty() ? QUrl() : QUrl::fromLocalFile(dir);
+    }
     QStandardItem *handleJsonObject(QStandardItem* parent, QJsonObject obj, QJsonObject objProps);
     QStandardItem *handleJsonArray(QStandardItem* parent, QJsonArray arry, QString type);
     void generateUserConfigFromModel();

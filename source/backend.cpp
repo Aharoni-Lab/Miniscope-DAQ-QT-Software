@@ -609,9 +609,12 @@ void backEnd::newUserConfig()
     cfg["researcherName"] = "Researcher";
     cfg["experimentName"] = "Experiment";
     cfg["animalName"]     = "Animal";
-    // Default the data directory to a "Data" folder next to the running app (the
-    // working directory, where ./deviceConfigs etc. are read from).
-    cfg["dataDirectory"] = QDir::currentPath() + "/Data";
+    // Default the data directory. If MINISCOPE_DATA_DIR is set (e.g. by the Linux
+    // AppImage's first-run folder prompt), use it; otherwise fall back to a "Data"
+    // folder next to the running app (the working dir, where ./deviceConfigs is).
+    const QString envDataDir = qEnvironmentVariable("MINISCOPE_DATA_DIR");
+    cfg["dataDirectory"] = envDataDir.isEmpty() ? (QDir::currentPath() + "/Data")
+                                                : envDataDir;
 
     cfg["directoryStructure"] = QJsonArray{ "researcherName", "experimentName",
                                             "animalName", "date", "time" };

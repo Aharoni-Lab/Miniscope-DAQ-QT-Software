@@ -1,0 +1,71 @@
+# Build the portable Linux AppImage and publish it as a GitHub Release.
+#
+# Triggers (mirrors the Windows workflow):
+#   * push a tag like v1.10  -> builds the AppImage and creates/updates the Release
+#   * manual "Run workflow"  -> builds and uploads the AppImage as a run artifact
+#
+# The build mirrors the local recipe in packaging/build-appimage.sh: a conda env
+# from environment.yml (Qt6/OpenCV/cmake/ninja) plus libuvc, built USE_PYTHON=OFF
+# (no embedded Python / DeepLabCut tracker - see BUILD_LINUX.md), then packaged
+# with linuxdeploy + its Qt plugin into a single self-contained AppImage.
+name: Build & Release (Linux AppImage)
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write          # needed to create the Release on tag pushes
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}    # login shell so `conda activate` works
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # OpenGL/EGL dev libs for linking Qt6::OpenGL on the runner (conda provides
+      # Qt/OpenCV/ninja; the GL loader libs come from the system).
+      - name: Install system build libs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev libegl1-mesa-dev libglu1-mesa-dev
+
+      - name: Set up conda env (Miniforge + environment.yml)
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          environment-file: environment.yml
+          activate-environment: miniscope-qt6
+          auto-activate-base: false
+
+      - name: Add libuvc (Linux Miniscope capture backend)
+        run: conda install -n miniscope-qt6 -c conda-forge -y libuvc
+
+      - name: Build the AppImage
+        run: packaging/build-appimage.sh
+
+      - name: Name the artifact
+        run: |
+          f=$(ls dist/Miniscope_DAQ*-x86_64.AppImage | head -1)
+          echo "APPIMAGE_PATH=$f" >> "$GITHUB_ENV"
+          echo "Built $f"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MiniscopeDAQ-Linux-x86_64
+          path: ${{ env.APPIMAGE_PATH }}
+          retention-days: 14
+
+      - name: Publish Release (tag pushes only)
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.APPIMAGE_PATH }}
+          generate_release_notes: true
