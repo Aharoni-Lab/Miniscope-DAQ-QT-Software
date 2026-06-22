@@ -11,7 +11,7 @@ uniform float u_time;
 uniform float u_windowSize;
 
 void main() {
-    float scrollBarPos = 2.0 * mod(u_time,u_windowSize)/u_windowSize - 1.0; // From -1 to 1
+    float scrollBarPos = 2 * mod(u_time,u_windowSize)/u_windowSize - 1; // From -1 to 1
 
     vec2 pos = a_position;
     pos.x = scrollBarPos;

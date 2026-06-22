@@ -204,23 +204,23 @@ Item {
 
     Connections{
         target: led0
-        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(led0.objectName, displayValue, i2cValue, i2cValue2) }
+        onValueChangedSignal: vidPropChangedSignal(led0.objectName, displayValue, i2cValue, i2cValue2)
     }
     Connections{
         target: gain
-        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(gain.objectName, displayValue, i2cValue, i2cValue2) }
+        onValueChangedSignal: vidPropChangedSignal(gain.objectName, displayValue, i2cValue, i2cValue2)
     }
     Connections{
         target: frameRate
-        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(frameRate.objectName, displayValue, i2cValue, i2cValue2) }
+        onValueChangedSignal: vidPropChangedSignal(frameRate.objectName, displayValue, i2cValue, i2cValue2)
     }
     Connections{
         target: alpha
-        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(alpha.objectName, displayValue, i2cValue, i2cValue2) }
+        onValueChangedSignal: vidPropChangedSignal(alpha.objectName, displayValue, i2cValue, i2cValue2)
     }
     Connections{
         target: beta
-        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(beta.objectName, displayValue, i2cValue, i2cValue2) }
+        onValueChangedSignal: vidPropChangedSignal(beta.objectName, displayValue, i2cValue, i2cValue2)
     }
 
     states: [

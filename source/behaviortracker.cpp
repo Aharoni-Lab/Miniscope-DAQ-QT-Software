@@ -6,11 +6,11 @@
 #include <opencv2/opencv.hpp>
 
 #include <QtQuick/QQuickItem>
-#include <QtOpenGL/QOpenGLShaderProgram>     // Qt6: moved from QtGui to Qt6::OpenGL
+#include <QtGui/QOpenGLShaderProgram>
 #include <QtGui/QOpenGLFunctions>
-#include <QtOpenGL/QOpenGLTexture>   // Qt6: moved from QtGui to Qt6::OpenGL
-#include <QtOpenGL/QOpenGLBuffer>            // Qt6: moved from QtGui to Qt6::OpenGL
-#include <QtOpenGL/QOpenGLFramebufferObject> // Qt6: moved from QtGui to Qt6::OpenGL
+#include <QtGui/QOpenGLTexture>
+#include <QtGui/QOpenGLBuffer>
+#include <QtGui/QOpenGLFramebufferObject>
 
 #include <QJsonObject>
 #include <QDebug>
@@ -64,8 +64,7 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64
 
 int BehaviorTracker::initNumpy()
 {
-    import_array1(-1); // expands to `return -1` on failure; fall through = success
-    return 0;
+    import_array1(-1);
 }
 
 void BehaviorTracker::parseUserConfigTracker()
@@ -217,17 +216,8 @@ void BehaviorTracker::createView(QSize resolution)
     view->setX(btConfig["windowX"].toInt(1));
     view->setY(btConfig["windowY"].toInt(1));
 
-    // Let the tracker display scale with the window, locked to the camera's
-    // aspect ratio.
-    view->setResizeMode(QQuickView::SizeRootObjectToView);
-    view->setMinimumSize(QSize(view->width() / 2, view->height() / 2));
-    view->setLockedAspectRatio((qreal)view->width() / (qreal)view->height());
-
 #ifdef Q_OS_WINDOWS
-    // Resizable (border drag) + minimizable; no maximize since that would break
-    // the locked aspect ratio.
-    view->setFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
-                   | Qt::WindowMinimizeButtonHint);
+    view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
 #endif
 
 
@@ -818,9 +808,6 @@ void TrackerDisplayRenderer::drawTrackerOverlay (QString type) {
 
 void TrackerDisplayRenderer::paint()
 {
-    // Qt6: bracket all raw OpenGL with begin/endExternalCommands (replaces resetOpenGLState).
-    m_window->beginExternalCommands();
-
     glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
     glDisable(GL_DEPTH_TEST);
 
@@ -851,8 +838,9 @@ void TrackerDisplayRenderer::paint()
         draw2DHist();
     }
 
-    // Qt6: replaces the removed m_window->resetOpenGLState().
-    m_window->endExternalCommands();
+    // Not strictly needed for this example, but generally useful for when
+    // mixing with raw OpenGL.
+    m_window->resetOpenGLState();
 }
 
 TrackerDisplay::TrackerDisplay():
@@ -938,8 +926,11 @@ void TrackerDisplay::handleWindowChanged(QQuickWindow *win)
     if (win) {
         connect(win, &QQuickWindow::beforeSynchronizing, this, &TrackerDisplay::sync, Qt::DirectConnection);
         connect(win, &QQuickWindow::sceneGraphInvalidated, this, &TrackerDisplay::cleanup, Qt::DirectConnection);
-        // Qt6: setClearBeforeRendering() was removed; set the clear color instead.
-        win->setColor(Qt::black);
+//! [1]
+        // If we allow QML to do the clearing, they would clear what we paint
+        // and nothing would show.
+//! [3]
+        win->setClearBeforeRendering(false);
     }
 }
 
@@ -949,8 +940,7 @@ void TrackerDisplay::sync()
         m_renderer = new TrackerDisplayRenderer(nullptr, window()->size() * window()->devicePixelRatio());
 //        m_renderer->setShowSaturation(m_showSaturation);
 //        m_renderer->setDisplayFrame(QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
-        // Qt6: underlay must draw during render-pass recording (see videodisplay.cpp).
-        connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &TrackerDisplayRenderer::paint, Qt::DirectConnection);
+        connect(window(), &QQuickWindow::beforeRendering, m_renderer, &TrackerDisplayRenderer::paint, Qt::DirectConnection);
         m_renderer->m_showOcc = m_showOcc;
         m_renderer->pValCut = m_pValCut;
         m_renderer->overlayEnabled = m_overlayEnabled;

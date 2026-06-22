@@ -210,23 +210,23 @@ Item {
 
     Connections{
         target: led0
-        function onValueChangedSignal(displayValue, i2cValue) { vidPropChangedSignal(led0.objectName, displayValue, i2cValue) }
+        onValueChangedSignal: vidPropChangedSignal(led0.objectName, displayValue, i2cValue)
     }
     Connections{
         target: ewl
-        function onValueChangedSignal(displayValue, i2cValue) { vidPropChangedSignal(ewl.objectName, displayValue, i2cValue) }
+        onValueChangedSignal: vidPropChangedSignal(ewl.objectName, displayValue, i2cValue)
     }
     Connections{
         target: gain
-        function onValueChangedSignal(displayValue, i2cValue) { vidPropChangedSignal(gain.objectName, displayValue, i2cValue) }
+        onValueChangedSignal: vidPropChangedSignal(gain.objectName, displayValue, i2cValue)
     }
     Connections{
         target: alpha
-        function onValueChangedSignal(displayValue, i2cValue) { vidPropChangedSignal(alpha.objectName, displayValue, i2cValue) }
+        onValueChangedSignal: vidPropChangedSignal(alpha.objectName, displayValue, i2cValue)
     }
     Connections{
         target: beta
-        function onValueChangedSignal(displayValue, i2cValue) { vidPropChangedSignal(beta.objectName, displayValue, i2cValue) }
+        onValueChangedSignal: vidPropChangedSignal(beta.objectName, displayValue, i2cValue)
     }
 
     states: [

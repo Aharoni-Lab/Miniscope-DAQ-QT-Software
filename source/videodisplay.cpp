@@ -1,9 +1,9 @@
 #include "videodisplay.h"
 
 #include <QtQuick/qquickwindow.h>
-#include <QtOpenGL/QOpenGLShaderProgram>   // Qt6: moved from QtGui to Qt6::OpenGL
+#include <QtGui/QOpenGLShaderProgram>
 #include <QtGui/QOpenGLContext>
-#include <QtOpenGL/QOpenGLTexture>   // Qt6: moved from QtGui to Qt6::OpenGL
+#include <QtGui/QOpenGLTexture>
 
 #include <QImage>
 
@@ -12,12 +12,10 @@ VideoDisplay::VideoDisplay()
     : m_t(0),
       m_acqFPS(0),
       m_renderer(nullptr),
-      m_lutMode(0),
       m_roiSelectionActive(false),
-      m_addTraceRoiSelectionActive(false),   // was uninitialized: garbage-true made a
-                                             // plain click on the video spawn a neuron
       m_ROI({0,0,10,10,0}),
-      m_hasPressPos(false)
+      lastMouseClickEvent(nullptr),
+      lastMouseReleaseEvent(nullptr)
 {
 //    m_displayFrame2.load("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png");
     setAcceptedMouseButtons(Qt::AllButtons);
@@ -55,14 +53,6 @@ void VideoDisplay::setShowSaturation(double value)
         m_renderer->setShowSaturation(value);
     }
 }
-
-void VideoDisplay::setLutMode(double value)
-{
-    m_lutMode = value;
-    if (m_renderer) {
-        m_renderer->setLutMode(value);
-    }
-}
 //void VideoDisplayRenderer::setDisplayFrame(QImage frame) {
 //    m_displayFrame = frame;
 //}
@@ -74,11 +64,11 @@ void VideoDisplay::handleWindowChanged(QQuickWindow *win)
     if (win) {
         connect(win, &QQuickWindow::beforeSynchronizing, this, &VideoDisplay::sync, Qt::DirectConnection);
         connect(win, &QQuickWindow::sceneGraphInvalidated, this, &VideoDisplay::cleanup, Qt::DirectConnection);
-        // Qt6: QQuickWindow::setClearBeforeRendering() was removed. Instead set the
-        // window clear color; the scene graph clears to it at the start of the
-        // render pass and our underlay (drawn during beforeRenderPassRecording)
-        // paints on top of that, beneath the QML content.
-        win->setColor(Qt::black);
+//! [1]
+        // If we allow QML to do the clearing, they would clear what we paint
+        // and nothing would show.
+//! [3]
+        win->setClearBeforeRendering(false);
     }
 }
 //! [3]
@@ -105,12 +95,8 @@ void VideoDisplay::sync()
     if (!m_renderer) {
         m_renderer = new VideoDisplayRenderer();
         m_renderer->setShowSaturation(m_showSaturation);
-        m_renderer->setLutMode(m_lutMode);
 //        m_renderer->setDisplayFrame(QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
-        // Qt6: draw during render-pass recording. beforeRendering now fires before
-        // the render pass begins, when there is no bound framebuffer to draw into,
-        // so an underlay must use beforeRenderPassRecording instead.
-        connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &VideoDisplayRenderer::paint, Qt::DirectConnection);
+        connect(window(), &QQuickWindow::beforeRendering, m_renderer, &VideoDisplayRenderer::paint, Qt::DirectConnection);
     }
     m_renderer->setViewportSize(window()->size() * window()->devicePixelRatio());
 //    m_renderer->setT(m_t);
@@ -122,41 +108,42 @@ void VideoDisplay::sync()
 void VideoDisplay::mousePressEvent(QMouseEvent *event){
     if ((m_roiSelectionActive || m_addTraceRoiSelectionActive) && event->button() == Qt::LeftButton) {
         // TODO: Send info to shader to draw rectangle
-        // Qt6: QMouseEvent::x()/y() are deprecated (use position()), and cloning a
-        // pointer event is no longer the pattern. Store the press point instead.
-        m_pressPos = event->position().toPoint();
-        m_hasPressPos = true;
+        lastMouseClickEvent = new QMouseEvent(*event);
     }
 //        qDebug() << "Mouse Press" << event;
 }
 
 void VideoDisplay::mouseMoveEvent(QMouseEvent *event) {
-    if (!m_hasPressPos)
-        return;
 
-    const QPoint pos = event->position().toPoint();
-    const int leftEdge = qMin(m_pressPos.x(), pos.x());
-    const int topEdge  = qMin(m_pressPos.y(), pos.y());
-    const int width    = qAbs(m_pressPos.x() - pos.x());
-    const int height   = qAbs(m_pressPos.y() - pos.y());
+    if (m_roiSelectionActive /*&& event->button() == Qt::LeftButton*/ && lastMouseClickEvent != nullptr) {
+        int leftEdge = (lastMouseClickEvent->x() < event->x()) ? (lastMouseClickEvent->x()) : (event->x());
+        int topEdge = (lastMouseClickEvent->y() < event->y()) ? (lastMouseClickEvent->y()) : (event->y());
+        int width = abs(lastMouseClickEvent->x() - event->x());
+        int height = abs(lastMouseClickEvent->y() - event->y());
 
-    if (m_roiSelectionActive) {
         setROI({leftEdge,topEdge,width,height,m_roiSelectionActive});
+        qDebug() << "Mouse Move" << event;
     }
-    if (m_addTraceRoiSelectionActive) {
+    if (m_addTraceRoiSelectionActive /*&& event->button() == Qt::LeftButton*/ && lastMouseClickEvent != nullptr) {
+        int leftEdge = (lastMouseClickEvent->x() < event->x()) ? (lastMouseClickEvent->x()) : (event->x());
+        int topEdge = (lastMouseClickEvent->y() < event->y()) ? (lastMouseClickEvent->y()) : (event->y());
+        int width = abs(lastMouseClickEvent->x() - event->x());
+        int height = abs(lastMouseClickEvent->y() - event->y());
+
         setAddTraceROI({leftEdge,topEdge,width,height,m_addTraceRoiSelectionActive});
+//        qDebug() << "Mouse Move" << event;
     }
 }
 
 void VideoDisplay::mouseReleaseEvent(QMouseEvent *event) {
-    if (event->button() == Qt::LeftButton && m_hasPressPos) {
-        const QPoint pos = event->position().toPoint();
+    if (event->button() == Qt::LeftButton && lastMouseClickEvent != nullptr) {
+        lastMouseReleaseEvent = event;
 
         // Calculate ROI properties
-        int leftEdge = qMin(m_pressPos.x(), pos.x());
-        int topEdge  = qMin(m_pressPos.y(), pos.y());
-        int width    = qAbs(m_pressPos.x() - pos.x());
-        int height   = qAbs(m_pressPos.y() - pos.y());
+        int leftEdge = (lastMouseClickEvent->x() < lastMouseReleaseEvent->x()) ? (lastMouseClickEvent->x()) : (lastMouseReleaseEvent->x());
+        int topEdge = (lastMouseClickEvent->y() < lastMouseReleaseEvent->y()) ? (lastMouseClickEvent->y()) : (lastMouseReleaseEvent->y());
+        int width = abs(lastMouseClickEvent->x() - lastMouseReleaseEvent->x());
+        int height = abs(lastMouseClickEvent->y() - lastMouseReleaseEvent->y());
 
         if (m_roiSelectionActive ) {
             m_roiSelectionActive = false;
@@ -179,8 +166,9 @@ void VideoDisplay::mouseReleaseEvent(QMouseEvent *event) {
 
         }
     }
-    // Reset stored press position
-    m_hasPressPos = false;
+    // Reset these Mouse events
+    lastMouseClickEvent = nullptr;
+    lastMouseReleaseEvent = nullptr;
 }
 
 void VideoDisplay::setROI(QList<int> roi)
@@ -200,12 +188,6 @@ void VideoDisplay::setAddTraceROI(QList<int> roi)
 void VideoDisplayRenderer::paint()
 {
     //    qDebug() << "Painting!";
-
-    // Qt6: bracket all raw OpenGL with begin/endExternalCommands so the RHI-based
-    // scene graph knows its cached GL state is being touched. This replaces the
-    // old m_window->resetOpenGLState() call.
-    m_window->beginExternalCommands();
-
     if (!m_program) {
         initializeOpenGLFunctions();
 
@@ -258,7 +240,6 @@ void VideoDisplayRenderer::paint()
     m_program->setUniformValue("alpha", (float) m_alpha);
     m_program->setUniformValue("beta", (float) m_beta);
     m_program->setUniformValue("showSaturation", (float) m_showStaturation);
-    m_program->setUniformValue("lutMode", (float) m_lutMode);
 
     glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
 
@@ -276,6 +257,10 @@ void VideoDisplayRenderer::paint()
     m_program->disableAttributeArray(1);
     m_program->release();
 
+    // Not strictly needed for this example, but generally useful for when
+    // mixing with raw OpenGL.
+    m_window->resetOpenGLState();
+
     if (m_newFrame) {
 //        qDebug() << "Set new texture QImage";
 
@@ -285,7 +270,5 @@ void VideoDisplayRenderer::paint()
         m_newFrame = false;
     }
 
-    // Qt6: replaces the removed m_window->resetOpenGLState().
-    m_window->endExternalCommands();
 }
 //! [5]
