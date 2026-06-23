@@ -4,11 +4,11 @@
 #include "newquickview.h"
 
 #include <QtQuick/QQuickItem>
-#include <QtGui/QOpenGLShaderProgram>
+#include <QtOpenGL/QOpenGLShaderProgram>     // Qt6: moved from QtGui to Qt6::OpenGL
 #include <QtGui/QOpenGLFunctions>
-#include <QtGui/QOpenGLTexture>
-#include <QtGui/QOpenGLBuffer>
-#include <QtGui/QOpenGLFramebufferObject>
+#include <QtOpenGL/QOpenGLTexture>   // Qt6: moved from QtGui to Qt6::OpenGL
+#include <QtOpenGL/QOpenGLBuffer>            // Qt6: moved from QtGui to Qt6::OpenGL
+#include <QtOpenGL/QOpenGLFramebufferObject> // Qt6: moved from QtGui to Qt6::OpenGL
 
 #include <QJsonObject>
 #include <QVector>
@@ -225,9 +225,8 @@ private:
     QVector<trace_t> m_tempTraces;
 
 
-    QMouseEvent* lastMouseClickEvent;
-    QMouseEvent* lastMouseReleaseEvent;
-    QMouseEvent* lastMouseMoveEvent;
+    // Qt6: removed cloned-QMouseEvent members; the drag logic that used them is
+    // disabled (commented out) in tracedisplay.cpp.
 
     qint64 m_softwareStartTime;
 
@@ -248,6 +247,10 @@ public:
 public slots:
     void addNewTrace(QString name, float color[3], float scale, QString units, bool sameOffset, QAtomicInt* displayBufNum, QAtomicInt* numDataInBuf, int bufSize, float* dataT, float* dataY);
     void close();
+
+private slots:
+    // Tears the window down when the user closes it (X button) or on app exit.
+    void handleWindowClosing();
 
 private:
     NewQuickView *view;

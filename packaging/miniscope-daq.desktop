@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Miniscope DAQ
+Comment=UCLA Miniscope acquisition software (Linux)
+Exec=MiniscopeDAQ
+Icon=miniscope-daq
+Categories=Science;
+Terminal=false

@@ -16,7 +16,9 @@
 #include <QVariant>
 #include <QString>
 
+#include "videostreambase.h"
 #include "videostreamocv.h"
+#include "videostreamlibuvc.h"
 #include "videodisplay.h"
 #include "newquickview.h"
 #include <opencv2/opencv.hpp>
@@ -48,12 +50,12 @@ class VideoDevice : public QObject
 {
     Q_OBJECT
 public:
-    explicit VideoDevice(QObject *parent = nullptr, QJsonObject ucDevice = QJsonObject(), qint64 softwareStartTime = 0);
+    explicit VideoDevice(QObject *parent = nullptr, QJsonObject ucDevice = QJsonObject(), qint64 softwareStartTime = 0, bool preferLibUVC = false);
     QJsonObject getDeviceConfig(QString deviceType);
     QObject* getRootDisplayObject() { return rootObject; }
     QQuickItem* getRootDisplayChild(QString childName) { return rootObject->findChild<QQuickItem*>(childName); }
     VideoDisplay* getVideoDisplay() { return vidDisplay; }
-    VideoStreamOCV* getDeviceStream() { return deviceStream; }
+    VideoStreamBase* getDeviceStream() { return deviceStream; }
     virtual void setupDisplayObjectPointers() { }; // Child class should override this!
     bool getHeadOrienataionStreamState() { return m_headOrientationStreamState;}
     bool getHeadOrienataionFilterState() { return m_headOrientationFilterState;}
@@ -105,6 +107,7 @@ public slots:
     void handleTakeScreenShotSignal();
 
     void handleSaturationSwitchChanged(bool checked);
+    void handleLutSwitchChanged(bool checked);
     void handleSetExtTriggerTrackingState(bool state);
     void handleRecordStart(); // Currently used to toggle LED on and off
     void handleRecordStop(); // Currently used to toggle LED on and off
@@ -117,17 +120,25 @@ public slots:
     void handleNewROI(int leftEdge, int topEdge, int width, int height);
     virtual void handleAddNewTraceROI(int leftEdge, int topEdge, int width, int height);
 
+    // Re-applies the stored ROI overlay at the current display size so it tracks
+    // window resizes.
+    void handleDisplayResized();
+
 private:
 
     QSize m_resolution;
     void configureDeviceControls();
+    // Live display-pixels-per-camera-pixel (x, y). Used to map ROI selections to
+    // camera coordinates and back, correctly at any (resized) window size.
+    QSizeF displayPerCameraScale();
     QVector<QMap<QString, int>> parseSendCommand(QJsonArray sendCommand);
     int processString2Int(QString s);
     QMap<QString,quint16> deviceAddr; //only used with Miniscopes???
 
     int m_camConnected;
     NewQuickView *view;
-    VideoStreamOCV *deviceStream;
+    VideoStreamBase *deviceStream;
+    bool m_preferLibUVCBackend;
     QThread *videoStreamThread;
     cv::Mat frameBuffer[FRAME_BUFFER_SIZE];
     qint64 timeStampBuffer[FRAME_BUFFER_SIZE];
@@ -173,6 +184,10 @@ private:
 
     qint64 m_softwareStartTime;
     bool m_traceDisplayStatus;
+
+    // Display LUT (colormap) selected in the user config: 1=green, 2=red,
+    // 3=inferno; the on-window switch toggles between this and 0 (grayscale).
+    int m_lutColormap;
 };
 
 #endif // VIDEODEVICE_H

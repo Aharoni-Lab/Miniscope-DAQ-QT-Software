@@ -1,0 +1,13 @@
+# Miniscope DAQ — USB access for the Cypress FX3 Miniscope DAQ board.
+#
+# The Linux build talks to the Miniscope directly via libuvc/libusb (the kernel
+# uvcvideo driver caches UVC control reads, so it can't return the live BNO /
+# frame-counter registers). libusb needs read/write access to the USB node. On a
+# normal desktop login the logind ACL already grants this; install this rule for
+# headless / non-desktop sessions or if you hit LIBUSB_ERROR_ACCESS.
+#
+# Install:
+#   sudo cp packaging/99-miniscope.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+# then re-plug the Miniscope.
+SUBSYSTEM=="usb", ATTRS{idVendor}=="04b4", ATTRS{idProduct}=="00f9", MODE="0660", TAG+="uaccess"

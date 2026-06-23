@@ -1,0 +1,56 @@
+{
+    "dataDirectory": "/tmp/miniscope-linuxtest",
+    "directoryStructure": [
+        "researcherName",
+        "date",
+        "time"
+    ],
+    "researcherName": "LinuxPortTest",
+
+    "recordLengthinSeconds": 600,
+
+    "executableOnStartRecording": { "enabled": false },
+    "executableOnStopRecording": { "enabled": false },
+
+    "behaviorTracker": { "enabled": false },
+
+    "traceDisplay": {
+        "enabled": true,
+        "type": "scrolling",
+        "windowX": 100,
+        "windowY": 100,
+        "windowWidth": 600,
+        "windowHeight": 800
+    },
+
+    "devices": {
+        "miniscopes": {
+            "Test V4 Miniscope": {
+                "deviceType": "Miniscope_V4_BNO",
+                "headOrientation": {
+                    "enabled": true,
+                    "filterBadData": true,
+                    "plotTrace": ["roll", "pitch", "yaw"]
+                },
+                "deviceID": 2,
+                "showSaturation": true,
+                "ROI": {
+                    "leftEdge": 0,
+                    "topEdge": 0,
+                    "width": 600,
+                    "height": 600
+                },
+                "compression": "FFV1",
+                "lut": "None",
+                "framesPerFile": 1000,
+                "windowScale": 0.75,
+                "windowX": 800,
+                "windowY": 100,
+                "gain": "Low",
+                "ewl": 50,
+                "led0": 10,
+                "frameRate": "20FPS"
+            }
+        }
+    }
+}
