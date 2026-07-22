@@ -29,9 +29,20 @@ enum PuSelector : quint8 {
     SEL_GAMMA      = 0x09  // I2C mid word (write) / external trigger state (read)
 };
 
+// Which selector carries each packed I2C word (see PackedCommand below), and
+// which selectors the BNO quaternion components are read from, in w/x/y/z
+// order. Backends iterate these instead of re-stating the map.
+constexpr quint8 kI2CWordSelectors[3] = {SEL_CONTRAST, SEL_GAMMA, SEL_SHARPNESS};
+constexpr quint8 kBnoSelectors[4] = {SEL_SATURATION, SEL_HUE, SEL_GAIN, SEL_BRIGHTNESS};
+
+// Settle time after a control write: the DAQ's control endpoint is slow to
+// clear, and a follow-up command sent too soon overwrites the previous one
+// (breaking the packet layout). >100 us is generally enough in practice.
+constexpr int kCtrlSettleUs = 200;
+
 // An I2C command packed for transport. The firmware receives it as three
-// consecutive 16-bit UVC control writes (CONTRAST, GAMMA, SHARPNESS carry the
-// low, middle and high words of `raw` respectively).
+// consecutive 16-bit UVC control writes; words[i] travels on the control
+// named by kI2CWordSelectors[i] (low word first).
 //
 // Wire format ('packet' is I2C address followed by payload bytes):
 //   < 6 bytes: byte0 = address, byte1 = total packet length, bytes2.. = payload
@@ -39,8 +50,7 @@ enum PuSelector : quint8 {
 //              full-width form), bytes1..5 = payload
 //   > 6 bytes: unsupported (valid == false); the firmware has no framing for it
 struct PackedCommand {
-    quint64 raw = 0;
-    quint16 words[3] = {0, 0, 0};   // CONTRAST, GAMMA, SHARPNESS payloads
+    quint16 words[3] = {0, 0, 0};
     bool valid = false;
 };
 

@@ -47,7 +47,10 @@ void TestUVCControlMac::requestsOnClosedFail()
     quint16 v = 0;
     QVERIFY(!ctrl.setCur(2, 0x03, 1));
     QVERIFY(!ctrl.getCur(2, 0x03, &v));
-    QCOMPARE(ctrl.lastError(), QStringLiteral("not open"));
+    QVERIFY(!ctrl.lastError().isEmpty());
+    // Failures that never reach IOKit report -1 (callers branch on the code,
+    // not the message).
+    QCOMPARE(ctrl.lastIOReturn(), -1);
 }
 
 QTEST_APPLESS_MAIN(TestUVCControlMac)

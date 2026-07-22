@@ -65,6 +65,8 @@ int main(int argc, char *argv[])
     const int seconds = qMax(1, parser.value("seconds").toInt());
 
     UVCControlMac ctrl;
+    // The DAQ's write-settle pause; reads (the polling below) never pay it.
+    ctrl.setWriteSettleUs(kCtrlSettleUs);
     if (!ctrl.open(vid, pid, location)) {
         fprintf(stderr, "open failed: %s\n", qPrintable(ctrl.lastError()));
         fprintf(stderr, "hint: run with --list to see connected devices\n");
@@ -88,12 +90,13 @@ int main(int argc, char *argv[])
         {"bnoY(GAIN)         ", SEL_GAIN},
         {"bnoZ(BRIGHTNESS)   ", SEL_BRIGHTNESS},
     };
+    constexpr size_t kNumRegs = sizeof(regs) / sizeof(regs[0]);
     const int totalPolls = rateHz * seconds;
     const qint64 periodUs = 1000000 / rateHz;
 
     int failures = 0;
-    int regFailures[sizeof(regs) / sizeof(regs[0])] = {};
-    QString regLastError[sizeof(regs) / sizeof(regs[0])];
+    int regFailures[kNumRegs] = {};
+    QString regLastError[kNumRegs];
     int frameIncrements = 0, frameStalls = 0, frameBackwards = 0;
     qint16 lastFrame = -1;
     QSet<quint16> bnoValuesSeen;
@@ -101,11 +104,11 @@ int main(int argc, char *argv[])
     QElapsedTimer wall, one;
 
     printf("polling %d registers at %d Hz for %d s (%d cycles)...\n",
-           int(sizeof(regs) / sizeof(regs[0])), rateHz, seconds, totalPolls);
+           int(kNumRegs), rateHz, seconds, totalPolls);
     wall.start();
     for (int i = 0; i < totalPolls; i++) {
         one.start();
-        for (size_t ri = 0; ri < sizeof(regs) / sizeof(regs[0]); ri++) {
+        for (size_t ri = 0; ri < kNumRegs; ri++) {
             const auto &r = regs[ri];
             quint16 v = 0;
             if (!ctrl.getCur(kProcessingUnitId, r.sel, &v)) {
@@ -137,8 +140,8 @@ int main(int argc, char *argv[])
     printf("\n--- report -------------------------------------------------\n");
     printf("wall time            : %.1f s (target %d s)\n", wallS, seconds);
     printf("transfers            : %d (%d failed)\n",
-           totalPolls * int(sizeof(regs) / sizeof(regs[0])), failures);
-    for (size_t ri = 0; ri < sizeof(regs) / sizeof(regs[0]); ri++)
+           totalPolls * int(kNumRegs), failures);
+    for (size_t ri = 0; ri < kNumRegs; ri++)
         if (regFailures[ri])
             printf("  %s: %d/%d failed (last: %s)\n", regs[ri].name, regFailures[ri],
                    totalPolls, qPrintable(regLastError[ri]));

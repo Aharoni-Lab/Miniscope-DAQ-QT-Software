@@ -46,8 +46,7 @@ find_package(OpenCV REQUIRED)
 add_library(miniscope_protocol STATIC
     source/miniscopeprotocol.cpp
     source/miniscopeprotocol.h
-    source/uvcrequest.cpp
-    source/uvcrequest.h
+    source/uvcrequest.h      # header-only: generic UVC 1.1 setup-packet builders
 )
 target_link_libraries(miniscope_protocol PUBLIC Qt6::Core)
 target_include_directories(miniscope_protocol PUBLIC source)

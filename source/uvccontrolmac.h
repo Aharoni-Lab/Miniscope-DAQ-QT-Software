@@ -19,12 +19,12 @@
 //
 // Threading: not thread-safe; callers serialize requests on one thread (the
 // capture backends already send all control traffic from the stream thread).
-// The DAQ's control endpoint is slow to clear, so a settle delay is applied
-// after every transfer (same reason as the OpenCV/libuvc backends' waits).
 
 #include <QString>
 #include <QVector>
 #include <QtGlobal>
+
+#include "uvcrequest.h"
 
 class UVCControlMac
 {
@@ -51,17 +51,31 @@ public:
     void close();
     bool isOpen() const { return m_intf != nullptr; }
 
-    // UVC SET_CUR / GET_CUR of a 16-bit control value on the given unit.
+    // Pause after each control write, for devices whose control endpoint is
+    // slow to clear (the Miniscope DAQ needs MiniscopeProtocol::kCtrlSettleUs;
+    // an ordinary webcam needs none). Reads never pay this delay.
+    void setWriteSettleUs(int us) { m_writeSettleUs = us; }
+
+    // UVC SET_CUR / GET_CUR of a 16-bit control value on the given unit. The
+    // read side accepts the other GET_* request codes (GET_MIN/MAX/INFO/...)
+    // for probing; the default is the per-frame GET_CUR.
     bool setCur(quint8 unitId, quint8 selector, quint16 value);
-    bool getCur(quint8 unitId, quint8 selector, quint16 *value);
+    bool getCur(quint8 unitId, quint8 selector, quint16 *value,
+                UVCRequest::RequestCode code = UVCRequest::GET_CUR);
 
     quint8 vcInterfaceNumber() const { return m_vcInterfaceNumber; }
     quint32 locationID() const { return m_locationID; }
+
+    // Failure details of the last call: a human-readable string for logging,
+    // and the raw IOReturn for decisions (device gone vs. stalled vs. other -
+    // reconnect logic must branch on the code, never on the string). The code
+    // is 0 (kIOReturnSuccess) after a successful call and -1 when the failure
+    // never reached IOKit (e.g. "not open").
     QString lastError() const { return m_lastError; }
+    int lastIOReturn() const { return m_lastIOReturn; }
 
 private:
-    bool controlRequest(quint8 bmRequestType, quint8 bRequest, quint16 wValue,
-                        quint16 wIndex, quint16 wLength, void *data);
+    bool controlRequest(const UVCRequest::SetupPacket &packet, void *data);
 
     // IOUSBInterfaceInterface** for the VideoControl interface; kept opaque so
     // IOKit headers stay out of this header (they are C typedefs of anonymous
@@ -69,7 +83,9 @@ private:
     void *m_intf = nullptr;
     quint8 m_vcInterfaceNumber = 0;
     quint32 m_locationID = 0;
+    int m_writeSettleUs = 0;
     QString m_lastError;
+    int m_lastIOReturn = 0;
 };
 
 #endif // UVCCONTROLMAC_H

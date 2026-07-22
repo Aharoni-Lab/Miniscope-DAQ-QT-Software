@@ -36,14 +36,40 @@ struct SetupPacket {
     quint16 wLength = 0;
 };
 
-SetupPacket makeSet(quint8 vcInterfaceNumber, quint8 unitId, quint8 selector,
-                    quint16 length);
-SetupPacket makeGet(quint8 vcInterfaceNumber, quint8 unitId, quint8 selector,
-                    quint16 length, RequestCode code = GET_CUR);
+constexpr SetupPacket make(quint8 bmRequestType, quint8 bRequest,
+                           quint8 vcInterfaceNumber, quint8 unitId,
+                           quint8 selector, quint16 length)
+{
+    return { bmRequestType, bRequest,
+             quint16(quint16(selector) << 8),
+             quint16((quint16(unitId) << 8) | vcInterfaceNumber),
+             length };
+}
+
+constexpr SetupPacket makeSet(quint8 vcInterfaceNumber, quint8 unitId,
+                              quint8 selector, quint16 length)
+{
+    return make(kRequestTypeSet, SET_CUR, vcInterfaceNumber, unitId, selector, length);
+}
+
+constexpr SetupPacket makeGet(quint8 vcInterfaceNumber, quint8 unitId,
+                              quint8 selector, quint16 length,
+                              RequestCode code = GET_CUR)
+{
+    return make(kRequestTypeGet, code, vcInterfaceNumber, unitId, selector, length);
+}
 
 // UVC control payloads are little-endian on the wire.
-void encodeLE16(quint16 value, quint8 *buf2);
-quint16 decodeLE16(const quint8 *buf2);
+inline void encodeLE16(quint16 value, quint8 *buf2)
+{
+    buf2[0] = quint8(value & 0xFF);
+    buf2[1] = quint8(value >> 8);
+}
+
+inline quint16 decodeLE16(const quint8 *buf2)
+{
+    return quint16(buf2[0]) | (quint16(buf2[1]) << 8);
+}
 
 } // namespace UVCRequest
 
