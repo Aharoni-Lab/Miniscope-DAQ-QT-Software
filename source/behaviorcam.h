@@ -51,7 +51,7 @@ private:
     QJsonObject m_cDevice;
 
     QObject* rootDistplayObject;
-    VideoStreamOCV *deviceStream;
+    VideoStreamBase *deviceStream;
     // Handle MiniCAM stuff
     bool isMiniCAM;
 

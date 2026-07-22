@@ -88,7 +88,9 @@ Item {
                     repeat: true
                     running: true
                     onTriggered: {
-                        droppedFrameCount.text = "Dropped Frames: " + videoDisplay.droppedFrameCount;
+                        // A negative count is never a real drop tally; show N/A instead.
+                        droppedFrameCount.text = "Dropped Frames: "
+                                + (videoDisplay.droppedFrameCount < 0 ? "N/A" : videoDisplay.droppedFrameCount);
                       }
                 }
 
@@ -204,23 +206,23 @@ Item {
 
     Connections{
         target: led0
-        onValueChangedSignal: vidPropChangedSignal(led0.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(led0.objectName, displayValue, i2cValue, i2cValue2) }
     }
     Connections{
         target: gain
-        onValueChangedSignal: vidPropChangedSignal(gain.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(gain.objectName, displayValue, i2cValue, i2cValue2) }
     }
     Connections{
         target: frameRate
-        onValueChangedSignal: vidPropChangedSignal(frameRate.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(frameRate.objectName, displayValue, i2cValue, i2cValue2) }
     }
     Connections{
         target: alpha
-        onValueChangedSignal: vidPropChangedSignal(alpha.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(alpha.objectName, displayValue, i2cValue, i2cValue2) }
     }
     Connections{
         target: beta
-        onValueChangedSignal: vidPropChangedSignal(beta.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(beta.objectName, displayValue, i2cValue, i2cValue2) }
     }
 
     states: [

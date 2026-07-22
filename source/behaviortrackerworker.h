@@ -63,13 +63,18 @@ private:
     QAtomicInt *m_btPoseCount;
     float *colors;
 
-    // For DLC python class
+    // For DLC python class. Only present when the embedded-Python DeepLabCut-Live
+    // tracker is compiled in (USE_PYTHON). To re-enable DLC in a build, configure
+    // with -DUSE_PYTHON=ON; the guarded sections in this file and the .cpp hold
+    // all the Python-dependent code.
+#ifdef USE_PYTHON
     PyObject *pInstance;
     PyObject *pClass;
     PyObject *pModule;
     PyObject *pDict;
     PyObject *pArgs;
     PyObject *pValue;
+#endif
 
     bool m_PythonInitialized;
     int m_PythonError;

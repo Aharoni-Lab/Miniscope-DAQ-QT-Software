@@ -2,9 +2,9 @@
 #define VIDEODISPLAY_H
 
 #include <QtQuick/QQuickItem>
-#include <QtGui/QOpenGLShaderProgram>
+#include <QtOpenGL/QOpenGLShaderProgram>   // Qt6: moved from QtGui to the Qt6::OpenGL module
 #include <QtGui/QOpenGLFunctions>
-#include <QtGui/QOpenGLTexture>
+#include <QtOpenGL/QOpenGLTexture>   // Qt6: moved from QtGui to Qt6::OpenGL
 
 #include <QImage>
 
@@ -23,7 +23,8 @@ public:
         m_texture(nullptr),
         m_alpha(1),
         m_beta(0),
-        m_showStaturation(1)
+        m_showStaturation(1),
+        m_lutMode(0)
     { }
     ~VideoDisplayRenderer();
 
@@ -34,6 +35,7 @@ public:
     void setAlpha(double a) {m_alpha = a;}
     void setBeta(double b) {m_beta = b;}
     void setShowSaturation(double value) {m_showStaturation = value; }
+    void setLutMode(double value) {m_lutMode = value; }
 
 
     bool m_newFrame;
@@ -56,6 +58,7 @@ private:
     double m_alpha;
     double m_beta;
     double m_showStaturation;
+    double m_lutMode;
 
 
 };
@@ -103,6 +106,7 @@ public:
     void setAlpha(double a) {m_renderer->setAlpha(a);}
     void setBeta(double b) {m_renderer->setBeta(b);}
     void setShowSaturation(double value);
+    void setLutMode(double value);
     void setROISelectionState(bool state) { m_roiSelectionActive = state; }
     void addTraceROISelectionState(bool state) { m_addTraceRoiSelectionActive = state; }
     void setWindowScaleValue(double scale) { m_windowScaleValue = scale; }
@@ -137,13 +141,17 @@ private:
     VideoDisplayRenderer *m_renderer;
 
     double m_showSaturation;
+    double m_lutMode;
     bool m_roiSelectionActive;
     bool m_addTraceRoiSelectionActive;
     double m_windowScaleValue;
     QList<int> m_ROI;
     QList<int> m_addTraceROI;
-    QMouseEvent *lastMouseClickEvent;
-    QMouseEvent *lastMouseReleaseEvent;
+    // Qt6: store the press position instead of cloning the QMouseEvent.
+    // QMouseEvent::x()/y() are deprecated (use position()), and copying pointer
+    // events is no longer the right pattern.
+    QPoint m_pressPos;
+    bool m_hasPressPos;
 };
 //! [2]
 

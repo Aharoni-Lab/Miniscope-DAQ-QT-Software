@@ -1,0 +1,186 @@
+# Build the Windows distribution and the Linux AppImage, then publish BOTH as a
+# single GitHub Release.
+#
+# Triggers:
+#   * push a tag like v1.10  -> build both, then create/update ONE Release with
+#                               the Windows installer + portable zip AND the
+#                               Linux AppImage.
+#   * manual "Run workflow"  -> build both and upload them as run artifacts only
+#                               (no Release created).
+#
+# Shape: two independent build jobs (build-windows, build-linux) each upload
+# their artifacts; a final `release` job gathers both and cuts the Release. So a
+# tag yields ONE release carrying every platform's binaries, rather than a
+# separate release per OS.
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write          # needed to create the Release on tag pushes
+
+jobs:
+  # --- Windows ---------------------------------------------------------------
+  # Mirrors the local recipe (conda env from environment.yml, MSVC, then the
+  # `deploy` target which bundles every dependency into build/Release/). CI uses
+  # the Ninja generator rather than the VS generator because the conda cmake
+  # can't discover the runner's VS instance through the VS generator; CMakeLists
+  # is generator-agnostic, so the output tree is identical. deploy.py fails the
+  # job if any conda dependency is missing.
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up conda env (Miniforge + environment.yml)
+        uses: conda-incubator/setup-miniconda@v4
+        with:
+          miniforge-version: latest
+          environment-file: environment.yml
+          activate-environment: miniscope-qt6
+          auto-activate: false
+
+      - name: Set up MSVC toolchain (x64)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure (CMake + Ninja + MSVC)
+        run: >
+          cmake -B build -S . -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_PREFIX_PATH="$env:CONDA_PREFIX/Library"
+          -DPython3_EXECUTABLE="$env:CONDA_PREFIX/python.exe"
+          -DUSE_PYTHON=ON
+
+      - name: Build (Release)
+        run: cmake --build build --config Release
+
+      - name: Deploy standalone bundle (into build/Release/)
+        run: cmake --build build --config Release --target deploy
+
+      - name: Package the release folder into a zip
+        run: |
+          $name = if ($env:GITHUB_REF_TYPE -eq 'tag') { "MiniscopeDAQ-$env:GITHUB_REF_NAME-Windows-x64.zip" } else { "MiniscopeDAQ-Windows-x64.zip" }
+          Compress-Archive -Path build/Release/* -DestinationPath $name -Force
+          "ZIP_NAME=$name" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "Built $name"
+
+      - name: Build installer (Inno Setup)
+        run: |
+          # The in-installer version label comes from the app itself
+          # (source/main.cpp: #define VERSION_NUMBER "x.y"), so it always matches
+          # what the running app reports regardless of tag vs manual trigger.
+          $m = Select-String -Path source/main.cpp -Pattern '#define\s+VERSION_NUMBER\s+"([^"]+)"'
+          if (-not $m) { throw "VERSION_NUMBER not found in source/main.cpp" }
+          $ver = $m.Matches[0].Groups[1].Value
+          "App version (from main.cpp): $ver"
+
+          # The artifact FILE name tracks the git tag (or a generic name for
+          # manual runs) so each tagged release stays identifiable.
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $base = "MiniscopeDAQ-$env:GITHUB_REF_NAME-Setup"
+          } else {
+            $base = "MiniscopeDAQ-Setup"
+          }
+
+          # ISCC ships on the windows runner image but isn't always on PATH; fall
+          # back to the default install path, then choco.
+          $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) {
+            $default = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+            if (Test-Path $default) { $iscc = $default }
+            else { choco install innosetup -y --no-progress; $iscc = $default }
+          }
+          "Using ISCC: $iscc"
+
+          $src = (Resolve-Path build/Release).Path
+          $out = (Resolve-Path .).Path
+          & $iscc "/DMyAppVersion=$ver" "/DMySourceDir=$src" "/DMyOutputDir=$out" "/DMyOutputBaseName=$base" packaging/windows/MiniscopeDAQ.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compile failed ($LASTEXITCODE)" }
+
+          "INSTALLER_NAME=$base.exe" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "Built $base.exe"
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: MiniscopeDAQ-Windows-x64
+          path: |
+            ${{ env.ZIP_NAME }}
+            ${{ env.INSTALLER_NAME }}
+          retention-days: 14
+
+  # --- Linux (AppImage) ------------------------------------------------------
+  # Mirrors packaging/linux/build-appimage.sh: a conda env from environment.yml
+  # plus libuvc, built USE_PYTHON=OFF (no embedded Python / DeepLabCut tracker -
+  # see BUILD_LINUX.md), then packaged with linuxdeploy + its Qt plugin.
+  build-linux:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}    # login shell so `conda activate` works
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # OpenGL/EGL dev libs for linking Qt6::OpenGL on the runner (conda provides
+      # Qt/OpenCV/ninja; the GL loader libs come from the system).
+      - name: Install system build libs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev libegl1-mesa-dev libglu1-mesa-dev
+
+      - name: Set up conda env (Miniforge + environment.yml)
+        uses: conda-incubator/setup-miniconda@v4
+        with:
+          miniforge-version: latest
+          environment-file: environment.yml
+          activate-environment: miniscope-qt6
+          auto-activate: false
+
+      - name: Add libuvc (Linux Miniscope capture backend)
+        run: conda install -n miniscope-qt6 -c conda-forge -y libuvc
+
+      - name: Build the AppImage
+        run: packaging/linux/build-appimage.sh
+
+      - name: Name the artifact
+        run: |
+          f=$(ls dist/Miniscope_DAQ*-x86_64.AppImage | head -1)
+          echo "APPIMAGE_PATH=$f" >> "$GITHUB_ENV"
+          echo "Built $f"
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: MiniscopeDAQ-Linux-x86_64
+          path: ${{ env.APPIMAGE_PATH }}
+          retention-days: 14
+
+  # --- Single release --------------------------------------------------------
+  # Gather both platforms' artifacts and publish them as ONE Release. Only runs
+  # on tag pushes; manual runs stop after the build jobs (artifacts only).
+  release:
+    needs: [build-windows, build-linux]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts       # each artifact lands in artifacts/<name>/
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true

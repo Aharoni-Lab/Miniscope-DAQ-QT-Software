@@ -14,7 +14,7 @@
 #include <QtMath>
 
 VideoStreamOCV::VideoStreamOCV(QObject *parent, int width, int height, double pixelClock) :
-    QObject(parent),
+    VideoStreamBase(parent),
     m_deviceName(""),
     m_stopStreaming(false),
     m_headOrientationStreamState(false),

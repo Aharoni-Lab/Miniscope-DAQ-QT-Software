@@ -172,7 +172,7 @@ void DataSaver::startRunning()
 
                     for (j = 0; j < poseBuffer[poseBufPosition].length(); j++)
                         poseData.append(QString::number(poseBuffer[poseBufPosition][j], 'g', 3) + ",");
-                    *behavTrackerStream << poseData << endl;
+                    *behavTrackerStream << poseData << Qt::endl;
                 }
                 btPoseCount++;
                 freePoses->release(1);
@@ -213,7 +213,7 @@ void DataSaver::startRunning()
                     bufPosition = frameCount[names[i]] % bufferSize[names[i]];
                     *csvStream[names[i]] << savedFrameCount[names[i]] << ","
                                          << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << ","
-                                         << usedCount[names[i]]->available() << endl;
+                                         << usedCount[names[i]]->available() << Qt::endl;
 
                     if (headOrientationStreamState[names[i]] == true && bnoBuffer[names[i]] != nullptr) {
                         if (headOrientationFilterState[names[i]] && bnoBuffer[names[i]][bufPosition*5 + 4] >= 0.05) { // norm is below 0.98. Should be 1 ideally
@@ -224,7 +224,7 @@ void DataSaver::startRunning()
                                                      << bnoBuffer[names[i]][bufPosition*5 + 0] << ","
                                                      << bnoBuffer[names[i]][bufPosition*5 + 1] << ","
                                                      << bnoBuffer[names[i]][bufPosition*5 + 2] << ","
-                                                     << bnoBuffer[names[i]][bufPosition*5 + 3] << endl;
+                                                     << bnoBuffer[names[i]][bufPosition*5 + 3] << Qt::endl;
                         }
 
                     }
@@ -312,7 +312,7 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
             behavTrackerStream = new QTextStream(behavTrackerFile);
 
             // TODO: Add header info for behav tracker csv file here
-            *behavTrackerStream << "DLC-Live Pose Data." << endl;
+            *behavTrackerStream << "DLC-Live Pose Data." << Qt::endl;
         }
 
         QString tempStr;
@@ -322,13 +322,13 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
             csvFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/timeStamps.csv");
             csvFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
             csvStream[keys[i]] = new QTextStream(csvFile[keys[i]]);
-            *csvStream[keys[i]] << "Frame Number,Time Stamp (ms),Buffer Index" << endl;
+            *csvStream[keys[i]] << "Frame Number,Time Stamp (ms),Buffer Index" << Qt::endl;
 
             if (headOrientationStreamState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr) {
                 headOriFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/headOrientation.csv");
                 headOriFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
                 headOriStream[keys[i]] = new QTextStream(headOriFile[keys[i]]);
-                *headOriStream[keys[i]] << "Time Stamp (ms),qw,qx,qy,qz" << endl;
+                *headOriStream[keys[i]] << "Time Stamp (ms),qw,qx,qy,qz" << Qt::endl;
             }
             // TODO: Remember to close files on exit or stop recording signal
 
@@ -345,7 +345,7 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
         noteFile = new QFile(baseDirectory + "/notes.csv");
         noteFile->open(QFile::WriteOnly | QFile::Truncate);
         noteStream = new QTextStream(noteFile);
-        *noteStream << "Time Stamp (ms), Note" << endl;
+        *noteStream << "Time Stamp (ms), Note" << Qt::endl;
 
         // TODO: Save camera calibration file to data directory for each behavioral camera
         m_recording = true;
@@ -421,7 +421,7 @@ void DataSaver::takeNote(QString note)
     // Writes note to file submitted through control panel
     // Only write notes when recording
     if (m_recording) {
-        *noteStream << QDateTime().currentMSecsSinceEpoch() - recordStartDateTime.toMSecsSinceEpoch() << "," << note << endl;
+        *noteStream << QDateTime().currentMSecsSinceEpoch() - recordStartDateTime.toMSecsSinceEpoch() << "," << note << Qt::endl;
     }
 }
 

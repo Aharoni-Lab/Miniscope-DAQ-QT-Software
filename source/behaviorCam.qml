@@ -23,6 +23,9 @@ Item {
     signal calibrateCameraQuit()
 
     signal saturationSwitchChanged(bool value)
+    // Declared (no UI switch) so the shared VideoDevice lutSwitchChanged connect
+    // resolves cleanly; the green LUT toggle lives on the Miniscope window only.
+    signal lutSwitchChanged(bool value)
 
     Keys.onPressed: {
         if (event.key === Qt.Key_H) {
@@ -257,7 +260,10 @@ Item {
                     repeat: true
                     running: true
                     onTriggered: {
-                        droppedFrameCount.text = "Dropped Frames: " + videoDisplay.droppedFrameCount;
+                        // A negative count is not a real drop tally: plain USB webcams
+                        // have no hardware frame counter to compare against, so show N/A.
+                        droppedFrameCount.text = "Dropped Frames: "
+                                + (videoDisplay.droppedFrameCount < 0 ? "N/A" : videoDisplay.droppedFrameCount);
                       }
                 }
             }
@@ -423,27 +429,27 @@ Item {
 
     Connections{
         target: led0
-        onValueChangedSignal: vidPropChangedSignal(led0.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(led0.objectName, displayValue, i2cValue, i2cValue2) }
     }
     Connections{
         target: gain
-        onValueChangedSignal: vidPropChangedSignal(gain.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(gain.objectName, displayValue, i2cValue, i2cValue2) }
     }
     Connections{
         target: frameRate
-        onValueChangedSignal: vidPropChangedSignal(frameRate.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(frameRate.objectName, displayValue, i2cValue, i2cValue2) }
     }
     Connections{
         target: alpha
-        onValueChangedSignal: vidPropChangedSignal(alpha.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(alpha.objectName, displayValue, i2cValue, i2cValue2) }
     }
     Connections{
         target: beta
-        onValueChangedSignal: vidPropChangedSignal(beta.objectName, displayValue, i2cValue, i2cValue2)
+        function onValueChangedSignal(displayValue, i2cValue, i2cValue2) { vidPropChangedSignal(beta.objectName, displayValue, i2cValue, i2cValue2) }
     }
     Connections{
         target: saturationSwitch
-        onClicked: saturationSwitchChanged(saturationSwitch.checked)
+        function onClicked() { saturationSwitchChanged(saturationSwitch.checked) }
     }
 
 

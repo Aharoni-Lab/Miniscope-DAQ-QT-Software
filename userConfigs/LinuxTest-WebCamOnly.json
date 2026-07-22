@@ -1,0 +1,39 @@
+{
+    "dataDirectory": "/tmp/miniscope-linuxtest",
+    "directoryStructure": [
+        "researcherName",
+        "date",
+        "time"
+    ],
+    "researcherName": "LinuxPortTest",
+
+    "recordLengthinSeconds": 600,
+
+    "executableOnStartRecording": { "enabled": false },
+    "executableOnStopRecording": { "enabled": false },
+
+    "behaviorTracker": { "enabled": false },
+
+    "traceDisplay": { "enabled": false },
+
+    "devices": {
+        "cameras": {
+            "Test WebCam": {
+                "deviceType": "WebCam",
+                "deviceID": 0,
+                "showSaturation": true,
+                "ROI": {
+                    "leftEdge": 0,
+                    "topEdge": 0,
+                    "width": 640,
+                    "height": 480
+                },
+                "compression": "MJPG",
+                "framesPerFile": 1000,
+                "windowScale": 0.75,
+                "windowX": 800,
+                "windowY": 300
+            }
+        }
+    }
+}

@@ -89,6 +89,7 @@
 					"height": 300
                 },
                 "compression": "FFV1",
+                "lut": "None",
                 "framesPerFile": 1000,
                 "windowScale": 0.75,
                 "windowX": 800,

@@ -11,13 +11,15 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QJsonArray>
+#include <QFile>   // Qt6: no longer pulled in transitively
 #include <QQmlApplicationEngine>
 #include <QVector>
 
-VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime) :
+VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime, bool preferLibUVC) :
     QObject(parent),
     m_camConnected(false),
     deviceStream(nullptr),
+    m_preferLibUVCBackend(preferLibUVC),
     rootObject(nullptr),
     vidDisplay(nullptr),
     m_previousDisplayFrameNum(0),
@@ -37,6 +39,7 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     m_roiBoundingBox[3] = -1;
 
     m_traceDisplayStatus = false;
+    m_lutColormap = 1; // default to the green LUT when toggled on
     m_ucDevice = ucDevice; // hold user config for this device
     parseUserConfigDevice();
     m_cDevice = getDeviceConfig(m_ucDevice["deviceType"].toString()); // holds specific Miniscope configuration
@@ -47,9 +50,27 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     freeFrames->release(FRAME_BUFFER_SIZE);
     // -------------------------
 
-    // Setup OpenCV camera stream
+    // Setup camera stream backend.
     m_resolution = QSize(m_cDevice["width"].toInt(-1), m_cDevice["height"].toInt(-1));
-    deviceStream = new VideoStreamOCV(nullptr, m_cDevice["width"].toInt(-1), m_cDevice["height"].toInt(-1), m_cDevice["pixelClock"].toDouble(-1));
+    const int devWidth = m_cDevice["width"].toInt(-1);
+    const int devHeight = m_cDevice["height"].toInt(-1);
+    const double devPixelClock = m_cDevice["pixelClock"].toDouble(-1);
+
+    // On Linux, Miniscopes use the libuvc backend: the kernel uvcvideo driver
+    // caches UVC control reads, so OpenCV/V4L2 cannot read the live frame
+    // counter or BNO head-orientation registers the Miniscope streams back.
+    // libuvc issues a fresh GET_CUR and bypasses that cache. A real live camera
+    // (deviceID) is required - video-file playback always uses OpenCV.
+    deviceStream = nullptr;
+#ifdef HAVE_LIBUVC
+    const bool liveCamera = m_ucDevice.contains("deviceID") && !m_ucDevice["deviceID"].isNull();
+    if (m_preferLibUVCBackend && liveCamera) {
+        deviceStream = new VideoStreamLibUVC(nullptr, devWidth, devHeight, devPixelClock);
+        qDebug() << "Using libuvc capture backend for" << m_deviceName;
+    }
+#endif
+    if (deviceStream == nullptr)
+        deviceStream = new VideoStreamOCV(nullptr, devWidth, devHeight, devPixelClock);
     deviceStream->setDeviceName(m_deviceName);
 
     // Checks to make sure user config and miniscope device type are supporting BNO streaming
@@ -106,18 +127,18 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
         QObject::connect(videoStreamThread, SIGNAL (finished()), videoStreamThread, SLOT (deleteLater()));
 
         // Pass send message signal through
-        QObject::connect(deviceStream, &VideoStreamOCV::sendMessage, this, &VideoDevice::sendMessage);
+        QObject::connect(deviceStream, &VideoStreamBase::sendMessage, this, &VideoDevice::sendMessage);
 
         // Handle request for reinitialization of commands
-        QObject::connect(deviceStream, &VideoStreamOCV::requestInitCommands, this, &VideoDevice::handleInitCommandsRequest);
+        QObject::connect(deviceStream, &VideoStreamBase::requestInitCommands, this, &VideoDevice::handleInitCommandsRequest);
 
         // --- USED ONLY FOR MINISCOPE INITIALLY -------------------------------
         // Handle external triggering passthrough
-        QObject::connect(this, &VideoDevice::setExtTriggerTrackingState, deviceStream, &VideoStreamOCV::setExtTriggerTrackingState);
-        QObject::connect(deviceStream, &VideoStreamOCV::extTriggered, this, &VideoDevice::extTriggered);
+        QObject::connect(this, &VideoDevice::setExtTriggerTrackingState, deviceStream, &VideoStreamBase::setExtTriggerTrackingState);
+        QObject::connect(deviceStream, &VideoStreamBase::extTriggered, this, &VideoDevice::extTriggered);
 
-        QObject::connect(this, &VideoDevice::startRecording, deviceStream, &VideoStreamOCV::startRecording);
-        QObject::connect(this, &VideoDevice::stopRecording, deviceStream, &VideoStreamOCV::stopRecording);
+        QObject::connect(this, &VideoDevice::startRecording, deviceStream, &VideoStreamBase::startRecording);
+        QObject::connect(this, &VideoDevice::stopRecording, deviceStream, &VideoStreamBase::stopRecording);
         // ----------------------------------------------
 
         // Signal/Slots for handling LED toggling during external trigger
@@ -166,8 +187,17 @@ void VideoDevice::createView()
         view->setX(m_ucDevice["windowX"].toInt(1));
         view->setY(m_ucDevice["windowY"].toInt(1));
 
+        // Let the video display scale with the window, locked to the camera's
+        // aspect ratio (the full-screen video quad would otherwise distort).
+        view->setResizeMode(QQuickView::SizeRootObjectToView);
+        view->setMinimumSize(QSize(view->width() / 2, view->height() / 2));
+        view->setLockedAspectRatio((qreal)view->width() / (qreal)view->height());
+
 #ifdef Q_OS_WINDOWS
-        view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
+        // Resizable (border drag) + minimizable; no maximize since that would break
+        // the locked aspect ratio.
+        view->setFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+                       | Qt::WindowMinimizeButtonHint);
 #endif
         view->show();
         // --------------------
@@ -186,6 +216,9 @@ void VideoDevice::createView()
         QObject::connect(rootObject, SIGNAL( saturationSwitchChanged(bool) ),
                              this, SLOT( handleSaturationSwitchChanged(bool) ));
 
+        QObject::connect(rootObject, SIGNAL( lutSwitchChanged(bool) ),
+                             this, SLOT( handleLutSwitchChanged(bool) ));
+
         configureDeviceControls();
         vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
         vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
@@ -201,6 +234,21 @@ void VideoDevice::createView()
             rootObject->findChild<QQuickItem*>("saturationSwitch")->setProperty("checked", false);
         }
 
+        // Display LUT (colormap) chosen in the user config. The colormap is stored
+        // in m_lutColormap (used by the on-window "Apply LUT" toggle); the switch
+        // starts on when the config selects a real LUT. "None"/absent keeps the
+        // green default available for when the user toggles it.
+        const QString lutName = m_ucDevice["lut"].toString("None");
+        bool lutOn = true;
+        if (lutName == "Red")          m_lutColormap = 2;
+        else if (lutName == "Inferno") m_lutColormap = 3;
+        else if (lutName == "Green")   m_lutColormap = 1;
+        else { m_lutColormap = 1; lutOn = false; } // "None" / unrecognized
+        vidDisplay->setLutMode(lutOn ? m_lutColormap : 0);
+        QQuickItem *lutSwitch = rootObject->findChild<QQuickItem*>("lutSwitch");
+        if (lutSwitch) // only the Miniscope window has the switch
+            lutSwitch->setProperty("checked", lutOn);
+
         // Set ROI Stuff
         QObject::connect(rootObject, SIGNAL( setRoiClicked() ), this, SLOT( handleSetRoiClicked()));
 
@@ -213,16 +261,20 @@ void VideoDevice::createView()
         // Link up Add Trace ROI signal and slot
         QObject::connect(vidDisplay, &VideoDisplay::newAddTraceROISignal, this, &VideoDevice::handleAddNewTraceROI);
 
-        QObject::connect(view, &NewQuickView::closing, deviceStream, &VideoStreamOCV::stopSteam);
+        QObject::connect(view, &NewQuickView::closing, deviceStream, &VideoStreamBase::stopSteam);
         QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &VideoDevice::sendNewFrame);
+
+        // Keep the ROI overlay tracking the video as the window is resized.
+        QObject::connect(vidDisplay, &QQuickItem::widthChanged, this, &VideoDevice::handleDisplayResized);
 
         sendMessage(m_deviceName + " is connected.");
 
         if (m_ucDevice.contains("ROI")) {
-            vidDisplay->setROI({(int)round(m_roiBoundingBox[0] * m_ucDevice["windowScale"].toDouble(1)),
-                                (int)round(m_roiBoundingBox[1] * m_ucDevice["windowScale"].toDouble(1)),
-                                (int)round(m_roiBoundingBox[2] * m_ucDevice["windowScale"].toDouble(1)),
-                                (int)round(m_roiBoundingBox[3] * m_ucDevice["windowScale"].toDouble(1)),
+            const QSizeF scale = displayPerCameraScale();
+            vidDisplay->setROI({(int)round(m_roiBoundingBox[0] * scale.width()),
+                                (int)round(m_roiBoundingBox[1] * scale.height()),
+                                (int)round(m_roiBoundingBox[2] * scale.width()),
+                                (int)round(m_roiBoundingBox[3] * scale.height()),
                                 0});
         }
 
@@ -646,6 +698,12 @@ void VideoDevice::handleSaturationSwitchChanged(bool checked)
     vidDisplay->setShowSaturation(checked);
 }
 
+void VideoDevice::handleLutSwitchChanged(bool checked)
+{
+    // Apply the config-selected colormap, or grayscale (0) when toggled off.
+    vidDisplay->setLutMode(checked ? m_lutColormap : 0);
+}
+
 void VideoDevice::handleSetExtTriggerTrackingState(bool state)
 {
      m_extTriggerTrackingState = state;
@@ -688,6 +746,35 @@ void VideoDevice::handleInitCommandsRequest()
     sendInitCommands();
 }
 
+QSizeF VideoDevice::displayPerCameraScale()
+{
+    // The video fills the display item, so display/camera gives pixels-per-camera-
+    // pixel. Computed live so it stays correct as the window is resized; falls back
+    // to the static config windowScale before the display exists.
+    const double camW = m_cDevice["width"].toInt(-1);
+    const double camH = m_cDevice["height"].toInt(-1);
+    if (vidDisplay && camW > 0 && camH > 0 && vidDisplay->width() > 0 && vidDisplay->height() > 0)
+        return QSizeF(vidDisplay->width() / camW, vidDisplay->height() / camH);
+
+    const double s = m_ucDevice["windowScale"].toDouble(1);
+    return QSizeF(s, s);
+}
+
+void VideoDevice::handleDisplayResized()
+{
+    // Reposition the committed ROI overlay for the new display size. The ROI is
+    // stored in camera pixels (m_roiBoundingBox); scale it back to display pixels.
+    if (!vidDisplay || m_roiBoundingBox[0] < 0)
+        return;
+
+    const QSizeF scale = displayPerCameraScale();
+    vidDisplay->setROI({(int)round(m_roiBoundingBox[0] * scale.width()),
+                        (int)round(m_roiBoundingBox[1] * scale.height()),
+                        (int)round(m_roiBoundingBox[2] * scale.width()),
+                        (int)round(m_roiBoundingBox[3] * scale.height()),
+                        0});
+}
+
 void VideoDevice::handleSetRoiClicked()
 {
     // TODO: Don't allow this if recording is active!!!!
@@ -710,11 +797,13 @@ void VideoDevice::handleAddTraceRoiClicked()
 void VideoDevice::handleNewROI(int leftEdge, int topEdge, int width, int height)
 {
     m_roiIsDefined = true;
-    // First scale the local position values to pixel values
-    m_roiBoundingBox[0] = round(leftEdge/m_ucDevice["windowScale"].toDouble(1));
-    m_roiBoundingBox[1] = round(topEdge/m_ucDevice["windowScale"].toDouble(1));
-    m_roiBoundingBox[2] = round(width/m_ucDevice["windowScale"].toDouble(1));
-    m_roiBoundingBox[3] = round(height/m_ucDevice["windowScale"].toDouble(1));
+    // Map the selection (in live display pixels) back to camera pixels using the
+    // current display scale, so the ROI is correct even after the window is resized.
+    const QSizeF scale = displayPerCameraScale();
+    m_roiBoundingBox[0] = round(leftEdge / scale.width());
+    m_roiBoundingBox[1] = round(topEdge / scale.height());
+    m_roiBoundingBox[2] = round(width / scale.width());
+    m_roiBoundingBox[3] = round(height / scale.height());
 
     if ((m_roiBoundingBox[0] + m_roiBoundingBox[2]) > m_cDevice["width"].toInt(-1)) {
         // Edge is off screen
