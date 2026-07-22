@@ -53,6 +53,7 @@ public slots:
 
 private:
     bool openControlForIndex(int cameraID);   // AVFoundation index -> USB locationID -> UVCControlMac
+    int  frameIndexForControl(int configIndex); // current AVF index of the control channel's device
     void sendSerdesModeCommands();            // pixel-clock dependent SERDES setup
     void sendCommands();                      // flush queued I2C packets as UVC SET_CUR
     bool setPU(quint8 selector, quint16 value);

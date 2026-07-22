@@ -107,6 +107,26 @@ void VideoStreamMac::sendSerdesModeCommands()
     QThread::msleep(500);
 }
 
+// The config's deviceID indexes the AVF camera list, but that list shifts as
+// cameras come and go - an iPhone joining via Continuity Camera is the classic
+// case, observed on the bench: the index opened the phone's video while the
+// control channel (bound by USB identity) drove the real scope. The control
+// channel has already resolved the exact USB device by this point, so bind the
+// frame stream to that SAME device's current index. Falls back to the config
+// index when the lookup fails.
+int VideoStreamMac::frameIndexForControl(int configIndex)
+{
+    const int idx = avfIndexForLocation(enumerateAvfCameras(), m_control.locationID());
+    if (idx < 0)
+        return configIndex;
+    if (idx != configIndex)
+        sendMessage("Warning: " + m_deviceName + ": deviceID " + QString::number(configIndex) +
+                    " does not currently point at the Miniscope (the camera list has shifted, "
+                    "e.g. a phone joined via Continuity Camera); streaming from index " +
+                    QString::number(idx) + " instead.");
+    return idx;
+}
+
 int VideoStreamMac::connect2Camera(int cameraID)
 {
     m_cameraID = cameraID;
@@ -116,10 +136,12 @@ int VideoStreamMac::connect2Camera(int cameraID)
     if (!openControlForIndex(cameraID))
         return 0;
 
+    const int avfIndex = frameIndexForControl(cameraID);
     cam = new cv::VideoCapture;
-    if (!cam->open(cameraID, cv::CAP_AVFOUNDATION)) {
+    if (!cam->open(avfIndex, cv::CAP_AVFOUNDATION)) {
         sendMessage("Error: could not open AVFoundation stream for " + m_deviceName +
-                    " (deviceID " + QString::number(cameraID) + ")");
+                    " (deviceID " + QString::number(cameraID) + ", AVF index " +
+                    QString::number(avfIndex) + ")");
         m_control.close();
         return 0;
     }
@@ -314,7 +336,9 @@ bool VideoStreamMac::attemptReconnect()
     m_control.close();
     if (!openControlForIndex(m_cameraID))
         return false;
-    if (!cam->open(m_cameraID, cv::CAP_AVFOUNDATION))
+    // Re-resolve the frame index too: the camera list may have changed (that
+    // can be exactly why we are reconnecting).
+    if (!cam->open(frameIndexForControl(m_cameraID), cv::CAP_AVFOUNDATION))
         return false;
     sendSerdesModeCommands();
     cam->set(cv::CAP_PROP_FRAME_WIDTH, m_expectedWidth);

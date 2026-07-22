@@ -43,6 +43,21 @@ ControlTarget resolveControlTarget(const QVector<AvfCameraInfo> &cameras, int ca
                                    quint16 expectedVid, quint16 expectedPid,
                                    const QVector<quint32> &attachedLocations);
 
+// Current AVF/OpenCV list index of the camera with this USB locationID, or -1.
+// The camera list shifts whenever devices come and go (an iPhone joining via
+// Continuity Camera is the classic case), so a config's stored deviceID can
+// silently start pointing at the wrong camera; this re-binds the frame stream
+// to the physical device the control channel already resolved.
+inline int avfIndexForLocation(const QVector<AvfCameraInfo> &cameras, quint32 locationID)
+{
+    if (locationID == 0)
+        return -1;
+    for (int i = 0; i < cameras.size(); i++)
+        if (cameras[i].isUsb && cameras[i].locationID == locationID)
+            return i;
+    return -1;
+}
+
 // AVCaptureDevice.uniqueID for a USB camera is the hex of the 64-bit value
 // (locationID << 32) | (vid << 16) | pid, with or without a "0x" prefix and
 // possibly without leading zeros. Non-USB devices (the built-in camera on

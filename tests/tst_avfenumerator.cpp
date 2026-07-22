@@ -19,6 +19,7 @@ private slots:
     void resolveFallsBackToOnlyMiniscope();
     void resolveRefusesToGuessAmongSeveral();
     void resolveFailsWithNoneAttached();
+    void indexForLocationRebindsShiftedList();
 };
 
 void TestAvfEnumerator::parseUsbUniqueId()
@@ -151,6 +152,24 @@ void TestAvfEnumerator::resolveFailsWithNoneAttached()
     const auto t = resolveControlTarget({}, 0, kVid, kPid, {});
     QVERIFY(!t.ok);
     QVERIFY(t.error.contains(QStringLiteral("no Miniscope DAQ")));
+}
+
+void TestAvfEnumerator::indexForLocationRebindsShiftedList()
+{
+    // The bench-observed failure: an iPhone (Continuity Camera, opaque
+    // uniqueID) joins the list ahead of the Miniscope, so the config's
+    // deviceID 0 now points at the phone. The frame stream must re-bind to
+    // the Miniscope's CURRENT index via the locationID the control channel
+    // resolved.
+    AvfCameraInfo phone;
+    phone.name = QStringLiteral("iPhone Camera");
+    const QVector<AvfCameraInfo> shifted = {phone,
+                                            usbCam("Miniscope", 0x00100000, kVid, kPid)};
+    QCOMPARE(avfIndexForLocation(shifted, 0x00100000), 1);
+
+    // Not in the list / no location resolved -> -1 (caller falls back).
+    QCOMPARE(avfIndexForLocation(shifted, 0x00990000), -1);
+    QCOMPARE(avfIndexForLocation(shifted, 0), -1);
 }
 
 QTEST_MAIN(TestAvfEnumerator)
