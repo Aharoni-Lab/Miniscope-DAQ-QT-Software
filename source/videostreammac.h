@@ -58,6 +58,7 @@ private:
     bool setPU(quint8 selector, quint16 value);
     int  getPU(quint8 selector);              // fresh GET_CUR, returned as signed 16-bit; 0 on failure
     bool attemptReconnect();
+    void logStallDiagnosis();                 // frame-counter poll: AVF session vs scope video link
 
     int m_cameraID;
     QString m_deviceName;

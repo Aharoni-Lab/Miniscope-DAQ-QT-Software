@@ -125,12 +125,47 @@ int VideoStreamMac::connect2Camera(int cameraID)
     }
     m_connectionType = "AVF";
 
+    qInfo().nospace() << "[diag] " << m_deviceName << " AVF opened: native "
+                      << cam->get(cv::CAP_PROP_FRAME_WIDTH) << "x"
+                      << cam->get(cv::CAP_PROP_FRAME_HEIGHT) << " @ "
+                      << cam->get(cv::CAP_PROP_FPS) << "fps; requesting "
+                      << m_expectedWidth << "x" << m_expectedHeight;
+
     sendSerdesModeCommands();
 
     cam->set(cv::CAP_PROP_FRAME_WIDTH, m_expectedWidth);
     cam->set(cv::CAP_PROP_FRAME_HEIGHT, m_expectedHeight);
     QThread::msleep(500);
+
+    qInfo().nospace() << "[diag] " << m_deviceName << " after set: "
+                      << cam->get(cv::CAP_PROP_FRAME_WIDTH) << "x"
+                      << cam->get(cv::CAP_PROP_FRAME_HEIGHT) << " @ "
+                      << cam->get(cv::CAP_PROP_FPS) << "fps";
     return 1;
+}
+
+// Stall discriminator: when AVF frames stop, the control channel usually
+// stays alive - so poll the DAQ's hardware frame counter. Advancing counter =
+// the scope's video link is fine and the AVFoundation session died (format /
+// session problem). Frozen counter = the scope's video pipeline itself went
+// down (e.g. corrupted sensor/SERDES config - suspect driver-injected
+// SET_CURs into the I2C tunnel).
+void VideoStreamMac::logStallDiagnosis()
+{
+    const int c0 = getPU(SEL_CONTRAST);
+    QThread::msleep(500);
+    const int c1 = getPU(SEL_CONTRAST);
+    QThread::msleep(500);
+    const int c2 = getPU(SEL_CONTRAST);
+    const bool advancing = (c1 != c0) || (c2 != c1);
+    const QString verdict = advancing
+        ? QStringLiteral("DAQ frame counter ADVANCING (%1 -> %2 -> %3): scope video link is "
+                         "alive, AVFoundation session died")
+        : QStringLiteral("DAQ frame counter FROZEN (%1 -> %2 -> %3): scope video pipeline is "
+                         "down (sensor/SERDES state suspect)");
+    const QString msg = verdict.arg(c0).arg(c1).arg(c2);
+    qInfo().noquote() << "[diag]" << m_deviceName << msg;
+    sendMessage("Diag: " + m_deviceName + " " + msg);
 }
 
 int VideoStreamMac::connect2Video(QString, QString, float)
@@ -181,6 +216,8 @@ void VideoStreamMac::startStream()
     // as the libuvc backend).
     setPU(SEL_SATURATION, 0x0001);
 
+    qInfo() << "[diag]" << m_deviceName << "stream loop starting";
+
     m_isStreaming = true;
     forever {
         if (m_stopStreaming) {
@@ -189,7 +226,10 @@ void VideoStreamMac::startStream()
         }
 
         if (!cam->grab() || !cam->retrieve(frame)) {
+            qInfo() << "[diag]" << m_deviceName << "grab/retrieve returned false at frame"
+                    << idx << "- running stall diagnosis";
             sendMessage("Warning: " + m_deviceName + " grab frame failed. Attempting to reconnect.");
+            logStallDiagnosis();
             if (cam->isOpened())
                 cam->release();
             QThread::msleep(1000);
@@ -199,6 +239,16 @@ void VideoStreamMac::startStream()
             }
             continue;
         }
+
+        if (idx == 0)
+            qInfo().nospace() << "[diag] " << m_deviceName << " first frame: "
+                              << frame.cols << "x" << frame.rows
+                              << " channels=" << frame.channels()
+                              << " daqFrameCounter=" << getPU(SEL_CONTRAST);
+        else if (idx % 100 == 0)
+            qInfo().nospace() << "[diag] " << m_deviceName << " heartbeat: acqFrame=" << idx
+                              << " daqFrameCounter=" << getPU(SEL_CONTRAST)
+                              << " ts=" << QDateTime::currentMSecsSinceEpoch();
 
         timeStampBuffer[idx % frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
 
