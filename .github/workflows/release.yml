@@ -7,6 +7,13 @@
 #                               Linux AppImage.
 #   * manual "Run workflow"  -> build both and upload them as run artifacts only
 #                               (no Release created).
+#   * pull request into qt6-port -> build-only validation on all platforms (the
+#                               release job is tag-gated, so PRs never publish).
+#                               Note workflow_dispatch can't be used for branch
+#                               validation here: the workflow isn't on the repo's
+#                               default branch, so GitHub doesn't register it for
+#                               manual dispatch; pull_request runs use the PR
+#                               branch's workflow file directly.
 #
 # Shape: two independent build jobs (build-windows, build-linux) each upload
 # their artifacts; a final `release` job gathers both and cuts the Release. So a
@@ -19,6 +26,9 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+  pull_request:
+    branches:
+      - qt6-port
 
 permissions:
   contents: write          # needed to create the Release on tag pushes
@@ -165,6 +175,40 @@ jobs:
           name: MiniscopeDAQ-Linux-x86_64
           path: ${{ env.APPIMAGE_PATH }}
           retention-days: 14
+
+  # --- macOS (Apple Silicon) ---------------------------------------------------
+  # Build-only for now: keeps the code compiling on macOS while the port is in
+  # progress (packaged .app + DMG land with the macOS packaging PR). Runs on the
+  # arm64 runner with the same conda-forge stack as the other jobs
+  # (environment.yml resolves on osx-arm64 unchanged). Not in the release job's
+  # `needs`, so a macOS failure never blocks a Windows/Linux release.
+  build-macos:
+    runs-on: macos-latest    # arm64 (Apple Silicon)
+    defaults:
+      run:
+        shell: bash -el {0}    # login shell so the conda env is active
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up conda env (Miniforge + environment.yml)
+        uses: conda-incubator/setup-miniconda@v4
+        with:
+          miniforge-version: latest
+          environment-file: environment.yml
+          activate-environment: miniscope-qt6
+          auto-activate: false
+
+      - name: Configure (CMake + Ninja)
+        run: >
+          cmake -B build -S . -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_PREFIX_PATH="$CONDA_PREFIX"
+          -DPython3_EXECUTABLE="$CONDA_PREFIX/bin/python3"
+          -DUSE_PYTHON=ON
+
+      - name: Build (Release)
+        run: cmake --build build
 
   # --- Single release --------------------------------------------------------
   # Gather both platforms' artifacts and publish them as ONE Release. Only runs

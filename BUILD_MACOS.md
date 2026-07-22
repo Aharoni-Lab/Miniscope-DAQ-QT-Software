@@ -1,0 +1,106 @@
+# Building & running the Miniscope DAQ on macOS (Apple Silicon)
+
+Status: **builds and launches natively on Apple Silicon (macOS 15, arm64) with
+zero code changes** — the main window renders, all seven custom GLSL shader
+programs compile against macOS's OpenGL 2.1 context, and the FFV1/GREY
+recording codecs are available. **Miniscope hardware control does not work
+yet** — see "Port status" below for what remains and how it will be done.
+
+The C++/CMake were already cross-platform: every Windows- or Linux-specific bit
+is gated behind `if(WIN32)` / `UNIX AND NOT APPLE` (CMake) or
+`#ifdef Q_OS_WINDOWS` / `Q_OS_LINUX` (C++), each with a sane generic fallback,
+so macOS compiles the portable paths as-is.
+
+---
+
+## 1. Toolchain: Miniforge (conda-forge)
+
+Use the repo's `environment.yml` — it pins the *exact* same Qt/OpenCV/Python
+stack as the Windows and Linux CI builds (Qt 6.11, OpenCV 4.13, Python 3.12),
+and every pin resolves on `osx-arm64` unchanged.
+
+Prerequisites: Xcode Command Line Tools (`xcode-select --install`; AppleClang
+is the compiler — no full Xcode needed).
+
+```bash
+# Miniforge (user-local, no sudo), if you don't already have conda:
+curl -fsSL -o Miniforge3.sh \
+  https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-arm64.sh
+bash Miniforge3.sh -b -p "$HOME/miniforge3"
+
+# Create the build env:
+"$HOME/miniforge3/bin/conda" env create -f environment.yml
+source "$HOME/miniforge3/bin/activate" miniscope-qt6
+```
+
+- [ ] `conda activate miniscope-qt6` works
+- [ ] `cmake --version` and `ninja --version` resolve from the env
+
+---
+
+## 2. Configure & build
+
+```bash
+cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" \
+  -DPython3_EXECUTABLE="$CONDA_PREFIX/bin/python3" -DUSE_PYTHON=ON
+cmake --build build
+```
+
+`USE_PYTHON=OFF` also builds if you don't need the DeepLabCut-Live behavior
+tracker (the packaged Linux AppImage already ships that way).
+
+- [ ] Configure finds Qt6, OpenCV, and (if `USE_PYTHON=ON`) Python3+NumPy
+- [ ] Build completes; `build/MiniscopeDAQ` exists
+
+---
+
+## 3. Run
+
+```bash
+# run from the REPO ROOT so it finds ./deviceConfigs ./userConfigs ./Scripts:
+./build/MiniscopeDAQ
+```
+
+Qt/QML diagnostics print to the terminal. `QSG_INFO=1` in the environment shows
+the scene-graph setup — expect an **OpenGL 2.1 context** (the legacy
+compatibility context; exactly what the custom GLSL 1.10 shaders need) and the
+`basic` (single-threaded) render loop, which is normal for OpenGL on macOS.
+
+- [ ] Main window launches and renders
+
+---
+
+## 4. Port status — what works, what doesn't (yet)
+
+| Area | Status |
+|---|---|
+| Build (CMake + conda, arm64) | ✅ works, no code changes |
+| Main window / QML UI / OpenGL shaders | ✅ verified (GL 2.1, all 7 shader programs compile+link) |
+| Recording codecs (FFV1, GREY via FFmpeg) | ✅ reported supported |
+| Behavior webcams (OpenCV → AVFoundation) | ⚠️ untested; streaming should work, camera-permission behavior of a non-bundled binary is unreliable until the `.app` packaging lands |
+| **Miniscope control (LED/gain/EWL, frame counter, BNO)** | ❌ not yet — see below |
+| Scan Devices button | ❌ returns "not available on this platform" (macOS enumeration planned) |
+| Packaged `.app` / DMG | ❌ planned |
+
+**Why Miniscope control needs macOS-specific work.** The Miniscope smuggles its
+control channel through UVC Processing-Unit controls (I²C commands out via
+`CONTRAST/GAMMA/SHARPNESS` writes; frame counter and BNO quaternion back via
+`GET_CUR` reads). Neither existing backend can do this on macOS:
+
+* **OpenCV property passthrough (the Windows path)**: OpenCV's AVFoundation
+  backend implements only width/height/fps — macOS's `AVCaptureDevice` API has
+  no gain/contrast/hue/etc. properties to plumb through at all.
+* **libuvc (the Linux path)**: since macOS 12, Apple's UVC driver stack claims
+  every UVC device exclusively; detaching it via libusb requires **root** on
+  every launch (that is how libuvc-based apps like Pupil Capture ship on
+  macOS). Not acceptable here.
+
+**The planned fix** is a hybrid backend: frames stream via OpenCV/AVFoundation
+as a normal camera, while a small IOKit module sends the UVC `SET_CUR`/`GET_CUR`
+requests over **the default control pipe (pipe 0) of the VideoControl
+interface, without opening the interface** — which Apple's driver leaves
+available while it streams (an Apple-DTS-sanctioned pattern, used by
+openpnp-capture among others; requires no root and no special entitlements).
+Unlike Linux's `uvcvideo`, there is no kernel-side control cache in this path,
+so `GET_CUR` reads are live by construction.
