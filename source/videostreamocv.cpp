@@ -1,4 +1,5 @@
 #include "videostreamocv.h"
+#include "miniscopeprotocol.h"
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
@@ -157,8 +158,6 @@ void VideoStreamOCV::startStream()
     int idx = 0;
     int daqFrameNumOffset = 0;
 //    float heading, pitch, roll;
-    double norm;
-    double w, x, y, z;
     double extTriggerLast = -1;
     double extTrigger;
     bool status = false;
@@ -277,23 +276,12 @@ void VideoStreamOCV::startStream()
 
                 if (m_headOrientationStreamState) {
                     // BNO output is a unit quaternion after 2^14 division
-                    w = static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION));
-                    x = static_cast<qint16>(cam->get(cv::CAP_PROP_HUE));
-                    y = static_cast<qint16>(cam->get(cv::CAP_PROP_GAIN));
-                    z = static_cast<qint16>(cam->get(cv::CAP_PROP_BRIGHTNESS));
-
-//                        sendMessage("W|X: 0x" + QString::number(static_cast<qint16>(w), 16) + " | 0x" + QString::number(static_cast<qint16>(x), 16));
-//                        sendMessage("Y|Z: 0x" + QString::number(static_cast<qint16>(y), 16) + " | 0x" + QString::number(static_cast<qint16>(z), 16));
-//                        if (*daqFrameNum%30 == 0)
-//                            sendMessage("Warning: BNO Calib: 0x" + QString::number(static_cast<quint16>(cam->get(cv::CAP_PROP_SHARPNESS)),16).toUpper());
-
-                    norm = sqrt(w*w + x*x + y*y + z*z);
-                    bnoBuffer[(idx%frameBufferSize)*5 + 0] = w/16384.0;
-                    bnoBuffer[(idx%frameBufferSize)*5 + 1] = x/16384.0;
-                    bnoBuffer[(idx%frameBufferSize)*5 + 2] = y/16384.0;
-                    bnoBuffer[(idx%frameBufferSize)*5 + 3] = z/16384.0;
-                    bnoBuffer[(idx%frameBufferSize)*5 + 4] = abs((norm/16384.0) - 1);
-                    //                            qDebug() << QString::number(static_cast<qint16>(cam->get(cv::CAP_PROP_SHARPNESS)),2) << norm << w << x << y << z ;
+                    MiniscopeProtocol::unpackBnoQuaternion(
+                        static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION)),
+                        static_cast<qint16>(cam->get(cv::CAP_PROP_HUE)),
+                        static_cast<qint16>(cam->get(cv::CAP_PROP_GAIN)),
+                        static_cast<qint16>(cam->get(cv::CAP_PROP_BRIGHTNESS)),
+                        &bnoBuffer[(idx%frameBufferSize)*5]);
                 }
                 if (daqFrameNum != nullptr) {
                     *daqFrameNum = cam->get(cv::CAP_PROP_CONTRAST) - daqFrameNumOffset;
@@ -393,57 +381,26 @@ static bool camSetProperty(cv::VideoCapture *cam, int propId, double value)
 
 void VideoStreamOCV::sendCommands()
 {
-//    QList<long> keys = sendCommandQueue.keys();
     bool success = false;
     long key;
     QVector<quint8> packet;
-    quint64 tempPacket;
-//    qDebug() << "New Loop";
-//    qDebug() << "Queue length is " << sendCommandQueueOrder.length();
     while (!sendCommandQueueOrder.isEmpty()) {
         key = sendCommandQueueOrder.first();
         packet = sendCommandQueue[key];
         qDebug() << packet;
-        if (packet.length() < 6){
-            tempPacket = (quint64)packet[0]; // address
-            tempPacket |= (((quint64)packet.length())&0xFF)<<8; // data length
-            for (int j = 1; j < packet.length(); j++)
-                tempPacket |= ((quint64)packet[j])<<(8*(j+1));
-            qDebug() << "1-5: 0x" << QString::number(tempPacket,16);
-//            cam->set(cv::CAP_PROP_GAMMA, tempPacket);
-            success = camSetProperty(cam, cv::CAP_PROP_CONTRAST, (tempPacket & 0x00000000FFFF));
-            success = camSetProperty(cam, cv::CAP_PROP_GAMMA, (tempPacket & 0x0000FFFF0000) >> 16) && success;
-            success = camSetProperty(cam, cv::CAP_PROP_SHARPNESS, (tempPacket & 0xFFFF00000000) >> 32) && success;
+        const auto cmd = MiniscopeProtocol::packI2CPacket(packet);
+        if (cmd.valid) {
+            qDebug() << packet.length() << "byte(s): 0x" << QString::number(cmd.raw, 16);
+            success = camSetProperty(cam, cv::CAP_PROP_CONTRAST, cmd.words[0]);
+            success = camSetProperty(cam, cv::CAP_PROP_GAMMA, cmd.words[1]) && success;
+            success = camSetProperty(cam, cv::CAP_PROP_SHARPNESS, cmd.words[2]) && success;
             if (!success)
                 qDebug() << "Send setting failed";
-            sendCommandQueue.remove(key);
-            sendCommandQueueOrder.removeFirst();
         }
-        else if (packet.length() == 6) {
-            tempPacket = (quint64)packet[0] | 0x01; // address with bottom bit flipped to 1 to indicate a full 6 byte package
-            for (int j = 1; j < packet.length(); j++)
-                tempPacket |= ((quint64)packet[j])<<(8*(j));
-            qDebug() << "6: 0x" << QString::number(tempPacket,16);
-
-//            success = cam->set(cv::CAP_PROP_GAIN, 0x1122ff20);
-
-            success = camSetProperty(cam, cv::CAP_PROP_CONTRAST, (tempPacket & 0x00000000FFFF));
-            success = camSetProperty(cam, cv::CAP_PROP_GAMMA, (tempPacket & 0x0000FFFF0000) >> 16) && success;
-            success = camSetProperty(cam, cv::CAP_PROP_SHARPNESS, (tempPacket & 0xFFFF00000000) >> 32) && success;
-            if (!success)
-                qDebug() << "Send setting failed";
-
-            sendCommandQueue.remove(key);
-            sendCommandQueueOrder.removeFirst();
-        }
-        else {
-            //TODO: Handle packets longer than 6 bytes
-            sendCommandQueue.remove(key);
-            sendCommandQueueOrder.removeFirst();
-        }
-
+        // Invalid (empty or > 6 byte) packets have no wire format and are dropped.
+        sendCommandQueue.remove(key);
+        sendCommandQueueOrder.removeFirst();
     }
-
 }
 
 bool VideoStreamOCV::attemptReconnect()

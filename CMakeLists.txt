@@ -39,6 +39,17 @@ set(CMAKE_AUTOUIC OFF)
 # --- OpenCV ----------------------------------------------------------------
 find_package(OpenCV REQUIRED)
 
+# --- Shared protocol helpers -------------------------------------------------
+# The Miniscope's I2C-over-UVC byte packing and BNO quaternion unpacking, in a
+# small static lib so the unit tests (tests/) exercise the exact code the app
+# ships. Every capture backend links this instead of duplicating the packing.
+add_library(miniscope_protocol STATIC
+    source/miniscopeprotocol.cpp
+    source/miniscopeprotocol.h
+)
+target_link_libraries(miniscope_protocol PUBLIC Qt6::Core)
+target_include_directories(miniscope_protocol PUBLIC source)
+
 # --- Sources ---------------------------------------------------------------
 set(SOURCES
     source/backend.cpp
@@ -133,6 +144,7 @@ target_include_directories(MiniscopeDAQ PRIVATE
 )
 
 target_link_libraries(MiniscopeDAQ PRIVATE
+    miniscope_protocol
     Qt6::Core
     Qt6::Gui
     Qt6::Qml
@@ -217,6 +229,15 @@ if(WIN32 AND DEFINED ENV{CONDA_PREFIX})
         USES_TERMINAL
         VERBATIM
         COMMENT "Bundling dependencies into build/<config>/ (launcher + configs at top, real exe + DLLs in bin/)")
+endif()
+
+# --- Unit tests --------------------------------------------------------------
+# include(CTest) defines the standard BUILD_TESTING option (default ON) and
+# calls enable_testing(). Run with:  ctest --test-dir build --output-on-failure
+# (headless boxes: QT_QPA_PLATFORM=offscreen). Disable with -DBUILD_TESTING=OFF.
+include(CTest)
+if(BUILD_TESTING)
+    add_subdirectory(tests)
 endif()
 
 # --- Runtime data ----------------------------------------------------------
