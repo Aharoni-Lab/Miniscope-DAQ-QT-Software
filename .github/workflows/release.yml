@@ -221,6 +221,11 @@ jobs:
       - name: Build (Release)
         run: cmake --build build
 
+      # Runs the full suite for real: the arm64 runner's GL stack compiles the
+      # shaders, and the IOKit smoke tests walk the (deviceless) USB registry.
+      - name: Run unit tests
+        run: ctest --test-dir build --output-on-failure
+
   # --- Single release --------------------------------------------------------
   # Gather both platforms' artifacts and publish them as ONE Release. Only runs
   # on tag pushes; manual runs stop after the build jobs (artifacts only).
