@@ -92,6 +92,8 @@ int main(int argc, char *argv[])
     const qint64 periodUs = 1000000 / rateHz;
 
     int failures = 0;
+    int regFailures[sizeof(regs) / sizeof(regs[0])] = {};
+    QString regLastError[sizeof(regs) / sizeof(regs[0])];
     int frameIncrements = 0, frameStalls = 0, frameBackwards = 0;
     qint16 lastFrame = -1;
     QSet<quint16> bnoValuesSeen;
@@ -103,10 +105,13 @@ int main(int argc, char *argv[])
     wall.start();
     for (int i = 0; i < totalPolls; i++) {
         one.start();
-        for (const auto &r : regs) {
+        for (size_t ri = 0; ri < sizeof(regs) / sizeof(regs[0]); ri++) {
+            const auto &r = regs[ri];
             quint16 v = 0;
             if (!ctrl.getCur(kProcessingUnitId, r.sel, &v)) {
                 failures++;
+                regFailures[ri]++;
+                regLastError[ri] = ctrl.lastError();
                 continue;
             }
             if (r.sel == SEL_CONTRAST) {
@@ -133,6 +138,10 @@ int main(int argc, char *argv[])
     printf("wall time            : %.1f s (target %d s)\n", wallS, seconds);
     printf("transfers            : %d (%d failed)\n",
            totalPolls * int(sizeof(regs) / sizeof(regs[0])), failures);
+    for (size_t ri = 0; ri < sizeof(regs) / sizeof(regs[0]); ri++)
+        if (regFailures[ri])
+            printf("  %s: %d/%d failed (last: %s)\n", regs[ri].name, regFailures[ri],
+                   totalPolls, qPrintable(regLastError[ri]));
     printf("poll cycle (5 reads) : avg %lld us, worst %lld us (budget %lld us)\n",
            totalUs / totalPolls, worstUs, periodUs);
     printf("frame counter        : %d increments, %d stalls, %d backwards\n",
