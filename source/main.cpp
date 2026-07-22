@@ -14,6 +14,9 @@
 #include <QStyleHints>
 
 #include "backend.h"
+#ifdef Q_OS_MACOS
+#include "bundlepaths.h"
+#endif
 
 #include <opencv2/core/version.hpp>   // CV_VERSION (e.g. "4.13.0"); macro-only header
 
@@ -39,6 +42,14 @@ int main(int argc, char *argv[])
     QCoreApplication::setAttribute(Qt::AA_UseDesktopOpenGL);
 
     QGuiApplication app(argc, argv);
+
+#ifdef Q_OS_MACOS
+    // Packaged .app: switch to a writable working directory holding the
+    // app-internal configs and default the user-config/data folders, BEFORE
+    // the backend is constructed (it reads ./deviceConfigs in its
+    // constructor). No-op for dev builds run from the repo root.
+    BundlePaths::prepareBundleRuntime();
+#endif
 
     // Qt6: the default Controls style on Windows is the native style, which does
     // not allow customizing control backgrounds (the QML relies on that). "Basic"

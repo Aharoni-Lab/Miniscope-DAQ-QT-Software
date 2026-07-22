@@ -1,11 +1,11 @@
-# Build the Windows distribution and the Linux AppImage, then publish BOTH as a
-# single GitHub Release.
+# Build the Windows distribution, the Linux AppImage, and the macOS DMG, then
+# publish ALL THREE as a single GitHub Release.
 #
 # Triggers:
-#   * push a tag like v1.10  -> build both, then create/update ONE Release with
-#                               the Windows installer + portable zip AND the
-#                               Linux AppImage.
-#   * manual "Run workflow"  -> build both and upload them as run artifacts only
+#   * push a tag like v1.10  -> build all three, then create/update ONE Release
+#                               with the Windows installer + portable zip, the
+#                               Linux AppImage, and the macOS DMG.
+#   * manual "Run workflow"  -> build all and upload them as run artifacts only
 #                               (no Release created).
 #   * pull request into qt6-port -> build-only validation on all platforms (the
 #                               release job is tag-gated, so PRs never publish).
@@ -15,10 +15,10 @@
 #                               manual dispatch; pull_request runs use the PR
 #                               branch's workflow file directly.
 #
-# Shape: two independent build jobs (build-windows, build-linux) each upload
-# their artifacts; a final `release` job gathers both and cuts the Release. So a
-# tag yields ONE release carrying every platform's binaries, rather than a
-# separate release per OS.
+# Shape: three independent build jobs (build-windows, build-linux, build-macos)
+# each upload their artifacts; a final `release` job gathers them and cuts the
+# Release. So a tag yields ONE release carrying every platform's binaries,
+# rather than a separate release per OS.
 name: Build & Release
 
 on:
@@ -196,11 +196,14 @@ jobs:
           retention-days: 14
 
   # --- macOS (Apple Silicon) ---------------------------------------------------
-  # Build-only for now: keeps the code compiling on macOS while the port is in
-  # progress (packaged .app + DMG land with the macOS packaging PR). Runs on the
-  # arm64 runner with the same conda-forge stack as the other jobs
-  # (environment.yml resolves on osx-arm64 unchanged). Not in the release job's
-  # `needs`, so a macOS failure never blocks a Windows/Linux release.
+  # Build + test with USE_PYTHON=ON (validates the full source tree), then
+  # package the distributable .app + DMG with packaging/macos/build-dmg.sh
+  # (its own USE_PYTHON=OFF build, matching the lean Linux AppImage). Runs on
+  # the arm64 runner with the same conda-forge stack as the other jobs
+  # (environment.yml resolves on osx-arm64 unchanged). The DMG is ad-hoc
+  # signed: first launch on another Mac needs right-click > Open (see
+  # BUILD_MACOS.md); Developer ID signing/notarization can slot into the
+  # script later without workflow changes.
   build-macos:
     runs-on: macos-latest    # arm64 (Apple Silicon)
     defaults:
@@ -234,11 +237,31 @@ jobs:
       - name: Run unit tests
         run: ctest --test-dir build --output-on-failure
 
+      # PRs stop after build+test, like the other platforms.
+      - name: Build .app + DMG
+        if: github.event_name != 'pull_request'
+        run: packaging/macos/build-dmg.sh
+
+      - name: Name the artifact
+        if: github.event_name != 'pull_request'
+        run: |
+          f=$(ls dist/Miniscope-DAQ*-macOS-*.dmg | head -1)
+          echo "DMG_PATH=$f" >> "$GITHUB_ENV"
+          echo "Built $f"
+
+      - name: Upload macOS artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: MiniscopeDAQ-macOS-arm64
+          path: ${{ env.DMG_PATH }}
+          retention-days: 14
+
   # --- Single release --------------------------------------------------------
-  # Gather both platforms' artifacts and publish them as ONE Release. Only runs
-  # on tag pushes; manual runs stop after the build jobs (artifacts only).
+  # Gather all three platforms' artifacts and publish them as ONE Release. Only
+  # runs on tag pushes; manual runs stop after the build jobs (artifacts only).
   release:
-    needs: [build-windows, build-linux]
+    needs: [build-windows, build-linux, build-macos]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     steps:

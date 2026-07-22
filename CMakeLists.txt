@@ -120,9 +120,11 @@ set(HEADERS
 )
 
 if(APPLE)
-    # The hybrid Miniscope backend (AVFoundation frames + IOKit pipe-0 controls).
-    list(APPEND SOURCES source/videostreammac.cpp)
-    list(APPEND HEADERS source/videostreammac.h)
+    # The hybrid Miniscope backend (AVFoundation frames + IOKit pipe-0 controls),
+    # plus the .app bundle's runtime path setup (bundlepaths.cpp is portable Qt
+    # so the tests can run it everywhere, but only macOS main() calls it).
+    list(APPEND SOURCES source/videostreammac.cpp source/bundlepaths.cpp)
+    list(APPEND HEADERS source/videostreammac.h source/bundlepaths.h)
 endif()
 
 qt_add_executable(MiniscopeDAQ
@@ -133,6 +135,24 @@ qt_add_executable(MiniscopeDAQ
 
 if(APPLE)
     target_link_libraries(MiniscopeDAQ PRIVATE uvccontrol_mac avfenumerator_mac)
+
+    # Build as a .app bundle. This is not just packaging polish: macOS kills
+    # any camera-touching process whose bundle lacks NSCameraUsageDescription,
+    # and TCC attributes the camera permission to the bundle identifier - a
+    # bare executable gets unreliable, terminal-attributed prompts.
+    set(MACOSX_BUNDLE_BUNDLE_NAME "Miniscope DAQ")
+    set(MACOSX_BUNDLE_GUI_IDENTIFIER "org.aharonilab.MiniscopeDAQ")
+    set(MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}")
+    set(MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}")
+    set(MACOSX_BUNDLE_COPYRIGHT "Aharoni Lab, UCLA")
+    set(MACOSX_BUNDLE_ICON_FILE "MiniscopeDAQ.icns")
+    set_target_properties(MiniscopeDAQ PROPERTIES
+        MACOSX_BUNDLE ON
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/packaging/macos/Info.plist.in")
+    set(MACOS_ICON "${CMAKE_CURRENT_SOURCE_DIR}/packaging/macos/MiniscopeDAQ.icns")
+    target_sources(MiniscopeDAQ PRIVATE "${MACOS_ICON}")
+    set_source_files_properties("${MACOS_ICON}" PROPERTIES
+        MACOSX_PACKAGE_LOCATION Resources)
 endif()
 
 # conda-forge's qmlimportscanner can fail to launch (exit 0xc0000139) during
@@ -176,9 +196,14 @@ if(WIN32)
     # DirectShow video-device enumeration (backEnd::scanVideoDevices): strmiids
     # provides the CLSID/IID symbols, ole32/oleaut32 the COM + VARIANT helpers.
     target_link_libraries(MiniscopeDAQ PRIVATE strmiids ole32 oleaut32)
+elseif(APPLE)
+    # The configs ship inside the bundle at Contents/Resources; at launch,
+    # BundlePaths::prepareBundleRuntime() (main.cpp) copies the app-internal
+    # ones to a writable working dir and seeds the user configs to ~/Documents.
+    set(MINISCOPE_RELEASE_TOP "$<TARGET_BUNDLE_CONTENT_DIR:MiniscopeDAQ>/Resources")
 else()
-    # No bin/ split off-Windows (no launcher/deploy target there yet): the configs
-    # sit next to the exe, exactly as before.
+    # No bin/ split on Linux (the AppImage wrapper handles paths there): the
+    # configs sit next to the exe, exactly as before.
     set(MINISCOPE_RELEASE_TOP "$<TARGET_FILE_DIR:MiniscopeDAQ>")
 endif()
 

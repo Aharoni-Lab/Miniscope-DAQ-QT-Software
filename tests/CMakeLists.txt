@@ -12,6 +12,15 @@ qt_add_executable(tst_uvcrequest tst_uvcrequest.cpp)
 target_link_libraries(tst_uvcrequest PRIVATE miniscope_protocol Qt6::Test)
 add_test(NAME uvcrequest COMMAND tst_uvcrequest)
 
+# --- .app bundle runtime path setup (pure Qt file ops, runs anywhere) ----------
+# Only macOS main() calls this code, but the copy/seed semantics are portable -
+# so every platform's CI pins them down.
+qt_add_executable(tst_bundlepaths tst_bundlepaths.cpp
+    ${CMAKE_SOURCE_DIR}/source/bundlepaths.cpp)
+target_include_directories(tst_bundlepaths PRIVATE ${CMAKE_SOURCE_DIR}/source)
+target_link_libraries(tst_bundlepaths PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME bundlepaths COMMAND tst_bundlepaths)
+
 # --- macOS IOKit UVC transport (hardware-free smoke tests) ---------------------
 if(APPLE)
     qt_add_executable(tst_uvccontrolmac tst_uvccontrolmac.cpp)

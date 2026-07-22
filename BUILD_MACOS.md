@@ -51,16 +51,28 @@ cmake --build build
 tracker (the packaged Linux AppImage already ships that way).
 
 - [ ] Configure finds Qt6, OpenCV, and (if `USE_PYTHON=ON`) Python3+NumPy
-- [ ] Build completes; `build/MiniscopeDAQ` exists
+- [ ] Build completes; `build/MiniscopeDAQ.app` exists
 
 ---
 
 ## 3. Run
 
+The build produces a `.app` bundle (required on macOS: the camera-permission
+prompt is attributed to the bundle and its `NSCameraUsageDescription`; a bare
+executable gets killed or silently denied when it touches the camera).
+
 ```bash
-# run from the REPO ROOT so it finds ./deviceConfigs ./userConfigs ./Scripts:
-./build/MiniscopeDAQ
+open build/MiniscopeDAQ.app        # or run the binary inside it directly:
+./build/MiniscopeDAQ.app/Contents/MacOS/MiniscopeDAQ
 ```
+
+At launch the app copies its internal configs (`deviceConfigs`, `Scripts`)
+from the bundle into `~/Library/Application Support/Miniscope DAQ` (refreshed
+every launch) and works from there, and seeds the example user configs into
+`~/Documents/Miniscope/userConfigs` (never overwriting your edits — same
+contract as the Linux AppImage). Recordings default to
+`~/Documents/Miniscope/data`. Override either folder with the
+`MINISCOPE_USERCONFIG_DIR` / `MINISCOPE_DATA_DIR` environment variables.
 
 Qt/QML diagnostics print to the terminal. `QSG_INFO=1` in the environment shows
 the scene-graph setup — expect an **OpenGL 2.1 context** (the legacy
@@ -71,7 +83,29 @@ compatibility context; exactly what the custom GLSL 1.10 shaders need) and the
 
 ---
 
-## 4. Port status — what works, what doesn't (yet)
+## 4. Packaging: distributable .app + DMG
+
+```bash
+conda activate miniscope-qt6
+packaging/macos/build-dmg.sh       # -> dist/Miniscope-DAQ-<ver>-macOS-arm64.dmg
+```
+
+The script does its own `USE_PYTHON=OFF` build (no embedded Python /
+DeepLabCut tracker — matching the Linux AppImage), bundles Qt + OpenCV +
+plugins + QML into the `.app` with `macdeployqt`, ad-hoc signs it, and wraps
+it in a DMG. The release CI runs the same script, so a tagged release ships
+Windows + Linux + macOS together.
+
+**First launch on another Mac:** the bundle is ad-hoc signed, not notarized,
+so Gatekeeper warns about an unidentified developer. Right-click the app >
+Open > Open (needed once). If macOS claims the app "is damaged", clear the
+quarantine flag instead: `xattr -cr "/Applications/Miniscope DAQ.app"`.
+Proper Developer ID signing + notarization can be added to the script later
+without changing anything else.
+
+---
+
+## 5. Port status — what works, what doesn't (yet)
 
 | Area | Status |
 |---|---|
@@ -81,8 +115,8 @@ compatibility context; exactly what the custom GLSL 1.10 shaders need) and the
 | Scan Devices button | ✅ AVFoundation enumeration (index == deviceID; Miniscopes called out) |
 | **Miniscope control transport (IOKit pipe-0)** | ✅ implemented + validated against USB webcams, incl. while streaming — Miniscope bench test pending |
 | **Miniscope capture backend (`VideoStreamMac` hybrid)** | ⚠️ implemented, needs a Miniscope on the bench |
-| Behavior webcams (OpenCV → AVFoundation) | ⚠️ streaming should work; camera-permission behavior of a non-bundled binary is unreliable until the `.app` packaging lands |
-| Packaged `.app` / DMG | ❌ planned |
+| Behavior webcams (OpenCV → AVFoundation) | ✅ `.app` bundle gives proper camera-permission attribution (`NSCameraUsageDescription`) |
+| Packaged `.app` / DMG | ✅ `packaging/macos/build-dmg.sh`, wired into release CI (ad-hoc signed; right-click → Open) |
 
 **Why Miniscope control needs macOS-specific work.** The Miniscope smuggles its
 control channel through UVC Processing-Unit controls (I²C commands out via
