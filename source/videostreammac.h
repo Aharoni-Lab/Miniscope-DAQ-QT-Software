@@ -1,29 +1,37 @@
-#ifndef VIDEOSTREAMLIBUVC_H
-#define VIDEOSTREAMLIBUVC_H
+#ifndef VIDEOSTREAMMAC_H
+#define VIDEOSTREAMMAC_H
 
-// libuvc capture backend - Linux only. Built only when CMake finds libuvc and
-// defines HAVE_LIBUVC. See videostreambase.h for why this exists (uvcvideo
-// caches UVC control reads; libuvc GET_CUR bypasses that cache so the live
-// frame counter and BNO head-orientation registers can be read on Linux).
-#ifdef HAVE_LIBUVC
+// Hybrid macOS capture backend for Miniscopes - see videostreambase.h.
+//
+// Frames stream through OpenCV's AVFoundation backend like any webcam (the
+// Miniscope enumerates as a standard UVC camera), while device control - the
+// I2C-over-UVC command tunnel, the per-frame DAQ frame counter, and the BNO
+// head-orientation registers - goes through UVCControlMac's IOKit pipe-0
+// requests, which coexist with Apple's streaming driver. Neither half works
+// alone on macOS: AVFoundation exposes no UVC controls, and owning the whole
+// device (the Linux libuvc approach) needs root here.
+//
+// Latency note (measured against real hardware): a pipe-0 GET_CUR costs
+// ~1 ms idle but ~6 ms while the device streams. Reads are therefore gated
+// exactly like the other backends - frame counter always (1 read/frame), BNO
+// only when head orientation is enabled, trigger state only when tracking.
 
 #include <QSemaphore>
 #include <QAtomicInt>
-#include <QMap>
 #include <QVector>
 #include <opencv2/core/core.hpp>
-
-#include <libuvc/libuvc.h>
+#include <opencv2/videoio.hpp>
 
 #include "miniscopeprotocol.h"
+#include "uvccontrolmac.h"
 #include "videostreambase.h"
 
-class VideoStreamLibUVC : public VideoStreamBase
+class VideoStreamMac : public VideoStreamBase
 {
     Q_OBJECT
 public:
-    explicit VideoStreamLibUVC(QObject *parent = nullptr, int width = 0, int height = 0, double pixelClock = 0);
-    ~VideoStreamLibUVC() override;
+    explicit VideoStreamMac(QObject *parent = nullptr, int width = 0, int height = 0, double pixelClock = 0);
+    ~VideoStreamMac() override;
 
     void setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf,
                              int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS,
@@ -44,27 +52,18 @@ public slots:
     void openCamPropsDialog() override;
 
 private:
-    // UVC selectors / unit ID / VID+PID come from miniscopeprotocol.h (shared
-    // with the macOS IOKit control transport).
-    bool openByVideoIndex(int cameraID);   // resolve /dev/videoN -> USB bus/addr, open via libuvc
-    bool negotiateFormat();
-    void sendSerdesModeCommands();         // pixel-clock dependent SERDES setup
-    void sendCommands();                   // flush queued I2C packets as UVC SET_CUR
+    bool openControlForIndex(int cameraID);   // AVFoundation index -> USB locationID -> UVCControlMac
+    void sendSerdesModeCommands();            // pixel-clock dependent SERDES setup
+    void sendCommands();                      // flush queued I2C packets as UVC SET_CUR
     bool setPU(quint8 selector, quint16 value);
-    int  getPU(quint8 selector);           // fresh GET_CUR, returned as signed 16-bit
+    int  getPU(quint8 selector);              // fresh GET_CUR, returned as signed 16-bit; 0 on failure
     bool attemptReconnect();
-    void closeStream();
-    void closeDevice();
 
     int m_cameraID;
     QString m_deviceName;
 
-    uvc_context_t *m_ctx;
-    uvc_device_t *m_dev;
-    uvc_device_handle_t *m_devh;
-    uvc_stream_ctrl_t m_streamCtrl;
-    uvc_stream_handle_t *m_strmh;
-    int m_negotiatedFps;
+    cv::VideoCapture *cam;
+    UVCControlMac m_control;
 
     bool m_isStreaming;
     bool m_stopStreaming;
@@ -91,5 +90,4 @@ private:
     QString m_connectionType;
 };
 
-#endif // HAVE_LIBUVC
-#endif // VIDEOSTREAMLIBUVC_H
+#endif // VIDEOSTREAMMAC_H

@@ -75,12 +75,13 @@ compatibility context; exactly what the custom GLSL 1.10 shaders need) and the
 
 | Area | Status |
 |---|---|
-| Build (CMake + conda, arm64) | ✅ works, no code changes |
+| Build (CMake + conda, arm64) | ✅ works |
 | Main window / QML UI / OpenGL shaders | ✅ verified (GL 2.1, all 7 shader programs compile+link) |
 | Recording codecs (FFV1, GREY via FFmpeg) | ✅ reported supported |
-| Behavior webcams (OpenCV → AVFoundation) | ⚠️ untested; streaming should work, camera-permission behavior of a non-bundled binary is unreliable until the `.app` packaging lands |
-| **Miniscope control (LED/gain/EWL, frame counter, BNO)** | ❌ not yet — see below |
-| Scan Devices button | ❌ returns "not available on this platform" (macOS enumeration planned) |
+| Scan Devices button | ✅ AVFoundation enumeration (index == deviceID; Miniscopes called out) |
+| **Miniscope control transport (IOKit pipe-0)** | ✅ implemented + validated against USB webcams, incl. while streaming — Miniscope bench test pending |
+| **Miniscope capture backend (`VideoStreamMac` hybrid)** | ⚠️ implemented, needs a Miniscope on the bench |
+| Behavior webcams (OpenCV → AVFoundation) | ⚠️ streaming should work; camera-permission behavior of a non-bundled binary is unreliable until the `.app` packaging lands |
 | Packaged `.app` / DMG | ❌ planned |
 
 **Why Miniscope control needs macOS-specific work.** The Miniscope smuggles its

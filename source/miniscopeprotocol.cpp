@@ -32,6 +32,18 @@ PackedCommand packI2CPacket(const QVector<quint8> &packet)
     return cmd;
 }
 
+QVector<QVector<quint8>> serdesModePackets(double pixelClock)
+{
+    if (pixelClock <= 0)
+        return {};
+    if (pixelClock <= 50) {
+        return { {0xC0, 0x1F, 0b00010000},    // DES: 12-bit low frequency
+                 {0xB0, 0x05, 0b00100000} };  // SER
+    }
+    return { {0xC0, 0x1F, 0b00010001},        // DES: 10-bit high frequency
+             {0xB0, 0x05, 0b00100001} };      // SER
+}
+
 void unpackBnoQuaternion(qint16 w, qint16 x, qint16 y, qint16 z, float *out5)
 {
     const double dw = w, dx = x, dy = y, dz = z;

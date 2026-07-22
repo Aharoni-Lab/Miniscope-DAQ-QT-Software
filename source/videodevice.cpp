@@ -1,4 +1,8 @@
 #include "videodevice.h"
+
+#ifdef Q_OS_MACOS
+#include "videostreammac.h"
+#endif
 #include "newquickview.h"
 #include "videodisplay.h"
 
@@ -15,11 +19,11 @@
 #include <QQmlApplicationEngine>
 #include <QVector>
 
-VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime, bool preferLibUVC) :
+VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime, bool preferDirectControl) :
     QObject(parent),
     m_camConnected(false),
     deviceStream(nullptr),
-    m_preferLibUVCBackend(preferLibUVC),
+    m_preferDirectControlBackend(preferDirectControl),
     rootObject(nullptr),
     vidDisplay(nullptr),
     m_previousDisplayFrameNum(0),
@@ -56,19 +60,26 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     const int devHeight = m_cDevice["height"].toInt(-1);
     const double devPixelClock = m_cDevice["pixelClock"].toDouble(-1);
 
-    // On Linux, Miniscopes use the libuvc backend: the kernel uvcvideo driver
-    // caches UVC control reads, so OpenCV/V4L2 cannot read the live frame
-    // counter or BNO head-orientation registers the Miniscope streams back.
-    // libuvc issues a fresh GET_CUR and bypasses that cache. A real live camera
-    // (deviceID) is required - video-file playback always uses OpenCV.
+    // Miniscopes need a direct-control backend where plain OpenCV can't reach
+    // the DAQ's control channel (see videostreambase.h): libuvc on Linux (the
+    // kernel uvcvideo driver caches UVC control reads), and the AVFoundation +
+    // IOKit hybrid on macOS (AVFoundation exposes no UVC controls at all). A
+    // real live camera (deviceID) is required - video-file playback always
+    // uses OpenCV.
     deviceStream = nullptr;
-#ifdef HAVE_LIBUVC
     const bool liveCamera = m_ucDevice.contains("deviceID") && !m_ucDevice["deviceID"].isNull();
-    if (m_preferLibUVCBackend && liveCamera) {
+#if defined(HAVE_LIBUVC)
+    if (m_preferDirectControlBackend && liveCamera) {
         deviceStream = new VideoStreamLibUVC(nullptr, devWidth, devHeight, devPixelClock);
         qDebug() << "Using libuvc capture backend for" << m_deviceName;
     }
+#elif defined(Q_OS_MACOS)
+    if (m_preferDirectControlBackend && liveCamera) {
+        deviceStream = new VideoStreamMac(nullptr, devWidth, devHeight, devPixelClock);
+        qDebug() << "Using AVFoundation+IOKit hybrid capture backend for" << m_deviceName;
+    }
 #endif
+    Q_UNUSED(liveCamera);
     if (deviceStream == nullptr)
         deviceStream = new VideoStreamOCV(nullptr, devWidth, devHeight, devPixelClock);
     deviceStream->setDeviceName(m_deviceName);

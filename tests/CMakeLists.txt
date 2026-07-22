@@ -17,6 +17,11 @@ if(APPLE)
     qt_add_executable(tst_uvccontrolmac tst_uvccontrolmac.cpp)
     target_link_libraries(tst_uvccontrolmac PRIVATE uvccontrol_mac Qt6::Test)
     add_test(NAME uvccontrolmac COMMAND tst_uvccontrolmac)
+
+    # AVFoundation index -> USB identity mapping (uniqueID parse + smoke).
+    qt_add_executable(tst_avfenumerator tst_avfenumerator.cpp)
+    target_link_libraries(tst_avfenumerator PRIVATE avfenumerator_mac Qt6::Test Qt6::Gui)
+    add_test(NAME avfenumerator COMMAND tst_avfenumerator)
 endif()
 
 # --- Shader compile check ------------------------------------------------------
