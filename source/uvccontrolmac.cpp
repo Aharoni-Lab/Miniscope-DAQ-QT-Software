@@ -181,8 +181,11 @@ bool UVCControlMac::open(quint16 vid, quint16 pid, quint32 locationID)
         return false;
     }
 
+    // Check !m_intf BEFORE pulling from the iterator: IOIteratorNext hands us
+    // an owned reference, and fetching one after a match would leak it (the
+    // release lives in the loop body).
     io_service_t ifService;
-    while ((ifService = IOIteratorNext(ifIter)) != IO_OBJECT_NULL && !m_intf) {
+    while (!m_intf && (ifService = IOIteratorNext(ifIter)) != IO_OBJECT_NULL) {
         IOCFPlugInInterface **ifPlugin = nullptr;
         kr = IOCreatePlugInInterfaceForService(ifService, kIOUSBInterfaceUserClientTypeID,
                                                kIOCFPlugInInterfaceID, &ifPlugin, &score);
