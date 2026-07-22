@@ -4,6 +4,8 @@
 
 #include "miniscopeprotocol.h"
 
+using namespace MiniscopeProtocol;   // SEL_* selectors, kProcessingUnitId, VID/PID
+
 #include <QDebug>
 #include <QCoreApplication>
 #include <QDateTime>
@@ -15,10 +17,6 @@
 #include <climits>
 #include <cstdlib>
 #include <unistd.h>
-
-// The Miniscope DAQ presents as a Cypress FX3 UVC device.
-static const int MINISCOPE_VID = 0x04b4;
-static const int MINISCOPE_PID = 0x00f9;
 
 // Inter-command settle time. The DAQ control endpoint is slow to clear; on
 // Linux (faster USB than Windows) we must wait or a command gets overwritten.
@@ -152,7 +150,7 @@ bool VideoStreamLibUVC::openByVideoIndex(int cameraID)
 
     // Fallback: first device matching the Miniscope VID/PID.
     if (!m_dev) {
-        if (uvc_find_device(m_ctx, &m_dev, MINISCOPE_VID, MINISCOPE_PID, nullptr) < 0)
+        if (uvc_find_device(m_ctx, &m_dev, kUsbVendorId, kUsbProductId, nullptr) < 0)
             m_dev = nullptr;
     }
 
@@ -227,7 +225,7 @@ int VideoStreamLibUVC::connect2Video(QString, QString, float)
 bool VideoStreamLibUVC::setPU(quint8 selector, quint16 value)
 {
     uint8_t buf[2] = { static_cast<uint8_t>(value & 0xFF), static_cast<uint8_t>(value >> 8) };
-    int r = uvc_set_ctrl(m_devh, PROCESSING_UNIT_ID, selector, buf, 2);
+    int r = uvc_set_ctrl(m_devh, kProcessingUnitId, selector, buf, 2);
     usleep(CTRL_SETTLE_US);
     return r == 2;
 }
@@ -235,7 +233,7 @@ bool VideoStreamLibUVC::setPU(quint8 selector, quint16 value)
 int VideoStreamLibUVC::getPU(quint8 selector)
 {
     uint8_t buf[2] = {0, 0};
-    int r = uvc_get_ctrl(m_devh, PROCESSING_UNIT_ID, selector, buf, 2, UVC_GET_CUR);
+    int r = uvc_get_ctrl(m_devh, kProcessingUnitId, selector, buf, 2, UVC_GET_CUR);
     if (r < 0)
         return 0;
     return static_cast<qint16>(buf[0] | (buf[1] << 8));

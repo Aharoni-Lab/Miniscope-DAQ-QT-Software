@@ -7,6 +7,18 @@ qt_add_executable(tst_miniscopeprotocol tst_miniscopeprotocol.cpp)
 target_link_libraries(tst_miniscopeprotocol PRIVATE miniscope_protocol Qt6::Test)
 add_test(NAME miniscopeprotocol COMMAND tst_miniscopeprotocol)
 
+# --- UVC control-request builders (pure logic, runs anywhere) ------------------
+qt_add_executable(tst_uvcrequest tst_uvcrequest.cpp)
+target_link_libraries(tst_uvcrequest PRIVATE miniscope_protocol Qt6::Test)
+add_test(NAME uvcrequest COMMAND tst_uvcrequest)
+
+# --- macOS IOKit UVC transport (hardware-free smoke tests) ---------------------
+if(APPLE)
+    qt_add_executable(tst_uvccontrolmac tst_uvccontrolmac.cpp)
+    target_link_libraries(tst_uvccontrolmac PRIVATE uvccontrol_mac Qt6::Test)
+    add_test(NAME uvccontrolmac COMMAND tst_uvccontrolmac)
+endif()
+
 # --- Shader compile check ------------------------------------------------------
 # Compiles + links every custom GLSL program in an offscreen GL context, so a
 # shader edit that breaks any platform's GL dialect fails CI instead of failing

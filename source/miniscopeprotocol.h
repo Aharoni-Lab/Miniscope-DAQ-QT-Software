@@ -11,6 +11,24 @@
 // exactly; keeping it in one tested place stops the backends from drifting.
 namespace MiniscopeProtocol {
 
+// --- Miniscope DAQ USB identity + UVC control map ----------------------------
+// Shared by every backend that talks to the device directly (libuvc on Linux,
+// IOKit on macOS) so the descriptor facts can't drift between platforms.
+constexpr quint16 kUsbVendorId  = 0x04b4;   // Cypress FX3
+constexpr quint16 kUsbProductId = 0x00f9;   // Miniscope DAQ
+constexpr quint8  kProcessingUnitId = 2;    // from the DAQ's UVC descriptor
+
+// UVC Processing-Unit control selectors the DAQ firmware overloads.
+enum PuSelector : quint8 {
+    SEL_BRIGHTNESS = 0x02, // BNO quaternion z
+    SEL_CONTRAST   = 0x03, // I2C low word (write) / DAQ frame number (read)
+    SEL_GAIN       = 0x04, // BNO quaternion y
+    SEL_HUE        = 0x06, // BNO quaternion x
+    SEL_SATURATION = 0x07, // data-stream "start" (write) / BNO quaternion w (read)
+    SEL_SHARPNESS  = 0x08, // I2C high word
+    SEL_GAMMA      = 0x09  // I2C mid word (write) / external trigger state (read)
+};
+
 // An I2C command packed for transport. The firmware receives it as three
 // consecutive 16-bit UVC control writes (CONTRAST, GAMMA, SHARPNESS carry the
 // low, middle and high words of `raw` respectively).
