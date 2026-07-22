@@ -7,6 +7,13 @@
 #                               Linux AppImage.
 #   * manual "Run workflow"  -> build both and upload them as run artifacts only
 #                               (no Release created).
+#   * pull request into qt6-port -> build-only validation on all platforms (the
+#                               release job is tag-gated, so PRs never publish).
+#                               Note workflow_dispatch can't be used for branch
+#                               validation here: the workflow isn't on the repo's
+#                               default branch, so GitHub doesn't register it for
+#                               manual dispatch; pull_request runs use the PR
+#                               branch's workflow file directly.
 #
 # Shape: two independent build jobs (build-windows, build-linux) each upload
 # their artifacts; a final `release` job gathers both and cuts the Release. So a
@@ -19,6 +26,9 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+  pull_request:
+    branches:
+      - qt6-port
 
 permissions:
   contents: write          # needed to create the Release on tag pushes
