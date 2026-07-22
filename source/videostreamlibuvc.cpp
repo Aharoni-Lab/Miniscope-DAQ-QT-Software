@@ -2,6 +2,8 @@
 
 #ifdef HAVE_LIBUVC
 
+#include "miniscopeprotocol.h"
+
 #include <QDebug>
 #include <QCoreApplication>
 #include <QDateTime>
@@ -245,25 +247,18 @@ void VideoStreamLibUVC::sendCommands()
 {
     long key;
     QVector<quint8> packet;
-    quint64 tempPacket;
     while (!sendCommandQueueOrder.isEmpty()) {
         key = sendCommandQueueOrder.first();
         packet = sendCommandQueue[key];
-        if (packet.length() < 6) {
-            tempPacket = (quint64)packet[0];
-            tempPacket |= (((quint64)packet.length()) & 0xFF) << 8;
-            for (int j = 1; j < packet.length(); j++)
-                tempPacket |= ((quint64)packet[j]) << (8 * (j + 1));
-        } else { // length == 6
-            tempPacket = (quint64)packet[0] | 0x01;
-            for (int j = 1; j < packet.length(); j++)
-                tempPacket |= ((quint64)packet[j]) << (8 * j);
+        const auto cmd = MiniscopeProtocol::packI2CPacket(packet);
+        if (cmd.valid) {
+            bool ok = setPU(SEL_CONTRAST,  cmd.words[0]);
+            ok = setPU(SEL_GAMMA,     cmd.words[1]) && ok;
+            ok = setPU(SEL_SHARPNESS, cmd.words[2]) && ok;
+            if (!ok)
+                qDebug() << "Send setting failed";
         }
-        bool ok = setPU(SEL_CONTRAST,  (quint16)( tempPacket        & 0xFFFF));
-        ok = setPU(SEL_GAMMA,    (quint16)((tempPacket >> 16) & 0xFFFF)) && ok;
-        ok = setPU(SEL_SHARPNESS, (quint16)((tempPacket >> 32) & 0xFFFF)) && ok;
-        if (!ok)
-            qDebug() << "Send setting failed";
+        // Invalid (empty or > 6 byte) packets have no wire format and are dropped.
         sendCommandQueue.remove(key);
         sendCommandQueueOrder.removeFirst();
     }
@@ -273,8 +268,6 @@ void VideoStreamLibUVC::startStream()
 {
     int idx = 0;
     int daqFrameNumOffset = 0;
-    double norm;
-    double w, x, y, z;
     double extTriggerLast = -1;
     double extTrigger;
 
@@ -348,16 +341,12 @@ void VideoStreamLibUVC::startStream()
 
         if (m_headOrientationStreamState) {
             // BNO output is a unit quaternion after a 2^14 division.
-            w = getPU(SEL_SATURATION);
-            x = getPU(SEL_HUE);
-            y = getPU(SEL_GAIN);
-            z = getPU(SEL_BRIGHTNESS);
-            norm = sqrt(w * w + x * x + y * y + z * z);
-            bnoBuffer[(idx % frameBufferSize) * 5 + 0] = w / 16384.0;
-            bnoBuffer[(idx % frameBufferSize) * 5 + 1] = x / 16384.0;
-            bnoBuffer[(idx % frameBufferSize) * 5 + 2] = y / 16384.0;
-            bnoBuffer[(idx % frameBufferSize) * 5 + 3] = z / 16384.0;
-            bnoBuffer[(idx % frameBufferSize) * 5 + 4] = abs((norm / 16384.0) - 1);
+            MiniscopeProtocol::unpackBnoQuaternion(
+                static_cast<qint16>(getPU(SEL_SATURATION)),
+                static_cast<qint16>(getPU(SEL_HUE)),
+                static_cast<qint16>(getPU(SEL_GAIN)),
+                static_cast<qint16>(getPU(SEL_BRIGHTNESS)),
+                &bnoBuffer[(idx % frameBufferSize) * 5]);
         }
 
         if (daqFrameNum != nullptr) {
