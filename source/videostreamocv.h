@@ -16,6 +16,10 @@
 #include "miniscopeprotocol.h"
 #include "videostreambase.h"
 
+#ifdef Q_OS_MACOS
+#include "avfframegrabbermac.h"
+#endif
+
 
 class VideoStreamOCV : public VideoStreamBase
 {
@@ -74,6 +78,15 @@ private:
     double m_pixelClock;
 
     QString m_connectionType;
+
+#ifdef Q_OS_MACOS
+    // Live cameras on macOS stream through AVFoundation pinned to the
+    // device's uniqueID (m_connectionType == "AVF"); cv::VideoCapture is only
+    // used for video-file playback there. See connect2Camera.
+    AvfFrameGrabber m_grabber;
+    QString m_avfUniqueID;
+    QString m_avfName;
+#endif
 
     double m_playbackFPS;
     QString m_playbackFolderPath;

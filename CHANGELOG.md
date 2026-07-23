@@ -55,6 +55,11 @@ published together from CI.
 - Multi-scope safety: with more than one Miniscope attached, the control
   channel refuses to guess which device to drive when the configured ID can't
   be resolved ([#88](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/pull/88)).
+- macOS behavior cameras are now **pinned to the physical camera** (its
+  AVFoundation uniqueID), resolved once from the config's `deviceID` at
+  connect. Reconnects after a drop only ever rebind the same physical camera —
+  previously a reconnect reopened by list index, which could silently switch
+  to a different camera (e.g. the built-in one) mid-session.
 
 **Recorded-data quality**
 - Miniscope `timeStamps.csv` files gain a **`DAQ Frame Number`** column: the

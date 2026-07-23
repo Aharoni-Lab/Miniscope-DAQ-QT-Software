@@ -20,6 +20,9 @@ private slots:
     void resolveRefusesToGuessAmongSeveral();
     void resolveFailsWithNoneAttached();
     void uniqueIdForLocationIgnoresListOrder();
+    void webcamTargetResolvesByIndex();
+    void webcamTargetFailsOutOfRange();
+    void webcamTargetFailsWithNoCameras();
 };
 
 void TestAvfEnumerator::parseUsbUniqueId()
@@ -170,6 +173,57 @@ void TestAvfEnumerator::uniqueIdForLocationIgnoresListOrder()
     // Unknown location / no location resolved -> empty (caller errors out).
     QVERIFY(avfUniqueIdForLocation(shifted, 0x00990000).isEmpty());
     QVERIFY(avfUniqueIdForLocation(shifted, 0).isEmpty());
+}
+
+// --- resolveWebcamTarget: behavior-webcam deviceID -> uniqueID pin -----------
+// Behavior cams are configured by list index; the resolve happens ONCE at
+// connect and every reconnect is by uniqueID. These pin the index->uniqueID
+// step; the never-rebind-by-index property is enforced in
+// VideoStreamOCV::attemptReconnect (only reopens m_avfUniqueID).
+
+void TestAvfEnumerator::webcamTargetResolvesByIndex()
+{
+    AvfCameraInfo builtin;
+    builtin.name = QStringLiteral("FaceTime HD Camera");
+    builtin.uniqueID = QStringLiteral("1F06D5FF-4C76-410E-9770-C04C467C1317");
+    const QVector<AvfCameraInfo> cams = {builtin,
+                                         usbCam("HD Web Camera", 0x00100000, 0x05a3, 0x9331)};
+    // uniqueID assigned after usbCam(): the helper doesn't set one.
+    QVector<AvfCameraInfo> full = cams;
+    full[1].uniqueID = QStringLiteral("0x0010000005a39331");
+
+    const auto t0 = resolveWebcamTarget(full, 0);
+    QVERIFY(t0.ok);
+    QCOMPARE(t0.uniqueID, builtin.uniqueID);
+    QCOMPARE(t0.name, builtin.name);
+
+    const auto t1 = resolveWebcamTarget(full, 1);
+    QVERIFY(t1.ok);
+    QCOMPARE(t1.uniqueID, QStringLiteral("0x0010000005a39331"));
+}
+
+void TestAvfEnumerator::webcamTargetFailsOutOfRange()
+{
+    // A stale deviceID (camera unplugged since the config was written) must
+    // fail loudly with the currently-visible cameras listed - never fall back
+    // to "whatever is at another index".
+    QVector<AvfCameraInfo> cams = {usbCam("HD Web Camera", 0x00100000, 0x05a3, 0x9331)};
+    cams[0].uniqueID = QStringLiteral("0x0010000005a39331");
+
+    const auto high = resolveWebcamTarget(cams, 3);
+    QVERIFY(!high.ok);
+    QVERIFY(high.error.contains(QStringLiteral("out of range")));
+    QVERIFY(high.error.contains(QStringLiteral("HD Web Camera")));
+
+    const auto negative = resolveWebcamTarget(cams, -1);
+    QVERIFY(!negative.ok);
+}
+
+void TestAvfEnumerator::webcamTargetFailsWithNoCameras()
+{
+    const auto t = resolveWebcamTarget({}, 0);
+    QVERIFY(!t.ok);
+    QVERIFY(!t.error.isEmpty());
 }
 
 QTEST_MAIN(TestAvfEnumerator)

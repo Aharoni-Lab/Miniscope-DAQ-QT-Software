@@ -1,6 +1,9 @@
 #include "videostreamocv.h"
 #include "miniscopeprotocol.h"
 #include "monotonicclock.h"
+#ifdef Q_OS_MACOS
+#include "avfenumeratormac.h"
+#endif
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
@@ -16,7 +19,9 @@
 
 VideoStreamOCV::VideoStreamOCV(QObject *parent, int width, int height, double pixelClock) :
     VideoStreamBase(parent),
+    m_cameraID(-1),
     m_deviceName(""),
+    cam(nullptr),
     m_stopStreaming(false),
     m_headOrientationStreamState(false),
     m_headOrientationFilterState(false),
@@ -32,13 +37,43 @@ VideoStreamOCV::VideoStreamOCV(QObject *parent, int width, int height, double pi
 
 VideoStreamOCV::~VideoStreamOCV() {
     qDebug() << "Closing video stream";
-    if (cam->isOpened())
+    if (cam != nullptr && cam->isOpened())
         cam->release();
+#ifdef Q_OS_MACOS
+    m_grabber.release();
+#endif
 }
 
 int VideoStreamOCV::connect2Camera(int cameraID) {
     int connectionState = 0;
     m_cameraID = cameraID;
+
+#ifdef Q_OS_MACOS
+    // OpenCV's AVFoundation backend can only open a camera by LIST INDEX, and
+    // macOS reshuffles that list as devices come and go - after a disconnect,
+    // an index reopen can silently bind a different physical camera. Resolve
+    // the config's deviceID to the camera's stable uniqueID once, here, and
+    // pin the capture session to it (same approach as the Miniscope's hybrid
+    // backend in videostreammac.cpp).
+    const WebcamTarget target = resolveWebcamTarget(enumerateAvfCameras(), cameraID);
+    if (!target.ok) {
+        sendMessage("Error: " + m_deviceName + ": " + target.error);
+        qDebug() << m_deviceName << "webcam resolve failed:" << target.error;
+        return 0;
+    }
+    if (!m_grabber.open(target.uniqueID, qMax(0, m_expectedWidth), qMax(0, m_expectedHeight))) {
+        sendMessage("Error: could not open the video stream for " + m_deviceName +
+                    " (" + m_grabber.lastError() + ")");
+        return 0;
+    }
+    m_avfUniqueID = target.uniqueID;
+    m_avfName = target.name;
+    m_connectionType = "AVF";
+    qDebug().nospace() << m_deviceName << " pinned to \"" << m_avfName
+                       << "\" uniqueID " << m_avfUniqueID;
+    return 1;
+#endif
+
     cam = new cv::VideoCapture;
 
     auto apiPreference = cv::CAP_ANY;
@@ -126,7 +161,14 @@ void VideoStreamOCV::startStream()
 
     m_stopStreaming = false;
 
-    if (cam->isOpened()) {
+    bool streamOpen = (cam != nullptr && cam->isOpened());
+#ifdef Q_OS_MACOS
+    int reconnectAttempts = 0;
+    if (m_connectionType == "AVF")
+        streamOpen = m_grabber.isOpened();
+#endif
+
+    if (streamOpen) {
         m_isStreaming = true;
         forever {
 
@@ -137,6 +179,34 @@ void VideoStreamOCV::startStream()
 
             status = true;
             // Get new frame and handle disconnects
+#ifdef Q_OS_MACOS
+            if (m_connectionType == "AVF") {
+                if (!m_grabber.read(frame)) {
+                    status = false;
+                    // Message on the FIRST failure of a stall episode; later
+                    // attempts back off quietly (a device that fell off the
+                    // bus can take a while to come back).
+                    if (reconnectAttempts == 0)
+                        sendMessage("Warning: " + m_deviceName + " grab frame failed. Attempting to reconnect.");
+                    reconnectAttempts++;
+                    m_grabber.release();
+                    QThread::msleep(qMin(1000 * reconnectAttempts, 5000));
+                    QCoreApplication::processEvents();   // keep stopSteam() deliverable while down
+                    if (m_stopStreaming)
+                        continue;
+                    if (attemptReconnect()) {
+                        sendMessage("Warning: " + m_deviceName + " reconnected (after " +
+                                    QString::number(reconnectAttempts) + " attempts).");
+                        reconnectAttempts = 0;
+                    }
+                }
+                else {
+                    timestamp = monotonicTimeMs();
+                    reconnectAttempts = 0;
+                }
+            }
+            else
+#endif
             if (m_connectionType != "videoFile") {
                 // Try to get frame from camera
                 if (!cam->grab()) {
@@ -221,7 +291,10 @@ void VideoStreamOCV::startStream()
                         cv::cvtColor(frame, frameBuffer[bufIdx], cv::COLOR_BGR2GRAY);
                     }
 
-                    if (m_trackExtTrigger) {
+                    // Control-property reads below go through cv::VideoCapture;
+                    // in the AVF path there is none (cam stays nullptr) and
+                    // AVFoundation exposes no UVC controls anyway.
+                    if (m_trackExtTrigger && cam != nullptr) {
                         if (extTriggerLast == -1) {
                             // first time grabbing trigger state.
                             extTriggerLast = cam->get(cv::CAP_PROP_GAMMA);
@@ -243,7 +316,7 @@ void VideoStreamOCV::startStream()
                         }
                     }
 
-                    if (m_headOrientationStreamState) {
+                    if (m_headOrientationStreamState && cam != nullptr) {
                         // BNO output is a unit quaternion after 2^14 division
                         MiniscopeProtocol::unpackBnoQuaternion(
                             static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION)),
@@ -252,7 +325,7 @@ void VideoStreamOCV::startStream()
                             static_cast<qint16>(cam->get(cv::CAP_PROP_BRIGHTNESS)),
                             &bnoBuffer[bufIdx*5]);
                     }
-                    if (daqFrameNum != nullptr) {
+                    if (daqFrameNum != nullptr && cam != nullptr) {
                         *daqFrameNum = cam->get(cv::CAP_PROP_CONTRAST) - daqFrameNumOffset;
                         if (*m_acqFrameNum == 0) // Used to initially sync daqFrameNum with acqFrameNum
                             daqFrameNumOffset = *daqFrameNum - 1;
@@ -271,7 +344,11 @@ void VideoStreamOCV::startStream()
             if (!m_commandQueue.isEmpty())
                 sendCommands(); // Send last of each control property events that arrived on this processEvent() call then removes it from queue
         }
-        cam->release();
+        if (cam != nullptr)
+            cam->release();
+#ifdef Q_OS_MACOS
+        m_grabber.release();
+#endif
     }
     else {
         sendMessage("Error: Could not connect to video stream " + QString::number(m_cameraID));
@@ -297,21 +374,21 @@ void VideoStreamOCV::setExtTriggerTrackingState(bool state)
 
 void VideoStreamOCV::startRecording()
 {
-    if (cam->isOpened()){
+    if (cam != nullptr && cam->isOpened()){
         cam->set(cv::CAP_PROP_SATURATION, 0x0001);
     }
 }
 
 void VideoStreamOCV::stopRecording()
 {
-    if (cam->isOpened()){
+    if (cam != nullptr && cam->isOpened()){
         cam->set(cv::CAP_PROP_SATURATION, 0x0000);
     }
 }
 
 void VideoStreamOCV::openCamPropsDialog()
 {
-    if (cam->isOpened()){
+    if (cam != nullptr && cam->isOpened()){
         cam->set(cv::CAP_PROP_SETTINGS, 0);
     }
 }
@@ -348,6 +425,14 @@ static int capPropForSelector(quint8 selector)
 
 void VideoStreamOCV::sendCommands()
 {
+    if (cam == nullptr) {
+        // AVF path: AVFoundation exposes no UVC controls, so there is no
+        // control channel to deliver queued commands to. Empty the queue
+        // rather than leave it growing.
+        m_commandQueue.flush([](quint8, quint16) { return true; });
+        qDebug() << m_deviceName << "dropped queued device commands (no control channel on this backend)";
+        return;
+    }
     if (!m_commandQueue.flush([this](quint8 sel, quint16 word) {
             return camSetProperty(cam, capPropForSelector(sel), word);
         }))
@@ -356,6 +441,30 @@ void VideoStreamOCV::sendCommands()
 
 bool VideoStreamOCV::attemptReconnect()
 {
+#ifdef Q_OS_MACOS
+    if (m_connectionType == "AVF") {
+        // Re-resolve by uniqueID, NEVER by index: the camera list may have
+        // reshuffled while we were down, and an index reopen can bind a
+        // different physical camera. Either the same physical camera is back
+        // (replug on the same port keeps its uniqueID) or we keep failing
+        // loudly until it is.
+        const auto cameras = enumerateAvfCameras();
+        bool present = false;
+        for (const AvfCameraInfo &c : cameras) {
+            if (c.uniqueID == m_avfUniqueID) {
+                present = true;
+                break;
+            }
+        }
+        if (!present) {
+            qDebug().nospace() << m_deviceName << ": camera \"" << m_avfName
+                               << "\" (uniqueID " << m_avfUniqueID
+                               << ") is no longer connected; waiting for it to return.";
+            return false;
+        }
+        return m_grabber.open(m_avfUniqueID, qMax(0, m_expectedWidth), qMax(0, m_expectedHeight));
+    }
+#endif
     // TODO: handle quitting nicely when stuck in this loop
     if (m_connectionType == "DSHOW") {
         if (!cam->open(m_cameraID, cv::CAP_DSHOW))
