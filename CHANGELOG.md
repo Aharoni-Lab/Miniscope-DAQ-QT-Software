@@ -162,6 +162,13 @@ published together from CI.
   `DAQ Frame Number` CSV column so the gap is visible post-hoc.
 - Linux cameras on the OpenCV backend could never reconnect after a drop
   (the V4L2 case was missing from the reconnect path, which retried forever).
+- Quitting while a device was mid-reconnect could crash: the reconnect wait
+  slept longer than shutdown waits for the capture thread, which could then
+  wake and write into freed buffers. The wait now checks the stop flag every
+  100 ms.
+- Control commands issued while a device was disconnected no longer flush
+  ahead of the SERDES mode packets when it reconnects (the mode must be the
+  first traffic on the link; device state is re-sent right after anyway).
 - Device connection errors (wrong `deviceID`, device busy, resolve failures)
   now appear in the message console — they used to be emitted before the
   message log was listening, so only a generic "cannot connect" ever showed.

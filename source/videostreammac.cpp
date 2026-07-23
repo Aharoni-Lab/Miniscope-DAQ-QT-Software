@@ -191,7 +191,12 @@ void VideoStreamMac::startStream()
             break;
 
         if (!m_grabber.read(frame)) {
-            m_grabber.release();
+            // The grabber is NOT released here: the stall diagnosis inside
+            // runReconnectCycle polls the DAQ frame counter, which only
+            // advances while the device streams - releasing the session first
+            // would freeze it and flip an "AVF session died" verdict into a
+            // false "scope video pipeline down". attemptReconnect() releases
+            // before reopening.
             runReconnectCycle(backoff, "grab frame");
             continue;
         }
@@ -219,6 +224,7 @@ void VideoStreamMac::onFrameCommitted(int streamIdx, const cv::Mat &frame, qint6
 
 bool VideoStreamMac::attemptReconnect()
 {
+    m_grabber.release();
     m_control.close();
     // Fresh enumeration: the device may have re-enumerated (which can be
     // exactly why we are reconnecting).

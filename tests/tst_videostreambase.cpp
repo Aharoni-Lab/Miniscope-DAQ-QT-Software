@@ -200,6 +200,20 @@ private slots:
         QCOMPARE(daqBuf[2], qint64(2));        // tracking from there
     }
 
+    // The counter register is unsigned 16-bit (UVC CONTRAST): raw values
+    // above 32767 must not flip negative (they did on the pre-R4 libuvc/mac
+    // paths, which read it through a signed cast).
+    void daqCounterIsUnsigned()
+    {
+        buildStream();
+        stream->script[SEL_CONTRAST] = {{true, 40000}, {true, 40001}};
+        stream->commitFrame(bgrFrame(), 0);
+        consumeOne();
+        stream->commitFrame(bgrFrame(), 1);
+        QCOMPARE(daqBuf[0], qint64(40000));
+        QCOMPARE(daqBuf[1], qint64(2));
+    }
+
     void noDaqCounterMeansSentinel()
     {
         buildStream(0, 0, /*withDaqCounter=*/false);

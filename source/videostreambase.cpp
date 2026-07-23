@@ -64,6 +64,11 @@ void VideoStreamBase::sendSerdesModeCommands()
     const auto packets = serdesModePackets(m_pixelClock);
     if (packets.isEmpty())
         return;
+    // The SERDES mode must be the FIRST traffic after a (re)connect. Drop
+    // anything still queued - e.g. control changes made while the device was
+    // down, which would otherwise flush ahead of these packets - the
+    // requestInitCommands() that follows a reconnect restores device state.
+    m_commandQueue.clear();
     for (int i = 0; i < packets.size(); i++)
         setPropertyI2C(i, packets[i]);
     sendCommands();
@@ -168,7 +173,11 @@ void VideoStreamBase::commitFrame(const cv::Mat &frame, qint64 timestampMs)
         quint16 counter = 0;
         if (readControl(SEL_CONTRAST, &counter)) {
             daqCounterValid = true;
-            *daqFrameNum = int(qint16(counter)) - m_daqFrameNumOffset;
+            // The counter is an UNSIGNED 16-bit register (UVC CONTRAST is
+            // unsigned, unlike the signed BNO registers) - the historical
+            // OpenCV/Windows behavior. Interpreting it as signed would flip
+            // recorded values negative halfway through the wrap period.
+            *daqFrameNum = int(counter) - m_daqFrameNumOffset;
             if (!m_daqOffsetSeeded) {
                 // Sync the DAQ counter to the acquisition count on the first
                 // SUCCESSFUL read (not blindly on frame 0: a failed read there
@@ -199,10 +208,18 @@ bool VideoStreamBase::runReconnectCycle(ReconnectBackoff &backoff, const QString
         sendMessage("Warning: " + m_deviceName + " " + what + " failed. Attempting to reconnect.");
         diagnoseStreamFailure();
     }
-    QThread::msleep(ulong(backoff.nextDelayMs()));
-    QCoreApplication::processEvents();   // keep stopStream() deliverable while the device is down
-    if (m_stopStreaming)
-        return false;
+    // Interruptible backoff: sleep in short slices, delivering queued events
+    // (so a window-close stopStream() lands) and checking the stop flag each
+    // slice. One blind 5 s sleep would outlive stopAndJoinStream()'s 3 s join
+    // timeout, leaving this thread to wake and write into buffers the GUI
+    // thread may already have freed during shutdown.
+    const int delayMs = backoff.nextDelayMs();
+    for (int slept = 0; slept < delayMs; slept += 100) {
+        QThread::msleep(100);
+        QCoreApplication::processEvents();
+        if (m_stopStreaming)
+            return false;
+    }
     if (attemptReconnect()) {
         sendMessage("Warning: " + m_deviceName + " reconnected (after " +
                     QString::number(backoff.attempts()) + " attempts).");
