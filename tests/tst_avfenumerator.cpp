@@ -19,7 +19,7 @@ private slots:
     void resolveFallsBackToOnlyMiniscope();
     void resolveRefusesToGuessAmongSeveral();
     void resolveFailsWithNoneAttached();
-    void indexForLocationRebindsShiftedList();
+    void uniqueIdForLocationIgnoresListOrder();
 };
 
 void TestAvfEnumerator::parseUsbUniqueId()
@@ -154,28 +154,22 @@ void TestAvfEnumerator::resolveFailsWithNoneAttached()
     QVERIFY(t.error.contains(QStringLiteral("no Miniscope DAQ")));
 }
 
-void TestAvfEnumerator::indexForLocationRebindsShiftedList()
+void TestAvfEnumerator::uniqueIdForLocationIgnoresListOrder()
 {
     // The bench-observed failure: an iPhone (Continuity Camera, opaque
-    // uniqueID) joins the list ahead of the Miniscope, so the config's
-    // deviceID 0 now points at the phone. The frame stream must re-bind to
-    // the Miniscope's CURRENT index via the locationID the control channel
-    // resolved.
+    // uniqueID) joins the list ahead of the Miniscope, shifting every list
+    // index. The frame grabber pins by the uniqueID looked up from the
+    // control channel's locationID, so list order must be irrelevant.
     AvfCameraInfo phone;
     phone.name = QStringLiteral("iPhone Camera");
     QVector<AvfCameraInfo> shifted = {phone,
                                       usbCam("Miniscope", 0x00100000, kVid, kPid)};
     shifted[1].uniqueID = QStringLiteral("0x0010000004b400f9");
-    QCOMPARE(avfIndexForLocation(shifted, 0x00100000), 1);
+    QCOMPARE(avfUniqueIdForLocation(shifted, 0x00100000), shifted[1].uniqueID);
 
-    // Not in the list / no location resolved -> -1 (caller falls back).
-    QCOMPARE(avfIndexForLocation(shifted, 0x00990000), -1);
-    QCOMPARE(avfIndexForLocation(shifted, 0), -1);
-
-    // The uniqueID lookup the frame grabber pins its session to.
-    QCOMPARE(avfUniqueIdForLocation(shifted, 0x00100000),
-             shifted[1].uniqueID);
+    // Unknown location / no location resolved -> empty (caller errors out).
     QVERIFY(avfUniqueIdForLocation(shifted, 0x00990000).isEmpty());
+    QVERIFY(avfUniqueIdForLocation(shifted, 0).isEmpty());
 }
 
 QTEST_MAIN(TestAvfEnumerator)

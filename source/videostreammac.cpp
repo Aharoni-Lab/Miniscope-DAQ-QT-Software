@@ -3,6 +3,7 @@
 #include <QDebug>
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QLoggingCategory>
 #include <QThread>
 
 #include <opencv2/imgproc.hpp>
@@ -11,14 +12,16 @@
 
 using namespace MiniscopeProtocol;
 
+// Bench diagnostics (heartbeats, stall verdicts, pin lines). On by default;
+// silence with QT_LOGGING_RULES="miniscope.diag=false".
+Q_LOGGING_CATEGORY(msDiag, "miniscope.diag")
+
 VideoStreamMac::VideoStreamMac(QObject *parent, int width, int height, double pixelClock) :
     VideoStreamBase(parent),
     m_cameraID(-1),
     m_deviceName(""),
-    m_isStreaming(false),
     m_stopStreaming(false),
     m_headOrientationStreamState(false),
-    m_headOrientationFilterState(false),
     m_isColor(false),
     frameBuffer(nullptr),
     timeStampBuffer(nullptr),
@@ -31,8 +34,7 @@ VideoStreamMac::VideoStreamMac(QObject *parent, int width, int height, double pi
     m_trackExtTrigger(false),
     m_expectedWidth(width > 0 ? width : 608),
     m_expectedHeight(height > 0 ? height : 608),
-    m_pixelClock(pixelClock),
-    m_connectionType("")
+    m_pixelClock(pixelClock)
 {
     m_control.setWriteSettleUs(kCtrlSettleUs);
 }
@@ -62,14 +64,14 @@ void VideoStreamMac::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float
 // open its VideoControl interface. The which-device decision (including when
 // falling back to "the one Miniscope attached" is safe, and when it must fail
 // instead of guessing) lives in resolveControlTarget - see its declaration.
-bool VideoStreamMac::openControlForIndex(int cameraID)
+bool VideoStreamMac::openControlForIndex(int cameraID, const QVector<AvfCameraInfo> &cameras)
 {
     QVector<quint32> attached;
     const auto miniscopes = UVCControlMac::enumerate(kUsbVendorId, kUsbProductId);
     for (const auto &dev : miniscopes)
         attached.append(dev.locationID);
 
-    const ControlTarget target = resolveControlTarget(enumerateAvfCameras(), cameraID,
+    const ControlTarget target = resolveControlTarget(cameras, cameraID,
                                                       kUsbVendorId, kUsbProductId, attached);
     if (!target.warning.isEmpty())
         sendMessage("Warning: " + m_deviceName + ": " + target.warning);
@@ -93,25 +95,14 @@ bool VideoStreamMac::openControlForIndex(int cameraID)
     return false;
 }
 
-void VideoStreamMac::sendSerdesModeCommands()
-{
-    const auto packets = serdesModePackets(m_pixelClock);
-    if (packets.isEmpty())
-        return;
-    for (int i = 0; i < packets.size(); i++)
-        setPropertyI2C(i, packets[i]);
-    sendCommands();
-    QThread::msleep(500);
-}
-
 // Open the video stream pinned to the SAME physical device the control
 // channel resolved, via its stable AVFoundation uniqueID. Never opens by list
 // index: macOS reshuffles the camera list as devices come and go (iPhone
 // Continuity Camera, hot-plugged webcams), and both bench failures came from
 // an index resolving to a different camera by open time.
-bool VideoStreamMac::openFrameStream()
+bool VideoStreamMac::openFrameStream(const QVector<AvfCameraInfo> &cameras)
 {
-    QString uniqueId = avfUniqueIdForLocation(enumerateAvfCameras(), m_control.locationID());
+    QString uniqueId = avfUniqueIdForLocation(cameras, m_control.locationID());
     if (uniqueId.isEmpty()) {
         // The control channel just opened this device over USB, so it exists;
         // AVFoundation's list can briefly lag a hot-plug. One settle+retry.
@@ -129,8 +120,8 @@ bool VideoStreamMac::openFrameStream()
                     m_grabber.lastError() + ")");
         return false;
     }
-    qInfo().nospace() << "[diag] " << m_deviceName << " frame stream pinned to uniqueID "
-                      << uniqueId << " at " << m_expectedWidth << "x" << m_expectedHeight;
+    qCInfo(msDiag).nospace() << m_deviceName << " frame stream pinned to uniqueID "
+                             << uniqueId << " at " << m_expectedWidth << "x" << m_expectedHeight;
     return true;
 }
 
@@ -138,19 +129,22 @@ int VideoStreamMac::connect2Camera(int cameraID)
 {
     m_cameraID = cameraID;
 
+    // One AVFoundation enumeration feeds both the control-channel policy and
+    // the uniqueID pin (enumeration touches the camera-permission machinery
+    // and costs tens of ms).
+    const auto cameras = enumerateAvfCameras();
+
     // Control channel first: if the Miniscope isn't reachable over USB there
     // is no point opening a video stream to it.
-    if (!openControlForIndex(cameraID))
+    if (!openControlForIndex(cameraID, cameras))
         return 0;
 
-    if (!openFrameStream()) {
+    if (!openFrameStream(cameras)) {
         m_control.close();
         return 0;
     }
-    m_connectionType = "AVF";
 
-    sendSerdesModeCommands();
-    QThread::msleep(500);
+    sendSerdesModeCommands(m_pixelClock);   // ends with its own settle sleep
     return 1;
 }
 
@@ -185,7 +179,7 @@ void VideoStreamMac::logStallDiagnosis()
                              "is down (sensor/SERDES state suspect)")
                   .arg(c0).arg(c1).arg(c2);
     }
-    qInfo().noquote() << "[diag]" << m_deviceName << msg;
+    qCInfo(msDiag).noquote() << m_deviceName << msg;
     sendMessage("Diag: " + m_deviceName + " " + msg);
 }
 
@@ -237,23 +231,20 @@ void VideoStreamMac::startStream()
     // as the libuvc backend).
     setPU(SEL_SATURATION, 0x0001);
 
-    qInfo() << "[diag]" << m_deviceName << "stream loop starting";
+    qCInfo(msDiag) << m_deviceName << "stream loop starting";
 
     int reconnectAttempts = 0;
-    m_isStreaming = true;
     forever {
-        if (m_stopStreaming) {
-            m_isStreaming = false;
+        if (m_stopStreaming)
             break;
-        }
 
         if (!m_grabber.read(frame)) {
             // Diagnose and message on the FIRST failure of a stall episode;
             // later attempts back off quietly (a device that fell off the bus
             // can take a while to come back, and every attempt already logs).
             if (reconnectAttempts == 0) {
-                qInfo() << "[diag]" << m_deviceName << "no frame at" << idx << "("
-                        << m_grabber.lastError() << ") - running stall diagnosis";
+                qCInfo(msDiag) << m_deviceName << "no frame at" << idx << "("
+                               << m_grabber.lastError() << ") - running stall diagnosis";
                 sendMessage("Warning: " + m_deviceName + " grab frame failed. Attempting to reconnect.");
                 logStallDiagnosis();
             }
@@ -272,60 +263,61 @@ void VideoStreamMac::startStream()
             continue;
         }
 
-        if (idx == 0)
-            qInfo().nospace() << "[diag] " << m_deviceName << " first frame: "
-                              << frame.cols << "x" << frame.rows
-                              << " channels=" << frame.channels()
-                              << " daqFrameCounter=" << getPU(SEL_CONTRAST);
-        else if (idx % 100 == 0)
-            qInfo().nospace() << "[diag] " << m_deviceName << " heartbeat: acqFrame=" << idx
-                              << " daqFrameCounter=" << getPU(SEL_CONTRAST)
-                              << " ts=" << QDateTime::currentMSecsSinceEpoch();
-
-        timeStampBuffer[idx % frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
-
-        if (m_isColor)
-            frame.copyTo(frameBuffer[idx % frameBufferSize]);
-        else
-            cv::cvtColor(frame, frameBuffer[idx % frameBufferSize], cv::COLOR_BGR2GRAY);
-
-        if (m_trackExtTrigger) {
-            if (extTriggerLast == -1) {
-                extTriggerLast = getPU(SEL_GAMMA);
-            } else {
-                extTrigger = getPU(SEL_GAMMA);
-                if (extTriggerLast != extTrigger) {
-                    if (extTriggerLast == 0)
-                        emit extTriggered(true);
-                    else
-                        emit extTriggered(false);
-                }
-                extTriggerLast = extTrigger;
-            }
-        }
-
-        if (m_headOrientationStreamState) {
-            // BNO output is a unit quaternion after a 2^14 division.
-            qint16 quat[4];   // w, x, y, z per kBnoSelectors order
-            for (int i = 0; i < 4; i++)
-                quat[i] = static_cast<qint16>(getPU(kBnoSelectors[i]));
-            unpackBnoQuaternion(quat[0], quat[1], quat[2], quat[3],
-                                &bnoBuffer[(idx % frameBufferSize) * 5]);
-        }
-
-        if (daqFrameNum != nullptr) {
-            *daqFrameNum = getPU(SEL_CONTRAST) - daqFrameNumOffset;
-            if (*m_acqFrameNum == 0)
-                daqFrameNumOffset = *daqFrameNum - 1;
-        }
-
-        // Thread-safe buffer handoff (mirrors the other backends).
+        // Reserve the ring-buffer slot BEFORE any per-frame work: a full
+        // buffer drops this frame anyway, so the USB control reads (~6 ms
+        // each while streaming) and the color conversion would only deepen
+        // the backpressure - and acquiring first guarantees a slot is never
+        // overwritten while DataSaver still owns it.
         if (!freeFrames->tryAcquire()) {
             if (freeFrames->available() == 0) {
                 sendMessage("Error: " + m_deviceName + " frame buffer is full. Frames will be lost!");
                 QThread::msleep(100);
             }
         } else {
+            timeStampBuffer[idx % frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
+
+            if (m_isColor)
+                frame.copyTo(frameBuffer[idx % frameBufferSize]);
+            else
+                cv::cvtColor(frame, frameBuffer[idx % frameBufferSize], cv::COLOR_BGR2GRAY);
+
+            if (m_trackExtTrigger) {
+                if (extTriggerLast == -1) {
+                    extTriggerLast = getPU(SEL_GAMMA);
+                } else {
+                    extTrigger = getPU(SEL_GAMMA);
+                    if (extTriggerLast != extTrigger) {
+                        if (extTriggerLast == 0)
+                            emit extTriggered(true);
+                        else
+                            emit extTriggered(false);
+                    }
+                    extTriggerLast = extTrigger;
+                }
+            }
+
+            if (m_headOrientationStreamState) {
+                // BNO output is a unit quaternion after a 2^14 division.
+                qint16 quat[4];   // w, x, y, z per kBnoSelectors order
+                for (int i = 0; i < 4; i++)
+                    quat[i] = static_cast<qint16>(getPU(kBnoSelectors[i]));
+                unpackBnoQuaternion(quat[0], quat[1], quat[2], quat[3],
+                                    &bnoBuffer[(idx % frameBufferSize) * 5]);
+            }
+
+            if (daqFrameNum != nullptr) {
+                *daqFrameNum = getPU(SEL_CONTRAST) - daqFrameNumOffset;
+                if (*m_acqFrameNum == 0)
+                    daqFrameNumOffset = *daqFrameNum - 1;
+                // Diagnostics reuse this read - never a second GET_CUR.
+                if (idx % 100 == 0)
+                    qCInfo(msDiag).nospace()
+                        << m_deviceName << (idx == 0 ? " first frame: " : " heartbeat: ")
+                        << frame.cols << "x" << frame.rows << " acqFrame=" << idx
+                        << " daqFrameCounter=" << (*daqFrameNum + daqFrameNumOffset)
+                        << " ts=" << timeStampBuffer[idx % frameBufferSize];
+            }
+
             m_acqFrameNum->operator++();
             idx++;
             emit newFrameAvailable(m_deviceName, *m_acqFrameNum);
@@ -344,14 +336,14 @@ void VideoStreamMac::startStream()
 bool VideoStreamMac::attemptReconnect()
 {
     m_control.close();
-    if (!openControlForIndex(m_cameraID))
+    // Fresh enumeration: the device may have re-enumerated (which can be
+    // exactly why we are reconnecting).
+    const auto cameras = enumerateAvfCameras();
+    if (!openControlForIndex(m_cameraID, cameras))
         return false;
-    // Re-resolve the uniqueID too: the device may have re-enumerated (which
-    // can be exactly why we are reconnecting).
-    if (!openFrameStream())
+    if (!openFrameStream(cameras))
         return false;
-    sendSerdesModeCommands();
-    QThread::msleep(500);
+    sendSerdesModeCommands(m_pixelClock);
     setPU(SEL_SATURATION, 0x0001);
     emit requestInitCommands();
     return true;

@@ -153,9 +153,11 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
     // A frame size change (a device reconnect can renegotiate the format, or
     // a mis-bound camera can deliver foreign frames) must restart the baseline
     // accumulation: mixing sizes in the += / divide below is a fatal
-    // cv::Exception (observed as an app crash on the macOS bench).
-    if (!baselineFrame.empty()
-        && (frame.cols != baselineFrame.cols || frame.rows != baselineFrame.rows)) {
+    // cv::Exception (observed as an app crash on the macOS bench). This one
+    // predicate drives the reset here and the dFF fallbacks below.
+    bool baselineSizeMatches = !baselineFrame.empty()
+        && frame.cols == baselineFrame.cols && frame.rows == baselineFrame.rows;
+    if (!baselineFrame.empty() && !baselineSizeMatches) {
         qWarning() << getDeviceName() << "frame size changed to" << frame.cols << "x" << frame.rows
                    << "- resetting dFF baseline";
         baselineFrameBufWritePos = 0;
@@ -169,6 +171,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         tempMat1 = tempMat1/(BASELINE_FRAME_BUFFER_SIZE);
         if (baselineFrameBufWritePos == 0) {
             baselineFrame = tempMat1;
+            baselineSizeMatches = true;   // baseline just restarted at this frame's size
         }
         else if (baselineFrameBufWritePos < BASELINE_FRAME_BUFFER_SIZE) {
             baselineFrame += tempMat1;
@@ -191,8 +194,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
     else if (m_displatState == "dFF") {
         // While the baseline is (re)accumulating at a new size, show raw
         // rather than dividing by a mismatched-size baseline (fatal).
-        if (baselineFrame.empty()
-            || frame.cols != baselineFrame.cols || frame.rows != baselineFrame.rows) {
+        if (!baselineSizeMatches) {
             vidDisp->setDisplayFrame(tempFrame2);
         }
         else {

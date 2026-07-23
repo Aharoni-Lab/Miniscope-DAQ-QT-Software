@@ -3,8 +3,11 @@
 
 #include <QObject>
 #include <QString>
+#include <QThread>
 #include <QVector>
 #include <opencv2/core/core.hpp>
+
+#include "miniscopeprotocol.h"
 
 class QSemaphore;
 class QAtomicInt;
@@ -55,6 +58,25 @@ public slots:
     virtual void startRecording() = 0;
     virtual void stopRecording() = 0;
     virtual void openCamPropsDialog() = 0;
+
+protected:
+    // Flush queued I2C command packets to the device (transport-specific:
+    // UVC SET_CUR on libuvc/macOS, CAP_PROP passthrough on OpenCV).
+    virtual void sendCommands() = 0;
+
+    // Queue + flush the pixel-clock dependent SERDES setup packets, then let
+    // the video link settle. One shared copy of this order-critical connect
+    // ritual - the pre-refactor code had four inline copies that had drifted.
+    void sendSerdesModeCommands(double pixelClock)
+    {
+        const auto packets = MiniscopeProtocol::serdesModePackets(pixelClock);
+        if (packets.isEmpty())
+            return;
+        for (int i = 0; i < packets.size(); i++)
+            setPropertyI2C(i, packets[i]);
+        sendCommands();
+        QThread::msleep(500);
+    }
 };
 
 #endif // VIDEOSTREAMBASE_H

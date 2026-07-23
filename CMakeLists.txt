@@ -55,9 +55,9 @@ target_include_directories(miniscope_protocol PUBLIC source)
 # Sends UVC SET_CUR/GET_CUR to the Miniscope over the default control pipe
 # without opening the interface, coexisting with Apple's UVC driver (which owns
 # the streaming path since macOS 12 - libusb/libuvc would need root there).
-# The app itself doesn't consume this yet; the hybrid AVFoundation capture
-# backend that will is the next PR. uvc-bench-mac is the hardware-validation
-# CLI: see its header comment for the bench procedure and pass criteria.
+# Consumed by the hybrid capture backend (videostreammac) and by
+# uvc-bench-mac, the hardware-validation CLI: see its header comment for the
+# bench procedure and pass criteria.
 if(APPLE)
     enable_language(OBJCXX)   # for the AVFoundation enumerator (.mm)
 

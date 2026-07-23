@@ -19,9 +19,10 @@
 @public
     std::mutex mutex;
     std::condition_variable frameArrived;
-    cv::Mat latest;      // 8UC3 BGR
+    cv::Mat latest;      // 8UC3 BGR mailbox slot (guarded by mutex)
     uint64_t sequence;   // bumps once per delivered frame
     OSType loggedFormat; // first delivered format, logged once
+    cv::Mat scratch;     // delegate-only conversion target (serial queue, no lock)
 }
 @end
 
@@ -49,31 +50,39 @@
     }
 
     if (base && w > 0 && h > 0) {
-        std::lock_guard<std::mutex> lock(mutex);
         // Interpret the buffer by what AVFoundation actually DELIVERED, never
         // by what was requested - a device may ignore the requested format
         // (reading YUY2 bytes as BGRA shows as garbled, row-shifted video).
+        // Convert into the delegate-private scratch Mat WITHOUT the lock (this
+        // runs on a serial dispatch queue), then swap it in: holding the lock
+        // across a full-frame conversion stalls the capture queue against the
+        // consumer's read() and turns contention into dropped frames.
+        bool converted = true;
         switch (format) {
         case kCVPixelFormatType_32BGRA:
-            cv::cvtColor(cv::Mat(h, w, CV_8UC4, base, stride), latest, cv::COLOR_BGRA2BGR);
+            cv::cvtColor(cv::Mat(h, w, CV_8UC4, base, stride), scratch, cv::COLOR_BGRA2BGR);
             break;
         case kCVPixelFormatType_422YpCbCr8:        // '2vuy' = UYVY
-            cv::cvtColor(cv::Mat(h, w, CV_8UC2, base, stride), latest, cv::COLOR_YUV2BGR_UYVY);
+            cv::cvtColor(cv::Mat(h, w, CV_8UC2, base, stride), scratch, cv::COLOR_YUV2BGR_UYVY);
             break;
         case kCVPixelFormatType_422YpCbCr8_yuvs:   // 'yuvs' = YUYV / YUY2
         case kCVPixelFormatType_422YpCbCr8FullRange:
-            cv::cvtColor(cv::Mat(h, w, CV_8UC2, base, stride), latest, cv::COLOR_YUV2BGR_YUY2);
+            cv::cvtColor(cv::Mat(h, w, CV_8UC2, base, stride), scratch, cv::COLOR_YUV2BGR_YUY2);
             break;
         case kCVPixelFormatType_24BGR:
-            cv::Mat(h, w, CV_8UC3, base, stride).copyTo(latest);
+            cv::Mat(h, w, CV_8UC3, base, stride).copyTo(scratch);
             break;
         default:
             // Unknown layout: drop the frame rather than mis-render it. The
             // one-time format log above tells us what to add.
-            CVPixelBufferUnlockBaseAddress(image, kCVPixelBufferLock_ReadOnly);
-            return;
+            converted = false;
+            break;
         }
-        sequence++;
+        if (converted) {
+            std::lock_guard<std::mutex> lock(mutex);
+            cv::swap(scratch, latest);
+            sequence++;
+        }
     }
     CVPixelBufferUnlockBaseAddress(image, kCVPixelBufferLock_ReadOnly);
     frameArrived.notify_all();
@@ -188,7 +197,9 @@ bool AvfFrameGrabber::read(cv::Mat &frame, int timeoutMs)
         m_lastError = QStringLiteral("no frame within %1 ms").arg(timeoutMs);
         return false;
     }
-    sink->latest.copyTo(frame);
+    // Swap, don't copy: the consumer's previous frame buffer becomes the next
+    // mailbox slot, so steady state runs allocation- and copy-free here.
+    cv::swap(sink->latest, frame);
     m_impl->consumedSequence = sink->sequence;
     return true;
 }
