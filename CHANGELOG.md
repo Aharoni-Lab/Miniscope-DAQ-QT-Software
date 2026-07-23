@@ -136,6 +136,10 @@ published together from CI.
   selected; stale mouse handlers removed.
 - macOS: leaked an IOKit service handle when a device exposed multiple
   VideoControl interfaces ([#85](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/pull/85)).
+- Quitting (and window creation) no longer spams QML `TypeError` messages to
+  the console: every declarative `backend`/`parent` binding is null-guarded
+  against the teardown/startup window where the referenced object doesn't
+  exist yet or anymore.
 
 ## [1.11] and earlier
 

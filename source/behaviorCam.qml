@@ -8,8 +8,10 @@ import QtQuick.Layouts 1.3
 Item {
     id: root
     objectName: "root"
-    width: parent.width
-    height: parent.height
+    // parent is briefly null while the QQuickView wires the root item up
+    // (and again at teardown); unguarded parent.width spammed TypeErrors.
+    width: parent ? parent.width : 0
+    height: parent ? parent.height : 0
     state: "controlsShown"
     focus: true
     signal vidPropChangedSignal(string name, double displayValue, double i2cValue, double i2cValue2)

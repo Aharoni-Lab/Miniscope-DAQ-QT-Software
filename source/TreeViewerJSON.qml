@@ -209,7 +209,10 @@ TreeView {
                     anchors.bottom: parent.bottom
                     font.pointSize: 10
                     // Options: codecs for "compression", colormaps for "lut".
-                    readonly property var choices: valueCell.isLut ? backend.availableLUTs
+                    // backend nulls during app teardown while delegates still
+                    // re-evaluate; guard so quitting doesn't spam TypeErrors.
+                    readonly property var choices: !backend ? []
+                                                  : valueCell.isLut ? backend.availableLUTs
                                                                     : backend.availableCodecs
                     // Current stored value; coerce to string in case the model hands
                     // back a non-string.

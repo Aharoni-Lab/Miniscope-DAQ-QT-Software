@@ -5,8 +5,10 @@ import QtQuick.Layouts 1.12
 Item {
     id: root
     objectName: "root"
-    width: parent.width
-    height: parent.height
+    // parent is briefly null while the QQuickView wires the root item up
+    // (and again at teardown); unguarded parent.width spammed TypeErrors.
+    width: parent ? parent.width : 0
+    height: parent ? parent.height : 0
 
     property double currentRecordTime: 0
     property double ucRecordLength: 1
@@ -209,7 +211,9 @@ Item {
                                     property var validAll : RegularExpressionValidator{}  // Qt6: RegExpValidator removed
                                     width: parent.width - 10
                                     height:30
-                                    text: root.ucValues[index]
+                                    // undefined while ucValues is still being
+                                    // populated ("Unable to assign [undefined]").
+                                    text: root.ucValues[index] === undefined ? "" : "" + root.ucValues[index]
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     anchors.top: parent.top
                                     anchors.topMargin: 25
