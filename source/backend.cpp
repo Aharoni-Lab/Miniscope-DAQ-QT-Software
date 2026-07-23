@@ -1034,9 +1034,11 @@ void backEnd::loadUserConfigFile()
     if (parseError.error != QJsonParseError::NoError) {
         // Previously a malformed file silently became an empty config; say
         // what is wrong and where instead.
-        setUserConfigDisplay("Could not parse User Config file " + m_userConfigFileName
-                             + ":\n" + parseError.errorString() + " at offset "
-                             + QString::number(parseError.offset) + "\n\n" + jsonFile);
+        m_configCheckNotes = "Could not parse " + m_userConfigFileName + ": "
+                             + parseError.errorString() + " at offset "
+                             + QString::number(parseError.offset);
+        emit configCheckNotesChanged();
+        setUserConfigDisplay(m_configCheckNotes + "\n\n" + jsonFile);
         m_userConfig = QJsonObject();
         return;
     }
@@ -1097,11 +1099,9 @@ void backEnd::loadUserConfigFile()
     // here blocks Run; the point is that a typo'd key or wrong type is
     // reported instead of silently replaced by a default.
     const QStringList configNotes = checkUserConfig(m_userConfig);
-    QString display = "User Config File Selected: " + m_userConfigFileName + "\n";
-    if (!configNotes.isEmpty())
-        display += "\nConfig check:\n  - " + configNotes.join("\n  - ") + "\n";
-    display += "\n" + jsonFile;
-    setUserConfigDisplay(display);
+    m_configCheckNotes = configNotes.join(QLatin1Char('\n'));
+    emit configCheckNotesChanged();
+    setUserConfigDisplay("User Config File Selected: " + m_userConfigFileName + "\n" + jsonFile);
 }
 
 void backEnd::onRunClicked()

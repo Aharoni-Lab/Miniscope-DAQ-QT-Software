@@ -26,6 +26,7 @@ class backEnd : public QObject
 
     Q_PROPERTY(QString userConfigFileName READ userConfigFileName WRITE setUserConfigFileName NOTIFY userConfigFileNameChanged)
     Q_PROPERTY(QString userConfigDisplay READ userConfigDisplay WRITE setUserConfigDisplay NOTIFY userConfigDisplayChanged)
+    Q_PROPERTY(QString configCheckNotes READ configCheckNotes NOTIFY configCheckNotesChanged)
     Q_PROPERTY(bool userConfigOK READ userConfigOK WRITE setUserConfigOK NOTIFY userConfigOKChanged)
     Q_PROPERTY(bool hasDevices READ hasDevices NOTIFY hasDevicesChanged)
     Q_PROPERTY(QString availableCodecList READ availableCodecList WRITE setAvailableCodecList NOTIFY availableCodecListChanged)
@@ -51,6 +52,11 @@ public:
 
     QString userConfigDisplay(){ return m_userConfigDisplay; }
     void setUserConfigDisplay(const QString &input);
+
+    // Migration notes + schema warnings from the last config load, newline-
+    // separated; empty when the config is clean. Shown as a banner above the
+    // config tree (the raw-text display is hidden once a config loads).
+    QString configCheckNotes() const { return m_configCheckNotes; }
 
     QString availableCodecList(){ return m_availableCodecList; }
     void setAvailableCodecList(const QString &input);
@@ -139,6 +145,7 @@ public:
 signals:
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();
+    void configCheckNotesChanged();
     void userConfigOKChanged();
     void hasDevicesChanged();
     void availableCodecListChanged();
@@ -192,6 +199,7 @@ private:
     QString m_buildInfo;
     QString m_userConfigFileName;
     QString m_userConfigDisplay;
+    QString m_configCheckNotes;
     bool m_userConfigOK;
     bool m_hasDevices = false;
     QJsonObject m_userConfig;
