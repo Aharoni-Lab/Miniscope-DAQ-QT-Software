@@ -51,7 +51,13 @@ void BehaviorTrackerWorker::initPython()
         if (QDir(m_btConfig["pyEnvPath"].toString() + "/Lib/site-packages/numpy/.libs").exists()) {
 
             // likely a correct path
+            // Py_SetPythonHome is deprecated since Python 3.11 in favor of the
+            // PyConfig API; migrating is not worth it for this rarely-built
+            // feature (USE_PYTHON=OFF by default), so just silence the warning.
+QT_WARNING_PUSH
+QT_WARNING_DISABLE_DEPRECATED
             Py_SetPythonHome(m_btConfig["pyEnvPath"].toString().toStdWString().c_str());
+QT_WARNING_POP
             Py_Initialize();
             m_PythonInitialized = true;
             PyObject* sysPath = PySys_GetObject((char*)"path");

@@ -139,7 +139,7 @@ void TraceDisplay::wheelEvent(QWheelEvent *event)
     qDebug() << "Wheel" << event;
 }
 
-void TraceDisplay::hoverMoveEvent(QHoverEvent *event)
+void TraceDisplay::hoverMoveEvent(QHoverEvent * /*event*/)
 {
     //    qDebug() << "Hover" << event->pos();
 }
@@ -307,7 +307,6 @@ TraceDisplayRenderer::TraceDisplayRenderer(QObject *parent, QSize displayWindowS
     m_lastTimeDisplayed = startTime;
 
     initPrograms();
-    float c[] = {0.5,0.7,1.0};
     bufNum = 0;
     numData[0] = 10;
     numData[1] = 10;
@@ -938,7 +937,6 @@ void TraceDisplayRenderer::paint()
     glDisable(GL_DEPTH_TEST);
 
     int pastScrollBarPos = m_viewportSize.width() * std::fmod((m_lastTimeDisplayed - m_softwareStartTime)/1000.0f, windowSize) / windowSize;
-    int clearWidth = ((currentTime - m_lastTimeDisplayed)/1000.0) / windowSize * m_viewportSize.width();
 
     if (m_clearDisplayOnNextDraw == true) {
         m_clearDisplayOnNextDraw = false;
@@ -1015,7 +1013,7 @@ void TraceDisplayRenderer::paint()
 
 }
 
-void TraceDisplayRenderer::doubleClickEvent(int x, int y)
+void TraceDisplayRenderer::doubleClickEvent(int /*x*/, int y)
 {
     if (m_selectedTrace.isEmpty()){
         // currently no trace selected

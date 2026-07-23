@@ -110,6 +110,9 @@ published together from CI.
   leaving orphaned device windows.
 - Device-type dropdowns in the config editor are filtered by category; trace
   display window only opens when configured.
+- Compiler warnings are on (`-Wall -Wextra` / `/W4`) and the build is
+  warning-clean; removed the stale qmake `.pro` file, the tracked
+  `My User Configs/` folder, and dead libusb test code.
 
 ### Fixed
 - Quitting the app now stops and joins every worker thread (capture loops,
@@ -136,6 +139,9 @@ published together from CI.
   selected; stale mouse handlers removed.
 - macOS: leaked an IOKit service handle when a device exposed multiple
   VideoControl interfaces ([#85](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/pull/85)).
+- Behavior tracker: a `poseOverlay` config without a `skeleton` section had
+  its pose overlay silently disabled even when `enabled` was true (assignment
+  instead of comparison in the skeleton check).
 - Quitting (and window creation) no longer spams QML `TypeError` messages to
   the console: every declarative `backend`/`parent` binding is null-guarded
   against the teardown/startup window where the referenced object doesn't

@@ -39,8 +39,8 @@ DataSaver::DataSaver(QObject *parent) :
     behavTrackerStream(nullptr),
     noteFile(nullptr),
     noteStream(nullptr),
-    m_recording(false),
     behaviorTrackerEnabled(false),
+    m_recording(false),
     m_running(false)
 
 {

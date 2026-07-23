@@ -140,8 +140,6 @@ public:
     bool checkForCompression();
 
 
-    void testLibusb();
-
 signals:
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();
