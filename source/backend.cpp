@@ -28,6 +28,7 @@
 
 #include "miniscope.h"
 #include "behaviorcam.h"
+#include "configvalidator.h"
 #include "controlpanel.h"
 #include "datasaver.h"
 #include "behaviortracker.h"
@@ -528,9 +529,21 @@ QJsonArray backEnd::getArrayFromModel(QModelIndex idx)
     return jAry;
 }
 
+// Saved configs carry the schema version they were written by and a $schema
+// pointer so editors (VS Code etc.) validate and autocomplete them. Only
+// added at save time, so configs the user never saves are never touched.
+static void stampConfigMetadata(QJsonObject &config)
+{
+    config["configVersion"] = 1;
+    if (!config.contains("$schema"))
+        config["$schema"] = "https://raw.githubusercontent.com/Aharoni-Lab/"
+                            "Miniscope-DAQ-QT-Software/master/deviceConfigs/userConfigSchema.json";
+}
+
 void backEnd::saveConfigObject()
 {
     generateUserConfigFromModel();
+    stampConfigMetadata(m_userConfig);
     QJsonDocument d;
     d.setObject(m_userConfig);
     QFile file;
@@ -549,6 +562,7 @@ void backEnd::saveConfigObject()
 void backEnd::saveConfigObjectAs(const QString &filePath)
 {
     generateUserConfigFromModel();
+    stampConfigMetadata(m_userConfig);
     QJsonDocument d;
     d.setObject(m_userConfig);
     QFile file(filePath);
@@ -1014,9 +1028,20 @@ void backEnd::loadUserConfigFile()
         return;
     }
     jsonFile = file.readAll();
-    setUserConfigDisplay("User Config File Selected: " + m_userConfigFileName + "\n" + jsonFile);
     file.close();
-    QJsonDocument d = QJsonDocument::fromJson(jsonFile.toUtf8());
+    QJsonParseError parseError;
+    QJsonDocument d = QJsonDocument::fromJson(jsonFile.toUtf8(), &parseError);
+    if (parseError.error != QJsonParseError::NoError) {
+        // Previously a malformed file silently became an empty config; say
+        // what is wrong and where instead.
+        m_configCheckNotes = "Could not parse " + m_userConfigFileName + ": "
+                             + parseError.errorString() + " at offset "
+                             + QString::number(parseError.offset);
+        emit configCheckNotesChanged();
+        setUserConfigDisplay(m_configCheckNotes + "\n\n" + jsonFile);
+        m_userConfig = QJsonObject();
+        return;
+    }
     m_userConfig = d.object();
 
     // Correct for old device structure in user config files
@@ -1067,6 +1092,16 @@ void backEnd::loadUserConfigFile()
         deviceObj["cameras"] = camObj;
     }
     m_userConfig["devices"] = deviceObj;
+
+    // Canonical-key migration (deprecated spellings keep working; the
+    // in-memory config only ever carries canonical keys) followed by JSON
+    // Schema validation. Warnings only - extra keys are fine and nothing
+    // here blocks Run; the point is that a typo'd key or wrong type is
+    // reported instead of silently replaced by a default.
+    const QStringList configNotes = checkUserConfig(m_userConfig);
+    m_configCheckNotes = configNotes.join(QLatin1Char('\n'));
+    emit configCheckNotesChanged();
+    setUserConfigDisplay("User Config File Selected: " + m_userConfigFileName + "\n" + jsonFile);
 }
 
 void backEnd::onRunClicked()

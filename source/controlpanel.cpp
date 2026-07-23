@@ -57,7 +57,7 @@ void ControlPanel::createView()
 
     recordTimeText = rootObject->findChild<QQuickItem*>("recordTimeText");
 
-    m_ucRecordLengthinSeconds = m_userConfig["recordLengthinSeconds"].toInt(0);
+    m_ucRecordLengthinSeconds = m_userConfig["recordLengthInSeconds"].toInt(0);
     rootObject->setProperty("currentRecordTime", 0);
     rootObject->setProperty("ucRecordLength", m_ucRecordLengthinSeconds);
 //    recordTimeText->setProperty("text", "----/" + QString::number(m_ucRecordLengthinSeconds) + " s");
@@ -128,7 +128,11 @@ void ControlPanel::onRecordActivated()
         // Lets setup a exe to execute
         exeInfo = m_userConfig["executableOnStartRecording"].toObject();
         if (exeInfo["enabled"].toBool(true)) {
-            argArray = m_userConfig["arguments"].toArray();
+            // The documented location is nested (executableOnStartRecording.
+            // arguments); a top-level "arguments" key is the spelling this
+            // code historically read, kept as a fallback.
+            argArray = exeInfo.contains("arguments") ? exeInfo["arguments"].toArray()
+                                                     : m_userConfig["arguments"].toArray();
             for (int i=0; i < argArray.size(); i++) {
                 argList.append(argArray[i].toString());
             }
@@ -144,7 +148,7 @@ void ControlPanel::onRecordActivated()
         ucInfo[ucPropsList[i]] = ucValuesList[i];
 
         // Updates the record time in the tick timer inturrupt function
-        if (ucPropsList[i] == "recordLengthinSeconds")
+        if (ucPropsList[i] == "recordLengthInSeconds")
             m_ucRecordLengthinSeconds = ucValuesList[i].toInt();
     }
     recordStart(ucInfo);
@@ -165,7 +169,8 @@ void ControlPanel::onStopActivated()
         // Lets setup a exe to execute
         exeInfo = m_userConfig["executableOnStopRecording"].toObject();
         if (exeInfo["enabled"].toBool(true)) {
-            argArray = m_userConfig["arguments"].toArray();
+            argArray = exeInfo.contains("arguments") ? exeInfo["arguments"].toArray()
+                                                     : m_userConfig["arguments"].toArray();
             for (int i=0; i < argArray.size(); i++) {
                 argList.append(argArray[i].toString());
             }

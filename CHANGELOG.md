@@ -61,6 +61,29 @@ published together from CI.
   previously a reconnect reopened by list index, which could silently switch
   to a different camera (e.g. the built-in one) mid-session.
 
+**Config files**
+- User configs now have a real **JSON Schema**
+  (`deviceConfigs/userConfigSchema.json`). Configs are validated against it at
+  load: wrong types, out-of-range values, and malformed sections are reported
+  with their exact location instead of being silently replaced by defaults.
+  Validation never blocks running, and extra keys (notes, `COMMENT_*`,
+  custom directoryStructure tokens) are always allowed.
+- Example configs (and configs saved from the in-app editor) carry a
+  `$schema` pointer, so editing them in VS Code gives live validation and
+  autocomplete, plus a `configVersion` stamp for future format changes.
+- The `recordLengthinSeconds` typo is corrected to `recordLengthInSeconds`;
+  the old spelling keeps working forever (a note is shown when it's used).
+- Fixed two documented config keys the code never actually read:
+  `executableOnStartRecording.arguments` (code only read a top-level
+  `arguments` key) and `behaviorTracker.occupancyPlot.numBinsX/numBinsY`
+  (code read `numBinX/numBinY`, so configured bins were silently ignored).
+  The documented spellings now work; the old ones remain accepted.
+- A malformed config file now reports the JSON parse error and its location
+  instead of silently loading as an empty config.
+- Removed `deviceConfigs/miniscopes.json` and `behaviorCams.json` — dead
+  since the device catalog moved to `videoDevices.json`, but they looked
+  authoritative and old wiki instructions pointed users at them.
+
 **Recorded-data quality**
 - Miniscope `timeStamps.csv` files gain a **`DAQ Frame Number`** column: the
   DAQ hardware's own frame counter logged per saved frame. A jump in it is

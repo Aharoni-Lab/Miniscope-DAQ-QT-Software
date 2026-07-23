@@ -1,0 +1,332 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://raw.githubusercontent.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/master/deviceConfigs/userConfigSchema.json",
+    "title": "Miniscope DAQ user config",
+    "description": "A user config file for the Miniscope DAQ software (v2.x). Extra keys are allowed everywhere: labs keep notes, COMMENT_* entries, and custom directoryStructure tokens in their configs. The software validates configs against this schema at load time but never refuses to run because of a schema warning.",
+    "type": "object",
+    "required": ["dataDirectory", "devices"],
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "Optional pointer to this schema so editors like VS Code can validate and autocomplete the config."
+        },
+        "configVersion": {
+            "type": "integer",
+            "enum": [1],
+            "description": "Version of the config format this file was written for. Stamped automatically when saving from the in-app editor."
+        },
+        "dataDirectory": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Absolute path to the base directory all data is saved to. Use '/' separators, not '\\'."
+        },
+        "directoryStructure": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Defines the recording folder hierarchy under dataDirectory. 'date' and 'time' (any capitalization) become the recording's start date/time; any other entry must name a top-level key in this config whose string value is used as the folder name."
+        },
+        "researcherName": {
+            "type": "string",
+            "description": "Saved in the recording's metaData.json; can also be used as a directoryStructure entry."
+        },
+        "experimentName": {
+            "type": "string",
+            "description": "Saved in the recording's metaData.json; can also be used as a directoryStructure entry."
+        },
+        "animalName": {
+            "type": "string",
+            "description": "Saved in the recording's metaData.json; can also be used as a directoryStructure entry."
+        },
+        "recordLengthInSeconds": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "0 = record until manually stopped; any positive value stops the recording after that many seconds."
+        },
+        "recordLengthinSeconds": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "DEPRECATED spelling of recordLengthInSeconds (kept working forever; the corrected spelling is preferred)."
+        },
+        "executableOnStartRecording": { "$ref": "#/definitions/executableHook" },
+        "executableOnStopRecording": { "$ref": "#/definitions/executableHook" },
+        "experiment": {
+            "type": "object",
+            "description": "Reserved for experiment metadata; currently not interpreted by the software."
+        },
+        "devices": {
+            "type": "object",
+            "description": "The Miniscopes and behavior cameras this session uses. At least one device is needed to run.",
+            "properties": {
+                "miniscopes": {
+                    "oneOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": { "$ref": "#/definitions/miniscopeDevice" },
+                            "description": "Current form: one entry per Miniscope, keyed by a unique device name."
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "allOf": [
+                                    { "$ref": "#/definitions/miniscopeDevice" },
+                                    { "required": ["deviceName"] }
+                                ]
+                            },
+                            "description": "Legacy form: an array of devices, each carrying its own deviceName."
+                        }
+                    ]
+                },
+                "cameras": {
+                    "oneOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": { "$ref": "#/definitions/cameraDevice" },
+                            "description": "Current form: one entry per behavior camera, keyed by a unique device name."
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "allOf": [
+                                    { "$ref": "#/definitions/cameraDevice" },
+                                    { "required": ["deviceName"] }
+                                ]
+                            },
+                            "description": "Legacy form: an array of devices, each carrying its own deviceName."
+                        }
+                    ]
+                }
+            }
+        },
+        "behaviorTracker": {
+            "type": "object",
+            "description": "DeepLabCut-Live behavior tracking (requires a build with Python support).",
+            "properties": {
+                "enabled": { "type": "boolean" },
+                "type": {
+                    "type": "string",
+                    "description": "Tracker backend; only \"DeepLabCut-Live\" is supported."
+                },
+                "pyEnvPath": {
+                    "type": "string",
+                    "description": "Absolute path to a Python environment that can run DeepLabCut-Live."
+                },
+                "modelPath": {
+                    "type": "string",
+                    "description": "Absolute path to the DLC model to use."
+                },
+                "resize": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1,
+                    "description": "Downscales the camera image fed to DLC (0-1) when the CPU/GPU can't keep up."
+                },
+                "pCutoffDisplay": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Minimum p value for pose data to be plotted (all pose data is still recorded)."
+                },
+                "windowX": { "type": "integer" },
+                "windowY": { "type": "integer" },
+                "windowScale": { "type": "number", "exclusiveMinimum": 0 },
+                "poseIdxForTraceDisplay": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Pose indices to plot in the trace display; each entry is an index plus 'w', 'h', or 'wh' (e.g. \"3wh\")."
+                },
+                "occupancyPlot": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": { "type": "boolean" },
+                        "numBinsX": { "type": "integer", "minimum": 1 },
+                        "numBinsY": { "type": "integer", "minimum": 1 },
+                        "numBinX": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "DEPRECATED spelling of numBinsX (kept working)."
+                        },
+                        "numBinY": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "DEPRECATED spelling of numBinsY (kept working)."
+                        },
+                        "poseIdxToUse": {
+                            "type": "array",
+                            "items": { "type": "integer", "minimum": 0 },
+                            "description": "Pose indices whose positions build the occupancy histogram."
+                        }
+                    }
+                },
+                "poseOverlay": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": { "type": "boolean" },
+                        "type": {
+                            "type": "string",
+                            "enum": ["point", "line", "ribbon"],
+                            "description": "How past poses are drawn over the camera image."
+                        },
+                        "numOfPastPoses": { "type": "integer", "minimum": 0 },
+                        "markerSize": { "type": "number", "exclusiveMinimum": 0 },
+                        "skeleton": {
+                            "type": "object",
+                            "properties": {
+                                "enabled": { "type": "boolean" },
+                                "connectedIndices": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "array",
+                                        "items": { "type": "integer", "minimum": 0 }
+                                    },
+                                    "description": "Chains of pose indices to connect with lines."
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "traceDisplay": {
+            "type": "object",
+            "description": "The scrolling trace window (head orientation, pose traces).",
+            "properties": {
+                "enabled": { "type": "boolean" },
+                "type": { "type": "string" },
+                "windowX": { "type": "integer" },
+                "windowY": { "type": "integer" },
+                "windowWidth": { "type": "integer", "minimum": 1 },
+                "windowHeight": { "type": "integer", "minimum": 1 }
+            }
+        }
+    },
+    "definitions": {
+        "executableHook": {
+            "type": "object",
+            "description": "Runs an external program when recording starts/stops, usually to synchronize third-party hardware.",
+            "properties": {
+                "enabled": { "type": "boolean" },
+                "filePath": {
+                    "type": "string",
+                    "description": "Absolute path to the program to execute."
+                },
+                "arguments": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Arguments passed to the program."
+                }
+            }
+        },
+        "videoDeviceCommon": {
+            "type": "object",
+            "required": ["deviceType"],
+            "properties": {
+                "deviceName": {
+                    "type": "string",
+                    "description": "Only used in the legacy array form; in the current form the object key is the name."
+                },
+                "deviceType": {
+                    "type": "string",
+                    "description": "Device type from deviceConfigs/videoDevices.json (e.g. \"Miniscope_V4_BNO\", \"WebCam\")."
+                },
+                "deviceID": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Which camera this device is, as an index into the OS camera list. Use the software's 'Scan Devices' button to see the current mapping."
+                },
+                "videoPlayback": {
+                    "type": "object",
+                    "required": ["folderPath", "filePrefix", "frameRate"],
+                    "description": "Play back a previously recorded session instead of opening a live camera (alternative to deviceID).",
+                    "properties": {
+                        "folderPath": { "type": "string" },
+                        "filePrefix": { "type": "string" },
+                        "frameRate": { "type": "number", "exclusiveMinimum": 0 }
+                    }
+                },
+                "compression": {
+                    "type": "string",
+                    "description": "FOURCC of the codec used for recording (e.g. \"MJPG\", \"FFV1\", \"GREY\"). Must be supported by the host; the software checks at load."
+                },
+                "framesPerFile": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Recordings roll over to a new .avi file after this many frames."
+                },
+                "showSaturation": { "type": "boolean" },
+                "windowScale": { "type": "number", "exclusiveMinimum": 0 },
+                "windowX": { "type": "integer" },
+                "windowY": { "type": "integer" },
+                "ROI": {
+                    "type": "object",
+                    "required": ["leftEdge", "topEdge", "width", "height"],
+                    "description": "Region of interest to record, in camera pixels.",
+                    "properties": {
+                        "leftEdge": { "type": "integer", "minimum": 0 },
+                        "topEdge": { "type": "integer", "minimum": 0 },
+                        "width": { "type": "integer", "minimum": 1 },
+                        "height": { "type": "integer", "minimum": 1 }
+                    }
+                }
+            }
+        },
+        "miniscopeDevice": {
+            "allOf": [
+                { "$ref": "#/definitions/videoDeviceCommon" },
+                {
+                    "properties": {
+                        "gain": {
+                            "type": ["string", "number"],
+                            "description": "Sensor gain; V4 uses \"Low\"/\"Medium\"/\"High\"."
+                        },
+                        "frameRate": {
+                            "type": ["string", "number"],
+                            "description": "Frame rate; V4 uses strings like \"20FPS\"."
+                        },
+                        "led0": {
+                            "type": "number",
+                            "minimum": 0,
+                            "description": "Excitation LED power at startup."
+                        },
+                        "ewl": {
+                            "type": "number",
+                            "description": "Electrowetting lens (focus) starting value."
+                        },
+                        "lut": {
+                            "type": "string",
+                            "enum": ["None", "Green", "Red", "Inferno"],
+                            "description": "Display colormap toggled by the window's LUT switch."
+                        },
+                        "headOrientation": {
+                            "type": "object",
+                            "description": "BNO head-orientation streaming (V4 with BNO only).",
+                            "properties": {
+                                "enabled": { "type": "boolean" },
+                                "filterBadData": { "type": "boolean" },
+                                "plotTrace": {
+                                    "type": "array",
+                                    "items": { "type": "string" },
+                                    "description": "Which angles to plot in the trace display: roll, pitch, yaw."
+                                }
+                            }
+                        },
+                        "streamHeadOrientation": {
+                            "type": "boolean",
+                            "description": "DEPRECATED: use headOrientation.enabled instead."
+                        }
+                    }
+                }
+            ]
+        },
+        "cameraDevice": {
+            "allOf": [
+                { "$ref": "#/definitions/videoDeviceCommon" },
+                {
+                    "properties": {
+                        "gain": { "type": ["string", "number"] },
+                        "frameRate": { "type": ["string", "number"] }
+                    }
+                }
+            ]
+        }
+    }
+}

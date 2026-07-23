@@ -103,6 +103,7 @@ endif()
 # --- Sources ---------------------------------------------------------------
 set(SOURCES
     source/backend.cpp
+    source/configvalidator.cpp
     source/behaviorcam.cpp
     source/behaviortracker.cpp
     source/behaviortrackerworker.cpp
@@ -120,6 +121,7 @@ set(SOURCES
 
 set(HEADERS
     source/backend.h
+    source/configvalidator.h
     source/behaviorcam.h
     source/behaviortracker.h
     source/behaviortrackerworker.h
@@ -231,6 +233,10 @@ target_include_directories(MiniscopeDAQ PRIVATE
     source
     ${OpenCV_INCLUDE_DIRS}
 )
+# Header-only JSON Schema validator (see thirdparty/valijson/README.md).
+# SYSTEM: vendored headers are not ours to fix; keep their warnings out of
+# our -W flags.
+target_include_directories(MiniscopeDAQ SYSTEM PRIVATE thirdparty/valijson/include)
 
 target_link_libraries(MiniscopeDAQ PRIVATE
     miniscope_protocol
@@ -342,4 +348,18 @@ foreach(data_dir deviceConfigs userConfigs Scripts)
                 "${MINISCOPE_RELEASE_TOP}/${data_dir}"
             COMMENT "Copying ${data_dir} to the release top")
     endif()
+endforeach()
+
+# Vendored third-party licenses must accompany binary distributions (e.g.
+# valijson's BSD-2 notice condition). Ship each thirdparty/<name>/LICENSE as
+# licenses/<name>-LICENSE.txt at the release top.
+file(GLOB THIRDPARTY_LICENSES "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/*/LICENSE")
+foreach(license_file ${THIRDPARTY_LICENSES})
+    get_filename_component(license_dir "${license_file}" DIRECTORY)
+    get_filename_component(license_name "${license_dir}" NAME)
+    add_custom_command(TARGET MiniscopeDAQ POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${license_file}"
+            "${MINISCOPE_RELEASE_TOP}/licenses/${license_name}-LICENSE.txt"
+        COMMENT "Copying ${license_name} license to the release top")
 endforeach()

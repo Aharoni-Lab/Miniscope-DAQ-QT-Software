@@ -342,6 +342,32 @@ Window {
                 onHoveredChanged: hovered ? addDeviceRect.color = "#f8a7fd" : addDeviceRect.color = "#a8a7fd"
             }
 
+            // Migration notes and schema warnings from the config load. The
+            // raw-text config display hides once the tree takes over, so this
+            // banner is where load-time problems stay visible. Warnings only -
+            // nothing here blocks Run.
+            ScrollView {
+                id: configCheckView
+                visible: treeView.visible && backend && backend.configCheckNotes.length > 0
+                Layout.fillWidth: true
+                Layout.minimumHeight: 40
+                Layout.maximumHeight: 110
+                Layout.preferredHeight: Math.min(110, configCheckText.implicitHeight + 12)
+                ScrollBar.vertical.interactive: true
+                TextArea {
+                    id: configCheckText
+                    text: "Config check:\n" + (backend ? backend.configCheckNotes : "")
+                    readOnly: true
+                    wrapMode: TextArea.WrapAtWordBoundaryOrAnywhere
+                    font.pointSize: 12
+                    background: Rectangle {
+                        radius: 6
+                        border.width: 1
+                        color: "#fff3c4"
+                    }
+                }
+            }
+
             TreeViewerJSON {
                 id: treeView
                 objectName: "treeView"

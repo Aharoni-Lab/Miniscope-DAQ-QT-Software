@@ -1,4 +1,6 @@
 {
+    "$schema": "https://raw.githubusercontent.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/master/deviceConfigs/userConfigSchema.json",
+    "configVersion": 1,
     "dataDirectory": "C:/FILL/OUT/THIS/PATH",
     "directoryStructure": [
         "researcherName",
@@ -12,20 +14,24 @@
     "experimentName": "Experiment0",
     "animalName": "Fully Ball",
     "customEntry0": "customEntValHere",
-
-    "recordLengthinSeconds": 600,
-
+    "recordLengthInSeconds": 600,
     "executableOnStartRecording": {
         "enabled": false,
         "filePath": "C:/FILL/OUT/THIS/PATH.exe",
-        "arguments": ["arg1", "arg2"]
+        "arguments": [
+            "arg1",
+            "arg2"
+        ]
     },
     "executableOnStopRecording": {
         "enabled": false,
         "filePath": "C:/FILL/OUT/THIS/PATH.exe",
-        "arguments": ["arg1", "arg2", "arg3"]
+        "arguments": [
+            "arg1",
+            "arg2",
+            "arg3"
+        ]
     },
-
     "COMMENT_behaviorTracker": "The behavior tracker is currently in beta testing. It requires you to have a functional Python environment with DeepLabCut-Live setup.",
     "COMMENT_behaviorTracker2": "For info on setting up DLC-Live go here, https://github.com/DeepLabCut/DeepLabCut-live",
     "COMMENT_behaviorTracker3": "Currently only the type of 'DeepLabCut-Live' is supported. You need to provide an absolute path to your Pythong environment and DLC model.",
@@ -44,11 +50,19 @@
             "enabled": true,
             "numBinsX": 100,
             "numBinsY": 100,
-            "poseIdxToUse": [0, 1, 2, 3, 4]
+            "poseIdxToUse": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ]
         },
-
-        "poseIdxForTraceDisplay": ["0wh", "1w", "2w"],
-
+        "poseIdxForTraceDisplay": [
+            "0wh",
+            "1w",
+            "2w"
+        ],
         "poseOverlay": {
             "enabled": true,
             "COMMENT": "Cant be 'point','line',or 'ribbon.",
@@ -58,14 +72,30 @@
             "skeleton": {
                 "enabled": true,
                 "connectedIndices": [
-                    [0, 1, 2, 3, 4, 5],
-                    [6, 7, 8, 9, 10, 11],
-                    [12, 13]
+                    [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+                    ],
+                    [
+                        6,
+                        7,
+                        8,
+                        9,
+                        10,
+                        11
+                    ],
+                    [
+                        12,
+                        13
+                    ]
                 ]
             }
         }
-    }, 
-
+    },
     "traceDisplay": {
         "enabled": true,
         "type": "scrolling",
@@ -74,7 +104,6 @@
         "windowWidth": 600,
         "windowHeight": 800
     },
-
     "devices": {
         "miniscopes": {
             "My V4 Miniscope": {
@@ -82,11 +111,11 @@
                 "COMMENT": "Change the deviceID to match the input number of your Miniscope.",
                 "deviceID": 1,
                 "showSaturation": true,
-				"ROI": {
-					"leftEdge": 0,
-					"topEdge": 0,
-					"width": 500,
-					"height": 300
+                "ROI": {
+                    "leftEdge": 0,
+                    "topEdge": 0,
+                    "width": 500,
+                    "height": 300
                 },
                 "compression": "FFV1",
                 "lut": "None",
@@ -99,23 +128,23 @@
                 "frameRate": "20FPS"
             }
         },
-       "cameras": {
-            "My WebCam":{
+        "cameras": {
+            "My WebCam": {
                 "deviceType": "WebCam",
                 "deviceID": 0,
-				"showSaturation": true,
-				"ROI": {
-					"leftEdge": 0,
-					"topEdge": 0,
-					"width": 640,
-					"height": 480
-				},
+                "showSaturation": true,
+                "ROI": {
+                    "leftEdge": 0,
+                    "topEdge": 0,
+                    "width": 640,
+                    "height": 480
+                },
                 "compression": "MJPG",
                 "framesPerFile": 1000,
                 "windowScale": 0.5,
                 "windowX": 800,
                 "windowY": 600
             }
-       }
+        }
     }
 }
