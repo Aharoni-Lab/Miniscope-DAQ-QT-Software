@@ -103,6 +103,7 @@ endif()
 # --- Sources ---------------------------------------------------------------
 set(SOURCES
     source/backend.cpp
+    source/configvalidator.cpp
     source/behaviorcam.cpp
     source/behaviortracker.cpp
     source/behaviortrackerworker.cpp
@@ -120,6 +121,7 @@ set(SOURCES
 
 set(HEADERS
     source/backend.h
+    source/configvalidator.h
     source/behaviorcam.h
     source/behaviortracker.h
     source/behaviortrackerworker.h
@@ -230,6 +232,7 @@ endif()
 target_include_directories(MiniscopeDAQ PRIVATE
     source
     ${OpenCV_INCLUDE_DIRS}
+    thirdparty/valijson/include   # header-only JSON Schema validator (see thirdparty/valijson/README.md)
 )
 
 target_link_libraries(MiniscopeDAQ PRIVATE

@@ -80,8 +80,14 @@ void BehaviorTracker::parseUserConfigTracker()
     if (m_btConfig.contains("occupancyPlot")) {
         if (m_btConfig["occupancyPlot"].toObject()["enabled"].toBool(true)) {
             m_plotOcc = true;
-            m_occNumBinsX = m_btConfig["occupancyPlot"].toObject()["numBinX"].toInt(20);
-            m_occNumBinsY = m_btConfig["occupancyPlot"].toObject()["numBinY"].toInt(20);
+            // The documented keys are numBinsX/numBinsY; this code
+            // historically read numBinX/numBinY (so the documented spelling
+            // was silently ignored). Prefer the documented one.
+            const QJsonObject occ = m_btConfig["occupancyPlot"].toObject();
+            m_occNumBinsX = occ.contains("numBinsX") ? occ["numBinsX"].toInt(20)
+                                                     : occ["numBinX"].toInt(20);
+            m_occNumBinsY = occ.contains("numBinsY") ? occ["numBinsY"].toInt(20)
+                                                     : occ["numBinY"].toInt(20);
             QJsonArray tempArray = m_btConfig["occupancyPlot"].toObject()["poseIdxToUse"].toArray();
 
             for (int i=0; i< tempArray.size(); i++) {

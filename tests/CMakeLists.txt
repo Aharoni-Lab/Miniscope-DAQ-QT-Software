@@ -29,6 +29,18 @@ target_include_directories(tst_datasaver PRIVATE ${CMAKE_SOURCE_DIR}/source
 target_link_libraries(tst_datasaver PRIVATE Qt6::Core Qt6::Test ${OpenCV_LIBS})
 add_test(NAME datasaver COMMAND tst_datasaver)
 
+# --- User-config schema validation + key migration ------------------------------
+# Also pins the shipped schema and every shipped example config to each other:
+# an example that stops validating (or a schema edit that breaks one) fails CI.
+qt_add_executable(tst_configvalidator tst_configvalidator.cpp
+    ${CMAKE_SOURCE_DIR}/source/configvalidator.cpp)
+target_include_directories(tst_configvalidator PRIVATE ${CMAKE_SOURCE_DIR}/source
+    ${CMAKE_SOURCE_DIR}/thirdparty/valijson/include)
+target_compile_definitions(tst_configvalidator PRIVATE
+    REPO_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_link_libraries(tst_configvalidator PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME configvalidator COMMAND tst_configvalidator)
+
 # --- macOS IOKit UVC transport (hardware-free smoke tests) ---------------------
 if(APPLE)
     qt_add_executable(tst_uvccontrolmac tst_uvccontrolmac.cpp)

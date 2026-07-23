@@ -1,4 +1,6 @@
 {
+    "$schema": "https://raw.githubusercontent.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/master/deviceConfigs/userConfigSchema.json",
+    "configVersion": 1,
     "dataDirectory": "/tmp/miniscope-linuxtest",
     "directoryStructure": [
         "researcherName",
@@ -6,14 +8,16 @@
         "time"
     ],
     "researcherName": "LinuxPortTest",
-
-    "recordLengthinSeconds": 600,
-
-    "executableOnStartRecording": { "enabled": false },
-    "executableOnStopRecording": { "enabled": false },
-
-    "behaviorTracker": { "enabled": false },
-
+    "recordLengthInSeconds": 600,
+    "executableOnStartRecording": {
+        "enabled": false
+    },
+    "executableOnStopRecording": {
+        "enabled": false
+    },
+    "behaviorTracker": {
+        "enabled": false
+    },
     "traceDisplay": {
         "enabled": true,
         "type": "scrolling",
@@ -22,7 +26,6 @@
         "windowWidth": 600,
         "windowHeight": 800
     },
-
     "devices": {
         "miniscopes": {
             "Test V4 Miniscope": {
@@ -30,7 +33,11 @@
                 "headOrientation": {
                     "enabled": true,
                     "filterBadData": true,
-                    "plotTrace": ["roll", "pitch", "yaw"]
+                    "plotTrace": [
+                        "roll",
+                        "pitch",
+                        "yaw"
+                    ]
                 },
                 "deviceID": 2,
                 "showSaturation": true,

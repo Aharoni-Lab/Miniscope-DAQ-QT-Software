@@ -229,7 +229,7 @@ Item {
                                     onEditingFinished: {
                                         color = "green"
                                         root.ucValues[index] = text;
-                                        if (root.ucProps[index] === "recordLengthinSeconds") {
+                                        if (root.ucProps[index] === "recordLengthInSeconds") {
                                             root.ucRecordLength = text;
                                             ucRecordLengthChanged();
                                         }
