@@ -7,7 +7,7 @@ Every pull request that changes behavior should add a line to the
 **[Unreleased]** section below; the section is renamed to the version number
 when a release is tagged.
 
-## [Unreleased] — first release of the Qt 6 generation
+## [Unreleased] — v2.0.0, first release of the Qt 6 generation
 
 This is one final major release of the Qt desktop software before it is
 superseded long-term by the [miniscope-io](https://github.com/Aharoni-Lab/miniscope-io)
