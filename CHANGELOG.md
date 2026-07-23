@@ -142,6 +142,10 @@ published together from CI.
 - Behavior tracker: a `poseOverlay` config without a `skeleton` section had
   its pose overlay silently disabled even when `enabled` was true (assignment
   instead of comparison in the skeleton check).
+- Quitting (and window creation) no longer spams QML `TypeError` messages to
+  the console: every declarative `backend`/`parent` binding is null-guarded
+  against the teardown/startup window where the referenced object doesn't
+  exist yet or anymore.
 
 ## [1.11] and earlier
 

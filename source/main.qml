@@ -67,8 +67,11 @@ Window {
             anchors.fill: parent
 
             TextArea {
-                text: "Miniscope DAQ Software version " + backend.versionNumber + "<br/>" +
-                      "<font color='#555555'>" + backend.buildInfo + "</font><br/> <br/>" +
+                // "backend ? ..." guards on every declarative backend binding in
+                // this file: the context property nulls during app teardown while
+                // bindings can still re-evaluate, which spammed TypeErrors on quit.
+                text: "Miniscope DAQ Software version " + (backend ? backend.versionNumber : "") + "<br/>" +
+                      "<font color='#555555'>" + (backend ? backend.buildInfo : "") + "</font><br/> <br/>" +
                       "Developed by the <a href='https://aharoni-lab.github.io/'>Aharoni Lab</a>, UCLA <br/> " +
                       "Overview of the UCLA Miniscope project: <a href='http://www.miniscope.org'>click here</a> <br/>" +
                       "Miniscope Wiki for newest projects: <a href='https://github.com/Aharoni-Lab/Miniscope-v4/wiki'>click here</a> <br/>" +
@@ -122,7 +125,7 @@ Window {
     MessageDialog {
         id: errorMessageDialogCompression
         title: "User Config File Error"
-        text: "The selected user configuration file contains video compression(s) that are not supported by your computer. Please edit the file so each 'compression' entry is a supported option from the following list: " + backend.availableCodecList
+        text: "The selected user configuration file contains video compression(s) that are not supported by your computer. Please edit the file so each 'compression' entry is a supported option from the following list: " + (backend ? backend.availableCodecList : "")
         onAccepted: {
             visible = false
         }
@@ -265,7 +268,7 @@ Window {
                 font.bold: true
                 font.weight: Font.Normal
                 radius: 10
-                enabled: backend.userConfigOK
+                enabled: backend ? backend.userConfigOK : false
 
                 Layout.minimumWidth: 100
                 Layout.preferredWidth: 200
@@ -371,7 +374,7 @@ Window {
             TreeViewerJSON {
                 id: treeView
                 objectName: "treeView"
-                model: backend.jsonTreeModel
+                model: backend ? backend.jsonTreeModel : null
 
                 visible: false
                 Layout.rowSpan: 4
@@ -432,7 +435,7 @@ Window {
 
             TextArea {
                 id: taConfigDesc
-                text: backend.userConfigDisplay
+                text: backend ? backend.userConfigDisplay : ""
 //                wrapMode: Text.NoWrap
                                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                                 //                anchors.fill: parent
@@ -470,7 +473,7 @@ Window {
             radius: 10
             text: "Run"
             // Need a valid config AND at least one device (miniscope or camera).
-            enabled: backend.userConfigOK && backend.hasDevices
+            enabled: backend ? (backend.userConfigOK && backend.hasDevices) : false
             Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             Layout.preferredHeight: 40
             font.family: "Arial"

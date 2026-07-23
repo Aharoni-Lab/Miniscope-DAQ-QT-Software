@@ -77,8 +77,8 @@ Dialog {
             // Only the types valid for the category chosen above, filtered by the
             // backend from deviceConfigs/videoDevices.json. Re-evaluates whenever
             // the category changes.
-            model: backend.deviceTypesForCategory(
-                       catCombo.currentText === "Miniscope" ? "miniscopes" : "cameras")
+            model: backend ? backend.deviceTypesForCategory(
+                       catCombo.currentText === "Miniscope" ? "miniscopes" : "cameras") : []
         }
 
         Label { text: "Device ID"; font.pointSize: 12 }
