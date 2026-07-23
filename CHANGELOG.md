@@ -56,6 +56,20 @@ published together from CI.
   channel refuses to guess which device to drive when the configured ID can't
   be resolved ([#88](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/pull/88)).
 
+**Recorded-data quality**
+- Miniscope `timeStamps.csv` files gain a **`DAQ Frame Number`** column: the
+  DAQ hardware's own frame counter logged per saved frame. A jump in it is
+  on-disk evidence of frames lost between the DAQ hardware and the software —
+  previously undetectable — and lets recordings be aligned to the DAQ's
+  per-frame TTL output post-hoc. Behavior-camera CSVs are unchanged.
+- Frame timestamps now come from a **monotonic clock** instead of the wall
+  clock, so an NTP sync, DST change, or manual clock adjustment mid-recording
+  can no longer corrupt inter-frame intervals. CSV times are still
+  milliseconds since recording start; absolute wall-clock start time remains
+  in `metaData.json`.
+- Stopping a recording now **drains the ring buffer** first, so the last
+  frames of a session are saved instead of silently dropped.
+
 ### Changed
 - Build system: qmake → **CMake** (Qt 6.4+, C++17). The old `.pro` file is no
   longer used.

@@ -1,5 +1,6 @@
 #include "videostreamocv.h"
 #include "miniscopeprotocol.h"
+#include "monotonicclock.h"
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
@@ -97,10 +98,12 @@ int VideoStreamOCV::connect2Video(QString folderPath, QString filePrefix, float 
 }
 
 void VideoStreamOCV::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf,
+                                         qint64 *daqFrameNumBuf,
                                          int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS,
                                          QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber){
     frameBuffer = frameBuf;
     timeStampBuffer = tsBuf;
+    daqFrameNumBuffer = daqFrameNumBuf;
     frameBufferSize = bufferSize;
     bnoBuffer = bnoBuf;
     freeFrames = freeFramesS;
@@ -155,7 +158,7 @@ void VideoStreamOCV::startStream()
                 }
                 else {
                     // Grab successful
-                    timestamp = QDateTime::currentMSecsSinceEpoch();
+                    timestamp = monotonicTimeMs();
                     if (!cam->retrieve(frame)) {
                         // Retrieve failed
                         status = false;
@@ -177,7 +180,7 @@ void VideoStreamOCV::startStream()
             }
             else if (m_connectionType == "videoFile") {
                 QThread::msleep(1000.0/m_playbackFPS);
-                timestamp = QDateTime::currentMSecsSinceEpoch();
+                timestamp = monotonicTimeMs();
                 if (!cam->read(frame)) {
                     // Try next file before fully giving up. End playback with
                     // a break, not a return: break falls through to the
@@ -254,6 +257,8 @@ void VideoStreamOCV::startStream()
                         if (*m_acqFrameNum == 0) // Used to initially sync daqFrameNum with acqFrameNum
                             daqFrameNumOffset = *daqFrameNum - 1;
                     }
+                    if (daqFrameNumBuffer != nullptr)
+                        daqFrameNumBuffer[bufIdx] = (daqFrameNum != nullptr) ? qint64(daqFrameNum->loadRelaxed()) : qint64(-1);
 
                     m_acqFrameNum->operator++();
                     idx++;

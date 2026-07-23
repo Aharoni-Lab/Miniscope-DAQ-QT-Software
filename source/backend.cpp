@@ -1,4 +1,5 @@
 #include "backend.h"
+#include "monotonicclock.h"
 #include <QDebug>
 #include <QFileDialog>
 #include <QApplication>
@@ -77,7 +78,7 @@ backEnd::backEnd(QObject *parent) :
 
 //    setUserConfigOK(true);
 #endif
-    m_softwareStartTime = QDateTime().currentMSecsSinceEpoch();
+    m_softwareStartTime = monotonicTimeMs();
 
     // User Config default values
     researcherName = "";
@@ -1164,6 +1165,7 @@ void backEnd::setupDataSaver()
                                             miniscope[i]->getFrameBufferPointer(),
                                             miniscope[i]->getTimeStampBufferPointer(),
                                             miniscope[i]->getBNOBufferPointer(),
+                                            miniscope[i]->getDaqFrameNumBufferPointer(),
                                             miniscope[i]->getBufferSize(),
                                             miniscope[i]->getFreeFramesPointer(),
                                             miniscope[i]->getUsedFramesPointer(),
@@ -1177,7 +1179,8 @@ void backEnd::setupDataSaver()
         dataSaver->setFrameBufferParameters(behavCam[i]->getDeviceName(),
                                             behavCam[i]->getFrameBufferPointer(),
                                             behavCam[i]->getTimeStampBufferPointer(),
-                                            nullptr,
+                                            nullptr,   // no BNO on behavior cams
+                                            nullptr,   // no DAQ frame counter on behavior cams
                                             behavCam[i]->getBufferSize(),
                                             behavCam[i]->getFreeFramesPointer(),
                                             behavCam[i]->getUsedFramesPointer(),

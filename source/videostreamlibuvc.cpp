@@ -3,6 +3,7 @@
 #ifdef HAVE_LIBUVC
 
 #include "miniscopeprotocol.h"
+#include "monotonicclock.h"
 #include "uvcrequest.h"
 
 using namespace MiniscopeProtocol;   // SEL_* selectors, kProcessingUnitId, VID/PID
@@ -35,6 +36,7 @@ VideoStreamLibUVC::VideoStreamLibUVC(QObject *parent, int width, int height, dou
     m_isColor(false),
     frameBuffer(nullptr),
     timeStampBuffer(nullptr),
+    daqFrameNumBuffer(nullptr),
     bnoBuffer(nullptr),
     freeFrames(nullptr),
     usedFrames(nullptr),
@@ -72,11 +74,13 @@ void VideoStreamLibUVC::closeDevice()
 }
 
 void VideoStreamLibUVC::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf,
+                                            qint64 *daqFrameNumBuf,
                                             int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS,
                                             QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber)
 {
     frameBuffer = frameBuf;
     timeStampBuffer = tsBuf;
+    daqFrameNumBuffer = daqFrameNumBuf;
     bnoBuffer = bnoBuf;
     frameBufferSize = bufferSize;
     freeFrames = freeFramesS;
@@ -290,7 +294,7 @@ void VideoStreamLibUVC::startStream()
             }
         } else {
             const int bufIdx = idx % frameBufferSize;
-            timeStampBuffer[bufIdx] = QDateTime::currentMSecsSinceEpoch();
+            timeStampBuffer[bufIdx] = monotonicTimeMs();
 
             // libuvc gives raw YUYV; the Y plane is the Miniscope image.
             cv::Mat yuyv((int)frame->height, (int)frame->width, CV_8UC2, frame->data);
@@ -328,6 +332,8 @@ void VideoStreamLibUVC::startStream()
                 if (*m_acqFrameNum == 0)
                     daqFrameNumOffset = *daqFrameNum - 1;
             }
+            if (daqFrameNumBuffer != nullptr)
+                daqFrameNumBuffer[bufIdx] = (daqFrameNum != nullptr) ? qint64(daqFrameNum->loadRelaxed()) : qint64(-1);
 
             m_acqFrameNum->operator++();
             idx++;

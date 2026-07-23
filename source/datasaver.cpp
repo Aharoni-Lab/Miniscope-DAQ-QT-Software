@@ -21,6 +21,8 @@
 #include <QMetaType>
 #include <QStorageInfo>
 
+#include "monotonicclock.h"
+
 // Fail-loudly disk guards: refuse to start a recording without this much free
 // space, and stop an active one before the disk is completely full - a full
 // disk turns every subsequent frame/CSV write into silent data loss.
@@ -100,6 +102,7 @@ void DataSaver::setFrameBufferParameters(QString name,
                                          cv::Mat *frameBuf,
                                          qint64 *tsBuffer,
                                          float *bnoBuf,
+                                         qint64 *daqFrameNumBuf,
                                          int bufSize,
                                          QSemaphore *freeFrames,
                                          QSemaphore *usedFrames,
@@ -108,6 +111,7 @@ void DataSaver::setFrameBufferParameters(QString name,
     frameBuffer[name] = frameBuf;
     timeStampBuffer[name] = tsBuffer;
     bnoBuffer[name] = bnoBuf;
+    daqFrameNumBuffer[name] = daqFrameNumBuf;
     bufferSize[name] = bufSize;
     freeCount[name] = freeFrames;
     usedCount[name] = usedFrames;
@@ -164,14 +168,10 @@ void DataSaver::startRunning()
 
     m_running = true;
     int i, j;
-    int bufPosition;
     int poseBufPosition;
-    int fileNum;
-    bool isColor;
 
     QString poseData;
 
-    QString tempStr;
     QStringList names;
     while(m_running) {
         // For Behavior Tracker
@@ -195,97 +195,102 @@ void DataSaver::startRunning()
         names = frameBuffer.keys();
         for (i = 0; i < frameBuffer.size(); i++) {
             while (usedCount[names[i]]->tryAcquire()) {
-                // grad info from buffer in a threadsafe way
-                if (m_recording) {
-                    // save frame to file
-                    if ((savedFrameCount[names[i]] % framesPerFile[names[i]]) == 0) {
-                        // Create first as well as new video files
-                        fileNum = (int) (savedFrameCount[names[i]] / framesPerFile[names[i]]);
-                        tempStr = deviceDirectory[names[i]] + "/" + QString::number(fileNum) + ".avi";
-                        videoWriter[names[i]]->release(); // release full file
-                        if (frameBuffer[names[i]][0].channels() == 1)
-                            isColor = false;
-                        else
-                            isColor = true;
-                        // TODO: Add compression options here
-                        // A device that never got setROI() must record
-                        // un-trimmed, not crash on the null pointer.
-                        const int *roi = ROI.value(names[i], nullptr);
-                        bool videoFileOpened;
-                        if (roi && roi[0] >= 0 && roi[1] >= 0 && roi[2] >= 0 && roi[3] >= 0) {
-                            // Need to trim frame to ROI
-                            videoFileOpened = videoWriter[names[i]]->open(tempStr.toUtf8().constData(),
-                                    dataCompressionFourCC[names[i]], 60,
-                                    cv::Size(roi[2], roi[3]), isColor); // color should be set to false?
-                        }
-                        else {
-                            videoFileOpened = videoWriter[names[i]]->open(tempStr.toUtf8().constData(),
-                                    dataCompressionFourCC[names[i]], 60,
-                                    cv::Size(frameBuffer[names[i]][0].cols, frameBuffer[names[i]][0].rows), isColor); // color should be set to false?
-                        }
-                        if (!videoFileOpened) {
-                            // Without this check every subsequent write() would
-                            // silently discard frames while the UI says Recording.
-                            sendMessage("Error: " + names[i] + " could not create video file "
-                                        + tempStr + " (full disk? missing codec?). Recording stopped; "
-                                        + "data recorded so far is saved.");
-                            stopRecording();
-                            emit recordingFailed();
-                        }
-                    }
+                // grab info from buffer in a threadsafe way
+                if (m_recording && !writeBufferedFrame(names[i])) {
+                    // Could not create the next video file / disk nearly full
+                    // (already reported). Stop cleanly: data so far is saved.
+                    stopRecording();
+                    emit recordingFailed();
                 }
-                if (m_recording) {
-                    bufPosition = frameCount[names[i]] % bufferSize[names[i]];
-                    *csvStream[names[i]] << savedFrameCount[names[i]] << ","
-                                         << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << ","
-                                         << usedCount[names[i]]->available() << Qt::endl;
-
-                    if (headOrientationStreamState[names[i]] == true && bnoBuffer[names[i]] != nullptr) {
-                        if (headOrientationFilterState[names[i]] && bnoBuffer[names[i]][bufPosition*5 + 4] >= 0.05) { // norm is below 0.98. Should be 1 ideally
-                            // Filter bad data and current data is bad
-                        }
-                        else {
-                            *headOriStream[names[i]] << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << ","
-                                                     << bnoBuffer[names[i]][bufPosition*5 + 0] << ","
-                                                     << bnoBuffer[names[i]][bufPosition*5 + 1] << ","
-                                                     << bnoBuffer[names[i]][bufPosition*5 + 2] << ","
-                                                     << bnoBuffer[names[i]][bufPosition*5 + 3] << Qt::endl;
-                        }
-
-                    }
-
-                    // TODO: Increment video file if reach max frame number per file
-                    const int *roi = ROI.value(names[i], nullptr);
-                    if (roi && roi[0] >= 0 && roi[1] >= 0 && roi[2] >= 0 && roi[3] >= 0) {
-                        videoWriter[names[i]]->write(frameBuffer[names[i]][bufPosition](cv::Rect(roi[0], roi[1], roi[2], roi[3])));
-
-                    }
-                    else
-                        videoWriter[names[i]]->write(frameBuffer[names[i]][bufPosition]);
-
-                    savedFrameCount[names[i]]++;
-
-                    // Stop cleanly before the disk fills: a full disk makes
-                    // every write above a silent no-op. Checked every
-                    // kDiskCheckFrameInterval frames (one statfs call).
-                    if ((savedFrameCount[names[i]] % kDiskCheckFrameInterval) == 0) {
-                        const qint64 bytesFree = QStorageInfo(baseDirectory).bytesAvailable();
-                        if (bytesFree >= 0 && bytesFree < kMinFreeBytesToContinue) {
-                            sendMessage("Error: disk holding " + baseDirectory + " is nearly full ("
-                                        + QString::number(bytesFree / (1024 * 1024))
-                                        + " MB free). Recording stopped; data recorded so far is saved.");
-                            stopRecording();
-                            emit recordingFailed();
-                        }
-                    }
-                }
-
                 frameCount[names[i]]++;
                 freeCount[names[i]]->release(1);
             }
         }
         QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices
     }
+}
+
+// Write the frame at this device's current ring-buffer position to disk
+// (rolling the video file every framesPerFile frames), plus its
+// timeStamps.csv row and head-orientation row. Returns false when the
+// recording cannot continue (video file creation failed, disk nearly full);
+// the cause has then already been reported via sendMessage.
+bool DataSaver::writeBufferedFrame(const QString &name)
+{
+    if ((savedFrameCount[name] % framesPerFile[name]) == 0) {
+        // Create first as well as new video files
+        int fileNum = (int) (savedFrameCount[name] / framesPerFile[name]);
+        QString fileName = deviceDirectory[name] + "/" + QString::number(fileNum) + ".avi";
+        videoWriter[name]->release(); // release full file
+        bool isColor = frameBuffer[name][0].channels() != 1;
+        // TODO: Add compression options here
+        // A device that never got setROI() must record un-trimmed, not crash
+        // on the null pointer.
+        const int *roi = ROI.value(name, nullptr);
+        bool videoFileOpened;
+        if (roi && roi[0] >= 0 && roi[1] >= 0 && roi[2] >= 0 && roi[3] >= 0) {
+            // Need to trim frame to ROI
+            videoFileOpened = videoWriter[name]->open(fileName.toUtf8().constData(),
+                    dataCompressionFourCC[name], 60,
+                    cv::Size(roi[2], roi[3]), isColor); // color should be set to false?
+        }
+        else {
+            videoFileOpened = videoWriter[name]->open(fileName.toUtf8().constData(),
+                    dataCompressionFourCC[name], 60,
+                    cv::Size(frameBuffer[name][0].cols, frameBuffer[name][0].rows), isColor); // color should be set to false?
+        }
+        if (!videoFileOpened) {
+            // Without this check every subsequent write() would silently
+            // discard frames while the UI says Recording.
+            sendMessage("Error: " + name + " could not create video file "
+                        + fileName + " (full disk? missing codec?). Recording stopped; "
+                        + "data recorded so far is saved.");
+            return false;
+        }
+    }
+
+    const int bufPosition = frameCount[name] % bufferSize[name];
+    *csvStream[name] << savedFrameCount[name] << ","
+                     << (timeStampBuffer[name][bufPosition] - recordStartTimeMs) << ","
+                     << usedCount[name]->available();
+    if (daqFrameNumBuffer.value(name, nullptr) != nullptr)
+        *csvStream[name] << "," << daqFrameNumBuffer[name][bufPosition];
+    *csvStream[name] << Qt::endl;
+
+    if (headOrientationStreamState[name] == true && bnoBuffer[name] != nullptr) {
+        if (headOrientationFilterState[name] && bnoBuffer[name][bufPosition*5 + 4] >= 0.05) { // norm is below 0.98. Should be 1 ideally
+            // Filter bad data and current data is bad
+        }
+        else {
+            *headOriStream[name] << (timeStampBuffer[name][bufPosition] - recordStartTimeMs) << ","
+                                 << bnoBuffer[name][bufPosition*5 + 0] << ","
+                                 << bnoBuffer[name][bufPosition*5 + 1] << ","
+                                 << bnoBuffer[name][bufPosition*5 + 2] << ","
+                                 << bnoBuffer[name][bufPosition*5 + 3] << Qt::endl;
+        }
+    }
+
+    const int *roi = ROI.value(name, nullptr);
+    if (roi && roi[0] >= 0 && roi[1] >= 0 && roi[2] >= 0 && roi[3] >= 0)
+        videoWriter[name]->write(frameBuffer[name][bufPosition](cv::Rect(roi[0], roi[1], roi[2], roi[3])));
+    else
+        videoWriter[name]->write(frameBuffer[name][bufPosition]);
+
+    savedFrameCount[name]++;
+
+    // Stop cleanly before the disk fills: a full disk makes every write above
+    // a silent no-op. Checked every kDiskCheckFrameInterval frames (one
+    // statfs call).
+    if ((savedFrameCount[name] % kDiskCheckFrameInterval) == 0) {
+        const qint64 bytesFree = QStorageInfo(baseDirectory).bytesAvailable();
+        if (bytesFree >= 0 && bytesFree < kMinFreeBytesToContinue) {
+            sendMessage("Error: disk holding " + baseDirectory + " is nearly full ("
+                        + QString::number(bytesFree / (1024 * 1024))
+                        + " MB free). Recording stopped; data recorded so far is saved.");
+            return false;
+        }
+    }
+    return true;
 }
 
 void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
@@ -312,6 +317,7 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
     }
     QJsonDocument jDoc;
     recordStartDateTime = QDateTime::currentDateTime();
+    recordStartTimeMs = monotonicTimeMs();   // frame stamps use the same monotonic clock
     if (setupFilePaths()) {
         // Refuse to start a recording that is about to run into a full disk.
         const qint64 bytesFree = QStorageInfo(baseDirectory).bytesAvailable();
@@ -394,7 +400,14 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
             csvFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/timeStamps.csv");
             if (openForWrite(csvFile[keys[i]])) {
                 csvStream[keys[i]] = new QTextStream(csvFile[keys[i]]);
-                *csvStream[keys[i]] << "Frame Number,Time Stamp (ms),Buffer Index" << Qt::endl;
+                *csvStream[keys[i]] << "Frame Number,Time Stamp (ms),Buffer Index";
+                if (daqFrameNumBuffer.value(keys[i], nullptr) != nullptr) {
+                    // The DAQ hardware's own frame counter, logged per frame so
+                    // frames lost between the DAQ and the software are
+                    // detectable (counter jump) and TTL-alignable post-hoc.
+                    *csvStream[keys[i]] << ",DAQ Frame Number";
+                }
+                *csvStream[keys[i]] << Qt::endl;
             }
 
             if (headOrientationStreamState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr) {
@@ -445,6 +458,20 @@ void DataSaver::stopRecording()
         return;
     }
     m_recording = false;
+
+    // Drain frames already acquired into the ring buffer so the tail of the
+    // recording is saved instead of silently dropped.
+    QStringList names = frameBuffer.keys();
+    for (int i = 0; i < names.length(); i++) {
+        bool ok = true;
+        while (usedCount[names[i]]->tryAcquire()) {
+            if (ok)
+                ok = writeBufferedFrame(names[i]);
+            frameCount[names[i]]++;
+            freeCount[names[i]]->release(1);
+        }
+    }
+
     QStringList keys = videoWriter.keys();
     for (int i = 0; i < keys.length(); i++) {
         videoWriter[keys[i]]->release();
@@ -503,7 +530,7 @@ void DataSaver::takeNote(QString note)
     // Writes note to file submitted through control panel
     // Only write notes when recording
     if (m_recording) {
-        *noteStream << QDateTime().currentMSecsSinceEpoch() - recordStartDateTime.toMSecsSinceEpoch() << "," << note << Qt::endl;
+        *noteStream << monotonicTimeMs() - recordStartTimeMs << "," << note << Qt::endl;
     }
 }
 

@@ -1,4 +1,5 @@
 #include "videostreammac.h"
+#include "monotonicclock.h"
 
 #include <QDebug>
 #include <QCoreApplication>
@@ -25,6 +26,7 @@ VideoStreamMac::VideoStreamMac(QObject *parent, int width, int height, double pi
     m_isColor(false),
     frameBuffer(nullptr),
     timeStampBuffer(nullptr),
+    daqFrameNumBuffer(nullptr),
     bnoBuffer(nullptr),
     freeFrames(nullptr),
     usedFrames(nullptr),
@@ -47,11 +49,13 @@ VideoStreamMac::~VideoStreamMac()
 }
 
 void VideoStreamMac::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf,
+                                         qint64 *daqFrameNumBuf,
                                          int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS,
                                          QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber)
 {
     frameBuffer = frameBuf;
     timeStampBuffer = tsBuf;
+    daqFrameNumBuffer = daqFrameNumBuf;
     bnoBuffer = bnoBuf;
     frameBufferSize = bufferSize;
     freeFrames = freeFramesS;
@@ -274,7 +278,7 @@ void VideoStreamMac::startStream()
                 QThread::msleep(100);
             }
         } else {
-            timeStampBuffer[idx % frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
+            timeStampBuffer[idx % frameBufferSize] = monotonicTimeMs();
 
             if (m_isColor)
                 frame.copyTo(frameBuffer[idx % frameBufferSize]);
@@ -317,6 +321,8 @@ void VideoStreamMac::startStream()
                         << " daqFrameCounter=" << (*daqFrameNum + daqFrameNumOffset)
                         << " ts=" << timeStampBuffer[idx % frameBufferSize];
             }
+            if (daqFrameNumBuffer != nullptr)
+                daqFrameNumBuffer[idx % frameBufferSize] = (daqFrameNum != nullptr) ? qint64(daqFrameNum->loadRelaxed()) : qint64(-1);
 
             m_acqFrameNum->operator++();
             idx++;

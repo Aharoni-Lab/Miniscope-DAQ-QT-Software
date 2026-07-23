@@ -118,6 +118,7 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
         deviceStream->setBufferParameters(frameBuffer,
                                              timeStampBuffer,
                                              bnoBuffer,
+                                             daqFrameNumBuffer,
                                              FRAME_BUFFER_SIZE,
                                              freeFrames,
                                              usedFrames,
