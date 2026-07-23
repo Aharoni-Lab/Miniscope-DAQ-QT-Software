@@ -62,25 +62,33 @@ void VideoStreamMac::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float
 }
 
 // Resolve the AVFoundation/OpenCV device index to the exact USB device and
-// open its VideoControl interface (robust with multiple Miniscopes: the
-// index's uniqueID carries the USB locationID). Falls back to the first
-// Miniscope by VID/PID when the index can't be resolved.
+// open its VideoControl interface. The which-device decision (including when
+// falling back to "the one Miniscope attached" is safe, and when it must fail
+// instead of guessing) lives in resolveControlTarget - see its declaration.
 bool VideoStreamMac::openControlForIndex(int cameraID)
 {
-    quint32 locationID = 0;
-    const auto cameras = enumerateAvfCameras();
-    if (cameraID >= 0 && cameraID < cameras.size() && cameras[cameraID].isUsb) {
-        locationID = cameras[cameraID].locationID;
-        if (cameras[cameraID].vid != kUsbVendorId || cameras[cameraID].pid != kUsbProductId)
-            sendMessage("Warning: deviceID " + QString::number(cameraID) + " (" +
-                        cameras[cameraID].name + ") does not look like a Miniscope DAQ.");
+    QVector<quint32> attached;
+    const auto miniscopes = UVCControlMac::enumerate(kUsbVendorId, kUsbProductId);
+    for (const auto &dev : miniscopes)
+        attached.append(dev.locationID);
+
+    const ControlTarget target = resolveControlTarget(enumerateAvfCameras(), cameraID,
+                                                      kUsbVendorId, kUsbProductId, attached);
+    if (!target.warning.isEmpty())
+        sendMessage("Warning: " + m_deviceName + ": " + target.warning);
+    if (!target.ok) {
+        sendMessage("Error: " + m_deviceName + ": " + target.error);
+        return false;
     }
 
-    if (m_control.open(kUsbVendorId, kUsbProductId, locationID))
+    if (m_control.open(kUsbVendorId, kUsbProductId, target.locationID))
         return true;
-    if (locationID != 0 && m_control.open(kUsbVendorId, kUsbProductId, 0)) {
+    // The resolved device would not open (e.g. a transient IOKit failure).
+    // Retrying as "any Miniscope" is again only safe with exactly one attached.
+    if (target.locationID != 0 && attached.size() == 1
+        && m_control.open(kUsbVendorId, kUsbProductId, 0)) {
         sendMessage("Warning: " + m_deviceName + " control channel fell back to the "
-                    "first Miniscope on the bus.");
+                    "only Miniscope on the bus.");
         return true;
     }
     sendMessage("Error: could not open the Miniscope control channel for " + m_deviceName +

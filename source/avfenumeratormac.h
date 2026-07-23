@@ -21,6 +21,28 @@ struct AvfCameraInfo {
 
 QVector<AvfCameraInfo> enumerateAvfCameras();
 
+// Decision of WHICH USB device the Miniscope control channel opens for a user
+// config's deviceID (an AVFoundation/OpenCV index). Split out as a pure
+// function because getting it wrong is the worst multi-scope failure mode:
+// frames from one scope with LED/gain commands silently driving another.
+struct ControlTarget {
+    bool ok = false;
+    quint32 locationID = 0;  // USB locationID to open when ok
+    QString warning;         // non-fatal, surface to the user when non-empty
+    QString error;           // the reason, when !ok
+};
+
+// cameras/cameraID: the AVFoundation list and the config's index into it.
+// expectedVid/Pid: the Miniscope DAQ USB identity (for a sanity warning).
+// attachedLocations: locationIDs of every attached device with that identity
+// (UVCControlMac::enumerate) - the fallback set when the index doesn't
+// resolve. Falling back is only allowed when that set has exactly ONE entry;
+// with several Miniscopes attached an unresolvable index is an error, never
+// a guess.
+ControlTarget resolveControlTarget(const QVector<AvfCameraInfo> &cameras, int cameraID,
+                                   quint16 expectedVid, quint16 expectedPid,
+                                   const QVector<quint32> &attachedLocations);
+
 // AVCaptureDevice.uniqueID for a USB camera is the hex of the 64-bit value
 // (locationID << 32) | (vid << 16) | pid, with or without a "0x" prefix and
 // possibly without leading zeros. Non-USB devices (the built-in camera on

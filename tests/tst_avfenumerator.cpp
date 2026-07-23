@@ -14,6 +14,11 @@ private slots:
     void parseWithoutPrefixOrLeadingZeros();
     void parseRejectsOpaqueIds();
     void enumerateRuns();
+    void resolveUsesIndexLocation();
+    void resolveWarnsOnUnexpectedIdentity();
+    void resolveFallsBackToOnlyMiniscope();
+    void resolveRefusesToGuessAmongSeveral();
+    void resolveFailsWithNoneAttached();
 };
 
 void TestAvfEnumerator::parseUsbUniqueId()
@@ -63,6 +68,89 @@ void TestAvfEnumerator::enumerateRuns()
             QVERIFY(cam.vid != 0);
         }
     }
+}
+
+// --- resolveControlTarget: which USB device the control channel opens --------
+// The multi-scope failure mode this guards against: two Miniscopes share
+// VID/PID, so a wrong decision here streams frames from one scope while LED /
+// gain commands silently drive the other.
+
+static const quint16 kVid = 0x04b4, kPid = 0x00f9;   // Miniscope DAQ (Cypress FX3)
+
+static AvfCameraInfo usbCam(const QString &name, quint32 loc, quint16 vid, quint16 pid)
+{
+    AvfCameraInfo cam;
+    cam.name = name;
+    cam.locationID = loc;
+    cam.vid = vid;
+    cam.pid = pid;
+    cam.isUsb = true;
+    return cam;
+}
+
+void TestAvfEnumerator::resolveUsesIndexLocation()
+{
+    // Two Miniscopes attached; the index resolves, so each deviceID must map
+    // to its own locationID - never "the first one found".
+    const QVector<AvfCameraInfo> cams = {usbCam("Miniscope A", 0x00100000, kVid, kPid),
+                                         usbCam("Miniscope B", 0x00200000, kVid, kPid)};
+    const QVector<quint32> attached = {0x00100000, 0x00200000};
+
+    const auto a = resolveControlTarget(cams, 0, kVid, kPid, attached);
+    QVERIFY(a.ok);
+    QCOMPARE(a.locationID, quint32(0x00100000));
+    QVERIFY(a.warning.isEmpty());
+
+    const auto b = resolveControlTarget(cams, 1, kVid, kPid, attached);
+    QVERIFY(b.ok);
+    QCOMPARE(b.locationID, quint32(0x00200000));
+}
+
+void TestAvfEnumerator::resolveWarnsOnUnexpectedIdentity()
+{
+    // The config points at a resolvable USB camera that isn't a Miniscope:
+    // proceed (it may be a behavior cam misconfigured as a Miniscope - the
+    // open will fail cleanly) but tell the user what it looked like.
+    const QVector<AvfCameraInfo> cams = {usbCam("HD Web Camera", 0x00100000, 0x05a3, 0x9331)};
+    const auto t = resolveControlTarget(cams, 0, kVid, kPid, {});
+    QVERIFY(t.ok);
+    QCOMPARE(t.locationID, quint32(0x00100000));
+    QVERIFY(t.warning.contains(QStringLiteral("does not look like a Miniscope")));
+}
+
+void TestAvfEnumerator::resolveFallsBackToOnlyMiniscope()
+{
+    // Index unresolvable (opaque uniqueID -> isUsb=false), but exactly one
+    // Miniscope is attached: unambiguous, use it (with a warning).
+    AvfCameraInfo builtin;
+    builtin.name = QStringLiteral("FaceTime HD Camera");
+    const auto t = resolveControlTarget({builtin}, 0, kVid, kPid, {0x00300000});
+    QVERIFY(t.ok);
+    QCOMPARE(t.locationID, quint32(0x00300000));
+    QVERIFY(t.warning.contains(QStringLiteral("only Miniscope")));
+
+    // Same for an out-of-range index (stale deviceID in the config).
+    const auto o = resolveControlTarget({builtin}, 5, kVid, kPid, {0x00300000});
+    QVERIFY(o.ok);
+    QCOMPARE(o.locationID, quint32(0x00300000));
+}
+
+void TestAvfEnumerator::resolveRefusesToGuessAmongSeveral()
+{
+    // Index unresolvable AND several Miniscopes attached: must fail loudly,
+    // never coin-flip the control channel onto one of them.
+    AvfCameraInfo builtin;
+    const auto t = resolveControlTarget({builtin}, 0, kVid, kPid,
+                                        {0x00100000, 0x00200000});
+    QVERIFY(!t.ok);
+    QVERIFY(t.error.contains(QStringLiteral("refusing to guess")));
+}
+
+void TestAvfEnumerator::resolveFailsWithNoneAttached()
+{
+    const auto t = resolveControlTarget({}, 0, kVid, kPid, {});
+    QVERIFY(!t.ok);
+    QVERIFY(t.error.contains(QStringLiteral("no Miniscope DAQ")));
 }
 
 QTEST_MAIN(TestAvfEnumerator)

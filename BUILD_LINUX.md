@@ -70,8 +70,8 @@ cmake --build build -j"$(nproc)"
 ```
 
 Look for `libuvc found (...); Miniscope Linux capture backend enabled` in the
-configure log. Keep `USE_PYTHON=ON` (the DeepLabCut tracker's `PyObject` members
-in `behaviortrackerworker.h` aren't `#ifdef`-guarded, so `OFF` doesn't compile yet).
+configure log. `USE_PYTHON=OFF` also builds if you don't need the DeepLabCut-Live
+behavior tracker (the packaged AppImage ships that way).
 
 - [ ] Configure finds Qt6, OpenCV, Python3+NumPy, **and libuvc**
 - [ ] Build completes; `build/MiniscopeDAQ` exists
@@ -109,8 +109,9 @@ Pick the **capture** node for each device. Example seen during this port:
 `/dev/video2` = **Miniscope capture**, `/dev/video3` = Miniscope metadata. So the
 Miniscope needed `deviceID: 2`, not `1`.
 
-> The **Scan Devices** button is Windows-only (DirectShow, `#ifdef Q_OS_WINDOWS`);
-> set `deviceID` manually on Linux.
+> The **Scan Devices** button does this scan for you (V4L2 enumeration,
+> `backend.cpp: scanVideoDevicesLinux()`), distinguishing capture nodes from
+> metadata nodes; the manual `v4l2-ctl` route above is the fallback/cross-check.
 
 ---
 
