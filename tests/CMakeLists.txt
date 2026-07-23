@@ -34,7 +34,8 @@ add_test(NAME datasaver COMMAND tst_datasaver)
 # an example that stops validating (or a schema edit that breaks one) fails CI.
 qt_add_executable(tst_configvalidator tst_configvalidator.cpp
     ${CMAKE_SOURCE_DIR}/source/configvalidator.cpp)
-target_include_directories(tst_configvalidator PRIVATE ${CMAKE_SOURCE_DIR}/source
+target_include_directories(tst_configvalidator PRIVATE ${CMAKE_SOURCE_DIR}/source)
+target_include_directories(tst_configvalidator SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/thirdparty/valijson/include)
 target_compile_definitions(tst_configvalidator PRIVATE
     REPO_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
