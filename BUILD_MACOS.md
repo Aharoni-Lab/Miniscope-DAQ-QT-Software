@@ -1,10 +1,11 @@
 # Building & running the Miniscope DAQ on macOS (Apple Silicon)
 
-Status: **builds and launches natively on Apple Silicon (macOS 15, arm64) with
-zero code changes** — the main window renders, all seven custom GLSL shader
-programs compile against macOS's OpenGL 2.1 context, and the FFV1/GREY
-recording codecs are available. **Miniscope hardware control does not work
-yet** — see "Port status" below for what remains and how it will be done.
+Status: **fully working and bench-validated on real Miniscope hardware**
+(stock V4 + standard DAQ, Apple Silicon, July 2026): native streaming pinned
+to the scope's USB identity, LED/gain/EWL/frame-rate control with confirmed
+effect on the sensor, live DAQ frame counter with zero drops over multi-minute
+runs, BNO head-orientation traces, and dual-device capture alongside a USB
+webcam. See "Port status" below for the per-area detail.
 
 The C++/CMake were already cross-platform: every Windows- or Linux-specific bit
 is gated behind `if(WIN32)` / `UNIX AND NOT APPLE` (CMake) or
@@ -124,8 +125,8 @@ selection can still interfere at session start.
 | Main window / QML UI / OpenGL shaders | ✅ verified (GL 2.1, all 7 shader programs compile+link) |
 | Recording codecs (FFV1, GREY via FFmpeg) | ✅ reported supported |
 | Scan Devices button | ✅ AVFoundation enumeration (index == deviceID; Miniscopes called out) |
-| **Miniscope control transport (IOKit pipe-0)** | ✅ implemented + validated against USB webcams, incl. while streaming — Miniscope bench test pending |
-| **Miniscope capture backend (`VideoStreamMac` hybrid)** | ⚠️ implemented, needs a Miniscope on the bench |
+| **Miniscope control transport (IOKit pipe-0)** | ✅ bench-validated on a real Miniscope (LED/gain/EWL/frame rate, DAQ counter, BNO) |
+| **Miniscope capture backend (`VideoStreamMac` hybrid)** | ✅ bench-validated: uniqueID-pinned stream, zero frame drops, survives iPhone/webcam hot-plugs and USB-drop reconnects |
 | Behavior webcams (OpenCV → AVFoundation) | ✅ `.app` bundle gives proper camera-permission attribution (`NSCameraUsageDescription`) |
 | Packaged `.app` / DMG | ✅ `packaging/macos/build-dmg.sh`, wired into release CI (ad-hoc signed; right-click → Open) |
 
@@ -142,11 +143,13 @@ control channel through UVC Processing-Unit controls (I²C commands out via
   every launch (that is how libuvc-based apps like Pupil Capture ship on
   macOS). Not acceptable here.
 
-**The planned fix** is a hybrid backend: frames stream via OpenCV/AVFoundation
-as a normal camera, while a small IOKit module sends the UVC `SET_CUR`/`GET_CUR`
-requests over **the default control pipe (pipe 0) of the VideoControl
-interface, without opening the interface** — which Apple's driver leaves
-available while it streams (an Apple-DTS-sanctioned pattern, used by
-openpnp-capture among others; requires no root and no special entitlements).
-Unlike Linux's `uvcvideo`, there is no kernel-side control cache in this path,
-so `GET_CUR` reads are live by construction.
+**The fix** (implemented, bench-validated) is a hybrid backend: frames stream
+through a native AVFoundation capture session pinned to the scope's stable
+`uniqueID` (`avfframegrabbermac.mm` — not OpenCV, whose index-based opening
+binds the wrong camera when the device list shifts), while a small IOKit
+module sends the UVC `SET_CUR`/`GET_CUR` requests over **the default control
+pipe (pipe 0) of the VideoControl interface, without opening the interface** —
+which Apple's driver leaves available while it streams (an Apple-DTS-sanctioned
+pattern, used by openpnp-capture among others; requires no root and no special
+entitlements). Unlike Linux's `uvcvideo`, there is no kernel-side control cache
+in this path, so `GET_CUR` reads are live by construction.
