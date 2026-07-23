@@ -6,6 +6,7 @@
 #include <condition_variable>
 #include <mutex>
 
+#include <QDebug>
 #include <opencv2/imgproc.hpp>
 
 // Compiled with ARC (see CMakeLists) - no manual retain/release.
@@ -20,6 +21,7 @@
     std::condition_variable frameArrived;
     cv::Mat latest;      // 8UC3 BGR
     uint64_t sequence;   // bumps once per delivered frame
+    OSType loggedFormat; // first delivered format, logged once
 }
 @end
 
@@ -35,11 +37,42 @@
     const int w = int(CVPixelBufferGetWidth(image));
     const int h = int(CVPixelBufferGetHeight(image));
     const size_t stride = CVPixelBufferGetBytesPerRow(image);
+    const OSType format = CVPixelBufferGetPixelFormatType(image);
     void *base = CVPixelBufferGetBaseAddress(image);
+
+    if (loggedFormat != format) {
+        loggedFormat = format;
+        const char fourcc[5] = {char(format >> 24), char(format >> 16),
+                                char(format >> 8), char(format), 0};
+        qInfo().nospace() << "[diag] grabber pixel format '" << fourcc << "' " << w << "x" << h
+                          << " stride=" << stride;
+    }
+
     if (base && w > 0 && h > 0) {
-        const cv::Mat bgra(h, w, CV_8UC4, base, stride);
         std::lock_guard<std::mutex> lock(mutex);
-        cv::cvtColor(bgra, latest, cv::COLOR_BGRA2BGR);
+        // Interpret the buffer by what AVFoundation actually DELIVERED, never
+        // by what was requested - a device may ignore the requested format
+        // (reading YUY2 bytes as BGRA shows as garbled, row-shifted video).
+        switch (format) {
+        case kCVPixelFormatType_32BGRA:
+            cv::cvtColor(cv::Mat(h, w, CV_8UC4, base, stride), latest, cv::COLOR_BGRA2BGR);
+            break;
+        case kCVPixelFormatType_422YpCbCr8:        // '2vuy' = UYVY
+            cv::cvtColor(cv::Mat(h, w, CV_8UC2, base, stride), latest, cv::COLOR_YUV2BGR_UYVY);
+            break;
+        case kCVPixelFormatType_422YpCbCr8_yuvs:   // 'yuvs' = YUYV / YUY2
+        case kCVPixelFormatType_422YpCbCr8FullRange:
+            cv::cvtColor(cv::Mat(h, w, CV_8UC2, base, stride), latest, cv::COLOR_YUV2BGR_YUY2);
+            break;
+        case kCVPixelFormatType_24BGR:
+            cv::Mat(h, w, CV_8UC3, base, stride).copyTo(latest);
+            break;
+        default:
+            // Unknown layout: drop the frame rather than mis-render it. The
+            // one-time format log above tells us what to add.
+            CVPixelBufferUnlockBaseAddress(image, kCVPixelBufferLock_ReadOnly);
+            return;
+        }
         sequence++;
     }
     CVPixelBufferUnlockBaseAddress(image, kCVPixelBufferLock_ReadOnly);

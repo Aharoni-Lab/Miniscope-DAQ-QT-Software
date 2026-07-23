@@ -162,18 +162,29 @@ int VideoStreamMac::connect2Camera(int cameraID)
 // SET_CURs into the I2C tunnel).
 void VideoStreamMac::logStallDiagnosis()
 {
-    const int c0 = getPU(SEL_CONTRAST);
+    quint16 c0 = 0, c1 = 0, c2 = 0;
+    const bool ok0 = m_control.getCur(kProcessingUnitId, SEL_CONTRAST, &c0);
     QThread::msleep(500);
-    const int c1 = getPU(SEL_CONTRAST);
+    const bool ok1 = m_control.getCur(kProcessingUnitId, SEL_CONTRAST, &c1);
     QThread::msleep(500);
-    const int c2 = getPU(SEL_CONTRAST);
-    const bool advancing = (c1 != c0) || (c2 != c1);
-    const QString verdict = advancing
-        ? QStringLiteral("DAQ frame counter ADVANCING (%1 -> %2 -> %3): scope video link is "
-                         "alive, AVFoundation session died")
-        : QStringLiteral("DAQ frame counter FROZEN (%1 -> %2 -> %3): scope video pipeline is "
-                         "down (sensor/SERDES state suspect)");
-    const QString msg = verdict.arg(c0).arg(c1).arg(c2);
+    const bool ok2 = m_control.getCur(kProcessingUnitId, SEL_CONTRAST, &c2);
+
+    QString msg;
+    if (!ok0 && !ok1 && !ok2) {
+        // The control channel is gone too: this is a USB-level disconnect
+        // (cable/power/bus), not a video-layer problem.
+        msg = QStringLiteral("control channel unreachable as well (%1): the DAQ has "
+                             "disconnected at the USB level - check cable/hub/power")
+                  .arg(m_control.lastError());
+    } else if (c0 != c1 || c1 != c2) {
+        msg = QStringLiteral("DAQ frame counter ADVANCING (%1 -> %2 -> %3): scope video link "
+                             "is alive, AVFoundation session died")
+                  .arg(c0).arg(c1).arg(c2);
+    } else {
+        msg = QStringLiteral("DAQ frame counter FROZEN (%1 -> %2 -> %3): scope video pipeline "
+                             "is down (sensor/SERDES state suspect)")
+                  .arg(c0).arg(c1).arg(c2);
+    }
     qInfo().noquote() << "[diag]" << m_deviceName << msg;
     sendMessage("Diag: " + m_deviceName + " " + msg);
 }
@@ -228,6 +239,7 @@ void VideoStreamMac::startStream()
 
     qInfo() << "[diag]" << m_deviceName << "stream loop starting";
 
+    int reconnectAttempts = 0;
     m_isStreaming = true;
     forever {
         if (m_stopStreaming) {
@@ -236,15 +248,26 @@ void VideoStreamMac::startStream()
         }
 
         if (!m_grabber.read(frame)) {
-            qInfo() << "[diag]" << m_deviceName << "no frame at" << idx << "("
-                    << m_grabber.lastError() << ") - running stall diagnosis";
-            sendMessage("Warning: " + m_deviceName + " grab frame failed. Attempting to reconnect.");
-            logStallDiagnosis();
+            // Diagnose and message on the FIRST failure of a stall episode;
+            // later attempts back off quietly (a device that fell off the bus
+            // can take a while to come back, and every attempt already logs).
+            if (reconnectAttempts == 0) {
+                qInfo() << "[diag]" << m_deviceName << "no frame at" << idx << "("
+                        << m_grabber.lastError() << ") - running stall diagnosis";
+                sendMessage("Warning: " + m_deviceName + " grab frame failed. Attempting to reconnect.");
+                logStallDiagnosis();
+            }
+            reconnectAttempts++;
             m_grabber.release();
-            QThread::msleep(1000);
+            QThread::msleep(qMin(1000 * reconnectAttempts, 5000));
+            QCoreApplication::processEvents();   // keep stopSteam() deliverable while down
+            if (m_stopStreaming)
+                continue;
             if (attemptReconnect()) {
-                sendMessage("Warning: " + m_deviceName + " reconnected.");
+                sendMessage("Warning: " + m_deviceName + " reconnected (after " +
+                            QString::number(reconnectAttempts) + " attempts).");
                 qDebug() << "Reconnect to camera" << m_cameraID;
+                reconnectAttempts = 0;
             }
             continue;
         }
