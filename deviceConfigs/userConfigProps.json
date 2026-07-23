@@ -1,4 +1,12 @@
 {
+    "$schema": {
+        "type": "String",
+        "tips": "Optional pointer to deviceConfigs/userConfigSchema.json (or its GitHub URL) so editors like VS Code validate and autocomplete this file."
+    },
+    "configVersion": {
+        "type": "Integer",
+        "tips": "Version of the config format this file was written for. Added automatically when saving from the in-app editor; current version is 1."
+    },
     "dataDirectory": {
         "type": "DirPath",
         "tips": "This is an absolute path to the base directory you want to save all data to. It should use '/' and not '\\'."
@@ -19,7 +27,7 @@
         "type": "String",
         "tips": "This will be saved in the recording's meta data file as well as can be used as an entry into the 'directoryStructure' array."
     },
-    "recordLengthinSeconds": {
+    "recordLengthInSeconds": {
         "type": "Integer",
         "tips": "This is an integer value. A value of '0' does not limit recording length. An integer value above 0 will stop the recording at that amount of seconds."
     },

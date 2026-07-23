@@ -1,4 +1,6 @@
 {
+    "$schema": "https://raw.githubusercontent.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/master/deviceConfigs/userConfigSchema.json",
+    "configVersion": 1,
     "dataDirectory": "/tmp/miniscope-linuxtest",
     "directoryStructure": [
         "researcherName",
@@ -6,16 +8,19 @@
         "time"
     ],
     "researcherName": "LinuxPortTest",
-
-    "recordLengthinSeconds": 600,
-
-    "executableOnStartRecording": { "enabled": false },
-    "executableOnStopRecording": { "enabled": false },
-
-    "behaviorTracker": { "enabled": false },
-
-    "traceDisplay": { "enabled": false },
-
+    "recordLengthInSeconds": 600,
+    "executableOnStartRecording": {
+        "enabled": false
+    },
+    "executableOnStopRecording": {
+        "enabled": false
+    },
+    "behaviorTracker": {
+        "enabled": false
+    },
+    "traceDisplay": {
+        "enabled": false
+    },
     "devices": {
         "cameras": {
             "Test WebCam": {

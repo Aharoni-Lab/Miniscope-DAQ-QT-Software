@@ -425,7 +425,7 @@ void VideoDevice::configureDeviceControls() {
     QJsonObject controlSettings = m_cDevice["controlSettings"].toObject(); // Get controlSettings from json
 
     if (controlSettings.isEmpty()) {
-        qDebug() << "controlSettings missing from miniscopes.json for deviceType = " << m_deviceType;
+        qDebug() << "controlSettings missing from videoDevices.json for deviceType = " << m_deviceType;
         return;
     }
     QStringList controlName =  controlSettings.keys();
@@ -820,12 +820,12 @@ void VideoDevice::handleNewROI(int leftEdge, int topEdge, int width, int height)
     if ((m_roiBoundingBox[0] + m_roiBoundingBox[2]) > m_cDevice["width"].toInt(-1)) {
         // Edge is off screen
         m_roiBoundingBox[2] = m_cDevice["width"].toInt(-1) - m_roiBoundingBox[0];
-        sendMessage("Warning: Right edge of ROI drawn beyond right edge of video. If this is incorrect you can change the width and height values in deviceCnfigs/behaviorCams.json");
+        sendMessage("Warning: Right edge of ROI drawn beyond right edge of video. If this is incorrect you can change the width and height values in deviceConfigs/videoDevices.json");
     }
     if ((m_roiBoundingBox[1] + m_roiBoundingBox[3]) > m_cDevice["height"].toInt(-1)) {
         // Edge is off screen
         m_roiBoundingBox[3] = m_cDevice["height"].toInt(-1) - m_roiBoundingBox[1];
-        sendMessage("Warning: Bottm edge of ROI drawn beyond bottom edge of video. If this is incorrect you can change the width and height values in deviceCnfigs/behaviorCams.json");
+        sendMessage("Warning: Bottm edge of ROI drawn beyond bottom edge of video. If this is incorrect you can change the width and height values in deviceConfigs/videoDevices.json");
 
     }
 
