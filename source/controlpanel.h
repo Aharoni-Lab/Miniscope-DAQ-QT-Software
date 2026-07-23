@@ -22,6 +22,7 @@ public slots:
     void receiveMessage(QString msg);
     void onRecordActivated();
     void onStopActivated();
+    void onRecordingFailed();
     void recordTimerTick();
     void handleNoteSumbit(QString note);
     void extTriggerSwitchToggled2(bool checkedState);

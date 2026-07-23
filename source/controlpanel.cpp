@@ -182,6 +182,20 @@ void ControlPanel::onStopActivated()
 
 }
 
+void ControlPanel::onRecordingFailed()
+{
+    // DataSaver could not create/continue the recording files: reset the UI so
+    // it does not claim to be recording while nothing is being saved.
+    if (!m_recording)
+        return;
+    m_recording = false;
+    rootObject->setProperty("recording", false);
+    if (recordTimer->isActive())
+        recordTimer->stop();
+    currentRecordTime = 0;
+    receiveMessage("Recording FAILED - nothing is being saved. See error messages above.");
+}
+
 void ControlPanel::recordTimerTick()
 {
     currentRecordTime++;
