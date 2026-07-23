@@ -24,6 +24,15 @@ private slots:
     void bnoIdentityQuaternion();
     void bnoNegativeComponents();
     void bnoNormError();
+
+    void serdesLowPixelClock();
+    void serdesHighPixelClock();
+    void serdesNoPixelClock();
+
+    void queueLatestPacketWinsPerKey();
+    void queueFlushesInFirstQueuedOrder();
+    void queueSkipsInvalidPackets();
+    void queueReportsWriteFailure();
 };
 
 void TestMiniscopeProtocol::packShortPacket()
@@ -120,6 +129,85 @@ void TestMiniscopeProtocol::bnoNormError()
     float out[5];
     unpackBnoQuaternion(16384, 16384, 0, 0, out);
     QCOMPARE(out[4], float(std::sqrt(2.0) - 1.0));
+}
+
+void TestMiniscopeProtocol::serdesLowPixelClock()
+{
+    // <= 50 MHz: 12-bit low-frequency mode. DES (0xC0) register 0x1F must come
+    // before SER (0xB0) register 0x05 - the deserializer has to be configured
+    // before traffic crosses the link.
+    const auto packets = MiniscopeProtocol::serdesModePackets(50);
+    QCOMPARE(packets.size(), 2);
+    QCOMPARE(packets[0], QVector<quint8>({0xC0, 0x1F, 0b00010000}));
+    QCOMPARE(packets[1], QVector<quint8>({0xB0, 0x05, 0b00100000}));
+}
+
+void TestMiniscopeProtocol::serdesHighPixelClock()
+{
+    // > 50 MHz: 10-bit high-frequency mode (mode bit 0 set on both chips).
+    const auto packets = MiniscopeProtocol::serdesModePackets(100);
+    QCOMPARE(packets.size(), 2);
+    QCOMPARE(packets[0], QVector<quint8>({0xC0, 0x1F, 0b00010001}));
+    QCOMPARE(packets[1], QVector<quint8>({0xB0, 0x05, 0b00100001}));
+}
+
+void TestMiniscopeProtocol::serdesNoPixelClock()
+{
+    QVERIFY(MiniscopeProtocol::serdesModePackets(0).isEmpty());
+    QVERIFY(MiniscopeProtocol::serdesModePackets(-1).isEmpty());
+}
+
+void TestMiniscopeProtocol::queueLatestPacketWinsPerKey()
+{
+    // Two packets queued under one key before a flush: only the newer one may
+    // reach the device (stale control values must never overwrite fresh ones).
+    I2CCommandQueue queue;
+    queue.set(7, {0xC0, 0x01});
+    queue.set(7, {0xC0, 0x02});
+    QVector<quint16> written;
+    QVERIFY(queue.flush([&](quint8, quint16 word) { written.append(word); return true; }));
+    QCOMPARE(written.size(), 3);   // one packed command = three words
+    QCOMPARE(written[0], MiniscopeProtocol::packI2CPacket({0xC0, 0x02}).words[0]);
+    QVERIFY(queue.isEmpty());
+}
+
+void TestMiniscopeProtocol::queueFlushesInFirstQueuedOrder()
+{
+    // Updating an already-queued key must not move it later in the order (the
+    // SERDES init sequence depends on DES going out before SER).
+    I2CCommandQueue queue;
+    queue.set(1, {0xC0, 0xAA});
+    queue.set(2, {0xB0, 0xBB});
+    queue.set(1, {0xC0, 0xCC});   // update key 1; it still flushes first
+    QVector<quint16> firstWords;
+    queue.flush([&](quint8 sel, quint16 word) {
+        if (sel == MiniscopeProtocol::SEL_CONTRAST)   // first word of each command
+            firstWords.append(word);
+        return true;
+    });
+    QCOMPARE(firstWords.size(), 2);
+    QCOMPARE(firstWords[0], MiniscopeProtocol::packI2CPacket({0xC0, 0xCC}).words[0]);
+    QCOMPARE(firstWords[1], MiniscopeProtocol::packI2CPacket({0xB0, 0xBB}).words[0]);
+}
+
+void TestMiniscopeProtocol::queueSkipsInvalidPackets()
+{
+    I2CCommandQueue queue;
+    queue.set(1, {});                        // no wire format
+    queue.set(2, {1, 2, 3, 4, 5, 6, 7});     // too long
+    int writes = 0;
+    QVERIFY(queue.flush([&](quint8, quint16) { writes++; return true; }));
+    QCOMPARE(writes, 0);
+    QVERIFY(queue.isEmpty());
+}
+
+void TestMiniscopeProtocol::queueReportsWriteFailure()
+{
+    I2CCommandQueue queue;
+    queue.set(1, {0xC0, 0x01});
+    int writes = 0;
+    QVERIFY(!queue.flush([&](quint8, quint16) { writes++; return writes != 2; }));
+    QCOMPARE(writes, 3);   // a failed word must not stop the remaining words
 }
 
 QTEST_APPLESS_MAIN(TestMiniscopeProtocol)

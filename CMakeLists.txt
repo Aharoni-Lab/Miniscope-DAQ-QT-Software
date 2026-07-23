@@ -59,6 +59,8 @@ target_include_directories(miniscope_protocol PUBLIC source)
 # backend that will is the next PR. uvc-bench-mac is the hardware-validation
 # CLI: see its header comment for the bench procedure and pass criteria.
 if(APPLE)
+    enable_language(OBJCXX)   # for the AVFoundation enumerator (.mm)
+
     add_library(uvccontrol_mac STATIC
         source/uvccontrolmac.cpp
         source/uvccontrolmac.h
@@ -66,6 +68,17 @@ if(APPLE)
     target_link_libraries(uvccontrol_mac
         PUBLIC Qt6::Core miniscope_protocol
         PRIVATE "-framework IOKit" "-framework CoreFoundation")
+
+    # AVFoundation camera list in CAP_AVFOUNDATION deviceID order; feeds both
+    # Scan Devices and the hybrid backend's index->locationID mapping.
+    add_library(avfenumerator_mac STATIC
+        source/avfenumeratormac.mm
+        source/avfenumeratormac.h
+    )
+    target_link_libraries(avfenumerator_mac
+        PUBLIC Qt6::Core
+        PRIVATE "-framework AVFoundation" "-framework CoreMedia")
+    target_include_directories(avfenumerator_mac PUBLIC source)
 
     add_executable(uvc-bench-mac tools/uvc-bench-mac.cpp)
     target_link_libraries(uvc-bench-mac PRIVATE uvccontrol_mac Qt6::Core)
@@ -106,11 +119,21 @@ set(HEADERS
     source/videostreamlibuvc.h
 )
 
+if(APPLE)
+    # The hybrid Miniscope backend (AVFoundation frames + IOKit pipe-0 controls).
+    list(APPEND SOURCES source/videostreammac.cpp)
+    list(APPEND HEADERS source/videostreammac.h)
+endif()
+
 qt_add_executable(MiniscopeDAQ
     ${SOURCES}
     ${HEADERS}
     source/qml.qrc
 )
+
+if(APPLE)
+    target_link_libraries(MiniscopeDAQ PRIVATE uvccontrol_mac avfenumerator_mac)
+endif()
 
 # conda-forge's qmlimportscanner can fail to launch (exit 0xc0000139) during
 # the automatic QML import scan that Qt runs at target finalization. That scan

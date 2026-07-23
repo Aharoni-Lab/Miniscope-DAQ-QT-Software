@@ -13,6 +13,7 @@
 #include <QMap>
 #include <QVector>
 
+#include "miniscopeprotocol.h"
 #include "videostreambase.h"
 
 
@@ -43,6 +44,7 @@ public slots:
 
 private:
     void sendCommands();
+    void sendSerdesModeCommands();   // pixel-clock dependent SERDES setup
     bool attemptReconnect();
     int m_cameraID;
     QString m_deviceName;
@@ -62,8 +64,7 @@ private:
     QAtomicInt *daqFrameNum;
 
     // Handles commands sent to video stream device
-    QVector<long> sendCommandQueueOrder;
-    QMap<long, QVector<quint8>> sendCommandQueue;
+    I2CCommandQueue m_commandQueue;
 
     bool m_trackExtTrigger;
 

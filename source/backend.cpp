@@ -52,6 +52,13 @@
 #include <linux/videodev2.h>
 #endif
 
+#ifdef Q_OS_MACOS
+// AVFoundation camera enumeration for scanVideoDevices(); the list order is
+// the CAP_AVFOUNDATION deviceID order.
+#include "avfenumeratormac.h"
+#include "miniscopeprotocol.h"
+#endif
+
 backEnd::backEnd(QObject *parent) :
     QObject(parent),
     m_versionNumber(""),
@@ -791,6 +798,8 @@ QString backEnd::scanVideoDevices()
     return scanVideoDevicesWindows();
 #elif defined(Q_OS_LINUX)
     return scanVideoDevicesLinux();
+#elif defined(Q_OS_MACOS)
+    return scanVideoDevicesMac();
 #else
     return QStringLiteral("Device scan is not available on this platform.");
 #endif
@@ -910,6 +919,35 @@ QString backEnd::scanVideoDevicesLinux()
                             "config. A single camera often lists two nodes; only the "
                             "[capture] one streams video.");
 }
+#elif defined(Q_OS_MACOS)
+// One line per AVFoundation camera; the list position IS the OpenCV
+// deviceID. USB cameras get their USB identity too, and a Miniscope DAQ is
+// called out explicitly (it otherwise shows up under a generic UVC name).
+QStringList backEnd::enumerateVideoDevices()
+{
+    QStringList names;
+    const auto cameras = enumerateAvfCameras();
+    for (const auto &cam : cameras) {
+        QString label = cam.name;
+        if (cam.isUsb && cam.vid == MiniscopeProtocol::kUsbVendorId
+            && cam.pid == MiniscopeProtocol::kUsbProductId)
+            label += QStringLiteral("  [Miniscope DAQ]");
+        names << label;   // index in this list == deviceID
+    }
+    return names;
+}
+
+QString backEnd::scanVideoDevicesMac()
+{
+    const QStringList names = enumerateVideoDevices();
+    if (names.isEmpty())
+        return QStringLiteral("No video devices detected.");
+    QStringList lines;
+    for (int i = 0; i < names.size(); i++)
+        lines << QString("    deviceID %1:  %2").arg(i).arg(names[i]);
+    return QStringLiteral("Detected video devices:\n") + lines.join("\n")
+           + QStringLiteral("\n\nUse these deviceID numbers in your user config.");
+}
 #endif
 
 QStringList backEnd::availableDeviceIDs()
@@ -931,7 +969,7 @@ QStringList backEnd::availableDeviceIDs()
     // One entry per connected device (fall back to 0..15 if none detected), and
     // always at least one ID past the highest used so the list is never empty.
     QStringList names;
-#ifdef Q_OS_WINDOWS
+#if defined(Q_OS_WINDOWS) || defined(Q_OS_MACOS)
     names = enumerateVideoDevices();   // label each ID with the connected device name
 #endif
     int maxIDs = names.isEmpty() ? 16 : names.size();

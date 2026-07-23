@@ -178,19 +178,13 @@ bool VideoStreamLibUVC::negotiateFormat()
 
 void VideoStreamLibUVC::sendSerdesModeCommands()
 {
-    // Mirror VideoStreamOCV::connect2Camera SERDES setup (TI 913/914).
-    QVector<quint8> packet;
-    if (m_pixelClock > 0) {
-        if (m_pixelClock <= 50) {
-            packet = {0xC0, 0x1F, 0b00010000}; setPropertyI2C(0, packet); // DES, 12bit low
-            packet = {0xB0, 0x05, 0b00100000}; setPropertyI2C(1, packet); // SER
-        } else {
-            packet = {0xC0, 0x1F, 0b00010001}; setPropertyI2C(0, packet); // DES, 10bit high
-            packet = {0xB0, 0x05, 0b00100001}; setPropertyI2C(1, packet); // SER
-        }
-        sendCommands();
-        QThread::msleep(500);
-    }
+    const auto packets = serdesModePackets(m_pixelClock);
+    if (packets.isEmpty())
+        return;
+    for (int i = 0; i < packets.size(); i++)
+        setPropertyI2C(i, packets[i]);
+    sendCommands();
+    QThread::msleep(500);
 }
 
 int VideoStreamLibUVC::connect2Camera(int cameraID)
@@ -236,27 +230,11 @@ int VideoStreamLibUVC::getPU(quint8 selector)
     return static_cast<qint16>(UVCRequest::decodeLE16(buf));
 }
 
-// Flush queued I2C packets. Packs each packet into the CONTRAST/GAMMA/SHARPNESS
-// UVC controls exactly like VideoStreamOCV::sendCommands().
+// Flush queued I2C packets to the device via UVC SET_CUR.
 void VideoStreamLibUVC::sendCommands()
 {
-    long key;
-    QVector<quint8> packet;
-    while (!sendCommandQueueOrder.isEmpty()) {
-        key = sendCommandQueueOrder.first();
-        packet = sendCommandQueue[key];
-        const auto cmd = MiniscopeProtocol::packI2CPacket(packet);
-        if (cmd.valid) {
-            bool ok = true;
-            for (int i = 0; i < 3; i++)
-                ok = setPU(kI2CWordSelectors[i], cmd.words[i]) && ok;
-            if (!ok)
-                qDebug() << "Send setting failed";
-        }
-        // Invalid (empty or > 6 byte) packets have no wire format and are dropped.
-        sendCommandQueue.remove(key);
-        sendCommandQueueOrder.removeFirst();
-    }
+    if (!m_commandQueue.flush([this](quint8 sel, quint16 word) { return setPU(sel, word); }))
+        qDebug() << "Send setting failed";
 }
 
 void VideoStreamLibUVC::startStream()
@@ -364,7 +342,7 @@ void VideoStreamLibUVC::startStream()
 
         // Process queued control changes (setPropertyI2C) and flush them.
         QCoreApplication::processEvents();
-        if (!sendCommandQueue.isEmpty())
+        if (!m_commandQueue.isEmpty())
             sendCommands();
     }
     // Stream loop only exits on stopSteam() (device window closing). Release the
@@ -401,9 +379,7 @@ void VideoStreamLibUVC::stopSteam()
 
 void VideoStreamLibUVC::setPropertyI2C(long preambleKey, QVector<quint8> packet)
 {
-    if (!sendCommandQueue.contains(preambleKey))
-        sendCommandQueueOrder.append(preambleKey);
-    sendCommandQueue[preambleKey] = packet;
+    m_commandQueue.set(preambleKey, packet);
 }
 
 void VideoStreamLibUVC::setExtTriggerTrackingState(bool state)

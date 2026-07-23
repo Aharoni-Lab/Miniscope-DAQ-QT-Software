@@ -175,13 +175,14 @@ private:
     void enrichDeviceDefaults(QJsonObject &device, const QString &category, const QString &deviceType);
 
     // Per-OS implementations behind scanVideoDevices(); each is defined only on its
-    // platform (calls to the other are #ifdef'd out, so it's never odr-used there).
-    // enumerateVideoDevices() lists the connected DirectShow device names indexed by
-    // deviceID (order == OpenCV's CAP_DSHOW index) and is also used by
-    // availableDeviceIDs(); it exists on Windows only.
+    // platform (calls to the others are #ifdef'd out, so they're never odr-used
+    // there). enumerateVideoDevices() lists connected camera names indexed by
+    // deviceID (order == the OpenCV backend's index: DirectShow on Windows,
+    // AVFoundation on macOS) and is also used by availableDeviceIDs().
     QStringList enumerateVideoDevices();
     QString scanVideoDevicesWindows();
     QString scanVideoDevicesLinux();
+    QString scanVideoDevicesMac();
 
     QString m_versionNumber;
     QString m_buildInfo;

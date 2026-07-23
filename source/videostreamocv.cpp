@@ -64,50 +64,9 @@ int VideoStreamOCV::connect2Camera(int cameraID) {
             m_connectionType = "OTHER";
         }
     }
-    // We need to make sure the MODE of the SERDES is correct
-    // This needs to be done before any other commands are sent over SERDES
-    // Currently this is for the 913/914 TI SERES
-    // TODO: Probably should move this somewhere else
-    QVector<quint8> packet;
-    if (m_pixelClock > 0 && connectionState != 0) {
-        if (m_pixelClock <= 50) {
-            // Set to 12bit low frequency in this case
-
-            // DES
-            packet.append(0xC0); // I2C Address
-            packet.append(0x1F); // reg
-            packet.append(0b00010000); // data
-            setPropertyI2C(0,packet);
-
-            // SER
-            packet.clear();
-            packet.append(0xB0); // I2C Address
-            packet.append(0x05); // reg
-            packet.append(0b00100000); // data
-            setPropertyI2C(1,packet);
-        }
-        else {
-            // Set to 10bit high frequency in this case
-
-            // DES
-            packet.clear();
-            packet.append(0xC0); // I2C Address
-            packet.append(0x1F); // reg
-            packet.append(0b00010001); // data
-            setPropertyI2C(0,packet);
-
-            // SER
-            packet.clear();
-            packet.append(0xB0); // I2C Address
-            packet.append(0x05); // reg
-            packet.append(0b00100001); // data
-            setPropertyI2C(1,packet);
-
-        }
-        sendCommands();
-        QThread::msleep(500);
-
-    }
+    // The SERDES mode must be set before any other SERDES traffic (TI 913/914).
+    if (connectionState != 0)
+        sendSerdesModeCommands();
 
     if (connectionState != 0) {
          cam->set(cv::CAP_PROP_FRAME_WIDTH, m_expectedWidth);
@@ -310,7 +269,7 @@ void VideoStreamOCV::startStream()
             }
             // Get any new events
             QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices
-            if (!sendCommandQueue.isEmpty())
+            if (!m_commandQueue.isEmpty())
                 sendCommands(); // Send last of each control property events that arrived on this processEvent() call then removes it from queue
         }
         cam->release();
@@ -328,11 +287,8 @@ void VideoStreamOCV::stopSteam()
 
 void VideoStreamOCV::setPropertyI2C(long preambleKey, QVector<quint8> packet)
 {
-    // add newEvent to the queue for sending new settings to camera
-    // overwrites data of previous preamble event that has not been sent to camera yet
-    if (!sendCommandQueue.contains(preambleKey))
-        sendCommandQueueOrder.append(preambleKey);
-    sendCommandQueue[preambleKey] = packet;
+    // A newer packet for the same preamble key replaces the unsent older one.
+    m_commandQueue.set(preambleKey, packet);
 }
 
 void VideoStreamOCV::setExtTriggerTrackingState(bool state)
@@ -378,125 +334,56 @@ static bool camSetProperty(cv::VideoCapture *cam, int propId, double value)
     return ret;
 }
 
+// The UVC selector each packed word travels on, as this backend's OpenCV
+// property. OpenCV property IDs and UVC PU selectors are different vocabularies
+// for the same controls; this is the single translation point.
+static int capPropForSelector(quint8 selector)
+{
+    switch (selector) {
+    case MiniscopeProtocol::SEL_CONTRAST:  return cv::CAP_PROP_CONTRAST;
+    case MiniscopeProtocol::SEL_GAMMA:     return cv::CAP_PROP_GAMMA;
+    case MiniscopeProtocol::SEL_SHARPNESS: return cv::CAP_PROP_SHARPNESS;
+    default:                               return -1;
+    }
+}
+
 void VideoStreamOCV::sendCommands()
 {
-    long key;
-    QVector<quint8> packet;
-    while (!sendCommandQueueOrder.isEmpty()) {
-        key = sendCommandQueueOrder.first();
-        packet = sendCommandQueue[key];
-        const auto cmd = MiniscopeProtocol::packI2CPacket(packet);
-        if (cmd.valid) {
-            // words[i] travels on kI2CWordSelectors[i]; through this backend
-            // that means the matching DirectShow property (CONTRAST, GAMMA,
-            // SHARPNESS - see miniscopeprotocol.h).
-            bool success = camSetProperty(cam, cv::CAP_PROP_CONTRAST, cmd.words[0]);
-            success = camSetProperty(cam, cv::CAP_PROP_GAMMA, cmd.words[1]) && success;
-            success = camSetProperty(cam, cv::CAP_PROP_SHARPNESS, cmd.words[2]) && success;
-            if (!success)
-                qDebug() << "Send setting failed";
-        }
-        // Invalid (empty or > 6 byte) packets have no wire format and are dropped.
-        sendCommandQueue.remove(key);
-        sendCommandQueueOrder.removeFirst();
-    }
+    if (!m_commandQueue.flush([this](quint8 sel, quint16 word) {
+            return camSetProperty(cam, capPropForSelector(sel), word);
+        }))
+        qDebug() << "Send setting failed";
+}
+
+void VideoStreamOCV::sendSerdesModeCommands()
+{
+    const auto packets = MiniscopeProtocol::serdesModePackets(m_pixelClock);
+    if (packets.isEmpty())
+        return;
+    for (int i = 0; i < packets.size(); i++)
+        setPropertyI2C(i, packets[i]);
+    sendCommands();
+    QThread::msleep(500);
 }
 
 bool VideoStreamOCV::attemptReconnect()
 {
     // TODO: handle quitting nicely when stuck in this loop
-    QVector<quint8> packet;
     if (m_connectionType == "DSHOW") {
-        if (cam->open(m_cameraID, cv::CAP_DSHOW)) {
-
-            if (m_pixelClock <= 50) {
-                // Set to 12bit low frequency in this case
-
-                // DES
-                packet.append(0xC0); // I2C Address
-                packet.append(0x1F); // reg
-                packet.append(0b00010000); // data
-                setPropertyI2C(0,packet);
-
-                // SER
-                packet.clear();
-                packet.append(0xB0); // I2C Address
-                packet.append(0x05); // reg
-                packet.append(0b00100000); // data
-                setPropertyI2C(1,packet);
-            }
-            else {
-                // Set to 10bit high frequency in this case
-
-                // DES
-//                packet.clear();
-                packet.append(0xC0); // I2C Address
-                packet.append(0x1F); // reg
-                packet.append(0b00010001); // data
-                setPropertyI2C(0,packet);
-
-                // SER
-                packet.clear();
-                packet.append(0xB0); // I2C Address
-                packet.append(0x05); // reg
-                packet.append(0b00100001); // data
-                setPropertyI2C(1,packet);
-
-            }
-            sendCommands();
-            QThread::msleep(500);
-
-            cam->set(cv::CAP_PROP_FRAME_WIDTH, m_expectedWidth);
-            cam->set(cv::CAP_PROP_FRAME_HEIGHT, m_expectedHeight);
-            QThread::msleep(500);
-            requestInitCommands();
-            return true;
-        }
+        if (!cam->open(m_cameraID, cv::CAP_DSHOW))
+            return false;
     }
     else if (m_connectionType == "OTHER") {
-        if (cam->open(m_cameraID)) {
-            if (m_pixelClock <= 50) {
-                // Set to 12bit low frequency in this case
-
-                // DES
-                packet.append(0xC0); // I2C Address
-                packet.append(0x1F); // reg
-                packet.append(0b00010000); // data
-                setPropertyI2C(0,packet);
-
-                // SER
-                packet.clear();
-                packet.append(0xB0); // I2C Address
-                packet.append(0x05); // reg
-                packet.append(0b00100000); // data
-                setPropertyI2C(1,packet);
-            }
-            else {
-                // Set to 10bit high frequency in this case
-
-                // DES
-//                packet.clear();
-                packet.append(0xC0); // I2C Address
-                packet.append(0x1F); // reg
-                packet.append(0b00010001); // data
-                setPropertyI2C(0,packet);
-
-                // SER
-                packet.clear();
-                packet.append(0xB0); // I2C Address
-                packet.append(0x05); // reg
-                packet.append(0b00100001); // data
-                setPropertyI2C(1,packet);
-
-            }
-            sendCommands();
-            QThread::msleep(500);
-            cam->set(cv::CAP_PROP_FRAME_WIDTH, m_expectedWidth);
-            cam->set(cv::CAP_PROP_FRAME_HEIGHT, m_expectedHeight);
-            QThread::msleep(500);
-            requestInitCommands();
-            return true;
-        }
+        if (!cam->open(m_cameraID))
+            return false;
     }
-    return false;
+    else {
+        return false;
+    }
+    sendSerdesModeCommands();
+    cam->set(cv::CAP_PROP_FRAME_WIDTH, m_expectedWidth);
+    cam->set(cv::CAP_PROP_FRAME_HEIGHT, m_expectedHeight);
+    QThread::msleep(500);
+    requestInitCommands();
+    return true;
 }

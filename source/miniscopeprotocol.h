@@ -1,6 +1,7 @@
 #ifndef MINISCOPEPROTOCOL_H
 #define MINISCOPEPROTOCOL_H
 
+#include <QMap>
 #include <QVector>
 #include <QtGlobal>
 
@@ -62,6 +63,52 @@ PackedCommand packI2CPacket(const QVector<quint8> &packet);
 // normError is |norm - 1| — the caller uses it to reject corrupted reads.
 void unpackBnoQuaternion(qint16 w, qint16 x, qint16 y, qint16 z, float *out5);
 
+// The TI 913/914 SERDES mode-init packets every direct backend must send on
+// connect, before any other SERDES traffic: DES register 0x1F then SER
+// register 0x05, selecting 12-bit low-frequency mode for pixel clocks
+// <= 50 MHz and 10-bit high-frequency mode above. Empty when pixelClock <= 0
+// (device has no SERDES / unknown clock).
+QVector<QVector<quint8>> serdesModePackets(double pixelClock);
+
 } // namespace MiniscopeProtocol
+
+// Pending-command queue shared by the capture backends: one slot per preamble
+// key (a newer packet for the same key replaces the unsent older one - device
+// controls only care about the latest value), flushed in first-queued order.
+// flush() packs each packet with packI2CPacket and hands the three 16-bit
+// words to the transport-specific writeWord, one word per kI2CWordSelectors
+// entry. Not thread-safe; owned and drained on the stream thread.
+class I2CCommandQueue
+{
+public:
+    void set(long preambleKey, const QVector<quint8> &packet)
+    {
+        if (!m_queue.contains(preambleKey))
+            m_order.append(preambleKey);
+        m_queue[preambleKey] = packet;
+    }
+
+    bool isEmpty() const { return m_order.isEmpty(); }
+
+    // writeWord(selector, word) -> success. Returns false if any write failed.
+    template <typename WriteWordFn>
+    bool flush(WriteWordFn writeWord)
+    {
+        bool allOk = true;
+        while (!m_order.isEmpty()) {
+            const long key = m_order.takeFirst();
+            const auto cmd = MiniscopeProtocol::packI2CPacket(m_queue.take(key));
+            if (!cmd.valid)
+                continue;   // empty / oversized packets have no wire format
+            for (int i = 0; i < 3; i++)
+                allOk = writeWord(MiniscopeProtocol::kI2CWordSelectors[i], cmd.words[i]) && allOk;
+        }
+        return allOk;
+    }
+
+private:
+    QVector<long> m_order;
+    QMap<long, QVector<quint8>> m_queue;
+};
 
 #endif // MINISCOPEPROTOCOL_H

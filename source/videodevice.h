@@ -50,7 +50,7 @@ class VideoDevice : public QObject
 {
     Q_OBJECT
 public:
-    explicit VideoDevice(QObject *parent = nullptr, QJsonObject ucDevice = QJsonObject(), qint64 softwareStartTime = 0, bool preferLibUVC = false);
+    explicit VideoDevice(QObject *parent = nullptr, QJsonObject ucDevice = QJsonObject(), qint64 softwareStartTime = 0, bool preferDirectControl = false);
     QJsonObject getDeviceConfig(QString deviceType);
     QObject* getRootDisplayObject() { return rootObject; }
     QQuickItem* getRootDisplayChild(QString childName) { return rootObject->findChild<QQuickItem*>(childName); }
@@ -138,7 +138,7 @@ private:
     int m_camConnected;
     NewQuickView *view;
     VideoStreamBase *deviceStream;
-    bool m_preferLibUVCBackend;
+    bool m_preferDirectControlBackend;
     QThread *videoStreamThread;
     cv::Mat frameBuffer[FRAME_BUFFER_SIZE];
     qint64 timeStampBuffer[FRAME_BUFFER_SIZE];
