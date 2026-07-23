@@ -11,13 +11,25 @@
 #   cmake --build build --config Release
 #
 # Toggle the DeepLabCut-Live behaviour tracker (embedded Python + numpy) with
-#   -DUSE_PYTHON=ON|OFF        (default ON)
+#   -DUSE_PYTHON=ON|OFF        (default OFF)
 # ---------------------------------------------------------------------------
 cmake_minimum_required(VERSION 3.21)
 
 project(MiniscopeDAQ VERSION 2.0.0 LANGUAGES CXX)
 
-option(USE_PYTHON "Build the DeepLabCut-Live behaviour tracker (embedded Python)" ON)
+# OFF by default: the embedded-Python DLC-Live tracker is used by very few
+# labs, packaged builds all ship without it, and it drags Python+numpy into
+# the build. Opt in with -DUSE_PYTHON=ON.
+option(USE_PYTHON "Build the DeepLabCut-Live behaviour tracker (embedded Python)" OFF)
+
+# Warnings on for OUR code (vendored thirdparty/ headers are included as
+# SYSTEM, so they stay quiet). Deliberately not -Werror: a new compiler
+# version must not break lab builds.
+if(MSVC)
+    add_compile_options(/W4)
+else()
+    add_compile_options(-Wall -Wextra)
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

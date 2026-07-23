@@ -596,7 +596,7 @@ void VideoDevice::sendNewFrame(){
     }
 }
 
-void VideoDevice::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufIdx, VideoDisplay* vidDisp)
+void VideoDevice::handleNewDisplayFrame(qint64 /*timeStamp*/, cv::Mat frame, int /*bufIdx*/, VideoDisplay* vidDisp)
 {
 //    cv::Mat tempMat1, tempMat2;
     QImage tempFrame2;
@@ -838,7 +838,7 @@ void VideoDevice::handleNewROI(int leftEdge, int topEdge, int width, int height)
 
 }
 
-void VideoDevice::handleAddNewTraceROI(int leftEdge, int topEdge, int width, int height)
+void VideoDevice::handleAddNewTraceROI(int /*leftEdge*/, int /*topEdge*/, int /*width*/, int /*height*/)
 {
 
 }

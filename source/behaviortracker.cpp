@@ -33,12 +33,12 @@
 BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64 softwareStartTime) :
     QObject(parent),
     numberOfCameras(0),
-    m_trackingRunning(false),
     m_camResolution(640,480),
+    freePoses(new QSemaphore()),
+    usedPoses(new QSemaphore()),
     m_btPoseCount(new QAtomicInt(0)),
     m_previousBtPoseFrameNum(0),
-    usedPoses(new QSemaphore()),
-    freePoses(new QSemaphore()),
+    m_trackingRunning(false),
     m_pCutoffDisplay(0),
     m_softwareStartTime(softwareStartTime)
 {
@@ -106,7 +106,11 @@ void BehaviorTracker::parseUserConfigTracker()
         m_overlayType = m_btConfig["poseOverlay"].toObject()["type"].toString("point");
         m_overlayNumPoses = m_btConfig["poseOverlay"].toObject()["numOfPastPoses"].toInt(0) + 1;
         m_poseMarkerSize = m_btConfig["poseOverlay"].toObject()["markerSize"].toDouble(10);
-        if (m_poseOverlayEnabled = m_btConfig["poseOverlay"].toObject().contains("skeleton")) {
+        // Was `if (m_poseOverlayEnabled = ...contains("skeleton"))`: the
+        // assignment overwrote the enabled flag parsed above, so a config
+        // without a skeleton section had its pose overlay silently disabled
+        // (and one with a skeleton had it force-enabled).
+        if (m_btConfig["poseOverlay"].toObject().contains("skeleton")) {
             QJsonObject tempSk = m_btConfig["poseOverlay"].toObject()["skeleton"].toObject();
             m_poseOverlaySkeletonEnabled = tempSk["enabled"].toBool(true);
             QJsonArray tempArray = tempSk["connectedIndices"].toArray();
@@ -591,9 +595,9 @@ void BehaviorTracker::handleAddNewTracePose(int poseIdx, QString type, bool same
 
 TrackerDisplayRenderer::TrackerDisplayRenderer(QObject *parent, QSize displayWindowSize):
     QObject(parent),
-    m_t(0),
     m_newImage(false),
     m_newOccupancy(false),
+    m_t(0),
     m_textureImage(nullptr),
     m_texture2DHist(nullptr),
     m_programImage(nullptr),

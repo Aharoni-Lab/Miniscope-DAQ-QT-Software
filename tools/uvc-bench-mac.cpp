@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
            totalUs / totalPolls, worstUs, periodUs);
     printf("frame counter        : %d increments, %d stalls, %d backwards\n",
            frameIncrements, frameStalls, frameBackwards);
-    printf("distinct BNO words   : %d %s\n", bnoValuesSeen.size(),
+    printf("distinct BNO words   : %d %s\n", int(bnoValuesSeen.size()),
            bnoValuesSeen.size() <= 1 ? "(static - is streaming on? try --enable-bno / move the scope)" : "");
     printf("--------------------------------------------------------------\n");
     printf("PASS criteria: 0 failed, frame counter increments while streaming,\n"
