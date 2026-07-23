@@ -42,6 +42,16 @@ target_compile_definitions(tst_configvalidator PRIVATE
 target_link_libraries(tst_configvalidator PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME configvalidator COMMAND tst_configvalidator)
 
+# --- Shared capture-backend machinery -------------------------------------------
+# commitFrame (slot reservation, control reads, DAQ counter), the frame-size
+# lock, and the reconnect backoff - via a stub backend with scripted reads.
+qt_add_executable(tst_videostreambase tst_videostreambase.cpp
+    ${CMAKE_SOURCE_DIR}/source/videostreambase.cpp)
+target_include_directories(tst_videostreambase PRIVATE ${CMAKE_SOURCE_DIR}/source
+    ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(tst_videostreambase PRIVATE miniscope_protocol Qt6::Core Qt6::Test ${OpenCV_LIBS})
+add_test(NAME videostreambase COMMAND tst_videostreambase)
+
 # --- macOS IOKit UVC transport (hardware-free smoke tests) ---------------------
 if(APPLE)
     qt_add_executable(tst_uvccontrolmac tst_uvccontrolmac.cpp)
