@@ -15,7 +15,6 @@ VideoStreamMac::VideoStreamMac(QObject *parent, int width, int height, double pi
     VideoStreamBase(parent),
     m_cameraID(-1),
     m_deviceName(""),
-    cam(nullptr),
     m_isStreaming(false),
     m_stopStreaming(false),
     m_headOrientationStreamState(false),
@@ -41,9 +40,7 @@ VideoStreamMac::VideoStreamMac(QObject *parent, int width, int height, double pi
 VideoStreamMac::~VideoStreamMac()
 {
     qDebug() << "Closing macOS hybrid video stream";
-    if (cam && cam->isOpened())
-        cam->release();
-    delete cam;
+    m_grabber.release();
     m_control.close();
 }
 
@@ -107,24 +104,34 @@ void VideoStreamMac::sendSerdesModeCommands()
     QThread::msleep(500);
 }
 
-// The config's deviceID indexes the AVF camera list, but that list shifts as
-// cameras come and go - an iPhone joining via Continuity Camera is the classic
-// case, observed on the bench: the index opened the phone's video while the
-// control channel (bound by USB identity) drove the real scope. The control
-// channel has already resolved the exact USB device by this point, so bind the
-// frame stream to that SAME device's current index. Falls back to the config
-// index when the lookup fails.
-int VideoStreamMac::frameIndexForControl(int configIndex)
+// Open the video stream pinned to the SAME physical device the control
+// channel resolved, via its stable AVFoundation uniqueID. Never opens by list
+// index: macOS reshuffles the camera list as devices come and go (iPhone
+// Continuity Camera, hot-plugged webcams), and both bench failures came from
+// an index resolving to a different camera by open time.
+bool VideoStreamMac::openFrameStream()
 {
-    const int idx = avfIndexForLocation(enumerateAvfCameras(), m_control.locationID());
-    if (idx < 0)
-        return configIndex;
-    if (idx != configIndex)
-        sendMessage("Warning: " + m_deviceName + ": deviceID " + QString::number(configIndex) +
-                    " does not currently point at the Miniscope (the camera list has shifted, "
-                    "e.g. a phone joined via Continuity Camera); streaming from index " +
-                    QString::number(idx) + " instead.");
-    return idx;
+    QString uniqueId = avfUniqueIdForLocation(enumerateAvfCameras(), m_control.locationID());
+    if (uniqueId.isEmpty()) {
+        // The control channel just opened this device over USB, so it exists;
+        // AVFoundation's list can briefly lag a hot-plug. One settle+retry.
+        QThread::msleep(500);
+        uniqueId = avfUniqueIdForLocation(enumerateAvfCameras(), m_control.locationID());
+    }
+    if (uniqueId.isEmpty()) {
+        sendMessage("Error: " + m_deviceName + ": the Miniscope's USB device (locationID 0x" +
+                    QString::number(m_control.locationID(), 16) +
+                    ") never appeared in the camera list.");
+        return false;
+    }
+    if (!m_grabber.open(uniqueId, m_expectedWidth, m_expectedHeight)) {
+        sendMessage("Error: could not open the video stream for " + m_deviceName + " (" +
+                    m_grabber.lastError() + ")");
+        return false;
+    }
+    qInfo().nospace() << "[diag] " << m_deviceName << " frame stream pinned to uniqueID "
+                      << uniqueId << " at " << m_expectedWidth << "x" << m_expectedHeight;
+    return true;
 }
 
 int VideoStreamMac::connect2Camera(int cameraID)
@@ -136,33 +143,14 @@ int VideoStreamMac::connect2Camera(int cameraID)
     if (!openControlForIndex(cameraID))
         return 0;
 
-    const int avfIndex = frameIndexForControl(cameraID);
-    cam = new cv::VideoCapture;
-    if (!cam->open(avfIndex, cv::CAP_AVFOUNDATION)) {
-        sendMessage("Error: could not open AVFoundation stream for " + m_deviceName +
-                    " (deviceID " + QString::number(cameraID) + ", AVF index " +
-                    QString::number(avfIndex) + ")");
+    if (!openFrameStream()) {
         m_control.close();
         return 0;
     }
     m_connectionType = "AVF";
 
-    qInfo().nospace() << "[diag] " << m_deviceName << " AVF opened: native "
-                      << cam->get(cv::CAP_PROP_FRAME_WIDTH) << "x"
-                      << cam->get(cv::CAP_PROP_FRAME_HEIGHT) << " @ "
-                      << cam->get(cv::CAP_PROP_FPS) << "fps; requesting "
-                      << m_expectedWidth << "x" << m_expectedHeight;
-
     sendSerdesModeCommands();
-
-    cam->set(cv::CAP_PROP_FRAME_WIDTH, m_expectedWidth);
-    cam->set(cv::CAP_PROP_FRAME_HEIGHT, m_expectedHeight);
     QThread::msleep(500);
-
-    qInfo().nospace() << "[diag] " << m_deviceName << " after set: "
-                      << cam->get(cv::CAP_PROP_FRAME_WIDTH) << "x"
-                      << cam->get(cv::CAP_PROP_FRAME_HEIGHT) << " @ "
-                      << cam->get(cv::CAP_PROP_FPS) << "fps";
     return 1;
 }
 
@@ -227,7 +215,7 @@ void VideoStreamMac::startStream()
 
     m_stopStreaming = false;
 
-    if (!cam || !cam->isOpened()) {
+    if (!m_grabber.isOpened()) {
         sendMessage("Error: Could not connect to video stream " + QString::number(m_cameraID));
         qDebug() << "Camera " << m_cameraID << " not open (macOS hybrid).";
         return;
@@ -247,13 +235,12 @@ void VideoStreamMac::startStream()
             break;
         }
 
-        if (!cam->grab() || !cam->retrieve(frame)) {
-            qInfo() << "[diag]" << m_deviceName << "grab/retrieve returned false at frame"
-                    << idx << "- running stall diagnosis";
+        if (!m_grabber.read(frame)) {
+            qInfo() << "[diag]" << m_deviceName << "no frame at" << idx << "("
+                    << m_grabber.lastError() << ") - running stall diagnosis";
             sendMessage("Warning: " + m_deviceName + " grab frame failed. Attempting to reconnect.");
             logStallDiagnosis();
-            if (cam->isOpened())
-                cam->release();
+            m_grabber.release();
             QThread::msleep(1000);
             if (attemptReconnect()) {
                 sendMessage("Warning: " + m_deviceName + " reconnected.");
@@ -327,7 +314,7 @@ void VideoStreamMac::startStream()
         if (!m_commandQueue.isEmpty())
             sendCommands();
     }
-    cam->release();
+    m_grabber.release();
     m_control.close();
 }
 
@@ -336,13 +323,11 @@ bool VideoStreamMac::attemptReconnect()
     m_control.close();
     if (!openControlForIndex(m_cameraID))
         return false;
-    // Re-resolve the frame index too: the camera list may have changed (that
+    // Re-resolve the uniqueID too: the device may have re-enumerated (which
     // can be exactly why we are reconnecting).
-    if (!cam->open(frameIndexForControl(m_cameraID), cv::CAP_AVFOUNDATION))
+    if (!openFrameStream())
         return false;
     sendSerdesModeCommands();
-    cam->set(cv::CAP_PROP_FRAME_WIDTH, m_expectedWidth);
-    cam->set(cv::CAP_PROP_FRAME_HEIGHT, m_expectedHeight);
     QThread::msleep(500);
     setPU(SEL_SATURATION, 0x0001);
     emit requestInitCommands();

@@ -58,6 +58,15 @@ inline int avfIndexForLocation(const QVector<AvfCameraInfo> &cameras, quint32 lo
     return -1;
 }
 
+// The device's stable AVFoundation uniqueID (empty when absent) - what the
+// frame grabber pins its capture session to, so the video stream can never
+// land on a different camera than the control channel.
+inline QString avfUniqueIdForLocation(const QVector<AvfCameraInfo> &cameras, quint32 locationID)
+{
+    const int i = avfIndexForLocation(cameras, locationID);
+    return i < 0 ? QString() : cameras[i].uniqueID;
+}
+
 // AVCaptureDevice.uniqueID for a USB camera is the hex of the 64-bit value
 // (locationID << 32) | (vid << 16) | pid, with or without a "0x" prefix and
 // possibly without leading zeros. Non-USB devices (the built-in camera on

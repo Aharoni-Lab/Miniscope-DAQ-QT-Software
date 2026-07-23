@@ -80,6 +80,22 @@ if(APPLE)
         PRIVATE "-framework AVFoundation" "-framework CoreMedia")
     target_include_directories(avfenumerator_mac PUBLIC source)
 
+    # Native AVFoundation frame grabber pinned to a device uniqueID. Exists
+    # because OpenCV's AVFoundation backend can only open cameras by LIST
+    # INDEX, and macOS reshuffles that list as devices come and go (iPhone
+    # Continuity Camera, hot-plugged webcams) - bench-verified to stream the
+    # WRONG camera. ARC for safe ObjC object lifetimes.
+    add_library(avfgrabber_mac STATIC
+        source/avfframegrabbermac.mm
+        source/avfframegrabbermac.h
+    )
+    set_source_files_properties(source/avfframegrabbermac.mm PROPERTIES
+        COMPILE_OPTIONS "-fobjc-arc")
+    target_include_directories(avfgrabber_mac PUBLIC source ${OpenCV_INCLUDE_DIRS})
+    target_link_libraries(avfgrabber_mac
+        PUBLIC Qt6::Core ${OpenCV_LIBS}
+        PRIVATE "-framework AVFoundation" "-framework CoreMedia" "-framework CoreVideo")
+
     add_executable(uvc-bench-mac tools/uvc-bench-mac.cpp)
     target_link_libraries(uvc-bench-mac PRIVATE uvccontrol_mac Qt6::Core)
 endif()
@@ -134,7 +150,7 @@ qt_add_executable(MiniscopeDAQ
 )
 
 if(APPLE)
-    target_link_libraries(MiniscopeDAQ PRIVATE uvccontrol_mac avfenumerator_mac)
+    target_link_libraries(MiniscopeDAQ PRIVATE uvccontrol_mac avfenumerator_mac avfgrabber_mac)
 
     # Build as a .app bundle. This is not just packaging polish: macOS kills
     # any camera-touching process whose bundle lacks NSCameraUsageDescription,

@@ -163,13 +163,19 @@ void TestAvfEnumerator::indexForLocationRebindsShiftedList()
     // resolved.
     AvfCameraInfo phone;
     phone.name = QStringLiteral("iPhone Camera");
-    const QVector<AvfCameraInfo> shifted = {phone,
-                                            usbCam("Miniscope", 0x00100000, kVid, kPid)};
+    QVector<AvfCameraInfo> shifted = {phone,
+                                      usbCam("Miniscope", 0x00100000, kVid, kPid)};
+    shifted[1].uniqueID = QStringLiteral("0x0010000004b400f9");
     QCOMPARE(avfIndexForLocation(shifted, 0x00100000), 1);
 
     // Not in the list / no location resolved -> -1 (caller falls back).
     QCOMPARE(avfIndexForLocation(shifted, 0x00990000), -1);
     QCOMPARE(avfIndexForLocation(shifted, 0), -1);
+
+    // The uniqueID lookup the frame grabber pins its session to.
+    QCOMPARE(avfUniqueIdForLocation(shifted, 0x00100000),
+             shifted[1].uniqueID);
+    QVERIFY(avfUniqueIdForLocation(shifted, 0x00990000).isEmpty());
 }
 
 QTEST_MAIN(TestAvfEnumerator)

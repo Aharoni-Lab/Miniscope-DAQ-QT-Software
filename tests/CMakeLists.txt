@@ -31,6 +31,11 @@ if(APPLE)
     qt_add_executable(tst_avfenumerator tst_avfenumerator.cpp)
     target_link_libraries(tst_avfenumerator PRIVATE avfenumerator_mac Qt6::Test Qt6::Gui)
     add_test(NAME avfenumerator COMMAND tst_avfenumerator)
+
+    # uniqueID-pinned frame grabber: failure paths must fail cleanly.
+    qt_add_executable(tst_avfframegrabber tst_avfframegrabber.cpp)
+    target_link_libraries(tst_avfframegrabber PRIVATE avfgrabber_mac Qt6::Test)
+    add_test(NAME avfframegrabber COMMAND tst_avfframegrabber)
 endif()
 
 # --- Shader compile check ------------------------------------------------------

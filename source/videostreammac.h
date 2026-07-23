@@ -20,8 +20,8 @@
 #include <QAtomicInt>
 #include <QVector>
 #include <opencv2/core/core.hpp>
-#include <opencv2/videoio.hpp>
 
+#include "avfframegrabbermac.h"
 #include "miniscopeprotocol.h"
 #include "uvccontrolmac.h"
 #include "videostreambase.h"
@@ -53,7 +53,7 @@ public slots:
 
 private:
     bool openControlForIndex(int cameraID);   // AVFoundation index -> USB locationID -> UVCControlMac
-    int  frameIndexForControl(int configIndex); // current AVF index of the control channel's device
+    bool openFrameStream();                   // pin the grabber to the control channel's uniqueID
     void sendSerdesModeCommands();            // pixel-clock dependent SERDES setup
     void sendCommands();                      // flush queued I2C packets as UVC SET_CUR
     bool setPU(quint8 selector, quint16 value);
@@ -64,7 +64,7 @@ private:
     int m_cameraID;
     QString m_deviceName;
 
-    cv::VideoCapture *cam;
+    AvfFrameGrabber m_grabber;
     UVCControlMac m_control;
 
     bool m_isStreaming;
