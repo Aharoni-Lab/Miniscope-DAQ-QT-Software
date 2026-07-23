@@ -150,6 +150,19 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
     else
         tempFrame2 = QImage(frame.data, frame.cols, frame.rows, frame.step, QImage::Format_RGB888);
 
+    // A frame size change (a device reconnect can renegotiate the format, or
+    // a mis-bound camera can deliver foreign frames) must restart the baseline
+    // accumulation: mixing sizes in the += / divide below is a fatal
+    // cv::Exception (observed as an app crash on the macOS bench). This one
+    // predicate drives the reset here and the dFF fallbacks below.
+    bool baselineSizeMatches = !baselineFrame.empty()
+        && frame.cols == baselineFrame.cols && frame.rows == baselineFrame.rows;
+    if (!baselineFrame.empty() && !baselineSizeMatches) {
+        qWarning() << getDeviceName() << "frame size changed to" << frame.cols << "x" << frame.rows
+                   << "- resetting dFF baseline";
+        baselineFrameBufWritePos = 0;
+    }
+
     // Generate moving average baseline frame
     if ((timeStamp - baselinePreviousTimeStamp) > 50) {
         // update baseline frame buffer every ~500ms
@@ -158,6 +171,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         tempMat1 = tempMat1/(BASELINE_FRAME_BUFFER_SIZE);
         if (baselineFrameBufWritePos == 0) {
             baselineFrame = tempMat1;
+            baselineSizeMatches = true;   // baseline just restarted at this frame's size
         }
         else if (baselineFrameBufWritePos < BASELINE_FRAME_BUFFER_SIZE) {
             baselineFrame += tempMat1;
@@ -178,6 +192,12 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         vidDisp->setDisplayFrame(tempFrame2);
     }
     else if (m_displatState == "dFF") {
+        // While the baseline is (re)accumulating at a new size, show raw
+        // rather than dividing by a mismatched-size baseline (fatal).
+        if (!baselineSizeMatches) {
+            vidDisp->setDisplayFrame(tempFrame2);
+        }
+        else {
         // TODO: Implement this better. I am sure it can be sped up a lot. Maybe do most of it in a shader
         tempMat2 = frame.clone();
         tempMat2.convertTo(tempMat2, CV_32F);
@@ -187,6 +207,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         cv::cvtColor(tempMat2, tempFrame, cv::COLOR_GRAY2BGR);
         tempFrame2 = QImage(tempFrame.data, tempFrame.cols, tempFrame.rows, tempFrame.step, QImage::Format_RGB888);
         vidDisp->setDisplayFrame(tempFrame2); //TODO: Probably doesn't need "copy"
+        }
     }
     if (getHeadOrienataionStreamState()) {
         // TODO: Clean up this section. Consolidate
@@ -251,10 +272,12 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         int bufNum;
         int dataCount;
 
-        float meanIntensity;
+        float meanIntensity = 0.0f;
 
         float meanFrameIntensity;
-        if (m_displatState == "dFF") {
+        // tempMat2 is empty while the dFF baseline is rebuilding after a
+        // frame-size change (see above) - skip the dFF trace math then.
+        if (m_displatState == "dFF" && !tempMat2.empty()) {
             // Remove or find a fast way (maybe with resize or downsamp) if needed.
             // Use center 60% of frame for mean calculation
             cv::Rect frameMeanROIRect(tempMat2.rows * 0.2,
@@ -286,7 +309,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
                 if (m_displatState == "Raw") {
                     meanIntensity = cv::mean(frame(roiRect))[0];
                 }
-                else if (m_displatState == "dFF") {
+                else if (m_displatState == "dFF" && !tempMat2.empty()) {
                     meanIntensity = cv::mean(tempMat2(roiRect))[0];
                 }
                 // Used for mean window smoothing of traces

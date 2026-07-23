@@ -20,8 +20,9 @@
 #include <QAtomicInt>
 #include <QVector>
 #include <opencv2/core/core.hpp>
-#include <opencv2/videoio.hpp>
 
+#include "avfenumeratormac.h"
+#include "avfframegrabbermac.h"
 #include "miniscopeprotocol.h"
 #include "uvccontrolmac.h"
 #include "videostreambase.h"
@@ -38,7 +39,7 @@ public:
                              QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber) override;
     int connect2Camera(int cameraID) override;
     int connect2Video(QString folderPath, QString filePrefix, float playbackFPS) override;
-    void setHeadOrientationConfig(bool enableState, bool filterState) override { m_headOrientationStreamState = enableState; m_headOrientationFilterState = filterState; }
+    void setHeadOrientationConfig(bool enableState, bool) override { m_headOrientationStreamState = enableState; }
     void setIsColor(bool isColor) override { m_isColor = isColor; }
     void setDeviceName(QString name) override { m_deviceName = name; }
 
@@ -52,23 +53,24 @@ public slots:
     void openCamPropsDialog() override;
 
 private:
-    bool openControlForIndex(int cameraID);   // AVFoundation index -> USB locationID -> UVCControlMac
-    void sendSerdesModeCommands();            // pixel-clock dependent SERDES setup
-    void sendCommands();                      // flush queued I2C packets as UVC SET_CUR
+    // AVFoundation index -> USB locationID -> UVCControlMac (policy in resolveControlTarget)
+    bool openControlForIndex(int cameraID, const QVector<AvfCameraInfo> &cameras);
+    // Pin the grabber to the control channel's device via its uniqueID.
+    bool openFrameStream(const QVector<AvfCameraInfo> &cameras);
+    void sendCommands() override;             // flush queued I2C packets as UVC SET_CUR
     bool setPU(quint8 selector, quint16 value);
     int  getPU(quint8 selector);              // fresh GET_CUR, returned as signed 16-bit; 0 on failure
     bool attemptReconnect();
+    void logStallDiagnosis();                 // frame-counter poll: AVF session vs scope video link
 
     int m_cameraID;
     QString m_deviceName;
 
-    cv::VideoCapture *cam;
+    AvfFrameGrabber m_grabber;
     UVCControlMac m_control;
 
-    bool m_isStreaming;
     bool m_stopStreaming;
     bool m_headOrientationStreamState;
-    bool m_headOrientationFilterState;
     bool m_isColor;
 
     cv::Mat *frameBuffer;
@@ -87,7 +89,6 @@ private:
     int m_expectedWidth;
     int m_expectedHeight;
     double m_pixelClock;
-    QString m_connectionType;
 };
 
 #endif // VIDEOSTREAMMAC_H

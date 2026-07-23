@@ -176,17 +176,6 @@ bool VideoStreamLibUVC::negotiateFormat()
     return false;
 }
 
-void VideoStreamLibUVC::sendSerdesModeCommands()
-{
-    const auto packets = serdesModePackets(m_pixelClock);
-    if (packets.isEmpty())
-        return;
-    for (int i = 0; i < packets.size(); i++)
-        setPropertyI2C(i, packets[i]);
-    sendCommands();
-    QThread::msleep(500);
-}
-
 int VideoStreamLibUVC::connect2Camera(int cameraID)
 {
     m_cameraID = cameraID;
@@ -201,7 +190,7 @@ int VideoStreamLibUVC::connect2Camera(int cameraID)
         return 0;
     }
     m_connectionType = "libuvc";
-    sendSerdesModeCommands();
+    sendSerdesModeCommands(m_pixelClock);
     return 1;
 }
 
@@ -360,7 +349,7 @@ bool VideoStreamLibUVC::attemptReconnect()
         return false;
     if (!negotiateFormat())
         return false;
-    sendSerdesModeCommands();
+    sendSerdesModeCommands(m_pixelClock);
     if (uvc_stream_open_ctrl(m_devh, &m_strmh, &m_streamCtrl) < 0 ||
         uvc_stream_start(m_strmh, nullptr, nullptr, 0) < 0) {
         closeStream();

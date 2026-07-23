@@ -805,6 +805,25 @@ QString backEnd::scanVideoDevices()
 #endif
 }
 
+#if defined(Q_OS_WINDOWS) || defined(Q_OS_MACOS)
+// Shared Scan-Devices report for the platforms whose enumerator returns a
+// plain name list whose position == the config deviceID (Linux formats its
+// own richer capture-vs-metadata report).
+static QString formatDeviceScan(const QStringList &names, const QString &trailerNote)
+{
+    if (names.isEmpty())
+        return QStringLiteral("No video devices detected.");
+    QStringList lines;
+    for (int i = 0; i < names.size(); i++)
+        lines << QString("    deviceID %1:  %2")
+                     .arg(i)
+                     .arg(names[i].isEmpty() ? QStringLiteral("(unknown)") : names[i]);
+    return QStringLiteral("Detected video devices:\n") + lines.join("\n")
+           + QStringLiteral("\n\nUse these deviceID numbers in your user config.")
+           + trailerNote;
+}
+#endif
+
 #if defined(Q_OS_WINDOWS)
 // Names of the connected DirectShow video-input devices, indexed the same way
 // OpenCV's CAP_DSHOW backend orders them, so the position == the config deviceID.
@@ -848,18 +867,9 @@ QStringList backEnd::enumerateVideoDevices()
 
 QString backEnd::scanVideoDevicesWindows()
 {
-    const QStringList names = enumerateVideoDevices();
-    if (names.isEmpty())
-        return QStringLiteral("No video devices detected.");
-    QStringList lines;
-    for (int i = 0; i < names.size(); i++)
-        lines << QString("    deviceID %1:  %2")
-                     .arg(i)
-                     .arg(names[i].isEmpty() ? QStringLiteral("(unknown)") : names[i]);
-    return QStringLiteral("Detected video devices:\n") + lines.join("\n")
-           + QStringLiteral("\n\nUse these deviceID numbers in your user config. "
-                            "Note: a Miniscope might appear under a generic name "
-                            "(e.g. \"USB Video Device\").");
+    return formatDeviceScan(enumerateVideoDevices(),
+                            QStringLiteral(" Note: a Miniscope might appear under a generic "
+                                           "name (e.g. \"USB Video Device\")."));
 }
 
 #elif defined(Q_OS_LINUX)
@@ -939,14 +949,7 @@ QStringList backEnd::enumerateVideoDevices()
 
 QString backEnd::scanVideoDevicesMac()
 {
-    const QStringList names = enumerateVideoDevices();
-    if (names.isEmpty())
-        return QStringLiteral("No video devices detected.");
-    QStringList lines;
-    for (int i = 0; i < names.size(); i++)
-        lines << QString("    deviceID %1:  %2").arg(i).arg(names[i]);
-    return QStringLiteral("Detected video devices:\n") + lines.join("\n")
-           + QStringLiteral("\n\nUse these deviceID numbers in your user config.");
+    return formatDeviceScan(enumerateVideoDevices(), QString());
 }
 #endif
 

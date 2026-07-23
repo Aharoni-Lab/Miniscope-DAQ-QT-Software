@@ -10,7 +10,6 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 #include <QAtomicInt>
-#include <QMap>
 #include <QVector>
 
 #include "miniscopeprotocol.h"
@@ -43,8 +42,7 @@ public slots:
     void openCamPropsDialog() override;
 
 private:
-    void sendCommands();
-    void sendSerdesModeCommands();   // pixel-clock dependent SERDES setup
+    void sendCommands() override;    // flush queued I2C packets via CAP_PROP passthrough
     bool attemptReconnect();
     int m_cameraID;
     QString m_deviceName;

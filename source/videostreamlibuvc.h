@@ -9,7 +9,6 @@
 
 #include <QSemaphore>
 #include <QAtomicInt>
-#include <QMap>
 #include <QVector>
 #include <opencv2/core/core.hpp>
 
@@ -48,8 +47,7 @@ private:
     // with the macOS IOKit control transport).
     bool openByVideoIndex(int cameraID);   // resolve /dev/videoN -> USB bus/addr, open via libuvc
     bool negotiateFormat();
-    void sendSerdesModeCommands();         // pixel-clock dependent SERDES setup
-    void sendCommands();                   // flush queued I2C packets as UVC SET_CUR
+    void sendCommands() override;          // flush queued I2C packets as UVC SET_CUR
     bool setPU(quint8 selector, quint16 value);
     int  getPU(quint8 selector);           // fresh GET_CUR, returned as signed 16-bit
     bool attemptReconnect();

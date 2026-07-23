@@ -8,7 +8,6 @@
 #include <QDebug>
 #include <QAtomicInt>
 #include <QCoreApplication>
-#include <QMap>
 #include <QVector>
 #include <QDateTime>
 #include <QThread>
@@ -66,7 +65,7 @@ int VideoStreamOCV::connect2Camera(int cameraID) {
     }
     // The SERDES mode must be set before any other SERDES traffic (TI 913/914).
     if (connectionState != 0)
-        sendSerdesModeCommands();
+        sendSerdesModeCommands(m_pixelClock);
 
     if (connectionState != 0) {
          cam->set(cv::CAP_PROP_FRAME_WIDTH, m_expectedWidth);
@@ -355,17 +354,6 @@ void VideoStreamOCV::sendCommands()
         qDebug() << "Send setting failed";
 }
 
-void VideoStreamOCV::sendSerdesModeCommands()
-{
-    const auto packets = MiniscopeProtocol::serdesModePackets(m_pixelClock);
-    if (packets.isEmpty())
-        return;
-    for (int i = 0; i < packets.size(); i++)
-        setPropertyI2C(i, packets[i]);
-    sendCommands();
-    QThread::msleep(500);
-}
-
 bool VideoStreamOCV::attemptReconnect()
 {
     // TODO: handle quitting nicely when stuck in this loop
@@ -380,7 +368,7 @@ bool VideoStreamOCV::attemptReconnect()
     else {
         return false;
     }
-    sendSerdesModeCommands();
+    sendSerdesModeCommands(m_pixelClock);
     cam->set(cv::CAP_PROP_FRAME_WIDTH, m_expectedWidth);
     cam->set(cv::CAP_PROP_FRAME_HEIGHT, m_expectedHeight);
     QThread::msleep(500);

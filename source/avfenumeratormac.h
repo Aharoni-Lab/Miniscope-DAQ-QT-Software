@@ -43,6 +43,21 @@ ControlTarget resolveControlTarget(const QVector<AvfCameraInfo> &cameras, int ca
                                    quint16 expectedVid, quint16 expectedPid,
                                    const QVector<quint32> &attachedLocations);
 
+// The stable AVFoundation uniqueID of the camera with this USB locationID
+// (empty when absent) - what the frame grabber pins its capture session to,
+// so the video stream can never land on a different camera than the control
+// channel. Deliberately NOT an index lookup: list positions shift whenever
+// cameras come and go (iPhone Continuity Camera, hot-plugs).
+inline QString avfUniqueIdForLocation(const QVector<AvfCameraInfo> &cameras, quint32 locationID)
+{
+    if (locationID == 0)
+        return QString();
+    for (const AvfCameraInfo &cam : cameras)
+        if (cam.isUsb && cam.locationID == locationID)
+            return cam.uniqueID;
+    return QString();
+}
+
 // AVCaptureDevice.uniqueID for a USB camera is the hex of the 64-bit value
 // (locationID << 32) | (vid << 16) | pid, with or without a "0x" prefix and
 // possibly without leading zeros. Non-USB devices (the built-in camera on
