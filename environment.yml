@@ -18,9 +18,18 @@
 # standalone dist/ fail on a machine without MKL. The `libblas=*=*openblas` pin
 # below forces the small, bundleable OpenBLAS variant. Do not remove it.
 #
-# Versions are pinned to major.minor for a reproducible-yet-maintainable build.
-# For byte-for-byte reproducibility (identical DLL set every time), generate a
-# lock file with conda-lock and install from that instead.
+# Versions are pinned to major.minor for a reproducible-yet-maintainable build:
+# each fresh env resolves the newest PATCH release within these pins, so day-to-day
+# builds pick up bugfixes automatically.
+#
+# For byte-for-byte reproducibility, conda-lock.yml (committed alongside this
+# file) pins the exact package set for win-64 / linux-64 / osx-arm64. Install
+# from it with:
+#     conda-lock install -n miniscope-qt6 conda-lock.yml
+# Regenerate it (do this at least at every release tag - see RELEASING.md):
+#     pip install conda-lock
+#     conda-lock lock -f environment.yml -p win-64 -p linux-64 -p osx-arm64 \
+#         --lockfile conda-lock.yml
 name: miniscope-qt6
 channels:
   - conda-forge
