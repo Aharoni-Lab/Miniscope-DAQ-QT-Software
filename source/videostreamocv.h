@@ -1,6 +1,7 @@
 #ifndef VIDEOSTREAMOCV_H
 #define VIDEOSTREAMOCV_H
 
+#include <atomic>
 #include <QObject>
 #include <QSemaphore>
 #include <QString>
@@ -48,8 +49,8 @@ private:
     int m_cameraID;
     QString m_deviceName;
     cv::VideoCapture *cam;
-    bool m_isStreaming;
-    bool m_stopStreaming;
+    std::atomic<bool> m_isStreaming;
+    std::atomic<bool> m_stopStreaming;
     bool m_headOrientationStreamState;
     bool m_headOrientationFilterState;
     bool m_isColor;

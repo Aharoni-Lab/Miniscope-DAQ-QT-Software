@@ -523,6 +523,17 @@ void BehaviorTracker::close()
     //    view->close();
 }
 
+void BehaviorTracker::stopAndJoinWorker()
+{
+    if (workerThread == nullptr)
+        return;
+    emit closeWorker();
+    workerThread->quit();
+    if (!workerThread->wait(3000))
+        qWarning() << "Behavior tracker worker thread did not stop within 3s; leaking it";
+    workerThread = nullptr;
+}
+
 void BehaviorTracker::handleAddNewTracePose(int poseIdx, QString type, bool sameOffset)
 {
 //    m_traceColors[0][0] = &colors[0];

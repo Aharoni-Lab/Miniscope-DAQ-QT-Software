@@ -16,6 +16,7 @@
 #include <QSemaphore>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QThread>
 
 #include "datasaver.h"
 
@@ -240,6 +241,54 @@ private slots:
         QVERIFY(csv.open(QFile::ReadOnly | QFile::Text));
         const QString header = QString::fromUtf8(csv.readLine()).trimmed();
         QCOMPARE(header, QStringLiteral("Frame Number,Time Stamp (ms),Buffer Index"));
+    }
+
+    void stopRunningExitsRunLoop()
+    {
+        // startRunning() blocks its thread in the save loop; stopRunning()
+        // (delivered through the loop's processEvents) must let it return so
+        // the thread can be joined. Before R3 there was NO exit path: the
+        // loop ran (and busy-spun a core) until process death.
+        QThread thread;
+        DataSaver saver;
+        saver.moveToThread(&thread);
+        connect(&thread, &QThread::started, &saver, &DataSaver::startRunning);
+        thread.start();
+        QTest::qWait(100); // let the loop spin up
+
+        QMetaObject::invokeMethod(&saver, "stopRunning", Qt::QueuedConnection);
+        thread.quit();
+        QVERIFY(thread.wait(3000));
+        saver.moveToThread(QThread::currentThread());
+    }
+
+    void backToBackRecordingsReuseCleanly()
+    {
+        // Each record/stop cycle allocates fresh files/writers; the previous
+        // cycle's must be released, not leaked, and the second cycle must
+        // work end to end.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+
+        DataSaver saver;
+        saver.setUserConfig(deviceFreeConfig(dir.path()));
+        QSignalSpy failed(&saver, &DataSaver::recordingFailed);
+
+        for (int cycle = 0; cycle < 2; cycle++) {
+            saver.startRecording({});
+            QVERIFY2(saver.isRecording(), qPrintable(QStringLiteral("cycle %1").arg(cycle)));
+            saver.takeNote(QStringLiteral("note in cycle %1").arg(cycle));
+            saver.stopRecording();
+            QVERIFY(!saver.isRecording());
+        }
+        QCOMPARE(failed.count(), 0);
+
+        // The second cycle re-truncated notes.csv: header + its one note.
+        QFile notes(dir.path() + "/notes.csv");
+        QVERIFY(notes.open(QFile::ReadOnly | QFile::Text));
+        const QString contents = QString::fromUtf8(notes.readAll());
+        QVERIFY(contents.contains("note in cycle 1"));
+        QVERIFY(!contents.contains("note in cycle 0"));
     }
 
 private:

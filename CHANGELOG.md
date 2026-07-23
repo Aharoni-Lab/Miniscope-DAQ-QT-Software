@@ -84,6 +84,13 @@ published together from CI.
   display window only opens when configured.
 
 ### Fixed
+- Quitting the app now stops and joins every worker thread (capture loops,
+  data saver, behavior tracker) in order — previously no thread was ever
+  joined, so exit raced still-running threads against object teardown.
+- The data-saver loop no longer busy-spins a full CPU core for the lifetime
+  of the app; it sleeps when idle and has a proper exit path.
+- Each record/stop cycle leaked every file handle and video writer it
+  created; they are now released when the recording stops.
 - Head-orientation CSV was silently never written when `filterBadData` was
   `false` (enable flag overwritten by a copy-paste bug) ([#90](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/pull/90)).
 - Frames could be corrupted while the ring buffer was full: all capture

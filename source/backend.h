@@ -163,6 +163,10 @@ public slots:
 private:
     void connectSnS();
     void setupDataSaver();
+    // Stop capture/saver/tracker threads and join them; idempotent. Runs
+    // before the QML engine quits so no thread outlives the objects it uses.
+    void shutdownThreads();
+    bool m_threadsShutdown = false;
 
     void testCodecSupport();
 

@@ -94,6 +94,8 @@ backEnd::backEnd(QObject *parent) :
     ucTraceDisplay["type"] = "None";
 
     dataSaver = new DataSaver();
+    dataSaverThread = nullptr;   // created in setupDataSaver(); quitting before
+                                 // any config loads must not touch a wild pointer
 
 #ifdef USE_USB
     testLibusb();
@@ -1095,9 +1097,44 @@ void backEnd::onRecordClicked()
 
 void backEnd::exitClicked()
 {
-    // TODO: Do other exit stuff such as stop recording???
+    shutdownThreads();
     emit closeAll();
+}
 
+// Orderly teardown, called from both quit paths (Exit button and main-window
+// close) before the QML engine quits. Without this no worker thread was ever
+// joined: the process exited while capture/saver threads were still touching
+// buffers and Qt objects - a use-after-free lottery on every quit.
+void backEnd::shutdownThreads()
+{
+    if (m_threadsShutdown)
+        return;
+    m_threadsShutdown = true;
+
+    // 1. A recording in progress stops properly first: drains the ring
+    //    buffers and closes every file. Blocking invoke so the files are
+    //    complete before the pipeline is torn down.
+    if (dataSaverThread && dataSaverThread->isRunning() && dataSaver->isRecording())
+        QMetaObject::invokeMethod(dataSaver, "stopRecording", Qt::BlockingQueuedConnection);
+
+    // 2. Stop the capture loops and join their threads (frame producers go
+    //    quiet before their consumers are stopped).
+    for (int i = 0; i < miniscope.length(); i++)
+        miniscope[i]->stopAndJoinStream();
+    for (int i = 0; i < behavCam.length(); i++)
+        behavCam[i]->stopAndJoinStream();
+
+    // 3. Then the saver loop and its thread.
+    if (dataSaverThread && dataSaverThread->isRunning()) {
+        QMetaObject::invokeMethod(dataSaver, "stopRunning", Qt::QueuedConnection);
+        dataSaverThread->quit();
+        if (!dataSaverThread->wait(3000))
+            qWarning() << "DataSaver thread did not stop within 3s; leaking it";
+    }
+
+    // 4. Behavior-tracker worker, if one was started.
+    if (behavTracker)
+        behavTracker->stopAndJoinWorker();
 }
 
 void backEnd::handleUserConfigFileNameChanged()
