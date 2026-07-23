@@ -10,23 +10,24 @@ PackedCommand packI2CPacket(const QVector<quint8> &packet)
     if (packet.isEmpty() || packet.length() > 6)
         return cmd;   // invalid: nothing to send / no wire format for > 6 bytes
 
+    quint64 raw;
     if (packet.length() < 6) {
         // Short form: address, then the packet length, then the payload.
-        cmd.raw = (quint64)packet[0];
-        cmd.raw |= (((quint64)packet.length()) & 0xFF) << 8;
+        raw = (quint64)packet[0];
+        raw |= (((quint64)packet.length()) & 0xFF) << 8;
         for (int j = 1; j < packet.length(); j++)
-            cmd.raw |= ((quint64)packet[j]) << (8 * (j + 1));
+            raw |= ((quint64)packet[j]) << (8 * (j + 1));
     } else {
         // Full form: 6 bytes leave no room for a length byte, so the address's
         // LSB (always 0 in a real I2C write address) is set to flag this form.
-        cmd.raw = (quint64)packet[0] | 0x01;
+        raw = (quint64)packet[0] | 0x01;
         for (int j = 1; j < packet.length(); j++)
-            cmd.raw |= ((quint64)packet[j]) << (8 * j);
+            raw |= ((quint64)packet[j]) << (8 * j);
     }
 
-    cmd.words[0] = (quint16)(cmd.raw & 0xFFFF);
-    cmd.words[1] = (quint16)((cmd.raw >> 16) & 0xFFFF);
-    cmd.words[2] = (quint16)((cmd.raw >> 32) & 0xFFFF);
+    cmd.words[0] = (quint16)(raw & 0xFFFF);
+    cmd.words[1] = (quint16)((raw >> 16) & 0xFFFF);
+    cmd.words[2] = (quint16)((raw >> 32) & 0xFFFF);
     cmd.valid = true;
     return cmd;
 }

@@ -29,6 +29,7 @@ on:
   pull_request:
     branches:
       - qt6-port
+      - master      # keeps PR validation alive after the qt6 work merges home
 
 permissions:
   contents: write          # needed to create the Release on tag pushes
@@ -82,7 +83,10 @@ jobs:
       - name: Deploy standalone bundle (into build/Release/)
         run: cmake --build build --config Release --target deploy
 
+      # PRs stop after build+test+deploy: the zip/installer/artifacts below
+      # exist to be released or downloaded, and nothing consumes them on a PR.
       - name: Package the release folder into a zip
+        if: github.event_name != 'pull_request'
         run: |
           $name = if ($env:GITHUB_REF_TYPE -eq 'tag') { "MiniscopeDAQ-$env:GITHUB_REF_NAME-Windows-x64.zip" } else { "MiniscopeDAQ-Windows-x64.zip" }
           Compress-Archive -Path build/Release/* -DestinationPath $name -Force
@@ -90,6 +94,7 @@ jobs:
           "Built $name"
 
       - name: Build installer (Inno Setup)
+        if: github.event_name != 'pull_request'
         run: |
           # The in-installer version label comes from the app itself
           # (source/main.cpp: #define VERSION_NUMBER "x.y"), so it always matches
@@ -126,6 +131,7 @@ jobs:
           "Built $base.exe"
 
       - name: Upload Windows artifacts
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: MiniscopeDAQ-Windows-x64
@@ -168,19 +174,21 @@ jobs:
       - name: Build the AppImage
         run: packaging/linux/build-appimage.sh
 
-      # Reuses the build tree the AppImage script just made. offscreen platform:
-      # no display server on the runner; Mesa still provides a GL 2.1+ context
-      # for the shader-compile test.
+      # Reuses the build tree the AppImage script just made. (The headless-GL
+      # handling lives on the test itself: tests/CMakeLists.txt sets the
+      # offscreen platform per-test, so plain ctest works here and locally.)
       - name: Run unit tests
-        run: QT_QPA_PLATFORM=offscreen ctest --test-dir build-appimage --output-on-failure
+        run: ctest --test-dir build-appimage --output-on-failure
 
       - name: Name the artifact
+        if: github.event_name != 'pull_request'
         run: |
           f=$(ls dist/Miniscope_DAQ*-x86_64.AppImage | head -1)
           echo "APPIMAGE_PATH=$f" >> "$GITHUB_ENV"
           echo "Built $f"
 
       - name: Upload Linux artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: MiniscopeDAQ-Linux-x86_64
@@ -220,6 +228,11 @@ jobs:
 
       - name: Build (Release)
         run: cmake --build build
+
+      # Runs the full suite for real: the arm64 runner's GL stack compiles the
+      # shaders, and the IOKit smoke tests walk the (deviceless) USB registry.
+      - name: Run unit tests
+        run: ctest --test-dir build --output-on-failure
 
   # --- Single release --------------------------------------------------------
   # Gather both platforms' artifacts and publish them as ONE Release. Only runs

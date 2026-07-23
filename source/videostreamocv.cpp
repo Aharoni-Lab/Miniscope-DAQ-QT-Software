@@ -157,7 +157,6 @@ void VideoStreamOCV::startStream()
     QString fileName;
     int idx = 0;
     int daqFrameNumOffset = 0;
-//    float heading, pitch, roll;
     double extTriggerLast = -1;
     double extTrigger;
     bool status = false;
@@ -381,17 +380,17 @@ static bool camSetProperty(cv::VideoCapture *cam, int propId, double value)
 
 void VideoStreamOCV::sendCommands()
 {
-    bool success = false;
     long key;
     QVector<quint8> packet;
     while (!sendCommandQueueOrder.isEmpty()) {
         key = sendCommandQueueOrder.first();
         packet = sendCommandQueue[key];
-        qDebug() << packet;
         const auto cmd = MiniscopeProtocol::packI2CPacket(packet);
         if (cmd.valid) {
-            qDebug() << packet.length() << "byte(s): 0x" << QString::number(cmd.raw, 16);
-            success = camSetProperty(cam, cv::CAP_PROP_CONTRAST, cmd.words[0]);
+            // words[i] travels on kI2CWordSelectors[i]; through this backend
+            // that means the matching DirectShow property (CONTRAST, GAMMA,
+            // SHARPNESS - see miniscopeprotocol.h).
+            bool success = camSetProperty(cam, cv::CAP_PROP_CONTRAST, cmd.words[0]);
             success = camSetProperty(cam, cv::CAP_PROP_GAMMA, cmd.words[1]) && success;
             success = camSetProperty(cam, cv::CAP_PROP_SHARPNESS, cmd.words[2]) && success;
             if (!success)

@@ -46,9 +46,30 @@ find_package(OpenCV REQUIRED)
 add_library(miniscope_protocol STATIC
     source/miniscopeprotocol.cpp
     source/miniscopeprotocol.h
+    source/uvcrequest.h      # header-only: generic UVC 1.1 setup-packet builders
 )
 target_link_libraries(miniscope_protocol PUBLIC Qt6::Core)
 target_include_directories(miniscope_protocol PUBLIC source)
+
+# --- macOS UVC control transport (IOKit pipe-0) -------------------------------
+# Sends UVC SET_CUR/GET_CUR to the Miniscope over the default control pipe
+# without opening the interface, coexisting with Apple's UVC driver (which owns
+# the streaming path since macOS 12 - libusb/libuvc would need root there).
+# The app itself doesn't consume this yet; the hybrid AVFoundation capture
+# backend that will is the next PR. uvc-bench-mac is the hardware-validation
+# CLI: see its header comment for the bench procedure and pass criteria.
+if(APPLE)
+    add_library(uvccontrol_mac STATIC
+        source/uvccontrolmac.cpp
+        source/uvccontrolmac.h
+    )
+    target_link_libraries(uvccontrol_mac
+        PUBLIC Qt6::Core miniscope_protocol
+        PRIVATE "-framework IOKit" "-framework CoreFoundation")
+
+    add_executable(uvc-bench-mac tools/uvc-bench-mac.cpp)
+    target_link_libraries(uvc-bench-mac PRIVATE uvccontrol_mac Qt6::Core)
+endif()
 
 # --- Sources ---------------------------------------------------------------
 set(SOURCES

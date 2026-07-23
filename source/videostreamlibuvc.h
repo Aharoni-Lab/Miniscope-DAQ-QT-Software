@@ -43,17 +43,8 @@ public slots:
     void openCamPropsDialog() override;
 
 private:
-    // UVC Processing-Unit control selectors the Miniscope overloads.
-    enum PuSelector {
-        SEL_BRIGHTNESS = 0x02, // BNO quaternion z
-        SEL_CONTRAST   = 0x03, // I2C low word (write) / DAQ frame number (read)
-        SEL_GAIN       = 0x04, // BNO quaternion y
-        SEL_HUE        = 0x06, // BNO quaternion x
-        SEL_SATURATION = 0x07, // data-stream "start" (write) / BNO quaternion w (read)
-        SEL_SHARPNESS  = 0x08, // I2C high word
-        SEL_GAMMA      = 0x09  // I2C mid word (write) / external trigger state (read)
-    };
-
+    // UVC selectors / unit ID / VID+PID come from miniscopeprotocol.h (shared
+    // with the macOS IOKit control transport).
     bool openByVideoIndex(int cameraID);   // resolve /dev/videoN -> USB bus/addr, open via libuvc
     bool negotiateFormat();
     void sendSerdesModeCommands();         // pixel-clock dependent SERDES setup
@@ -63,8 +54,6 @@ private:
     bool attemptReconnect();
     void closeStream();
     void closeDevice();
-
-    static const uint8_t PROCESSING_UNIT_ID = 2; // from the Miniscope UVC descriptor
 
     int m_cameraID;
     QString m_deviceName;

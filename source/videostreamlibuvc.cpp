@@ -3,6 +3,9 @@
 #ifdef HAVE_LIBUVC
 
 #include "miniscopeprotocol.h"
+#include "uvcrequest.h"
+
+using namespace MiniscopeProtocol;   // SEL_* selectors, kProcessingUnitId, VID/PID
 
 #include <QDebug>
 #include <QCoreApplication>
@@ -15,15 +18,6 @@
 #include <climits>
 #include <cstdlib>
 #include <unistd.h>
-
-// The Miniscope DAQ presents as a Cypress FX3 UVC device.
-static const int MINISCOPE_VID = 0x04b4;
-static const int MINISCOPE_PID = 0x00f9;
-
-// Inter-command settle time. The DAQ control endpoint is slow to clear; on
-// Linux (faster USB than Windows) we must wait or a command gets overwritten.
-// Mirrors the >100us wait in VideoStreamOCV::camSetProperty.
-static const useconds_t CTRL_SETTLE_US = 200;
 
 VideoStreamLibUVC::VideoStreamLibUVC(QObject *parent, int width, int height, double pixelClock) :
     VideoStreamBase(parent),
@@ -152,7 +146,7 @@ bool VideoStreamLibUVC::openByVideoIndex(int cameraID)
 
     // Fallback: first device matching the Miniscope VID/PID.
     if (!m_dev) {
-        if (uvc_find_device(m_ctx, &m_dev, MINISCOPE_VID, MINISCOPE_PID, nullptr) < 0)
+        if (uvc_find_device(m_ctx, &m_dev, kUsbVendorId, kUsbProductId, nullptr) < 0)
             m_dev = nullptr;
     }
 
@@ -226,19 +220,20 @@ int VideoStreamLibUVC::connect2Video(QString, QString, float)
 
 bool VideoStreamLibUVC::setPU(quint8 selector, quint16 value)
 {
-    uint8_t buf[2] = { static_cast<uint8_t>(value & 0xFF), static_cast<uint8_t>(value >> 8) };
-    int r = uvc_set_ctrl(m_devh, PROCESSING_UNIT_ID, selector, buf, 2);
-    usleep(CTRL_SETTLE_US);
+    uint8_t buf[2];
+    UVCRequest::encodeLE16(value, buf);
+    int r = uvc_set_ctrl(m_devh, kProcessingUnitId, selector, buf, 2);
+    usleep(kCtrlSettleUs);   // let the DAQ's slow control endpoint clear the write
     return r == 2;
 }
 
 int VideoStreamLibUVC::getPU(quint8 selector)
 {
     uint8_t buf[2] = {0, 0};
-    int r = uvc_get_ctrl(m_devh, PROCESSING_UNIT_ID, selector, buf, 2, UVC_GET_CUR);
+    int r = uvc_get_ctrl(m_devh, kProcessingUnitId, selector, buf, 2, UVC_GET_CUR);
     if (r < 0)
         return 0;
-    return static_cast<qint16>(buf[0] | (buf[1] << 8));
+    return static_cast<qint16>(UVCRequest::decodeLE16(buf));
 }
 
 // Flush queued I2C packets. Packs each packet into the CONTRAST/GAMMA/SHARPNESS
@@ -252,9 +247,9 @@ void VideoStreamLibUVC::sendCommands()
         packet = sendCommandQueue[key];
         const auto cmd = MiniscopeProtocol::packI2CPacket(packet);
         if (cmd.valid) {
-            bool ok = setPU(SEL_CONTRAST,  cmd.words[0]);
-            ok = setPU(SEL_GAMMA,     cmd.words[1]) && ok;
-            ok = setPU(SEL_SHARPNESS, cmd.words[2]) && ok;
+            bool ok = true;
+            for (int i = 0; i < 3; i++)
+                ok = setPU(kI2CWordSelectors[i], cmd.words[i]) && ok;
             if (!ok)
                 qDebug() << "Send setting failed";
         }
@@ -341,12 +336,11 @@ void VideoStreamLibUVC::startStream()
 
         if (m_headOrientationStreamState) {
             // BNO output is a unit quaternion after a 2^14 division.
-            MiniscopeProtocol::unpackBnoQuaternion(
-                static_cast<qint16>(getPU(SEL_SATURATION)),
-                static_cast<qint16>(getPU(SEL_HUE)),
-                static_cast<qint16>(getPU(SEL_GAIN)),
-                static_cast<qint16>(getPU(SEL_BRIGHTNESS)),
-                &bnoBuffer[(idx % frameBufferSize) * 5]);
+            qint16 quat[4];   // w, x, y, z per kBnoSelectors order
+            for (int i = 0; i < 4; i++)
+                quat[i] = static_cast<qint16>(getPU(kBnoSelectors[i]));
+            MiniscopeProtocol::unpackBnoQuaternion(quat[0], quat[1], quat[2], quat[3],
+                                                   &bnoBuffer[(idx % frameBufferSize) * 5]);
         }
 
         if (daqFrameNum != nullptr) {
