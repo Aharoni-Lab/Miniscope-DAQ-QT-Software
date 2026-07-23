@@ -99,9 +99,20 @@ Windows + Linux + macOS together.
 **First launch on another Mac:** the bundle is ad-hoc signed, not notarized,
 so Gatekeeper warns about an unidentified developer. Right-click the app >
 Open > Open (needed once). If macOS claims the app "is damaged", clear the
-quarantine flag instead: `xattr -cr "/Applications/Miniscope DAQ.app"`.
+quarantine flag instead: `xattr -cr /Applications/MiniscopeDAQ.app`.
 Proper Developer ID signing + notarization can be added to the script later
 without changing anything else.
+
+**iPhone / Continuity Camera interference (bench-verified):** a nearby iPhone
+joins the Mac's camera list via Continuity Camera and macOS actively promotes
+it, which can steal the video session away from the Miniscope (symptom: the
+scope "connects" but the video window shows the phone, freezes after ~1 s, or
+never streams — while BNO/controls keep working, since they use a separate
+USB channel bound to the scope). For recording rigs, disable it: on the
+iPhone, Settings > General > AirPlay & Continuity > Continuity Camera off
+(or move the phone away). The app re-binds the scope's video stream to its
+USB identity when the camera list shifts, but macOS's automatic camera
+selection can still interfere at session start.
 
 ---
 
