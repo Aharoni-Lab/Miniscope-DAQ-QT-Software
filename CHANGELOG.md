@@ -113,6 +113,14 @@ published together from CI.
 - Compiler warnings are on (`-Wall -Wextra` / `/W4`) and the build is
   warning-clean; removed the stale qmake `.pro` file, the tracked
   `My User Configs/` folder, and dead libusb test code.
+- The three capture backends (OpenCV, libuvc, macOS hybrid) now share one
+  per-frame pipeline and one reconnect policy in a common base class instead
+  of three drifting copies. All backends reconnect with **backoff** (1 s
+  doubling to a 5 s cap, one warning per outage instead of one per second —
+  the Windows/Linux paths previously retried in a fixed 1 s spam loop).
+- A camera that starts delivering a different frame size mid-stream (e.g. a
+  reconnect that renegotiated the resolution) has those frames dropped with
+  an error message instead of writing mixed-size frames into the recording.
 
 ### Fixed
 - Quitting the app now stops and joins every worker thread (capture loops,
@@ -146,6 +154,17 @@ published together from CI.
   the console: every declarative `backend`/`parent` binding is null-guarded
   against the teardown/startup window where the referenced object doesn't
   exist yet or anymore.
+- A failed UVC control read used to be indistinguishable from reading the
+  value 0: it could fake an external-trigger edge, fabricate an all-zero
+  head-orientation quaternion, and corrupt the DAQ frame-counter offset for
+  the whole recording if it happened on the first frame. Failed reads are now
+  skipped (trigger), hold the last good value (BNO), and log `-1` in the
+  `DAQ Frame Number` CSV column so the gap is visible post-hoc.
+- Linux cameras on the OpenCV backend could never reconnect after a drop
+  (the V4L2 case was missing from the reconnect path, which retried forever).
+- Device connection errors (wrong `deviceID`, device busy, resolve failures)
+  now appear in the message console — they used to be emitted before the
+  message log was listening, so only a generic "cannot connect" ever showed.
 
 ## [1.11] and earlier
 
