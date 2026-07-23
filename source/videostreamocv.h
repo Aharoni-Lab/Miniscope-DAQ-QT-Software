@@ -24,6 +24,7 @@ public:
     ~VideoStreamOCV() override;
 //    void setCameraID(int cameraID);
     void setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf,
+                             qint64 *daqFrameNumBuf,
                              int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS,
                              QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber) override;
     int connect2Camera(int cameraID) override;
@@ -54,6 +55,7 @@ private:
     bool m_isColor;
     cv::Mat *frameBuffer;
     qint64 *timeStampBuffer;
+    qint64 *daqFrameNumBuffer;
     float *bnoBuffer;
     QSemaphore *freeFrames;
     QSemaphore *usedFrames;

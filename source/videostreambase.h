@@ -35,7 +35,11 @@ public:
     explicit VideoStreamBase(QObject *parent = nullptr) : QObject(parent) {}
     ~VideoStreamBase() override = default;
 
+    // daqFrameNumBuf: per-slot copy of the DAQ hardware frame counter at the
+    // moment each frame was acquired, so DataSaver can log it per frame in
+    // timeStamps.csv (makes USB frame loss detectable post-hoc).
     virtual void setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf,
+                                     qint64 *daqFrameNumBuf,
                                      int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS,
                                      QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber) = 0;
     virtual int connect2Camera(int cameraID) = 0;

@@ -27,7 +27,7 @@ public:
     void setUserConfig(QJsonObject userConfig) { m_userConfig = userConfig; }
     bool setupFilePaths();
     void setRecord(bool input) {m_recording = input;}
-    void setFrameBufferParameters(QString name, cv::Mat* frameBuf, qint64 *tsBuffer, float *bnoBuf, int bufSize, QSemaphore* freeFrames, QSemaphore* usedFrames, QAtomicInt* acqFrame);
+    void setFrameBufferParameters(QString name, cv::Mat* frameBuf, qint64 *tsBuffer, float *bnoBuf, qint64 *daqFrameNumBuf, int bufSize, QSemaphore* freeFrames, QSemaphore* usedFrames, QAtomicInt* acqFrame);
     void setHeadOrientationConfig(QString name, bool enable, bool filter) {headOrientationStreamState[name] = enable; headOrientationFilterState[name] = filter; }
     void setupBaseDirectory();
     void setROI(QString name, int *bbox);
@@ -58,12 +58,14 @@ public slots:
     void setDataCompression(QString name, QString type);
 
 private:
+    bool writeBufferedFrame(const QString &name);
     QJsonDocument constructBaseDirectoryMetaData();
     QJsonDocument constructDeviceMetaData(QString type, QString deviceName);
     void saveJson(QJsonDocument document, QString fileName);
     QJsonObject m_userConfig;
     QString baseDirectory;
     QDateTime recordStartDateTime;
+    qint64 recordStartTimeMs = 0;   // monotonic clock base for all CSV times
     QMap<QString,QString> deviceDirectory;
 
     QMap<QString, QMap<QString, QVariant>> deviceProperties;
@@ -76,6 +78,7 @@ private:
     QMap<QString, quint32> savedFrameCount;
     QMap<QString, quint32> frameCount;
     QMap<QString, float*> bnoBuffer;
+    QMap<QString, qint64*> daqFrameNumBuffer;
     QMap<QString, bool> headOrientationStreamState;
     QMap<QString, bool> headOrientationFilterState;
     QMap<QString, qint64*> timeStampBuffer;

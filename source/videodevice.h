@@ -67,6 +67,7 @@ public:
     QString getCompressionType();
     cv::Mat* getFrameBufferPointer(){return frameBuffer;}
     qint64* getTimeStampBufferPointer(){return timeStampBuffer;}
+    qint64* getDaqFrameNumBufferPointer(){return daqFrameNumBuffer;}
     int getBufferSize() {return FRAME_BUFFER_SIZE;}
     QSemaphore* getFreeFramesPointer(){return freeFrames;}
     QSemaphore* getUsedFramesPointer(){return usedFrames;}
@@ -142,6 +143,7 @@ private:
     QThread *videoStreamThread;
     cv::Mat frameBuffer[FRAME_BUFFER_SIZE];
     qint64 timeStampBuffer[FRAME_BUFFER_SIZE];
+    qint64 daqFrameNumBuffer[FRAME_BUFFER_SIZE];
     // float bnoBuffer[FRAME_BUFFER_SIZE*5]; //w,x,y,z,norm
     QSemaphore *freeFrames;
     QSemaphore *usedFrames;

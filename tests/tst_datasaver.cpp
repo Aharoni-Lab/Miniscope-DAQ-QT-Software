@@ -128,13 +128,118 @@ private slots:
         qint64 timestamps[1] = {0};
         QSemaphore freeFrames(1), usedFrames;
         QAtomicInt acqFrame;
-        saver.setFrameBufferParameters("Cam", frames, timestamps, nullptr, 1,
+        saver.setFrameBufferParameters("Cam", frames, timestamps, nullptr, nullptr, 1,
                                        &freeFrames, &usedFrames, &acqFrame);
 
         QSignalSpy failed(&saver, &DataSaver::recordingFailed);
         saver.startRecording({});
         QVERIFY(!saver.isRecording());
         QCOMPARE(failed.count(), 1);
+    }
+
+    void stopRecordingDrainsBufferAndLogsDaqColumn()
+    {
+        // Three frames sit acquired-but-unsaved in the ring buffer when the
+        // recording stops. stopRecording() must drain them to disk, and the
+        // timeStamps.csv of a device WITH a DAQ counter must carry the
+        // per-frame "DAQ Frame Number" column (a jump in it is the on-disk
+        // evidence of USB frame loss).
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+
+        QJsonObject config = deviceFreeConfig(dir.path());
+        QJsonObject camera;
+        camera["deviceType"] = "Miniscope";
+        QJsonObject miniscopes;
+        miniscopes["Scope"] = camera;
+        QJsonObject devices;
+        devices["miniscopes"] = miniscopes;
+        config["devices"] = devices;
+
+        DataSaver saver;
+        saver.setUserConfig(config);
+        saver.setDataCompression("Scope", "MJPG");
+
+        const int bufSize = 4;
+        cv::Mat frames[bufSize];
+        qint64 timestamps[bufSize] = {0};
+        qint64 daqNums[bufSize] = {0};
+        QSemaphore freeFrames(bufSize), usedFrames;
+        QAtomicInt acqFrame;
+        saver.setFrameBufferParameters("Scope", frames, timestamps, nullptr, daqNums,
+                                       bufSize, &freeFrames, &usedFrames, &acqFrame);
+
+        saver.startRecording({});
+        QVERIFY(saver.isRecording());
+
+        // Simulate the capture backend: fill 3 slots, DAQ counter shows a
+        // dropped hardware frame between the 2nd and 3rd (6 -> 8).
+        const qint64 daqValues[3] = {5, 6, 8};
+        for (int i = 0; i < 3; i++) {
+            QVERIFY(freeFrames.tryAcquire());
+            frames[i] = cv::Mat(48, 64, CV_8UC3, cv::Scalar(i * 40, 0, 0));
+            timestamps[i] = 1000 + i * 33;
+            daqNums[i] = daqValues[i];
+            usedFrames.release();
+        }
+
+        saver.stopRecording();
+        QVERIFY(!saver.isRecording());
+
+        QFile csv(dir.path() + "/Scope/timeStamps.csv");
+        QVERIFY(csv.open(QFile::ReadOnly | QFile::Text));
+        const QStringList lines = QString::fromUtf8(csv.readAll())
+                                      .split('\n', Qt::SkipEmptyParts);
+        QCOMPARE(lines.size(), 4); // header + 3 drained frames
+        QCOMPARE(lines[0], QStringLiteral("Frame Number,Time Stamp (ms),Buffer Index,DAQ Frame Number"));
+        for (int i = 0; i < 3; i++) {
+            const QStringList cols = lines[i + 1].split(',');
+            QCOMPARE(cols.size(), 4);
+            QCOMPARE(cols[0].toInt(), i);
+            QCOMPARE(cols[3].toLongLong(), daqValues[i]);
+        }
+
+        // The drained frames must be in the video file, too.
+        cv::VideoCapture readBack((dir.path() + "/Scope/0.avi").toStdString());
+        QVERIFY(readBack.isOpened());
+        QCOMPARE(int(readBack.get(cv::CAP_PROP_FRAME_COUNT)), 3);
+    }
+
+    void devicesWithoutDaqCounterKeepThreeColumnCsv()
+    {
+        // Behavior webcams have no DAQ counter (nullptr buffer): their CSV
+        // format must stay exactly as it always was.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+
+        QJsonObject config = deviceFreeConfig(dir.path());
+        QJsonObject camera;
+        camera["deviceType"] = "WebCam";
+        QJsonObject cameras;
+        cameras["Cam"] = camera;
+        QJsonObject devices;
+        devices["cameras"] = cameras;
+        config["devices"] = devices;
+
+        DataSaver saver;
+        saver.setUserConfig(config);
+        saver.setDataCompression("Cam", "MJPG");
+
+        cv::Mat frames[2];
+        qint64 timestamps[2] = {0};
+        QSemaphore freeFrames(2), usedFrames;
+        QAtomicInt acqFrame;
+        saver.setFrameBufferParameters("Cam", frames, timestamps, nullptr, nullptr,
+                                       2, &freeFrames, &usedFrames, &acqFrame);
+
+        saver.startRecording({});
+        QVERIFY(saver.isRecording());
+        saver.stopRecording();
+
+        QFile csv(dir.path() + "/Cam/timeStamps.csv");
+        QVERIFY(csv.open(QFile::ReadOnly | QFile::Text));
+        const QString header = QString::fromUtf8(csv.readLine()).trimmed();
+        QCOMPARE(header, QStringLiteral("Frame Number,Time Stamp (ms),Buffer Index"));
     }
 
 private:

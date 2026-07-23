@@ -1,4 +1,5 @@
 #include "tracedisplay.h"
+#include "monotonicclock.h"
 #include "newquickview.h"
 
 #include <QObject>
@@ -302,7 +303,7 @@ TraceDisplayRenderer::TraceDisplayRenderer(QObject *parent, QSize displayWindowS
     scale[0] = 1.0f; scale[1] = 1.0f;
     magnify[0] = 1.0f; magnify[1] = 1.0f;
 
-    startTime =  QDateTime().currentMSecsSinceEpoch(); //time software started up
+    startTime = monotonicTimeMs(); //time software started up
     m_lastTimeDisplayed = startTime;
 
     initPrograms();
@@ -908,7 +909,7 @@ void TraceDisplayRenderer::handleWheelEvent(int scrollAmount, QVector<Qt::Key> k
 
 void TraceDisplayRenderer::paint()
 {
-    currentTime =  QDateTime().currentMSecsSinceEpoch();
+    currentTime = monotonicTimeMs();
 
     // Qt6: bracket all raw OpenGL with begin/endExternalCommands (replaces resetOpenGLState).
     m_window->beginExternalCommands();
