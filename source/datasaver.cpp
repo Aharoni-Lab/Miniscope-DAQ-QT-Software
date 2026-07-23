@@ -117,9 +117,12 @@ void DataSaver::setupBaseDirectory()
         baseDirectory = m_userConfig["dataDirectory"].toString();
         for (int i = 0; i < directoryStructure.size(); i++) {
             tempString = directoryStructure[i].toString();
-            if (tempString == "date")
+            // "date"/"time" are reserved tokens; accept any casing ("Date",
+            // "TIME", ...) so a capitalized config doesn't silently produce
+            // literal "DateMissing" folders.
+            if (tempString.compare("date", Qt::CaseInsensitive) == 0)
                 baseDirectory += "/" + recordStartDateTime.date().toString("yyyy_MM_dd");
-            else if (tempString == "time")
+            else if (tempString.compare("time", Qt::CaseInsensitive) == 0)
                 baseDirectory += "/" + recordStartDateTime.time().toString("HH_mm_ss");
             else {
                 tempString2 = m_userConfig[tempString].toString().replace(" ", "_");
@@ -461,7 +464,8 @@ QJsonDocument DataSaver::constructBaseDirectoryMetaData()
     QJsonArray directoryStructure = m_userConfig["directoryStructure"].toArray();
     for (int i = 0; i < directoryStructure.size(); i++) {
         tempString = directoryStructure[i].toString();
-        if (tempString != "date" && tempString != "time" && !tempString.isEmpty())
+        if (tempString.compare("date", Qt::CaseInsensitive) != 0
+            && tempString.compare("time", Qt::CaseInsensitive) != 0 && !tempString.isEmpty())
             metaData[tempString] = m_userConfig[tempString].toString();
     }
     if (!metaData.contains("researcherName"))

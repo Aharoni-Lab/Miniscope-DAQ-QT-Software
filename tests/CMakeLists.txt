@@ -21,6 +21,14 @@ target_include_directories(tst_bundlepaths PRIVATE ${CMAKE_SOURCE_DIR}/source)
 target_link_libraries(tst_bundlepaths PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME bundlepaths COMMAND tst_bundlepaths)
 
+# --- DataSaver config handling (head-orientation flags, directory tokens) ------
+qt_add_executable(tst_datasaver tst_datasaver.cpp
+    ${CMAKE_SOURCE_DIR}/source/datasaver.cpp)
+target_include_directories(tst_datasaver PRIVATE ${CMAKE_SOURCE_DIR}/source
+    ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(tst_datasaver PRIVATE Qt6::Core Qt6::Test ${OpenCV_LIBS})
+add_test(NAME datasaver COMMAND tst_datasaver)
+
 # --- macOS IOKit UVC transport (hardware-free smoke tests) ---------------------
 if(APPLE)
     qt_add_executable(tst_uvccontrolmac tst_uvccontrolmac.cpp)
