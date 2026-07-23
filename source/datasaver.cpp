@@ -20,6 +20,7 @@
 #include <QVariant>
 #include <QMetaType>
 #include <QStorageInfo>
+#include <QThread>
 
 #include "monotonicclock.h"
 
@@ -34,12 +35,21 @@ static constexpr int    kDiskCheckFrameInterval = 100;
 DataSaver::DataSaver(QObject *parent) :
     QObject(parent),
     baseDirectory(""),
+    behavTrackerFile(nullptr),
+    behavTrackerStream(nullptr),
+    noteFile(nullptr),
+    noteStream(nullptr),
     m_recording(false),
     behaviorTrackerEnabled(false),
     m_running(false)
 
 {
 
+}
+
+DataSaver::~DataSaver()
+{
+    releaseRecordingFiles();
 }
 
 bool DataSaver::setupFilePaths()
@@ -169,14 +179,17 @@ void DataSaver::startRunning()
     m_running = true;
     int i, j;
     int poseBufPosition;
+    bool idle;
 
     QString poseData;
 
     QStringList names;
     while(m_running) {
+        idle = true;
         // For Behavior Tracker
         if (behaviorTrackerEnabled) {
             while (usedPoses->tryAcquire()) {
+                idle = false;
                 if (m_recording) {
                     poseBufPosition = btPoseCount % poseBufferSize;
                     poseData.clear();
@@ -195,6 +208,7 @@ void DataSaver::startRunning()
         names = frameBuffer.keys();
         for (i = 0; i < frameBuffer.size(); i++) {
             while (usedCount[names[i]]->tryAcquire()) {
+                idle = false;
                 // grab info from buffer in a threadsafe way
                 if (m_recording && !writeBufferedFrame(names[i])) {
                     // Could not create the next video file / disk nearly full
@@ -207,7 +221,21 @@ void DataSaver::startRunning()
             }
         }
         QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices
+
+        // Nothing arrived this pass: sleep 1ms instead of busy-spinning a
+        // full core. The ring buffers are deep (128 slots), so this adds no
+        // meaningful save latency.
+        if (idle && m_running)
+            QThread::msleep(1);
     }
+}
+
+void DataSaver::stopRunning()
+{
+    // Delivered as a queued slot: the run loop's processEvents() call picks
+    // it up, the loop exits, and startRunning() returns so the DataSaver
+    // thread can finish and be joined.
+    m_running = false;
 }
 
 // Write the frame at this device's current ring-buffer position to disk
@@ -316,6 +344,7 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
         return;
     }
     QJsonDocument jDoc;
+    releaseRecordingFiles();   // free the previous recording's (or a failed attempt's) handles
     recordStartDateTime = QDateTime::currentDateTime();
     recordStartTimeMs = monotonicTimeMs();   // frame stamps use the same monotonic clock
     if (setupFilePaths()) {
@@ -335,7 +364,6 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
 
         // Every file in the save path must open, or the recording must not
         // claim to be running - a silently unwritable CSV is total data loss.
-        QVector<QFile *> openedFiles;
         bool openFailed = false;
         auto openForWrite = [&](QFile *file) {
             if (openFailed)
@@ -346,7 +374,6 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
                 openFailed = true;
                 return false;
             }
-            openedFiles.append(file);
             return true;
         };
 
@@ -436,8 +463,7 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
         }
 
         if (openFailed) {
-            for (QFile *file : openedFiles)
-                file->close();
+            releaseRecordingFiles();
             emit recordingFailed();
             return;
         }
@@ -472,20 +498,55 @@ void DataSaver::stopRecording()
         }
     }
 
-    QStringList keys = videoWriter.keys();
-    for (int i = 0; i < keys.length(); i++) {
-        videoWriter[keys[i]]->release();
-        csvFile[keys[i]]->close();
+    releaseRecordingFiles();
+}
 
-        if (headOrientationStreamState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr)
-            if (headOriFile[keys[i]]->isOpen())
-                headOriFile[keys[i]]->close();
+// Close and free everything startRecording() allocated. Called when a
+// recording stops, before a new one starts (clears leftovers from a failed
+// attempt), and on destruction - each record/stop cycle used to leak every
+// QFile/QTextStream/VideoWriter it created.
+void DataSaver::releaseRecordingFiles()
+{
+    for (cv::VideoWriter *writer : videoWriter) {
+        if (writer)
+            writer->release();
+        delete writer;
     }
-    if (!m_userConfig["behaviorTracker"].toObject().isEmpty()) {
-        if (behavTrackerFile->isOpen())
-            behavTrackerFile->close();
+    videoWriter.clear();
+
+    // Streams are deleted before their files: QTextStream flushes on
+    // destruction, which must happen while the QFile is still alive.
+    qDeleteAll(csvStream);
+    csvStream.clear();
+    for (QFile *file : csvFile) {
+        if (file)
+            file->close();
+        delete file;
     }
-    noteFile->close();
+    csvFile.clear();
+
+    qDeleteAll(headOriStream);
+    headOriStream.clear();
+    for (QFile *file : headOriFile) {
+        if (file)
+            file->close();
+        delete file;
+    }
+    headOriFile.clear();
+
+    delete behavTrackerStream;
+    behavTrackerStream = nullptr;
+    if (behavTrackerFile)
+        behavTrackerFile->close();
+    delete behavTrackerFile;
+    behavTrackerFile = nullptr;
+
+    delete noteStream;
+    noteStream = nullptr;
+    if (noteFile)
+        noteFile->close();
+    delete noteFile;
+    noteFile = nullptr;
 }
 
 void DataSaver::devicePropertyChanged(QString deviceName, QString propName, QVariant propValue)

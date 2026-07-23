@@ -24,6 +24,7 @@ class DataSaver : public QObject
     Q_OBJECT
 public:
     explicit DataSaver(QObject *parent = nullptr);
+    ~DataSaver() override;
     void setUserConfig(QJsonObject userConfig) { m_userConfig = userConfig; }
     bool setupFilePaths();
     void setRecord(bool input) {m_recording = input;}
@@ -50,6 +51,7 @@ signals:
 
 public slots:
     void startRunning();
+    void stopRunning();
     void startRecording(QMap<QString,QVariant> ucInfo);
     void stopRecording();
     void devicePropertyChanged(QString deviceName, QString propName, QVariant propValue);
@@ -59,6 +61,7 @@ public slots:
 
 private:
     bool writeBufferedFrame(const QString &name);
+    void releaseRecordingFiles();
     QJsonDocument constructBaseDirectoryMetaData();
     QJsonDocument constructDeviceMetaData(QString type, QString deviceName);
     void saveJson(QJsonDocument document, QString fileName);

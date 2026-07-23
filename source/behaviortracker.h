@@ -181,6 +181,8 @@ public slots:
     void sendNewFrame();
     void startRunning(); // Slot gets called when thread starts
     void close();
+    // Orderly shutdown: ask the worker to stop, then join its thread.
+    void stopAndJoinWorker();
     void handleAddNewTracePose(int poseIdx, QString type, bool sameOffset);
 
 private:

@@ -16,6 +16,7 @@
 // exactly like the other backends - frame counter always (1 read/frame), BNO
 // only when head orientation is enabled, trigger state only when tracking.
 
+#include <atomic>
 #include <QSemaphore>
 #include <QAtomicInt>
 #include <QVector>
@@ -70,7 +71,7 @@ private:
     AvfFrameGrabber m_grabber;
     UVCControlMac m_control;
 
-    bool m_stopStreaming;
+    std::atomic<bool> m_stopStreaming;
     bool m_headOrientationStreamState;
     bool m_isColor;
 

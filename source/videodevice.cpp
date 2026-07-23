@@ -849,3 +849,18 @@ void VideoDevice::close()
         view->close();
 }
 
+void VideoDevice::stopAndJoinStream()
+{
+    if (!m_camConnected || deviceStream == nullptr || videoStreamThread == nullptr)
+        return;
+    // Direct call from the GUI thread: stopSteam() only sets the (atomic)
+    // stop flag, so this is safe and does not depend on the stream thread's
+    // event processing. The stream loop then exits and the thread finishes.
+    deviceStream->stopSteam();
+    videoStreamThread->quit();
+    if (!videoStreamThread->wait(3000))
+        qWarning() << m_deviceName << "stream thread did not stop within 3s; leaking it";
+    // The thread deletes itself via its finished() -> deleteLater() connection.
+    videoStreamThread = nullptr;
+}
+

@@ -7,6 +7,7 @@
 // frame counter and BNO head-orientation registers can be read on Linux).
 #ifdef HAVE_LIBUVC
 
+#include <atomic>
 #include <QSemaphore>
 #include <QAtomicInt>
 #include <QVector>
@@ -65,8 +66,8 @@ private:
     uvc_stream_handle_t *m_strmh;
     int m_negotiatedFps;
 
-    bool m_isStreaming;
-    bool m_stopStreaming;
+    std::atomic<bool> m_isStreaming;
+    std::atomic<bool> m_stopStreaming;
     bool m_headOrientationStreamState;
     bool m_headOrientationFilterState;
     bool m_isColor;

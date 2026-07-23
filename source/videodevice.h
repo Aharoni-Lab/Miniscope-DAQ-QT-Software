@@ -61,6 +61,9 @@ public:
     bool getHeadOrienataionFilterState() { return m_headOrientationFilterState;}
     void createView();
     void connectSnS();
+    // Orderly shutdown: stop the capture loop and join its thread. Safe to
+    // call from the GUI thread; no-op if the device never connected.
+    void stopAndJoinStream();
     void defineDeviceAddrs();
     void parseUserConfigDevice();
     void sendInitCommands();
