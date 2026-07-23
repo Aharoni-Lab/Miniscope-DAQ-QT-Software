@@ -2,6 +2,7 @@
 #define AVFENUMERATORMAC_H
 
 #include <QString>
+#include <QStringList>
 #include <QVector>
 #include <QtGlobal>
 
@@ -42,6 +43,40 @@ struct ControlTarget {
 ControlTarget resolveControlTarget(const QVector<AvfCameraInfo> &cameras, int cameraID,
                                    quint16 expectedVid, quint16 expectedPid,
                                    const QVector<quint32> &attachedLocations);
+
+// Behavior cameras (webcams) are configured by deviceID = AVFoundation list
+// index. Resolve the index to the camera's stable uniqueID ONCE at connect;
+// after that the capture session is pinned to the uniqueID and reconnects
+// re-resolve by uniqueID only, never by index - list positions shift whenever
+// cameras come and go, and an index reopen can silently bind a DIFFERENT
+// physical camera (the "ghost reconnect" observed on the bench).
+struct WebcamTarget {
+    bool ok = false;
+    QString uniqueID;
+    QString name;      // localizedName, for user-facing messages
+    QString error;     // the reason, when !ok
+};
+
+inline WebcamTarget resolveWebcamTarget(const QVector<AvfCameraInfo> &cameras, int cameraID)
+{
+    WebcamTarget target;
+    if (cameras.isEmpty()) {
+        target.error = QStringLiteral("no cameras are visible to macOS.");
+        return target;
+    }
+    if (cameraID < 0 || cameraID >= cameras.size()) {
+        QStringList names;
+        for (int i = 0; i < cameras.size(); i++)
+            names.append(QStringLiteral("deviceID %1: %2").arg(i).arg(cameras[i].name));
+        target.error = QStringLiteral("deviceID %1 is out of range - %2 camera(s) connected (%3).")
+                           .arg(cameraID).arg(cameras.size()).arg(names.join(QStringLiteral(", ")));
+        return target;
+    }
+    target.ok = true;
+    target.uniqueID = cameras[cameraID].uniqueID;
+    target.name = cameras[cameraID].name;
+    return target;
+}
 
 // The stable AVFoundation uniqueID of the camera with this USB locationID
 // (empty when absent) - what the frame grabber pins its capture session to,
