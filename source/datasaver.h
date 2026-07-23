@@ -33,6 +33,7 @@ public:
     void setROI(QString name, int *bbox);
 
     // Inspection accessors (also pin the behavior above down in unit tests)
+    bool isRecording() const { return m_recording; }
     QString getBaseDirectory() const { return baseDirectory; }
     void setRecordStartDateTime(const QDateTime &dateTime) { recordStartDateTime = dateTime; }
     bool getHeadOrientationStreamState(QString name) const { return headOrientationStreamState.value(name, false); }
@@ -42,6 +43,10 @@ public:
 
 signals:
     void sendMessage(QString msg);
+    // Emitted when a recording could not start (a save-path file failed to
+    // open) or had to stop (disk full, video file creation failed), so the UI
+    // can drop its "Recording" state instead of silently saving nothing.
+    void recordingFailed();
 
 public slots:
     void startRunning();

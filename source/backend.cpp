@@ -535,7 +535,10 @@ void backEnd::saveConfigObject()
     fName.chop(5);
     fName.append("_new.json");
     file.setFileName(fName);
-    file.open(QFile::WriteOnly | QFile::Text | QFile::Truncate);
+    if (!file.open(QFile::WriteOnly | QFile::Text | QFile::Truncate)) {
+        qWarning() << "Could not save user config to" << fName << ":" << file.errorString();
+        return;
+    }
     file.write(d.toJson());
     file.close();
 }
@@ -1002,7 +1005,11 @@ void backEnd::loadUserConfigFile()
     QString jsonFile;
     QFile file;
     file.setFileName(m_userConfigFileName);
-    file.open(QIODevice::ReadOnly | QIODevice::Text);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        setUserConfigDisplay("Could not open User Config file: " + m_userConfigFileName
+                             + " (" + file.errorString() + ")");
+        return;
+    }
     jsonFile = file.readAll();
     setUserConfigDisplay("User Config File Selected: " + m_userConfigFileName + "\n" + jsonFile);
     file.close();
@@ -1115,6 +1122,9 @@ void backEnd::connectSnS()
         QObject::connect(this, SIGNAL( closeAll()), traceDisplay, SLOT (close()));
 
     QObject::connect(dataSaver, SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+    // A recording that could not create/continue its files must drop the UI's
+    // "Recording" state instead of pretending to record.
+    QObject::connect(dataSaver, &DataSaver::recordingFailed, controlPanel, &ControlPanel::onRecordingFailed);
 
     for (int i = 0; i < miniscope.length(); i++) {
         // For triggering screenshots
@@ -1249,8 +1259,7 @@ bool backEnd::checkUserConfigForIssues()
         setUserConfigOK(true);
         userConfigOKChanged();
     }
-    // TODO: make return do something or remove
-    return true;
+    return m_userConfigOK;
 }
 
 void backEnd::parseUserConfig()
