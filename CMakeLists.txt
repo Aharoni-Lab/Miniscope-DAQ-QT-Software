@@ -149,6 +149,10 @@ qt_add_executable(MiniscopeDAQ
     source/qml.qrc
 )
 
+# Single source of truth for the app version: the project() line above. The
+# UI (main.cpp) and the packaging scripts all derive from it.
+target_compile_definitions(MiniscopeDAQ PRIVATE MINISCOPE_VERSION="${PROJECT_VERSION}")
+
 if(APPLE)
     target_link_libraries(MiniscopeDAQ PRIVATE uvccontrol_mac avfenumerator_mac avfgrabber_mac)
 
