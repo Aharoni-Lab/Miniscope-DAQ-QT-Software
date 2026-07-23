@@ -44,7 +44,7 @@ codesign --verify --deep --strict "$APP"
 
 echo "### package DMG"
 mkdir -p "$DIST"
-VER="$(sed -nE 's/.*VERSION_NUMBER[[:space:]]+"([^"]+)".*/\1/p' "$REPO/source/main.cpp" | head -1)"
+VER="$(sed -nE 's/^project\(MiniscopeDAQ[[:space:]]+VERSION[[:space:]]+([0-9.]+).*/\1/p' "$REPO/CMakeLists.txt" | head -1)"
 ARCH="$(uname -m)"
 OUT="Miniscope-DAQ${VER:+-$VER}-macOS-$ARCH.dmg"
 STAGE="$BUILD/dmg-stage"

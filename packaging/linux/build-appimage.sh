@@ -79,7 +79,7 @@ chmod +x "$APPDIR/usr/bin/MiniscopeDAQ"
 
 echo "### package AppImage"
 mkdir -p "$DIST"
-VER="$(sed -nE 's/.*VERSION_NUMBER\s+"([^"]+)".*/\1/p' "$REPO/source/main.cpp" | head -1)"
+VER="$(sed -nE 's/^project\(MiniscopeDAQ\s+VERSION\s+([0-9.]+).*/\1/p' "$REPO/CMakeLists.txt" | head -1)"
 OUT="Miniscope_DAQ${VER:+-$VER}-x86_64.AppImage"
 ( cd "$DIST" && ARCH=x86_64 OUTPUT="$OUT" "$LD" --appdir "$APPDIR" --output appimage )
 echo "### DONE -> $DIST/$OUT"
