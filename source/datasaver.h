@@ -28,9 +28,15 @@ public:
     bool setupFilePaths();
     void setRecord(bool input) {m_recording = input;}
     void setFrameBufferParameters(QString name, cv::Mat* frameBuf, qint64 *tsBuffer, float *bnoBuf, int bufSize, QSemaphore* freeFrames, QSemaphore* usedFrames, QAtomicInt* acqFrame);
-    void setHeadOrientationConfig(QString name, bool enable, bool filter) {headOrientationStreamState[name] = enable; headOrientationStreamState[name] = filter; }
+    void setHeadOrientationConfig(QString name, bool enable, bool filter) {headOrientationStreamState[name] = enable; headOrientationFilterState[name] = filter; }
     void setupBaseDirectory();
     void setROI(QString name, int *bbox);
+
+    // Inspection accessors (also pin the behavior above down in unit tests)
+    QString getBaseDirectory() const { return baseDirectory; }
+    void setRecordStartDateTime(const QDateTime &dateTime) { recordStartDateTime = dateTime; }
+    bool getHeadOrientationStreamState(QString name) const { return headOrientationStreamState.value(name, false); }
+    bool getHeadOrientationFilterState(QString name) const { return headOrientationFilterState.value(name, false); }
 
     void setPoseBufferParameters(QVector<float>* poseBuf, int* poseFrameNumBuf, int poseBufSize, QSemaphore* freePos, QSemaphore* usedPos);
 

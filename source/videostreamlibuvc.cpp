@@ -277,52 +277,58 @@ void VideoStreamLibUVC::startStream()
             continue;
         }
 
-        timeStampBuffer[idx % frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
-
-        // libuvc gives raw YUYV; the Y plane is the Miniscope image.
-        cv::Mat yuyv((int)frame->height, (int)frame->width, CV_8UC2, frame->data);
-        if (m_isColor)
-            cv::cvtColor(yuyv, frameBuffer[idx % frameBufferSize], cv::COLOR_YUV2BGR_YUYV);
-        else
-            cv::cvtColor(yuyv, frameBuffer[idx % frameBufferSize], cv::COLOR_YUV2GRAY_YUYV);
-
-        if (m_trackExtTrigger) {
-            if (extTriggerLast == -1) {
-                extTriggerLast = getPU(SEL_GAMMA);
-            } else {
-                extTrigger = getPU(SEL_GAMMA);
-                if (extTriggerLast != extTrigger) {
-                    if (extTriggerLast == 0)
-                        emit extTriggered(true);
-                    else
-                        emit extTriggered(false);
-                }
-                extTriggerLast = extTrigger;
-            }
-        }
-
-        if (m_headOrientationStreamState) {
-            // BNO output is a unit quaternion after a 2^14 division.
-            qint16 quat[4];   // w, x, y, z per kBnoSelectors order
-            for (int i = 0; i < 4; i++)
-                quat[i] = static_cast<qint16>(getPU(kBnoSelectors[i]));
-            MiniscopeProtocol::unpackBnoQuaternion(quat[0], quat[1], quat[2], quat[3],
-                                                   &bnoBuffer[(idx % frameBufferSize) * 5]);
-        }
-
-        if (daqFrameNum != nullptr) {
-            *daqFrameNum = getPU(SEL_CONTRAST) - daqFrameNumOffset;
-            if (*m_acqFrameNum == 0)
-                daqFrameNumOffset = *daqFrameNum - 1;
-        }
-
-        // Thread-safe buffer handoff (mirrors VideoStreamOCV).
+        // Reserve a buffer slot BEFORE writing anything into it: when the
+        // buffer is full, idx%frameBufferSize is the oldest unconsumed slot,
+        // which DataSaver may be reading right now - writing first corrupts
+        // the frame being saved. Acquiring first also skips the per-frame
+        // control reads for frames we are about to drop.
         if (!freeFrames->tryAcquire()) {
+            // No free slot: this frame is thrown away
             if (freeFrames->available() == 0) {
                 sendMessage("Error: " + m_deviceName + " frame buffer is full. Frames will be lost!");
                 QThread::msleep(100);
             }
         } else {
+            const int bufIdx = idx % frameBufferSize;
+            timeStampBuffer[bufIdx] = QDateTime::currentMSecsSinceEpoch();
+
+            // libuvc gives raw YUYV; the Y plane is the Miniscope image.
+            cv::Mat yuyv((int)frame->height, (int)frame->width, CV_8UC2, frame->data);
+            if (m_isColor)
+                cv::cvtColor(yuyv, frameBuffer[bufIdx], cv::COLOR_YUV2BGR_YUYV);
+            else
+                cv::cvtColor(yuyv, frameBuffer[bufIdx], cv::COLOR_YUV2GRAY_YUYV);
+
+            if (m_trackExtTrigger) {
+                if (extTriggerLast == -1) {
+                    extTriggerLast = getPU(SEL_GAMMA);
+                } else {
+                    extTrigger = getPU(SEL_GAMMA);
+                    if (extTriggerLast != extTrigger) {
+                        if (extTriggerLast == 0)
+                            emit extTriggered(true);
+                        else
+                            emit extTriggered(false);
+                    }
+                    extTriggerLast = extTrigger;
+                }
+            }
+
+            if (m_headOrientationStreamState) {
+                // BNO output is a unit quaternion after a 2^14 division.
+                qint16 quat[4];   // w, x, y, z per kBnoSelectors order
+                for (int i = 0; i < 4; i++)
+                    quat[i] = static_cast<qint16>(getPU(kBnoSelectors[i]));
+                MiniscopeProtocol::unpackBnoQuaternion(quat[0], quat[1], quat[2], quat[3],
+                                                       &bnoBuffer[bufIdx * 5]);
+            }
+
+            if (daqFrameNum != nullptr) {
+                *daqFrameNum = getPU(SEL_CONTRAST) - daqFrameNumOffset;
+                if (*m_acqFrameNum == 0)
+                    daqFrameNumOffset = *daqFrameNum - 1;
+            }
+
             m_acqFrameNum->operator++();
             idx++;
             emit newFrameAvailable(m_deviceName, *m_acqFrameNum);

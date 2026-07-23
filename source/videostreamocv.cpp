@@ -118,6 +118,7 @@ void VideoStreamOCV::startStream()
     double extTriggerLast = -1;
     double extTrigger;
     bool status = false;
+    qint64 timestamp = 0;
     cv::Mat frame;
 
     m_stopStreaming = false;
@@ -154,7 +155,7 @@ void VideoStreamOCV::startStream()
                 }
                 else {
                     // Grab successful
-                    timeStampBuffer[idx%frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
+                    timestamp = QDateTime::currentMSecsSinceEpoch();
                     if (!cam->retrieve(frame)) {
                         // Retrieve failed
                         status = false;
@@ -176,81 +177,31 @@ void VideoStreamOCV::startStream()
             }
             else if (m_connectionType == "videoFile") {
                 QThread::msleep(1000.0/m_playbackFPS);
-                timeStampBuffer[idx%frameBufferSize] = QDateTime().currentMSecsSinceEpoch();
+                timestamp = QDateTime::currentMSecsSinceEpoch();
                 if (!cam->read(frame)) {
-                    // Try next file before fully giving up
+                    // Try next file before fully giving up. End playback with
+                    // a break, not a return: break falls through to the
+                    // cam->release() after the loop, a return leaks the handle.
                     m_playbackFileIndex++;
-//                    if (m_playbackFileIndex == 4)
-//                        m_playbackFileIndex = 0;
                     qDebug() << "FILE INDEX" << m_playbackFileIndex;
                     fileName = m_playbackFolderPath + "/" + m_playbackFilePrefix + QString::number(m_playbackFileIndex) + ".avi";
                     cam->release();
-                    if (cam->open(fileName.toStdString())) {
-                        if (!cam->read(frame)) {
-                            status = false;
-                            return;
-                        }
+                    if (!cam->open(fileName.toStdString()) || !cam->read(frame)) {
+                        sendMessage(m_deviceName + " playback reached the end of the recording.");
+                        m_isStreaming = false;
+                        break;
                     }
-                    else
-                        return;
-
                 }
             }
             if (status) {
-                // frame was grabbed
-                // Grab and retieve successful
-
-                if (m_isColor) {
-                    frame.copyTo(frameBuffer[idx%frameBufferSize]);
-                }
-                else {
-                    //                            frame = cv::repeat(frame,4,4);
-                    cv::cvtColor(frame, frameBuffer[idx%frameBufferSize], cv::COLOR_BGR2GRAY);
-                }
-                // qDebug() << "Frame Number:" << *m_acqFrameNum - cam->get(cv::CAP_PROP_CONTRAST);
-
-                if (m_trackExtTrigger) {
-                    if (extTriggerLast == -1) {
-                        // first time grabbing trigger state.
-                        extTriggerLast = cam->get(cv::CAP_PROP_GAMMA);
-                    }
-                    else {
-                        extTrigger = cam->get(cv::CAP_PROP_GAMMA);
-                        if (extTriggerLast != extTrigger) {
-                            // State change
-                            if (extTriggerLast == 0) {
-                                // Went from 0 to 1
-                                emit extTriggered(true);
-                            }
-                            else {
-                                // Went from 1 to 0
-                                emit extTriggered(false);
-                            }
-                        }
-                        extTriggerLast = extTrigger;
-                    }
-                }
-
-                if (m_headOrientationStreamState) {
-                    // BNO output is a unit quaternion after 2^14 division
-                    MiniscopeProtocol::unpackBnoQuaternion(
-                        static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION)),
-                        static_cast<qint16>(cam->get(cv::CAP_PROP_HUE)),
-                        static_cast<qint16>(cam->get(cv::CAP_PROP_GAIN)),
-                        static_cast<qint16>(cam->get(cv::CAP_PROP_BRIGHTNESS)),
-                        &bnoBuffer[(idx%frameBufferSize)*5]);
-                }
-                if (daqFrameNum != nullptr) {
-                    *daqFrameNum = cam->get(cv::CAP_PROP_CONTRAST) - daqFrameNumOffset;
-                    // qDebug() << cam->get(cv::CAP_PROP_CONTRAST);// *daqFrameNum;
-                    if (*m_acqFrameNum == 0) // Used to initially sync daqFrameNum with acqFrameNum
-                        daqFrameNumOffset = *daqFrameNum - 1;
-                }
-
-                // Handle thread safe controls of buffer
-                if(!freeFrames->tryAcquire()) {
-                    // Failed to acquire free frame
-                    // Will throw away this acquired frame
+                // Grab and retrieve successful. Reserve a buffer slot BEFORE
+                // writing anything into it: when the buffer is full,
+                // idx%frameBufferSize is the oldest unconsumed slot, which
+                // DataSaver may be reading right now - writing first corrupts
+                // the frame being saved. Acquiring first also skips the
+                // per-frame control reads for frames we are about to drop.
+                if (!freeFrames->tryAcquire()) {
+                    // No free slot: this frame is thrown away
                     if (freeFrames->available() == 0) {
                         // Buffers are full!
                         sendMessage("Error: " + m_deviceName + " frame buffer is full. Frames will be lost!");
@@ -258,13 +209,57 @@ void VideoStreamOCV::startStream()
                     }
                 }
                 else {
+                    const int bufIdx = idx % frameBufferSize;
+                    timeStampBuffer[bufIdx] = timestamp;
+                    if (m_isColor) {
+                        frame.copyTo(frameBuffer[bufIdx]);
+                    }
+                    else {
+                        cv::cvtColor(frame, frameBuffer[bufIdx], cv::COLOR_BGR2GRAY);
+                    }
+
+                    if (m_trackExtTrigger) {
+                        if (extTriggerLast == -1) {
+                            // first time grabbing trigger state.
+                            extTriggerLast = cam->get(cv::CAP_PROP_GAMMA);
+                        }
+                        else {
+                            extTrigger = cam->get(cv::CAP_PROP_GAMMA);
+                            if (extTriggerLast != extTrigger) {
+                                // State change
+                                if (extTriggerLast == 0) {
+                                    // Went from 0 to 1
+                                    emit extTriggered(true);
+                                }
+                                else {
+                                    // Went from 1 to 0
+                                    emit extTriggered(false);
+                                }
+                            }
+                            extTriggerLast = extTrigger;
+                        }
+                    }
+
+                    if (m_headOrientationStreamState) {
+                        // BNO output is a unit quaternion after 2^14 division
+                        MiniscopeProtocol::unpackBnoQuaternion(
+                            static_cast<qint16>(cam->get(cv::CAP_PROP_SATURATION)),
+                            static_cast<qint16>(cam->get(cv::CAP_PROP_HUE)),
+                            static_cast<qint16>(cam->get(cv::CAP_PROP_GAIN)),
+                            static_cast<qint16>(cam->get(cv::CAP_PROP_BRIGHTNESS)),
+                            &bnoBuffer[bufIdx*5]);
+                    }
+                    if (daqFrameNum != nullptr) {
+                        *daqFrameNum = cam->get(cv::CAP_PROP_CONTRAST) - daqFrameNumOffset;
+                        if (*m_acqFrameNum == 0) // Used to initially sync daqFrameNum with acqFrameNum
+                            daqFrameNumOffset = *daqFrameNum - 1;
+                    }
+
                     m_acqFrameNum->operator++();
-                    // qDebug() << *m_acqFrameNum << *daqFrameNum;
                     idx++;
                     emit newFrameAvailable(m_deviceName, *m_acqFrameNum);
                     usedFrames->release();
                 }
-
             }
             // Get any new events
             QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices
