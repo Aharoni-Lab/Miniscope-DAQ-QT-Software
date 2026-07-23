@@ -37,6 +37,13 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     m_softwareStartTime(softwareStartTime)
 
 {
+    // Hold messages emitted before the backend wires sendMessage to the
+    // control panel - see takeEarlyMessages().
+    QObject::connect(this, &VideoDevice::sendMessage, this, [this](QString msg) {
+        if (m_holdEarlyMessages)
+            m_earlyMessages.append(msg);
+    });
+
     m_roiBoundingBox[0] = -1;
     m_roiBoundingBox[1] = -1;
     m_roiBoundingBox[2] = -1;
@@ -83,6 +90,12 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     if (deviceStream == nullptr)
         deviceStream = new VideoStreamOCV(nullptr, devWidth, devHeight, devPixelClock);
     deviceStream->setDeviceName(m_deviceName);
+
+    // Pass send message signal through. Wired BEFORE connect2Camera/connect2Video
+    // so connect-time errors (wrong deviceID, device busy, resolve failures)
+    // actually reach the UI instead of vanishing - historically only the
+    // generic "cannot connect" message ever showed.
+    QObject::connect(deviceStream, &VideoStreamBase::sendMessage, this, &VideoDevice::sendMessage);
 
     // Checks to make sure user config and miniscope device type are supporting BNO streaming
     if (m_ucDevice.contains("headOrientation")) {
@@ -137,9 +150,6 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     //    QObject::connect(miniscopeStream, SIGNAL (finished()), videoStreamThread, SLOT (quit()));
     //    QObject::connect(miniscopeStream, SIGNAL (finished()), miniscopeStream, SLOT (deleteLater()));
         QObject::connect(videoStreamThread, SIGNAL (finished()), videoStreamThread, SLOT (deleteLater()));
-
-        // Pass send message signal through
-        QObject::connect(deviceStream, &VideoStreamBase::sendMessage, this, &VideoDevice::sendMessage);
 
         // Handle request for reinitialization of commands
         QObject::connect(deviceStream, &VideoStreamBase::requestInitCommands, this, &VideoDevice::handleInitCommandsRequest);
@@ -273,7 +283,7 @@ void VideoDevice::createView()
         // Link up Add Trace ROI signal and slot
         QObject::connect(vidDisplay, &VideoDisplay::newAddTraceROISignal, this, &VideoDevice::handleAddNewTraceROI);
 
-        QObject::connect(view, &NewQuickView::closing, deviceStream, &VideoStreamBase::stopSteam);
+        QObject::connect(view, &NewQuickView::closing, deviceStream, &VideoStreamBase::stopStream);
         QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &VideoDevice::sendNewFrame);
 
         // Keep the ROI overlay tracking the video as the window is resized.
@@ -849,14 +859,22 @@ void VideoDevice::close()
         view->close();
 }
 
+QStringList VideoDevice::takeEarlyMessages()
+{
+    m_holdEarlyMessages = false;
+    const QStringList messages = m_earlyMessages;
+    m_earlyMessages.clear();
+    return messages;
+}
+
 void VideoDevice::stopAndJoinStream()
 {
     if (!m_camConnected || deviceStream == nullptr || videoStreamThread == nullptr)
         return;
-    // Direct call from the GUI thread: stopSteam() only sets the (atomic)
+    // Direct call from the GUI thread: stopStream() only sets the (atomic)
     // stop flag, so this is safe and does not depend on the stream thread's
     // event processing. The stream loop then exits and the thread finishes.
-    deviceStream->stopSteam();
+    deviceStream->stopStream();
     videoStreamThread->quit();
     if (!videoStreamThread->wait(3000))
         qWarning() << m_deviceName << "stream thread did not stop within 3s; leaking it";

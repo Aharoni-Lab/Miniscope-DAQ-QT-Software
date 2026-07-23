@@ -9,10 +9,8 @@
 using namespace MiniscopeProtocol;   // SEL_* selectors, kProcessingUnitId, VID/PID
 
 #include <QDebug>
-#include <QCoreApplication>
-#include <QDateTime>
+#include <QString>
 #include <QThread>
-#include <QtMath>
 #include <opencv2/imgproc.hpp>
 
 #include <cstdio>
@@ -21,33 +19,12 @@ using namespace MiniscopeProtocol;   // SEL_* selectors, kProcessingUnitId, VID/
 #include <unistd.h>
 
 VideoStreamLibUVC::VideoStreamLibUVC(QObject *parent, int width, int height, double pixelClock) :
-    VideoStreamBase(parent),
-    m_cameraID(-1),
-    m_deviceName(""),
+    VideoStreamBase(parent, width > 0 ? width : 608, height > 0 ? height : 608, pixelClock),
     m_ctx(nullptr),
     m_dev(nullptr),
     m_devh(nullptr),
     m_strmh(nullptr),
-    m_negotiatedFps(0),
-    m_isStreaming(false),
-    m_stopStreaming(false),
-    m_headOrientationStreamState(false),
-    m_headOrientationFilterState(false),
-    m_isColor(false),
-    frameBuffer(nullptr),
-    timeStampBuffer(nullptr),
-    daqFrameNumBuffer(nullptr),
-    bnoBuffer(nullptr),
-    freeFrames(nullptr),
-    usedFrames(nullptr),
-    frameBufferSize(0),
-    m_acqFrameNum(nullptr),
-    daqFrameNum(nullptr),
-    m_trackExtTrigger(false),
-    m_expectedWidth(width > 0 ? width : 608),
-    m_expectedHeight(height > 0 ? height : 608),
-    m_pixelClock(pixelClock),
-    m_connectionType("")
+    m_negotiatedFps(0)
 {
 }
 
@@ -71,22 +48,6 @@ void VideoStreamLibUVC::closeDevice()
     if (m_devh) { uvc_close(m_devh); m_devh = nullptr; } // re-attaches kernel driver
     if (m_dev)  { uvc_unref_device(m_dev); m_dev = nullptr; }
     if (m_ctx)  { uvc_exit(m_ctx); m_ctx = nullptr; }
-}
-
-void VideoStreamLibUVC::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf,
-                                            qint64 *daqFrameNumBuf,
-                                            int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS,
-                                            QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber)
-{
-    frameBuffer = frameBuf;
-    timeStampBuffer = tsBuf;
-    daqFrameNumBuffer = daqFrameNumBuf;
-    bnoBuffer = bnoBuf;
-    frameBufferSize = bufferSize;
-    freeFrames = freeFramesS;
-    usedFrames = usedFramesS;
-    m_acqFrameNum = acqFrameNum;
-    daqFrameNum = daqFrameNumber;
 }
 
 // Resolve /dev/video{cameraID} to its USB bus/address by walking sysfs, so we
@@ -193,51 +154,39 @@ int VideoStreamLibUVC::connect2Camera(int cameraID)
         closeDevice();
         return 0;
     }
-    m_connectionType = "libuvc";
-    sendSerdesModeCommands(m_pixelClock);
+    sendSerdesModeCommands();
     return 1;
 }
 
-int VideoStreamLibUVC::connect2Video(QString, QString, float)
-{
-    // Video-file playback always uses the OpenCV backend; not supported here.
-    sendMessage("Error: video playback is not supported by the libuvc backend.");
-    return 0;
-}
-
-bool VideoStreamLibUVC::setPU(quint8 selector, quint16 value)
+bool VideoStreamLibUVC::writeControlWord(quint8 selector, quint16 word)
 {
     uint8_t buf[2];
-    UVCRequest::encodeLE16(value, buf);
+    UVCRequest::encodeLE16(word, buf);
     int r = uvc_set_ctrl(m_devh, kProcessingUnitId, selector, buf, 2);
     usleep(kCtrlSettleUs);   // let the DAQ's slow control endpoint clear the write
     return r == 2;
 }
 
-int VideoStreamLibUVC::getPU(quint8 selector)
+bool VideoStreamLibUVC::readControl(quint8 selector, quint16 *value)
 {
     uint8_t buf[2] = {0, 0};
     int r = uvc_get_ctrl(m_devh, kProcessingUnitId, selector, buf, 2, UVC_GET_CUR);
-    if (r < 0)
-        return 0;
-    return static_cast<qint16>(UVCRequest::decodeLE16(buf));
+    if (r != 2)
+        return false;
+    *value = UVCRequest::decodeLE16(buf);
+    return true;
 }
 
-// Flush queued I2C packets to the device via UVC SET_CUR.
-void VideoStreamLibUVC::sendCommands()
+void VideoStreamLibUVC::convertToSlot(const cv::Mat &frame, cv::Mat &slot)
 {
-    if (!m_commandQueue.flush([this](quint8 sel, quint16 word) { return setPU(sel, word); }))
-        qDebug() << "Send setting failed";
+    // libuvc gives raw YUYV; the Y plane is the Miniscope image.
+    cv::cvtColor(frame, slot, m_isColor ? cv::COLOR_YUV2BGR_YUYV : cv::COLOR_YUV2GRAY_YUYV);
 }
 
 void VideoStreamLibUVC::startStream()
 {
-    int idx = 0;
-    int daqFrameNumOffset = 0;
-    double extTriggerLast = -1;
-    double extTrigger;
-
-    m_stopStreaming = false;
+    resetStreamState();
+    ReconnectBackoff backoff;
 
     if (!m_devh) {
         sendMessage("Error: Could not connect to video stream " + QString::number(m_cameraID));
@@ -255,14 +204,11 @@ void VideoStreamLibUVC::startStream()
     // Enable continuous DAQ data/BNO register refresh (the app gates this on the
     // Record button via SATURATION=1; on Linux we need it live during Run so the
     // head-orientation registers update every frame, not just while recording).
-    setPU(SEL_SATURATION, 0x0001);
+    writeControlWord(SEL_SATURATION, 0x0001);
 
-    m_isStreaming = true;
     forever {
-        if (m_stopStreaming) {
-            m_isStreaming = false;
+        if (m_stopStreaming)
             break;
-        }
 
         uvc_frame_t *frame = nullptr;
         // Timeout in us; ~2 frame periods, min 100ms.
@@ -270,85 +216,19 @@ void VideoStreamLibUVC::startStream()
         uvc_error_t res = uvc_stream_get_frame(m_strmh, &frame, timeoutUs);
 
         if (res < 0 || frame == nullptr || frame->data == nullptr || frame->data_bytes == 0) {
-            // Grab failed - attempt to reconnect, like the OpenCV backend.
-            sendMessage("Warning: " + m_deviceName + " grab frame failed. Attempting to reconnect.");
             closeStream();
-            QThread::msleep(1000);
-            if (attemptReconnect()) {
-                sendMessage("Warning: " + m_deviceName + " reconnected.");
-                qDebug() << "Reconnect to camera" << m_cameraID;
-            }
+            runReconnectCycle(backoff, "grab frame");
             continue;
         }
+        backoff.reset();
 
-        // Reserve a buffer slot BEFORE writing anything into it: when the
-        // buffer is full, idx%frameBufferSize is the oldest unconsumed slot,
-        // which DataSaver may be reading right now - writing first corrupts
-        // the frame being saved. Acquiring first also skips the per-frame
-        // control reads for frames we are about to drop.
-        if (!freeFrames->tryAcquire()) {
-            // No free slot: this frame is thrown away
-            if (freeFrames->available() == 0) {
-                sendMessage("Error: " + m_deviceName + " frame buffer is full. Frames will be lost!");
-                QThread::msleep(100);
-            }
-        } else {
-            const int bufIdx = idx % frameBufferSize;
-            timeStampBuffer[bufIdx] = monotonicTimeMs();
-
-            // libuvc gives raw YUYV; the Y plane is the Miniscope image.
-            cv::Mat yuyv((int)frame->height, (int)frame->width, CV_8UC2, frame->data);
-            if (m_isColor)
-                cv::cvtColor(yuyv, frameBuffer[bufIdx], cv::COLOR_YUV2BGR_YUYV);
-            else
-                cv::cvtColor(yuyv, frameBuffer[bufIdx], cv::COLOR_YUV2GRAY_YUYV);
-
-            if (m_trackExtTrigger) {
-                if (extTriggerLast == -1) {
-                    extTriggerLast = getPU(SEL_GAMMA);
-                } else {
-                    extTrigger = getPU(SEL_GAMMA);
-                    if (extTriggerLast != extTrigger) {
-                        if (extTriggerLast == 0)
-                            emit extTriggered(true);
-                        else
-                            emit extTriggered(false);
-                    }
-                    extTriggerLast = extTrigger;
-                }
-            }
-
-            if (m_headOrientationStreamState) {
-                // BNO output is a unit quaternion after a 2^14 division.
-                qint16 quat[4];   // w, x, y, z per kBnoSelectors order
-                for (int i = 0; i < 4; i++)
-                    quat[i] = static_cast<qint16>(getPU(kBnoSelectors[i]));
-                MiniscopeProtocol::unpackBnoQuaternion(quat[0], quat[1], quat[2], quat[3],
-                                                       &bnoBuffer[bufIdx * 5]);
-            }
-
-            if (daqFrameNum != nullptr) {
-                *daqFrameNum = getPU(SEL_CONTRAST) - daqFrameNumOffset;
-                if (*m_acqFrameNum == 0)
-                    daqFrameNumOffset = *daqFrameNum - 1;
-            }
-            if (daqFrameNumBuffer != nullptr)
-                daqFrameNumBuffer[bufIdx] = (daqFrameNum != nullptr) ? qint64(daqFrameNum->loadRelaxed()) : qint64(-1);
-
-            m_acqFrameNum->operator++();
-            idx++;
-            emit newFrameAvailable(m_deviceName, *m_acqFrameNum);
-            usedFrames->release();
-        }
-
-        // Process queued control changes (setPropertyI2C) and flush them.
-        QCoreApplication::processEvents();
-        if (!m_commandQueue.isEmpty())
-            sendCommands();
+        const cv::Mat yuyv(int(frame->height), int(frame->width), CV_8UC2, frame->data);
+        commitFrame(yuyv, monotonicTimeMs());
+        serviceCommandQueue();
     }
-    // Stream loop only exits on stopSteam() (device window closing). Release the
-    // device so uvc_close re-attaches the kernel uvcvideo driver and /dev/videoN
-    // comes back for the next run / for Scan Devices.
+    // Stream loop only exits on stopStream() (device window closing). Release
+    // the device so uvc_close re-attaches the kernel uvcvideo driver and
+    // /dev/videoN comes back for the next run / for Scan Devices.
     closeStream();
     closeDevice();
 }
@@ -361,49 +241,29 @@ bool VideoStreamLibUVC::attemptReconnect()
         return false;
     if (!negotiateFormat())
         return false;
-    sendSerdesModeCommands(m_pixelClock);
+    sendSerdesModeCommands();
     if (uvc_stream_open_ctrl(m_devh, &m_strmh, &m_streamCtrl) < 0 ||
         uvc_stream_start(m_strmh, nullptr, nullptr, 0) < 0) {
         closeStream();
         return false;
     }
-    setPU(SEL_SATURATION, 0x0001);
+    writeControlWord(SEL_SATURATION, 0x0001);
     QThread::msleep(500);
     emit requestInitCommands();
     return true;
-}
-
-void VideoStreamLibUVC::stopSteam()
-{
-    m_stopStreaming = true;
-}
-
-void VideoStreamLibUVC::setPropertyI2C(long preambleKey, QVector<quint8> packet)
-{
-    m_commandQueue.set(preambleKey, packet);
-}
-
-void VideoStreamLibUVC::setExtTriggerTrackingState(bool state)
-{
-    m_trackExtTrigger = state;
 }
 
 void VideoStreamLibUVC::startRecording()
 {
     // Data/BNO streaming is already enabled at stream start; nothing extra needed.
     if (m_devh)
-        setPU(SEL_SATURATION, 0x0001);
+        writeControlWord(SEL_SATURATION, 0x0001);
 }
 
 void VideoStreamLibUVC::stopRecording()
 {
     // Intentionally leave SATURATION=1 so head-orientation stays live during Run
     // after a recording stops. The data stream stops when streaming stops.
-}
-
-void VideoStreamLibUVC::openCamPropsDialog()
-{
-    // OpenCV/DirectShow-only feature (behaviour cameras); not applicable here.
 }
 
 #endif // HAVE_LIBUVC

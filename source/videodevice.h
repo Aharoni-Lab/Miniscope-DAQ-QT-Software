@@ -15,6 +15,7 @@
 #include <QQuickItem>
 #include <QVariant>
 #include <QString>
+#include <QStringList>
 
 #include "videostreambase.h"
 #include "videostreamocv.h"
@@ -79,6 +80,12 @@ public:
     QString getDeviceName(){return m_deviceName;}
     int getErrors() { return m_errors; }
     QSize getResolution() {return m_resolution;}
+
+    // Messages emitted during construction (connect2Camera failures etc.)
+    // fire before the backend has wired sendMessage to the control panel, so
+    // the constructor holds them here. The backend takes them right after
+    // wiring and relays them; from then on messages flow directly.
+    QStringList takeEarlyMessages();
 
     virtual void handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int f, VideoDisplay* vidDisp);
 
@@ -189,6 +196,10 @@ private:
 
     qint64 m_softwareStartTime;
     bool m_traceDisplayStatus;
+
+    // See takeEarlyMessages().
+    QStringList m_earlyMessages;
+    bool m_holdEarlyMessages = true;
 
     // Display LUT (colormap) selected in the user config: 1=green, 2=red,
     // 3=inferno; the on-window switch toggles between this and 0 (grayscale).

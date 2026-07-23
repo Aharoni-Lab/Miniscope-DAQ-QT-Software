@@ -3,11 +3,8 @@
 
 #include <QDebug>
 #include <QCoreApplication>
-#include <QDateTime>
 #include <QLoggingCategory>
 #include <QThread>
-
-#include <opencv2/imgproc.hpp>
 
 #include "avfenumeratormac.h"
 
@@ -18,25 +15,7 @@ using namespace MiniscopeProtocol;
 Q_LOGGING_CATEGORY(msDiag, "miniscope.diag")
 
 VideoStreamMac::VideoStreamMac(QObject *parent, int width, int height, double pixelClock) :
-    VideoStreamBase(parent),
-    m_cameraID(-1),
-    m_deviceName(""),
-    m_stopStreaming(false),
-    m_headOrientationStreamState(false),
-    m_isColor(false),
-    frameBuffer(nullptr),
-    timeStampBuffer(nullptr),
-    daqFrameNumBuffer(nullptr),
-    bnoBuffer(nullptr),
-    freeFrames(nullptr),
-    usedFrames(nullptr),
-    frameBufferSize(0),
-    m_acqFrameNum(nullptr),
-    daqFrameNum(nullptr),
-    m_trackExtTrigger(false),
-    m_expectedWidth(width > 0 ? width : 608),
-    m_expectedHeight(height > 0 ? height : 608),
-    m_pixelClock(pixelClock)
+    VideoStreamBase(parent, width > 0 ? width : 608, height > 0 ? height : 608, pixelClock)
 {
     m_control.setWriteSettleUs(kCtrlSettleUs);
 }
@@ -46,22 +25,6 @@ VideoStreamMac::~VideoStreamMac()
     qDebug() << "Closing macOS hybrid video stream";
     m_grabber.release();
     m_control.close();
-}
-
-void VideoStreamMac::setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf,
-                                         qint64 *daqFrameNumBuf,
-                                         int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS,
-                                         QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber)
-{
-    frameBuffer = frameBuf;
-    timeStampBuffer = tsBuf;
-    daqFrameNumBuffer = daqFrameNumBuf;
-    bnoBuffer = bnoBuf;
-    frameBufferSize = bufferSize;
-    freeFrames = freeFramesS;
-    usedFrames = usedFramesS;
-    m_acqFrameNum = acqFrameNum;
-    daqFrameNum = daqFrameNumber;
 }
 
 // Resolve the AVFoundation/OpenCV device index to the exact USB device and
@@ -148,7 +111,7 @@ int VideoStreamMac::connect2Camera(int cameraID)
         return 0;
     }
 
-    sendSerdesModeCommands(m_pixelClock);   // ends with its own settle sleep
+    sendSerdesModeCommands();   // ends with its own settle sleep
     return 1;
 }
 
@@ -187,42 +150,28 @@ void VideoStreamMac::logStallDiagnosis()
     sendMessage("Diag: " + m_deviceName + " " + msg);
 }
 
-int VideoStreamMac::connect2Video(QString, QString, float)
+void VideoStreamMac::diagnoseStreamFailure()
 {
-    // Video-file playback always uses the OpenCV backend; not supported here.
-    sendMessage("Error: video playback is not supported by the macOS hybrid backend.");
-    return 0;
+    qCInfo(msDiag) << m_deviceName << "no frame at" << m_streamIdx << "("
+                   << m_grabber.lastError() << ") - running stall diagnosis";
+    logStallDiagnosis();
 }
 
-bool VideoStreamMac::setPU(quint8 selector, quint16 value)
+bool VideoStreamMac::writeControlWord(quint8 selector, quint16 word)
 {
-    return m_control.setCur(kProcessingUnitId, selector, value);
+    return m_control.setCur(kProcessingUnitId, selector, word);
 }
 
-int VideoStreamMac::getPU(quint8 selector)
+bool VideoStreamMac::readControl(quint8 selector, quint16 *value)
 {
-    quint16 value = 0;
-    if (!m_control.getCur(kProcessingUnitId, selector, &value))
-        return 0;
-    return static_cast<qint16>(value);
-}
-
-// Flush queued I2C packets to the device via UVC SET_CUR.
-void VideoStreamMac::sendCommands()
-{
-    if (!m_commandQueue.flush([this](quint8 sel, quint16 word) { return setPU(sel, word); }))
-        qDebug() << "Send setting failed";
+    return m_control.getCur(kProcessingUnitId, selector, value);
 }
 
 void VideoStreamMac::startStream()
 {
-    int idx = 0;
-    int daqFrameNumOffset = 0;
-    double extTriggerLast = -1;
-    double extTrigger;
+    resetStreamState();
+    ReconnectBackoff backoff;
     cv::Mat frame;
-
-    m_stopStreaming = false;
 
     if (!m_grabber.isOpened()) {
         sendMessage("Error: Could not connect to video stream " + QString::number(m_cameraID));
@@ -233,110 +182,39 @@ void VideoStreamMac::startStream()
     // Enable continuous DAQ data/BNO register refresh now rather than on the
     // Record button, so head orientation is live during Run (same reasoning
     // as the libuvc backend).
-    setPU(SEL_SATURATION, 0x0001);
+    writeControlWord(SEL_SATURATION, 0x0001);
 
     qCInfo(msDiag) << m_deviceName << "stream loop starting";
 
-    int reconnectAttempts = 0;
     forever {
         if (m_stopStreaming)
             break;
 
         if (!m_grabber.read(frame)) {
-            // Diagnose and message on the FIRST failure of a stall episode;
-            // later attempts back off quietly (a device that fell off the bus
-            // can take a while to come back, and every attempt already logs).
-            if (reconnectAttempts == 0) {
-                qCInfo(msDiag) << m_deviceName << "no frame at" << idx << "("
-                               << m_grabber.lastError() << ") - running stall diagnosis";
-                sendMessage("Warning: " + m_deviceName + " grab frame failed. Attempting to reconnect.");
-                logStallDiagnosis();
-            }
-            reconnectAttempts++;
             m_grabber.release();
-            QThread::msleep(qMin(1000 * reconnectAttempts, 5000));
-            QCoreApplication::processEvents();   // keep stopSteam() deliverable while down
-            if (m_stopStreaming)
-                continue;
-            if (attemptReconnect()) {
-                sendMessage("Warning: " + m_deviceName + " reconnected (after " +
-                            QString::number(reconnectAttempts) + " attempts).");
-                qDebug() << "Reconnect to camera" << m_cameraID;
-                reconnectAttempts = 0;
-            }
+            runReconnectCycle(backoff, "grab frame");
             continue;
         }
+        backoff.reset();
 
-        // Reserve the ring-buffer slot BEFORE any per-frame work: a full
-        // buffer drops this frame anyway, so the USB control reads (~6 ms
-        // each while streaming) and the color conversion would only deepen
-        // the backpressure - and acquiring first guarantees a slot is never
-        // overwritten while DataSaver still owns it.
-        if (!freeFrames->tryAcquire()) {
-            if (freeFrames->available() == 0) {
-                sendMessage("Error: " + m_deviceName + " frame buffer is full. Frames will be lost!");
-                QThread::msleep(100);
-            }
-        } else {
-            timeStampBuffer[idx % frameBufferSize] = monotonicTimeMs();
-
-            if (m_isColor)
-                frame.copyTo(frameBuffer[idx % frameBufferSize]);
-            else
-                cv::cvtColor(frame, frameBuffer[idx % frameBufferSize], cv::COLOR_BGR2GRAY);
-
-            if (m_trackExtTrigger) {
-                if (extTriggerLast == -1) {
-                    extTriggerLast = getPU(SEL_GAMMA);
-                } else {
-                    extTrigger = getPU(SEL_GAMMA);
-                    if (extTriggerLast != extTrigger) {
-                        if (extTriggerLast == 0)
-                            emit extTriggered(true);
-                        else
-                            emit extTriggered(false);
-                    }
-                    extTriggerLast = extTrigger;
-                }
-            }
-
-            if (m_headOrientationStreamState) {
-                // BNO output is a unit quaternion after a 2^14 division.
-                qint16 quat[4];   // w, x, y, z per kBnoSelectors order
-                for (int i = 0; i < 4; i++)
-                    quat[i] = static_cast<qint16>(getPU(kBnoSelectors[i]));
-                unpackBnoQuaternion(quat[0], quat[1], quat[2], quat[3],
-                                    &bnoBuffer[(idx % frameBufferSize) * 5]);
-            }
-
-            if (daqFrameNum != nullptr) {
-                *daqFrameNum = getPU(SEL_CONTRAST) - daqFrameNumOffset;
-                if (*m_acqFrameNum == 0)
-                    daqFrameNumOffset = *daqFrameNum - 1;
-                // Diagnostics reuse this read - never a second GET_CUR.
-                if (idx % 100 == 0)
-                    qCInfo(msDiag).nospace()
-                        << m_deviceName << (idx == 0 ? " first frame: " : " heartbeat: ")
-                        << frame.cols << "x" << frame.rows << " acqFrame=" << idx
-                        << " daqFrameCounter=" << (*daqFrameNum + daqFrameNumOffset)
-                        << " ts=" << timeStampBuffer[idx % frameBufferSize];
-            }
-            if (daqFrameNumBuffer != nullptr)
-                daqFrameNumBuffer[idx % frameBufferSize] = (daqFrameNum != nullptr) ? qint64(daqFrameNum->loadRelaxed()) : qint64(-1);
-
-            m_acqFrameNum->operator++();
-            idx++;
-            emit newFrameAvailable(m_deviceName, *m_acqFrameNum);
-            usedFrames->release();
-        }
-
-        // Process queued control changes (setPropertyI2C) and flush them.
-        QCoreApplication::processEvents();
-        if (!m_commandQueue.isEmpty())
-            sendCommands();
+        commitFrame(frame, monotonicTimeMs());
+        serviceCommandQueue();
     }
     m_grabber.release();
     m_control.close();
+}
+
+void VideoStreamMac::onFrameCommitted(int streamIdx, const cv::Mat &frame, qint64 timestampMs)
+{
+    // Heartbeat every 100 frames. Reuses commitFrame's DAQ counter read -
+    // never a second GET_CUR.
+    if (streamIdx % 100 != 0 || daqFrameNum == nullptr)
+        return;
+    qCInfo(msDiag).nospace()
+        << m_deviceName << (streamIdx == 0 ? " first frame: " : " heartbeat: ")
+        << frame.cols << "x" << frame.rows << " acqFrame=" << streamIdx
+        << " daqFrameCounter=" << (daqFrameNum->loadRelaxed() + m_daqFrameNumOffset)
+        << " ts=" << timestampMs;
 }
 
 bool VideoStreamMac::attemptReconnect()
@@ -349,40 +227,20 @@ bool VideoStreamMac::attemptReconnect()
         return false;
     if (!openFrameStream(cameras))
         return false;
-    sendSerdesModeCommands(m_pixelClock);
-    setPU(SEL_SATURATION, 0x0001);
+    sendSerdesModeCommands();
+    writeControlWord(SEL_SATURATION, 0x0001);
     emit requestInitCommands();
     return true;
-}
-
-void VideoStreamMac::stopSteam()
-{
-    m_stopStreaming = true;
-}
-
-void VideoStreamMac::setPropertyI2C(long preambleKey, QVector<quint8> packet)
-{
-    m_commandQueue.set(preambleKey, packet);
-}
-
-void VideoStreamMac::setExtTriggerTrackingState(bool state)
-{
-    m_trackExtTrigger = state;
 }
 
 void VideoStreamMac::startRecording()
 {
     // Data/BNO streaming is already enabled at stream start; nothing extra needed.
-    setPU(SEL_SATURATION, 0x0001);
+    writeControlWord(SEL_SATURATION, 0x0001);
 }
 
 void VideoStreamMac::stopRecording()
 {
     // Intentionally leave SATURATION=1 so head orientation stays live during
     // Run after a recording stops (matches the libuvc backend).
-}
-
-void VideoStreamMac::openCamPropsDialog()
-{
-    // OpenCV/DirectShow-only feature (behaviour cameras); not applicable here.
 }
