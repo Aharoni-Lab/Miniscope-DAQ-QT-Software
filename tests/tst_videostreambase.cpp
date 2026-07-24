@@ -23,6 +23,9 @@ public:
     using VideoStreamBase::VideoStreamBase;
     using VideoStreamBase::commitFrame;
     using VideoStreamBase::resetStreamState;
+    using VideoStreamBase::runReconnectCycle;
+
+    bool reconnectResult = false;
 
     // Scripted control reads: per selector, a FIFO of (ok, value) results.
     // Selectors with no script fall back to (defaultOk, defaultValue).
@@ -38,7 +41,7 @@ public:
 
 protected:
     bool writeControlWord(quint8, quint16) override { return true; }
-    bool attemptReconnect() override { return false; }
+    bool attemptReconnect() override { return reconnectResult; }
     bool readControl(quint8 selector, quint16 *value) override
     {
         controlReads++;
@@ -212,6 +215,31 @@ private slots:
         stream->commitFrame(bgrFrame(), 1);
         QCOMPARE(daqBuf[0], qint64(40000));
         QCOMPARE(daqBuf[1], qint64(2));
+    }
+
+    // A reconnected device may have power-cycled and reset its hardware
+    // counter; the offset re-seeds so the CSV column restarts (raw, 2, 3...)
+    // instead of staying skewed by the stale offset for the rest of the file.
+    void daqCounterReseedsAfterReconnect()
+    {
+        buildStream();
+        stream->script[SEL_CONTRAST] = {{true, 100}, {true, 101}};
+        stream->commitFrame(bgrFrame(), 0);
+        consumeOne();
+        stream->commitFrame(bgrFrame(), 1);
+        consumeOne();
+        QCOMPARE(daqBuf[1], qint64(2));
+
+        stream->reconnectResult = true;
+        ReconnectBackoff backoff;
+        QVERIFY(stream->runReconnectCycle(backoff, "grab frame"));   // ~1 s (first backoff delay)
+
+        stream->script[SEL_CONTRAST] = {{true, 5}, {true, 6}};      // counter reset by power-cycle
+        stream->commitFrame(bgrFrame(), 2);
+        consumeOne();
+        stream->commitFrame(bgrFrame(), 3);
+        QCOMPARE(daqBuf[2], qint64(5));   // fresh seed: raw value, like at stream start
+        QCOMPARE(daqBuf[3], qint64(2));
     }
 
     void noDaqCounterMeansSentinel()

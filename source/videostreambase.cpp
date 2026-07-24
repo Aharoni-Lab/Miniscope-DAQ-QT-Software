@@ -225,6 +225,14 @@ bool VideoStreamBase::runReconnectCycle(ReconnectBackoff &backoff, const QString
                     QString::number(backoff.attempts()) + " attempts).");
         qDebug() << "Reconnect to camera" << m_cameraID;
         backoff.reset();
+        // The device may have power-cycled, resetting its hardware frame
+        // counter - a stale offset would leave the CSV's DAQ Frame Number
+        // column nonsensical (e.g. negative) for the rest of the recording.
+        // Re-seed on the next successful read, exactly like at stream start:
+        // the column restarts at the raw value then counts 2, 3, ... and the
+        // reset stays visible post-hoc at the reconnect boundary.
+        m_daqOffsetSeeded = false;
+        m_daqFrameNumOffset = 0;
         return true;
     }
     return false;
