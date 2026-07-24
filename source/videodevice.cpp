@@ -444,6 +444,24 @@ void VideoDevice::configureDeviceControls() {
 //        qDebug() << controlItem;
         values = controlSettings[controlName[i]].toObject();
 
+        // Merge the catalog's optional "fineSteps" override block (issue #68:
+        // e.g. V4 led0 at one hardware step per slider tick) when the user
+        // config sets "<control>FineSteps": true. take() runs unconditionally
+        // so the block is never forwarded to the QML item as a property.
+        const QJsonObject fineSteps = values.take("fineSteps").toObject();
+        if (m_ucDevice[controlName[i] + "FineSteps"].toBool()) {
+            if (fineSteps.isEmpty()) {
+                sendMessage("Warning: " + m_deviceName + " has " + controlName[i] + "FineSteps set, but "
+                            + m_deviceType + " defines no fine-steps mapping for " + controlName[i]
+                            + ". Using the default mapping.");
+            }
+            else {
+                for (auto it = fineSteps.constBegin(); it != fineSteps.constEnd(); ++it)
+                    values[it.key()] = it.value();
+                sendMessage(m_deviceName + " " + controlName[i] + " is using fine hardware steps.");
+            }
+        }
+
         if (m_ucDevice.contains(controlName[i])) {// sets starting value if it is defined in user config
             if (m_ucDevice[controlName[i]].isDouble())
                 values["startValue"] = m_ucDevice[controlName[i]].toDouble();

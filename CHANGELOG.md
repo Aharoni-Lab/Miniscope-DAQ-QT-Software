@@ -83,6 +83,14 @@ published together from CI.
 - Removed `deviceConfigs/miniscopes.json` and `behaviorCams.json` — dead
   since the device catalog moved to `videoDevices.json`, but they looked
   authoritative and old wiki instructions pointed users at them.
+- **Opt-in fine `led0` steps** for V4 miniscopes: set
+  `"led0FineSteps": true` on the device in the user config and the
+  illumination slider runs 0–255, addressing the LED driver's 255 hardware
+  steps individually instead of 0–100%, giving 2.55× finer steps — bright
+  preps needing very dim illumination asked for this
+  ([#68](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/issues/68)/[#69](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/pull/69)).
+  Both mappings span the same brightness range. Without the flag, nothing
+  changes: existing configs keep their exact LED output.
 
 **Recorded-data quality**
 - Miniscope `timeStamps.csv` files gain a **`DAQ Frame Number`** column: the

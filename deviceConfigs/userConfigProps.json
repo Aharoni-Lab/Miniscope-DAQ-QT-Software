@@ -255,7 +255,11 @@
                 },
                 "led0": {
                     "type": "Integer",
-                    "tips": "This sets the initial excitation LED intensity. Values can be from 0 to 100 but many Miniscope configurations have trouble with values over 70 or 80 due to current limits through certain coax cable lengths."
+                    "tips": "This sets the initial excitation LED intensity. Values can be from 0 to 100 (or 0 to 255 when led0FineSteps is true) but many Miniscope configurations have trouble with values over 70% of the range due to current limits through certain coax cable lengths."
+                },
+                "led0FineSteps": {
+                    "type": "Boolean",
+                    "tips": "When true, the led0 slider runs 0 to 255 and addresses every hardware step of the LED driver individually instead of 0 to 100 percent, giving 2.55x finer steps for very dim illumination. Both mappings span the same brightness range. Leave off (default) to keep the exact LED output of existing configs."
                 },
                 "frameRate": {
                     "type": "String",
