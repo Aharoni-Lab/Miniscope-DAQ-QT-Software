@@ -26,6 +26,7 @@ private slots:
     void missingRequiredKeyWarns();
     void legacyDeviceArrayFormValidates();
     void missingSchemaFileWarnsInsteadOfBlocking();
+    void catalogFineStepsBlocksAreWellFormed();
 
 private:
     QJsonObject loadJson(const QString &path);
@@ -177,6 +178,56 @@ void TestConfigValidator::missingSchemaFileWarnsInsteadOfBlocking()
         checkUserConfig(config, QStringLiteral("/nonexistent/schema.json"));
     QCOMPARE(messages.size(), 1);
     QVERIFY(messages[0].contains("skipping config validation"));
+}
+
+// The fine-steps feature's fragile surface is the shipped catalog, not the
+// 5-line merge in videodevice.cpp: a videoDevices.json edit could drop a V4
+// "fineSteps" block, typo a key (merged keys flow into QQuickItem::setProperty,
+// which fails SILENTLY for unknown properties), or override semantic fields
+// like sendCommand. Pin the shape here so catalog edits can't rot the flag.
+void TestConfigValidator::catalogFineStepsBlocksAreWellFormed()
+{
+    const QJsonObject catalog =
+        loadJson(QStringLiteral(REPO_SOURCE_DIR "/deviceConfigs/videoDevices.json"));
+    QVERIFY(!catalog.isEmpty());
+
+    int fineStepsBlocks = 0;
+    for (auto dev = catalog.constBegin(); dev != catalog.constEnd(); ++dev) {
+        const QJsonObject controls = dev.value().toObject()["controlSettings"].toObject();
+        for (auto ctl = controls.constBegin(); ctl != controls.constEnd(); ++ctl) {
+            const QJsonObject control = ctl.value().toObject();
+            if (!control.contains("fineSteps"))
+                continue;
+            fineStepsBlocks++;
+            const QJsonObject fineSteps = control["fineSteps"].toObject();
+            QVERIFY2(!fineSteps.isEmpty(),
+                     qPrintable(dev.key() + "/" + ctl.key() + ": fineSteps must be a non-empty object"));
+            for (auto it = fineSteps.constBegin(); it != fineSteps.constEnd(); ++it) {
+                const QString where = dev.key() + "/" + ctl.key() + "/fineSteps/" + it.key();
+                // Only override keys the control itself defines - anything else
+                // would reach setProperty() on the QML item and fail silently.
+                QVERIFY2(control.contains(it.key()),
+                         qPrintable(where + " overrides a key the control does not define"));
+                // Overriding the wire command or the boot value is beyond what
+                // the flag means (a finer slider mapping).
+                QVERIFY2(it.key() != "sendCommand" && it.key() != "startValue",
+                         qPrintable(where + " must not override command/startValue semantics"));
+                QVERIFY2(it.value().type() == control[it.key()].type(),
+                         qPrintable(where + " changes the JSON type of the key it overrides"));
+            }
+        }
+    }
+
+    // The shipped feature: both V4 variants carry the led0 mapping (0-255,
+    // one hardware step per tick on the inverted register).
+    for (const QString &devName : {QStringLiteral("Miniscope_V4"), QStringLiteral("Miniscope_V4_BNO")}) {
+        const QJsonObject fineSteps = catalog[devName].toObject()["controlSettings"]
+                                          .toObject()["led0"].toObject()["fineSteps"].toObject();
+        QVERIFY2(!fineSteps.isEmpty(), qPrintable(devName + " lost its led0 fineSteps block"));
+        QCOMPARE(fineSteps["max"].toDouble(), 255.0);
+        QCOMPARE(fineSteps["displayValueScale"].toDouble(), -1.0);
+    }
+    QCOMPARE(fineStepsBlocks, 2);
 }
 
 QTEST_MAIN(TestConfigValidator)

@@ -444,26 +444,21 @@ void VideoDevice::configureDeviceControls() {
 //        qDebug() << controlItem;
         values = controlSettings[controlName[i]].toObject();
 
-        // Opt-in alternate control map: a catalog control block may carry a
-        // "fineSteps" override set (e.g. V4 led0 addressing all 255 hardware
-        // steps individually - slider 0-255 - instead of 100 coarse percent
-        // steps; issue #68. Both mappings span the same brightness range,
-        // only the step size differs). The user config enables it per device
-        // with "<control>FineSteps": true; without the flag the historical
-        // mapping is untouched, so existing configs keep their exact LED
-        // output.
+        // Merge the catalog's optional "fineSteps" override block (issue #68:
+        // e.g. V4 led0 at one hardware step per slider tick) when the user
+        // config sets "<control>FineSteps": true. take() runs unconditionally
+        // so the block is never forwarded to the QML item as a property.
         const QJsonObject fineSteps = values.take("fineSteps").toObject();
-        if (m_ucDevice[controlName[i] + "FineSteps"].toBool(false)) {
+        if (m_ucDevice[controlName[i] + "FineSteps"].toBool()) {
             if (fineSteps.isEmpty()) {
-                sendMessage("Warning: " + m_deviceName + ": " + controlName[i] + "FineSteps is set, but "
+                sendMessage("Warning: " + m_deviceName + " has " + controlName[i] + "FineSteps set, but "
                             + m_deviceType + " defines no fine-steps mapping for " + controlName[i]
                             + ". Using the default mapping.");
             }
             else {
                 for (auto it = fineSteps.constBegin(); it != fineSteps.constEnd(); ++it)
                     values[it.key()] = it.value();
-                sendMessage(m_deviceName + " " + controlName[i] + " using fine hardware steps (0-"
-                            + QString::number(values["max"].toDouble()) + ").");
+                sendMessage(m_deviceName + " " + controlName[i] + " is using fine hardware steps.");
             }
         }
 
