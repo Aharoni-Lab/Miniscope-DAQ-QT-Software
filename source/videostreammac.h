@@ -43,7 +43,6 @@ protected:
     bool writeControlWord(quint8 selector, quint16 word) override;   // IOKit SET_CUR
     bool readControl(quint8 selector, quint16 *value) override;      // IOKit GET_CUR
     bool attemptReconnect() override;
-    void onFrameCommitted(int streamIdx, const cv::Mat &frame, qint64 timestampMs) override;
     void diagnoseStreamFailure() override;   // frame-counter poll: AVF session vs scope video link
 
 private:

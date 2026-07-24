@@ -10,10 +10,6 @@
 
 using namespace MiniscopeProtocol;
 
-// Bench diagnostics (heartbeats, stall verdicts, pin lines). On by default;
-// silence with QT_LOGGING_RULES="miniscope.diag=false".
-Q_LOGGING_CATEGORY(msDiag, "miniscope.diag")
-
 VideoStreamMac::VideoStreamMac(QObject *parent, int width, int height, double pixelClock) :
     VideoStreamBase(parent, width > 0 ? width : 608, height > 0 ? height : 608, pixelClock)
 {
@@ -207,19 +203,6 @@ void VideoStreamMac::startStream()
     }
     m_grabber.release();
     m_control.close();
-}
-
-void VideoStreamMac::onFrameCommitted(int streamIdx, const cv::Mat &frame, qint64 timestampMs)
-{
-    // Heartbeat every 100 frames. Reuses commitFrame's DAQ counter read -
-    // never a second GET_CUR.
-    if (streamIdx % 100 != 0 || daqFrameNum == nullptr)
-        return;
-    qCInfo(msDiag).nospace()
-        << m_deviceName << (streamIdx == 0 ? " first frame: " : " heartbeat: ")
-        << frame.cols << "x" << frame.rows << " acqFrame=" << streamIdx
-        << " daqFrameCounter=" << (daqFrameNum->loadRelaxed() + m_daqFrameNumOffset)
-        << " ts=" << timestampMs;
 }
 
 bool VideoStreamMac::attemptReconnect()

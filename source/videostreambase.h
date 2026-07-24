@@ -2,12 +2,18 @@
 #define VIDEOSTREAMBASE_H
 
 #include <atomic>
+#include <QLoggingCategory>
 #include <QObject>
 #include <QString>
 #include <QVector>
 #include <opencv2/core/core.hpp>
 
 #include "miniscopeprotocol.h"
+
+// Bench diagnostics (per-frame heartbeats, stall verdicts, pin lines) shared
+// by every backend. On by default; silence with
+// QT_LOGGING_RULES="miniscope.diag=false".
+Q_DECLARE_LOGGING_CATEGORY(msDiag)
 
 class QSemaphore;
 class QAtomicInt;
@@ -126,9 +132,10 @@ protected:
     // BGR backends (copy when color, BGR2GRAY otherwise); libuvc overrides
     // for its raw-YUYV frames.
     virtual void convertToSlot(const cv::Mat &frame, cv::Mat &slot);
-    // Called once per committed frame, after the slot is published. Backends
-    // may log diagnostics here (never issue a control read for it - reuse
-    // daqFrameNum / m_daqFrameNumOffset).
+    // Called once per committed frame, after the slot is published. The
+    // default logs a heartbeat to msDiag every 100 frames, reusing the DAQ
+    // counter read commitFrame already did (never issue a control read from
+    // here - they cost ~6 ms on some transports).
     virtual void onFrameCommitted(int streamIdx, const cv::Mat &frame, qint64 timestampMs);
     // Called on the first failure of a reconnect episode, right after the
     // user-facing warning. Backends may run stall diagnostics here.

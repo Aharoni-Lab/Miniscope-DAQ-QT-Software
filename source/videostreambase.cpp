@@ -10,6 +10,8 @@
 
 using namespace MiniscopeProtocol;
 
+Q_LOGGING_CATEGORY(msDiag, "miniscope.diag")
+
 VideoStreamBase::VideoStreamBase(QObject *parent, int width, int height, double pixelClock) :
     QObject(parent),
     m_expectedWidth(width),
@@ -49,8 +51,19 @@ void VideoStreamBase::convertToSlot(const cv::Mat &frame, cv::Mat &slot)
         cv::cvtColor(frame, slot, cv::COLOR_BGR2GRAY);
 }
 
-void VideoStreamBase::onFrameCommitted(int, const cv::Mat &, qint64)
+void VideoStreamBase::onFrameCommitted(int streamIdx, const cv::Mat &frame, qint64 timestampMs)
 {
+    // Heartbeat every 100 frames: proves the loop is alive in lab logs and
+    // gives a per-frame-rate DAQ counter sample without any extra register
+    // traffic. Skipped for devices with no counter (video playback, webcams
+    // without a control channel).
+    if (streamIdx % 100 != 0 || daqFrameNum == nullptr)
+        return;
+    qCInfo(msDiag).nospace()
+        << m_deviceName << (streamIdx == 0 ? " first frame: " : " heartbeat: ")
+        << frame.cols << "x" << frame.rows << " acqFrame=" << streamIdx
+        << " daqFrameCounter=" << (daqFrameNum->loadRelaxed() + m_daqFrameNumOffset)
+        << " ts=" << timestampMs;
 }
 
 void VideoStreamBase::sendCommands()
