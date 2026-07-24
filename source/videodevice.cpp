@@ -444,6 +444,29 @@ void VideoDevice::configureDeviceControls() {
 //        qDebug() << controlItem;
         values = controlSettings[controlName[i]].toObject();
 
+        // Opt-in alternate control map: a catalog control block may carry a
+        // "fineSteps" override set (e.g. V4 led0 addressing all 255 hardware
+        // steps individually - slider 0-255 - instead of 100 coarse percent
+        // steps; issue #68. Both mappings span the same brightness range,
+        // only the step size differs). The user config enables it per device
+        // with "<control>FineSteps": true; without the flag the historical
+        // mapping is untouched, so existing configs keep their exact LED
+        // output.
+        const QJsonObject fineSteps = values.take("fineSteps").toObject();
+        if (m_ucDevice[controlName[i] + "FineSteps"].toBool(false)) {
+            if (fineSteps.isEmpty()) {
+                sendMessage("Warning: " + m_deviceName + ": " + controlName[i] + "FineSteps is set, but "
+                            + m_deviceType + " defines no fine-steps mapping for " + controlName[i]
+                            + ". Using the default mapping.");
+            }
+            else {
+                for (auto it = fineSteps.constBegin(); it != fineSteps.constEnd(); ++it)
+                    values[it.key()] = it.value();
+                sendMessage(m_deviceName + " " + controlName[i] + " using fine hardware steps (0-"
+                            + QString::number(values["max"].toDouble()) + ").");
+            }
+        }
+
         if (m_ucDevice.contains(controlName[i])) {// sets starting value if it is defined in user config
             if (m_ucDevice[controlName[i]].isDouble())
                 values["startValue"] = m_ucDevice[controlName[i]].toDouble();

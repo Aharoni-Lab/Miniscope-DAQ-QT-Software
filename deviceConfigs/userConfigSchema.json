@@ -285,7 +285,11 @@
                         "led0": {
                             "type": "number",
                             "minimum": 0,
-                            "description": "Excitation LED power at startup."
+                            "description": "Excitation LED power at startup, in the led0 slider's units (0-100 by default; 0-255 with led0FineSteps)."
+                        },
+                        "led0FineSteps": {
+                            "type": "boolean",
+                            "description": "When true, the led0 slider runs 0-255 and addresses the LED driver's 255 hardware steps individually instead of 0-100%, giving 2.55x finer steps - useful for very dim illumination. Both mappings span the same brightness range. Off by default: existing configs keep their exact LED output."
                         },
                         "ewl": {
                             "type": "number",

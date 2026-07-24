@@ -314,6 +314,10 @@
                 "stepSize": 1,
                 "displayValueScale": -2.55,
                 "displayValueOffset": -255,
+                "fineSteps": {
+                    "max": 255,
+                    "displayValueScale": -1
+                },
                 "sendCommand": [
                     {
                         "protocol": "I2C",
@@ -527,6 +531,10 @@
                 "stepSize": 1,
                 "displayValueScale": -2.55,
                 "displayValueOffset": -255,
+                "fineSteps": {
+                    "max": 255,
+                    "displayValueScale": -1
+                },
                 "sendCommand": [
                     {
                         "protocol": "I2C",
