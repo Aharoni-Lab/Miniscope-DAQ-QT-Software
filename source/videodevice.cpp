@@ -609,8 +609,11 @@ void VideoDevice::sendNewFrame(){
 //        qDebug() << "Send frame = " << f;
         f = (f - 1)%FRAME_BUFFER_SIZE;
 
-        // TODO: figure out what to do with webcams for dropped frames
-        vidDisplay->setDroppedFrameCount(*m_daqFrameNum - *m_acqFrameNum);
+        // DAQ-counted frames minus software-grabbed frames, rebased to the
+        // current connection epoch so a reconnect (which restarts the DAQ frame
+        // counter) doesn't pin this at "N/A". -1 => "N/A" (webcams, or before
+        // the first DAQ counter read).
+        vidDisplay->setDroppedFrameCount(deviceStream ? deviceStream->droppedFrameEstimate() : -1);
 
         // This function can be overridden by child class to add additional functionality
         handleNewDisplayFrame(timeStampBuffer[f], frameBuffer[f], f, vidDisplay);

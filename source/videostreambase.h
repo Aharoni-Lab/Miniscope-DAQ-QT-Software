@@ -97,6 +97,19 @@ public:
     void setIsColor(bool isColor) { m_isColor = isColor; }
     void setDeviceName(QString name) { m_deviceName = name; }
 
+    // Estimated frames dropped between the DAQ hardware and the software this
+    // run, for the live GUI readout. Rebased to the current connection epoch: a
+    // reconnect restarts the DAQ frame counter (so the recorded CSV shows the
+    // reset visibly), which would otherwise make this difference go permanently
+    // negative and pin the readout at "N/A". Returns -1 ("N/A") when there is no
+    // DAQ frame counter (behavior cams) or before the first successful read.
+    int droppedFrameEstimate() const
+    {
+        if (daqFrameNum == nullptr || m_acqFrameNum == nullptr || !m_daqOffsetSeeded)
+            return -1;
+        return daqFrameNum->loadRelaxed() - (m_acqFrameNum->loadRelaxed() - m_acqAtDaqSeed);
+    }
+
 signals:
     void sendMessage(QString msg);
     void newFrameAvailable(QString name, int frameNum);
@@ -198,6 +211,7 @@ protected:
     int m_streamIdx = 0;               // frames committed this run (ring-buffer cursor)
     int m_daqFrameNumOffset = 0;
     bool m_daqOffsetSeeded = false;
+    int m_acqAtDaqSeed = 0;            // acq count when the DAQ offset was (re)seeded; epoch base for droppedFrameEstimate()
     int m_extTriggerLast = -1;         // -1 = not primed yet
     cv::Size m_lockedFrameSize;        // locked to the first committed frame
     bool m_sizeMismatchWarned = false;
