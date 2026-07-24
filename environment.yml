@@ -36,6 +36,7 @@ channels:
 dependencies:
   - python=3.12
   - qt6-main=6.11
+  - qt6-serialport=6.11   # Qt6::SerialPort (commutator control); version-locked to qt6-main
   - libopencv=4.13
   - numpy=2.4
   - cmake

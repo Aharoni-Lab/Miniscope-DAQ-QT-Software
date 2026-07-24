@@ -41,7 +41,9 @@ set(CMAKE_AUTORCC ON)   # compiles source/qml.qrc automatically
 # QOpenGLFramebufferObject moved out of QtGui into the separate Qt6::OpenGL
 # module. The custom renderers (videodisplay, tracedisplay, behaviortracker)
 # need it.
-find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Widgets OpenGL)
+# SerialPort (Qt6::SerialPort) drives the optional Open Ephys commutator. It is a
+# separate conda-forge package, qt6-serialport, version-locked to qt6-main.
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Widgets OpenGL SerialPort)
 qt_standard_project_setup(REQUIRES 6.4)
 
 # This project has no .ui files (the UI is all QML), so AUTOUIC is unnecessary.
@@ -115,6 +117,7 @@ endif()
 # --- Sources ---------------------------------------------------------------
 set(SOURCES
     source/backend.cpp
+    source/commutator.cpp
     source/configvalidator.cpp
     source/behaviorcam.cpp
     source/behaviortracker.cpp
@@ -125,6 +128,7 @@ set(SOURCES
     source/miniscope.cpp
     source/newquickview.cpp
     source/tracedisplay.cpp
+    source/twistcalculator.cpp
     source/videodevice.cpp
     source/videodisplay.cpp
     source/videostreambase.cpp
@@ -134,6 +138,7 @@ set(SOURCES
 
 set(HEADERS
     source/backend.h
+    source/commutator.h
     source/configvalidator.h
     source/behaviorcam.h
     source/behaviortracker.h
@@ -143,6 +148,7 @@ set(HEADERS
     source/miniscope.h
     source/newquickview.h
     source/tracedisplay.h
+    source/twistcalculator.h
     source/videodevice.h
     source/videodisplay.h
     source/videostreamocv.h
@@ -260,6 +266,7 @@ target_link_libraries(MiniscopeDAQ PRIVATE
     Qt6::QuickControls2
     Qt6::Widgets
     Qt6::OpenGL
+    Qt6::SerialPort
     ${OpenCV_LIBS}
 )
 

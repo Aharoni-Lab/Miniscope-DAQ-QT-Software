@@ -18,6 +18,7 @@
 #include "datasaver.h"
 #include "behaviortracker.h"
 #include "tracedisplay.h"
+#include "commutator.h"
 
 
 class backEnd : public QObject
@@ -135,6 +136,9 @@ public:
     void parseUserConfig();
 
     void setupBehaviorTracker();
+    // Create + thread the optional commutator worker when the config has an
+    // enabled "commutator" block and a Miniscope to drive it. No-op otherwise.
+    void setupCommutator();
 
     bool checkForUniqueDeviceNames();
     bool checkForCompression();
@@ -217,6 +221,7 @@ private:
     QJsonObject ucBehaviorCams;
     QJsonObject ucBehaviorTracker;
     QJsonObject ucTraceDisplay;
+    QJsonObject ucCommutator;
 
     QVector<Miniscope*> miniscope;
     QVector<BehaviorCam*> behavCam;
@@ -225,6 +230,11 @@ private:
 
     DataSaver *dataSaver;
     QThread *dataSaverThread;
+
+    // Optional Open Ephys commutator driver, on its own thread. Null unless the
+    // config enables it and a source Miniscope is found.
+    Commutator *commutator = nullptr;
+    QThread *commutatorThread = nullptr;
 
     BehaviorTracker *behavTracker;
 

@@ -106,6 +106,18 @@ published together from CI.
 - Stopping a recording now **drains the ring buffer** first, so the last
   frames of a session are saved instead of silently dropped.
 
+**Hardware integration**
+- **Open Ephys commutator control**: the software can now drive an
+  [Open Ephys commutator](https://github.com/open-ephys/commutator-controller)
+  directly over its USB serial port, so the tether unwinds as the animal turns
+  — no separate Bonsai workflow required. A V4 (or newer) Miniscope's live BNO
+  head orientation is converted to incremental motor turns (a C++ port of the
+  [bonsai-commutator](https://github.com/open-ephys/bonsai-commutator)
+  `QuaternionToTwist` algorithm) and streamed to the device on its own thread.
+  Enable it with a top-level `commutator` block in the user config (`enabled`,
+  `port`, optional `deviceName`, and — for non-standard mounts — `headstageAxis`
+  / `commutatorAxis` / `fallbackMode`). Off unless configured.
+
 ### Changed
 - Build system: qmake → **CMake** (Qt 6.4+, C++17). The old `.pro` file is no
   longer used.
@@ -180,6 +192,12 @@ published together from CI.
 - Device connection errors (wrong `deviceID`, device busy, resolve failures)
   now appear in the message console — they used to be emitted before the
   message log was listening, so only a generic "cannot connect" ever showed.
+- The live **"Dropped Frames"** readout no longer sticks at `N/A` for the rest
+  of a session after a Miniscope is unplugged and reconnected. The device's
+  frame counter restarts when it power-cycles (as the recorded `DAQ Frame
+  Number` column intentionally shows), which left the live readout permanently
+  negative; it is now measured within each connection span. The recorded CSV
+  column is unchanged.
 
 ## [1.11] and earlier
 

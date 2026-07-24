@@ -219,6 +219,10 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
             bnoDisplay->setProperty("qy", bnoBuffer[bufIdx*5+2]);
             bnoDisplay->setProperty("qz", bnoBuffer[bufIdx*5+3]);
 
+            // Feed the optional commutator (no-op if none is connected).
+            emit newHeadQuaternion(bnoBuffer[bufIdx*5+0], bnoBuffer[bufIdx*5+1],
+                                   bnoBuffer[bufIdx*5+2], bnoBuffer[bufIdx*5+3]);
+
             // Figure out Euler Angles
             double qw = bnoBuffer[bufIdx*5+0];
             double qx = bnoBuffer[bufIdx*5+1];

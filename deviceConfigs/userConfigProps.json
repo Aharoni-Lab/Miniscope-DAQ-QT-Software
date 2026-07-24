@@ -174,6 +174,44 @@
             "tips": "These 'window' key: value pairs define the location and size of the trace display window."
         }
     },
+    "commutator": {
+        "enabled": {
+            "type": "Bool",
+            "tips": "Enables driving an Open Ephys commutator (github.com/open-ephys/commutator-controller) so the tether unwinds as the animal turns. Requires a V4 (or newer) Miniscope with head orientation enabled. No Bonsai needed."
+        },
+        "port": {
+            "type": "String",
+            "tips": "Serial port the commutator is connected to, e.g. \"COM5\" on Windows, \"/dev/ttyACM0\" on Linux, or \"/dev/cu.usbmodemXXXX\" on macOS. If the port can't be opened, the software prints the list of available ports to the message log."
+        },
+        "deviceName": {
+            "type": "String",
+            "tips": "Which Miniscope's head orientation drives the commutator, matching its name under devices/miniscopes. Leave blank to use the first Miniscope that has head orientation enabled."
+        },
+        "led": {
+            "type": "Bool",
+            "tips": "Turns the commutator's indicator LED on or off. Defaults to on."
+        },
+        "sampleRate": {
+            "type": "Double",
+            "tips": "How many times per second the head orientation is sampled to compute a rotation command, in Hz. 10 is a good default."
+        },
+        "headstageAxis": {
+            "type": "Array(Double)",
+            "tips": "The direction the tether leaves the headstage as [x, y, z] in the Miniscope IMU's reference frame. Default is [0, 0, 1]. If the commutator winds the tether up instead of unwinding it, negate this to [0, 0, -1]."
+        },
+        "commutatorAxis": {
+            "type": "Array(Double)",
+            "tips": "The direction the tether enters the rotating part of the commutator as [x, y, z] in the global frame. Default [0, 0, 1] works for the usual upright mounting."
+        },
+        "fallbackThreshold": {
+            "type": "Double",
+            "tips": "Advanced. Cosine threshold where the twist calculation switches to a fallback near its mathematical pole. Default -0.9. Most setups never need to change this."
+        },
+        "fallbackMode": {
+            "type": "String",
+            "tips": "Advanced. Either \"global\" or \"local\" - which rotation to assume at the pole. Default \"global\"."
+        }
+    },
     "devices": {
         "miniscopes": {
             "miniscopeDeviceName": {

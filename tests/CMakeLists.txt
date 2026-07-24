@@ -69,6 +69,16 @@ if(APPLE)
     add_test(NAME avfframegrabber COMMAND tst_avfframegrabber)
 endif()
 
+# --- Commutator twist math (pure quaternion logic, runs anywhere) --------------
+# Pins the C++ port of Open Ephys's QuaternionToTwist: the sign convention and
+# the quaternion-multiplication order (which must match, or the commutator winds
+# the tether up instead of unwinding it).
+qt_add_executable(tst_twistcalculator tst_twistcalculator.cpp
+    ${CMAKE_SOURCE_DIR}/source/twistcalculator.cpp)
+target_include_directories(tst_twistcalculator PRIVATE ${CMAKE_SOURCE_DIR}/source)
+target_link_libraries(tst_twistcalculator PRIVATE Qt6::Gui Qt6::Test)
+add_test(NAME twistcalculator COMMAND tst_twistcalculator)
+
 # --- Shader compile check ------------------------------------------------------
 # Compiles + links every custom GLSL program in an offscreen GL context, so a
 # shader edit that breaks any platform's GL dialect fails CI instead of failing
