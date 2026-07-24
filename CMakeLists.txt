@@ -127,6 +127,7 @@ set(SOURCES
     source/tracedisplay.cpp
     source/videodevice.cpp
     source/videodisplay.cpp
+    source/videostreambase.cpp
     source/videostreamocv.cpp
     source/videostreamlibuvc.cpp
 )

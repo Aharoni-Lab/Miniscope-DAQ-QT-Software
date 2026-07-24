@@ -90,6 +90,12 @@ public:
 
     bool isEmpty() const { return m_order.isEmpty(); }
 
+    void clear()
+    {
+        m_order.clear();
+        m_queue.clear();
+    }
+
     // writeWord(selector, word) -> success. Returns false if any write failed.
     template <typename WriteWordFn>
     bool flush(WriteWordFn writeWord)

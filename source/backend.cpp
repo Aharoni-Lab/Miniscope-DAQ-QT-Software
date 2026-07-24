@@ -1518,6 +1518,10 @@ void backEnd::constructUserConfigGUI()
 
         // Connect send and receive message to textbox in controlPanel
         QObject::connect(miniscope.last(), SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+        // Relay messages the constructor emitted before this wiring existed
+        // (connect failures name their cause there).
+        for (const QString &msg : miniscope.last()->takeEarlyMessages())
+            sendMessage(msg);
         // Qt6: connecting to a null receiver dereferences it (r->d_func() reads
         // offset 8 of nullptr) and crashes. traceDisplay is null unless a trace
         // display is configured + enabled, so guard the connection.
@@ -1545,6 +1549,10 @@ void backEnd::constructUserConfigGUI()
 
         // Connect send and receive message to textbox in controlPanel
         QObject::connect(behavCam.last(), SIGNAL(sendMessage(QString)), controlPanel, SLOT( receiveMessage(QString)));
+        // Relay messages the constructor emitted before this wiring existed
+        // (connect failures name their cause there).
+        for (const QString &msg : behavCam.last()->takeEarlyMessages())
+            sendMessage(msg);
 
         if (behavCam.last()->getErrors() != 0) {
             // Errors have occured in creating this object

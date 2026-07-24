@@ -33,6 +33,7 @@ private slots:
     void queueFlushesInFirstQueuedOrder();
     void queueSkipsInvalidPackets();
     void queueReportsWriteFailure();
+    void queueClearDropsEverything();
 };
 
 void TestMiniscopeProtocol::packShortPacket()
@@ -208,6 +209,20 @@ void TestMiniscopeProtocol::queueReportsWriteFailure()
     int writes = 0;
     QVERIFY(!queue.flush([&](quint8, quint16) { writes++; return writes != 2; }));
     QCOMPARE(writes, 3);   // a failed word must not stop the remaining words
+}
+
+void TestMiniscopeProtocol::queueClearDropsEverything()
+{
+    // sendSerdesModeCommands relies on this: commands queued while a device
+    // was down must not flush ahead of the SERDES mode packets on reconnect.
+    I2CCommandQueue queue;
+    queue.set(1, {0xC0, 0x01});
+    queue.set(2, {0xC0, 0x02});
+    queue.clear();
+    QVERIFY(queue.isEmpty());
+    int writes = 0;
+    QVERIFY(queue.flush([&](quint8, quint16) { writes++; return true; }));
+    QCOMPARE(writes, 0);
 }
 
 QTEST_APPLESS_MAIN(TestMiniscopeProtocol)
