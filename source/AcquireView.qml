@@ -121,14 +121,18 @@ Item {
                     border.width: 1
                     border.color: Theme.border
 
-                    // Closing a floating pane window docks it back (guarded so
-                    // session teardown's hide doesn't re-dock into dying panes).
-                    // Geometry changes while floating are saved, debounced.
+                    // Closing a floating pane window (title-bar X) docks it
+                    // back. QQuickWindow::closing fires only on a real user
+                    // close - visibility-based triggers dock the pane the
+                    // moment a drag starts, because macOS flickers the window's
+                    // visible state while re-establishing the dragged native
+                    // window. Geometry changes while floating are saved,
+                    // debounced.
                     Connections {
                         target: paneFrame.modelData.window
                         enabled: paneFrame.floating
-                        function onVisibleChanged() {
-                            if (!paneFrame.modelData.window.visible && backend.sessionActive)
+                        function onClosing(close) {
+                            if (backend.sessionActive)
                                 acquireRoot.setFloating(paneFrame.modelData, false)
                         }
                         function onXChanged() { saveTimer.restart() }
