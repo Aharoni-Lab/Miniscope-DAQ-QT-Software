@@ -89,6 +89,15 @@ public:
         const double h = m_cDevice.value("height").toDouble();
         return (w > 0 && h > 0) ? w / h : 0.0;
     }
+    // REC chip on the device window. Display only - recording itself is
+    // DataSaver's; cameras must not get the startRecording signal chain
+    // because VideoStreamOCV::startRecording() writes the Miniscope DAQ's
+    // UVC side-channel (CAP_PROP_SATURATION), which changes a real webcam's
+    // image.
+    void setWindowRecordingIndicator(bool on) {
+        if (rootObject)
+            rootObject->setProperty("recording", on);
+    }
     // Session-bar telemetry (GUI thread; the counters are atomics/semaphores
     // shared with the capture thread).
     int acqFrameCount() const { return m_acqFrameNum->loadRelaxed(); }

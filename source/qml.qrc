@@ -12,13 +12,13 @@
         <file>AppShell.qml</file>
         <file>SetupView.qml</file>
         <file>AcquireView.qml</file>
+        <file>VideoWindowShell.qml</file>
         <file>SessionBar.qml</file>
         <file>behaviorCam.qml</file>
         <file>VideoSliderControl.qml</file>
         <file>img/iconEWL.png</file>
         <file>img/icon/ewl.ico</file>
         <file>img/icon/led.ico</file>
-        <file>TopMenu.qml</file>
         <file>img/MiniscopeLogo.png</file>
         <file>shaders/imageBasic.vert</file>
         <file>shaders/imageSaturationScaling.frag</file>

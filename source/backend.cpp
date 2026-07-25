@@ -1225,6 +1225,19 @@ void backEnd::connectSnS()
 
         QObject::connect(this, SIGNAL( closeAll()), behavCam[i], SLOT (close()));
 
+        // REC chip on the camera window. Display only: cameras must NOT get
+        // the startRecording signal chain (VideoStreamOCV::startRecording
+        // writes the Miniscope DAQ's UVC side-channel, which would visibly
+        // change a real webcam's image).
+        QObject::connect(controlPanel, &ControlPanel::recordStart, behavCam[i],
+                         [cam = behavCam[i]](QMap<QString, QVariant>) {
+                             cam->setWindowRecordingIndicator(true);
+                         });
+        QObject::connect(controlPanel, &ControlPanel::recordStop, behavCam[i],
+                         [cam = behavCam[i]] { cam->setWindowRecordingIndicator(false); });
+        QObject::connect(dataSaver, &DataSaver::recordingFailed, behavCam[i],
+                         [cam = behavCam[i]] { cam->setWindowRecordingIndicator(false); });
+
 //        if (behavTracker) {
 //            QObject::connect(behavCam[i], SIGNAL(newFrameAvailable(QString, int)), behavTracker, SLOT( handleNewFrameAvailable(QString, int)));
 //        }

@@ -308,6 +308,18 @@ void VideoDevice::createView()
         // Acquire view; streams only stop when the session ends.)
         QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &VideoDevice::sendNewFrame);
 
+        // Render on frame arrival. beforeRendering only PULLS the newest frame
+        // when the scene renders; the old windows kept the scene permanently
+        // dirty with an infinite dummy animation, the shell does not - so each
+        // captured frame must request a render pass itself. Queued to the GUI
+        // thread via the vidDisplay context; window() is looked up live since
+        // embedding/floating reparents the view.
+        QObject::connect(deviceStream, &VideoStreamBase::newFrameAvailable, vidDisplay,
+                         [this] {
+                             if (vidDisplay && vidDisplay->window())
+                                 vidDisplay->window()->update();
+                         });
+
         // Keep the ROI overlay tracking the video as the window is resized.
         QObject::connect(vidDisplay, &QQuickItem::widthChanged, this, &VideoDevice::handleDisplayResized);
 
@@ -795,6 +807,8 @@ void VideoDevice::handleSetExtTriggerTrackingState(bool state)
 }
 void VideoDevice::handleRecordStart()
 {
+    setWindowRecordingIndicator(true);
+
     // Turns on led0 if software is in external trigger configuration
     if (m_extTriggerTrackingState) {
         QQuickItem *controlItem; // Pointer to VideoPropertyControl in qml for each objectName
@@ -805,6 +819,8 @@ void VideoDevice::handleRecordStart()
 
 void VideoDevice::handleRecordStop()
 {
+    setWindowRecordingIndicator(false);
+
     // Turns off led0 if software is in external trigger configuration
     if (m_extTriggerTrackingState) {
         QQuickItem *controlItem; // Pointer to VideoPropertyControl in qml for each objectName
