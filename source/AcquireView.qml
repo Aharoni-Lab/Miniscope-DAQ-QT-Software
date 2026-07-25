@@ -18,14 +18,6 @@ Item {
     property var paneStates: ({})
     property bool layoutLocked: false
 
-    readonly property int embeddedCount: {
-        var n = 0
-        for (var i = 0; i < panes.length; i++)
-            if (!isFloating(panes[i].name))
-                n++
-        return n
-    }
-
     function isFloating(name) {
         var st = paneStates[name]
         return st !== undefined && st.floating === true
@@ -71,6 +63,8 @@ Item {
         st[pane.name].floating = floating
         paneStates = st // containers attach/detach via their window binding
         backend.setPaneEmbedded(pane.window, !floating, pane.aspect)
+        if (!floating)
+            pane.window.visible = true // it may have been closed while floating
         saveFloatingState(pane)
     }
 
@@ -100,8 +94,8 @@ Item {
         GridLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            columns: acquireRoot.embeddedCount <= 1 ? 1
-                   : acquireRoot.embeddedCount <= 4 ? 2 : 3
+            columns: acquireRoot.panes.length <= 1 ? 1
+                   : acquireRoot.panes.length <= 4 ? 2 : 3
             columnSpacing: Theme.spacing
             rowSpacing: Theme.spacing
 
@@ -113,7 +107,13 @@ Item {
                     required property var modelData
                     readonly property bool floating: acquireRoot.isFloating(modelData.name)
 
-                    visible: !floating // floating panes leave the grid
+                    // A floating pane keeps its grid cell as a placeholder
+                    // with an explicit Dock button. Window signals (closing /
+                    // visibleChanged) must NOT drive dock state: macOS
+                    // synthesizes both while re-establishing a dragged native
+                    // window that was just reparented out of a container, so
+                    // any signal-based dock trigger yanks the window back the
+                    // moment the user drags it.
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     radius: Theme.radiusSmall
@@ -121,19 +121,17 @@ Item {
                     border.width: 1
                     border.color: Theme.border
 
-                    // Closing a floating pane window (title-bar X) docks it
-                    // back. QQuickWindow::closing fires only on a real user
-                    // close - visibility-based triggers dock the pane the
-                    // moment a drag starts, because macOS flickers the window's
-                    // visible state while re-establishing the dragged native
-                    // window. Geometry changes while floating are saved,
-                    // debounced.
+                    // Geometry changes while floating are saved (debounced);
+                    // the close/visible logs are diagnostics only.
                     Connections {
                         target: paneFrame.modelData.window
                         enabled: paneFrame.floating
                         function onClosing(close) {
-                            if (backend.sessionActive)
-                                acquireRoot.setFloating(paneFrame.modelData, false)
+                            console.log("pane-diag:", paneFrame.modelData.name, "closing signal")
+                        }
+                        function onVisibleChanged() {
+                            console.log("pane-diag:", paneFrame.modelData.name,
+                                        "visible ->", paneFrame.modelData.window.visible)
                         }
                         function onXChanged() { saveTimer.restart() }
                         function onYChanged() { saveTimer.restart() }
@@ -172,15 +170,17 @@ Item {
                                     Layout.fillWidth: true
                                 }
 
-                                // Pop out to a floating window
+                                // Pop out / dock back
                                 Rectangle {
                                     visible: !acquireRoot.layoutLocked
-                                    width: 22; height: 22
+                                    width: paneButtonText.implicitWidth + 12
+                                    height: 22
                                     radius: Theme.radiusSmall
                                     color: popOutArea.containsMouse ? Theme.surface : "transparent"
                                     Text {
+                                        id: paneButtonText
                                         anchors.centerIn: parent
-                                        text: "↗"
+                                        text: paneFrame.floating ? qsTr("⇲ Dock") : "↗"
                                         font: Theme.fontSmall
                                         color: Theme.textSecondary
                                     }
@@ -189,17 +189,21 @@ Item {
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: acquireRoot.setFloating(paneFrame.modelData, true)
+                                        onClicked: acquireRoot.setFloating(paneFrame.modelData,
+                                                                           !paneFrame.floating)
                                     }
                                     ToolTip.visible: popOutArea.containsMouse
                                     ToolTip.delay: 600
-                                    ToolTip.text: qsTr("Pop out into a floating window (close it to dock it back)")
+                                    ToolTip.text: paneFrame.floating
+                                                  ? qsTr("Bring the window back into this pane")
+                                                  : qsTr("Pop out into a floating window")
                                 }
                             }
                         }
 
-                        // Pane body: the device/panel window, letterboxed to its
-                        // native aspect for video panes.
+                        // Pane body: the device/panel window, letterboxed to
+                        // its native aspect for video panes - or, while the
+                        // window floats, a placeholder with the dock controls.
                         Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
@@ -214,21 +218,39 @@ Item {
                                         ? width / paneFrame.modelData.aspect
                                         : parent.height
                             }
+
+                            ColumnLayout {
+                                visible: paneFrame.floating
+                                anchors.centerIn: parent
+                                spacing: Theme.spacing
+
+                                Text {
+                                    text: qsTr("Floating in its own window")
+                                    font: Theme.fontBody
+                                    color: Theme.textSecondary
+                                    Layout.alignment: Qt.AlignHCenter
+                                }
+                                RowLayout {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    spacing: Theme.spacing
+                                    UiButton {
+                                        text: qsTr("Show window")
+                                        onClicked: {
+                                            paneFrame.modelData.window.visible = true
+                                            paneFrame.modelData.window.requestActivate()
+                                        }
+                                    }
+                                    UiButton {
+                                        text: qsTr("Dock here")
+                                        primary: true
+                                        enabled: !acquireRoot.layoutLocked
+                                        onClicked: acquireRoot.setFloating(paneFrame.modelData, false)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-            }
-
-            // All panes floating: keep a hint where the grid would be.
-            Text {
-                visible: acquireRoot.embeddedCount === 0 && acquireRoot.panes.length > 0
-                text: qsTr("All panes are floating. Close a floating window to dock it back here.")
-                font: Theme.fontBody
-                color: Theme.textSecondary
-                horizontalAlignment: Text.AlignHCenter
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                verticalAlignment: Text.AlignVCenter
             }
         }
     }
