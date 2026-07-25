@@ -4,9 +4,12 @@
 #     conda env create -f environment.yml
 #     conda activate miniscope-qt6
 #     cmake -B build -S . -G "Visual Studio 17 2022" -A x64 ^
-#         -DCMAKE_PREFIX_PATH="%CONDA_PREFIX%/Library" ^
-#         -DPython3_EXECUTABLE="%CONDA_PREFIX%/python.exe" -DUSE_PYTHON=ON
+#         -DCMAKE_PREFIX_PATH="%CONDA_PREFIX%/Library" -DUSE_PYTHON=OFF
 #     cmake --build build --config Release
+#
+# Packaged releases ship USE_PYTHON=OFF on every platform (the DeepLabCut-Live
+# tracker is not bundled). Build with -DUSE_PYTHON=ON only if you specifically
+# want the embedded-Python tracker for local use.
 #     cmake --build build --config Release --target deploy   # -> build/Release/
 #
 # To update an existing env after editing this file:
