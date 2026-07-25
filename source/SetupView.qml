@@ -14,6 +14,32 @@ Item {
     // Replaces the old imperative treeView.visible / view.visible toggling.
     property bool configOpen: false
 
+    // Save the config to its own file; a brand-new config (no path yet) routes
+    // through the Save-As dialog. `andThen` (optional) runs after the save
+    // completes — used by the unsaved-changes prompt to chain Run/Open/New.
+    function saveInPlace(andThen) {
+        if (backend.userConfigFileName.length > 0) {
+            backend.saveConfigObjectAs(backend.userConfigFileName)
+            if (andThen)
+                andThen()
+        } else {
+            saveConfigDialog.pendingAction = andThen ? andThen : null
+            saveConfigDialog.open()
+        }
+    }
+
+    // Gate an action behind the unsaved-changes prompt. Runs it immediately
+    // when the config is clean.
+    function confirmIfDirty(actionLabel, action) {
+        if (backend.configDirty) {
+            unsavedDialog.actionLabel = actionLabel
+            unsavedDialog.action = action
+            unsavedDialog.open()
+        } else {
+            action()
+        }
+    }
+
     // --- Dialogs -----------------------------------------------------------------
     FileDialog {
         id: fileDialog
@@ -31,11 +57,72 @@ Item {
         fileMode: FileDialog.SaveFile
         nameFilters: ["JSON files (*.json)", "All files (*)"]
         defaultSuffix: "json"
+        // Set by saveInPlace() when a new config is saved on the way to
+        // another action (Run/Open/New); null for a plain Save As.
+        property var pendingAction: null
         onAccepted: {
             var path = backend.urlToLocalFile(saveConfigDialog.selectedFile)
             backend.saveConfigObjectAs(path)
-            saveMessageDialog.savedPath = path
-            saveMessageDialog.open()
+            if (pendingAction) {
+                var action = pendingAction
+                pendingAction = null
+                action()
+            } else {
+                saveMessageDialog.savedPath = path
+                saveMessageDialog.open()
+            }
+        }
+        onRejected: pendingAction = null
+    }
+
+    // Save-before-X prompt: editing is live in memory, but an experiment
+    // should not run (or a config close) with changes that exist nowhere on
+    // disk unless the user says so.
+    Dialog {
+        id: unsavedDialog
+        property string actionLabel: ""
+        property var action: null
+        title: qsTr("Unsaved changes")
+        modal: true
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: 460
+        closePolicy: Popup.CloseOnEscape
+
+        contentItem: ColumnLayout {
+            spacing: Theme.spacing * 2
+            Text {
+                text: backend.userConfigFileName.length > 0
+                      ? qsTr("This configuration has changes that are not saved to\n%1").arg(backend.userConfigFileName)
+                      : qsTr("This new configuration has not been saved to a file yet.")
+                font: Theme.fontBody
+                color: Theme.textPrimary
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+            RowLayout {
+                spacing: Theme.spacing
+                Item { Layout.fillWidth: true }
+                UiButton {
+                    text: qsTr("Cancel")
+                    onClicked: unsavedDialog.close()
+                }
+                UiButton {
+                    text: qsTr("%1 without saving").arg(unsavedDialog.actionLabel)
+                    onClicked: {
+                        unsavedDialog.close()
+                        unsavedDialog.action()
+                    }
+                }
+                UiButton {
+                    text: qsTr("Save and %1").arg(unsavedDialog.actionLabel)
+                    primary: true
+                    onClicked: {
+                        unsavedDialog.close()
+                        setupRoot.saveInPlace(unsavedDialog.action)
+                    }
+                }
+            }
         }
     }
 
@@ -105,19 +192,26 @@ Item {
 
             UiButton {
                 text: qsTr("Open…")
-                onClicked: fileDialog.open()
+                onClicked: setupRoot.confirmIfDirty(qsTr("Open"), function() { fileDialog.open() })
             }
             UiButton {
                 text: qsTr("New")
-                onClicked: {
+                onClicked: setupRoot.confirmIfDirty(qsTr("New"), function() {
                     backend.newUserConfig()
                     setupRoot.configOpen = true
-                }
+                })
+            }
+            UiButton {
+                text: qsTr("Save")
+                visible: setupRoot.configOpen
+                enabled: backend ? (backend.configDirty && backend.userConfigOK) : false
+                onClicked: setupRoot.saveInPlace(null)
             }
             UiButton {
                 text: qsTr("Save As…")
                 enabled: backend ? backend.userConfigOK : false
                 onClicked: {
+                    saveConfigDialog.pendingAction = null
                     saveConfigDialog.selectedFile = backend.localFileToUrl(backend.userConfigFileName)
                     saveConfigDialog.open()
                 }
@@ -207,7 +301,7 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.touchTarget + 8
             enabled: backend ? (backend.userConfigOK && backend.hasDevices) : false
-            onClicked: backend.onRunClicked()
+            onClicked: setupRoot.confirmIfDirty(qsTr("Run"), function() { backend.onRunClicked() })
         }
     }
 }

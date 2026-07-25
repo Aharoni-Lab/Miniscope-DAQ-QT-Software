@@ -48,15 +48,27 @@ ApplicationWindow {
                     font: Theme.fontTitle
                     color: Theme.textPrimary
                 }
-                Text {
-                    // The loaded config, so the operator always knows which rig
-                    // definition is active - in both modes.
-                    text: backend && backend.userConfigFileName.length > 0
-                          ? backend.userConfigFileName : qsTr("no config loaded")
-                    font: Theme.fontSmall
-                    color: Theme.textSecondary
-                    elide: Text.ElideLeft
-                    Layout.maximumWidth: 420
+                RowLayout {
+                    spacing: Theme.spacing
+                    Text {
+                        // The loaded config, so the operator always knows which rig
+                        // definition is active - in both modes.
+                        text: backend && backend.userConfigFileName.length > 0
+                              ? backend.userConfigFileName
+                              : (backend && backend.configDirty ? qsTr("unsaved new config")
+                                                                : qsTr("no config loaded"))
+                        font: Theme.fontSmall
+                        color: Theme.textSecondary
+                        elide: Text.ElideLeft
+                        Layout.maximumWidth: 420
+                    }
+                    Text {
+                        // Unsaved-changes marker; the Save button in Setup clears it.
+                        visible: backend ? backend.configDirty : false
+                        text: qsTr("· edited")
+                        font: Theme.fontSmall
+                        color: Theme.warning
+                    }
                 }
             }
 

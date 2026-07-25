@@ -28,6 +28,7 @@ class TestConfigForm : public QObject
 private slots:
     void initTestCase();
     void formApiRoundTrip();
+    void dirtyTracking();
     void configFormQml();
 
 private:
@@ -100,6 +101,10 @@ void TestConfigForm::formApiRoundTrip()
                  .value("framesPerFile").toInt(), 500);
     for (const QString &key : commentKeys)
         QVERIFY2(out.contains(key), qPrintable("dropped on save: " + key));
+    // parseUserConfig() used to read via QJsonObject::operator[], which
+    // INSERTS null keys it merely looked up — they must not reach the file.
+    QVERIFY(!out.contains("dataStructureOrder"));
+    QVERIFY(!out.contains("experiment"));
 
     // removeConfigKey / removeDevice actually remove.
     backend.removeConfigKey({"devices", "miniscopes", scopeName, "framesPerFile"});
@@ -117,6 +122,47 @@ void TestConfigForm::formApiRoundTrip()
     QVERIFY(backend.applyRawConfigJson("{\"researcherName\": \"raw\"}").isEmpty());
     QCOMPARE(backend.userConfigJson().value("researcherName").toString(),
              QStringLiteral("raw"));
+}
+
+void TestConfigForm::dirtyTracking()
+{
+    backEnd backend;
+    QSignalSpy dirtyChanged(&backend, &backEnd::configDirtyChanged);
+
+    // Fresh load -> clean; any edit -> dirty.
+    loadExampleConfig(backend);
+    QVERIFY(!backend.configDirty());
+    const QString original =
+        backend.userConfigJson().value("animalName").toString();
+    backend.setConfigValue({"animalName"}, original + "_edited");
+    QVERIFY(backend.configDirty());
+    QCOMPARE(dirtyChanged.count(), 1);
+
+    // Editing back to the on-disk value -> clean again (dirty is a content
+    // comparison, not an edit counter).
+    backend.setConfigValue({"animalName"}, original);
+    QVERIFY(!backend.configDirty());
+
+    // Save As -> clean and the saved file's path is adopted.
+    backend.setConfigValue({"animalName"}, "edited");
+    QVERIFY(backend.configDirty());
+    const QString pathBefore = backend.userConfigFileName();
+    const QString savedPath = m_tempDir.filePath("dirty.json");
+    backend.saveConfigObjectAs(savedPath);
+    QVERIFY(!backend.configDirty());
+    QCOMPARE(backend.userConfigFileName(), savedPath); // Save As adopts the path
+    QVERIFY(pathBefore != savedPath);
+
+    // New config -> dirty (exists nowhere on disk) with no file path.
+    backend.newUserConfig();
+    QVERIFY(backend.configDirty());
+    QVERIFY(backend.userConfigFileName().isEmpty());
+
+    // Saving the new config makes it clean and gives it its path.
+    const QString newPath = m_tempDir.filePath("new.json");
+    backend.saveConfigObjectAs(newPath);
+    QVERIFY(!backend.configDirty());
+    QCOMPARE(backend.userConfigFileName(), newPath);
 }
 
 void TestConfigForm::configFormQml()

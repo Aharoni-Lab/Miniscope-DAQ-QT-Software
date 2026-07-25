@@ -189,7 +189,7 @@ static void stampConfigMetadata(QJsonObject &config)
 
 void backEnd::saveConfigObjectAs(const QString &filePath)
 {
-    stampConfigMetadata(m_userConfig);
+    stampConfigMetadata(m_userConfig); // may add configVersion/$schema
     QJsonDocument d;
     d.setObject(m_userConfig);
     QFile file(filePath);
@@ -197,6 +197,16 @@ void backEnd::saveConfigObjectAs(const QString &filePath)
         file.write(d.toJson());
         file.close();
         sendMessage("User config saved to " + filePath);
+
+        // The saved file is now the loaded config: adopt its path (Save As /
+        // first save of a New config) and reset the dirty baseline.
+        if (m_userConfigFileName != filePath) {
+            m_userConfigFileName = filePath;
+            emit userConfigFileNameChanged();
+        }
+        m_savedConfig = m_userConfig;
+        updateDirtyState();
+        emit userConfigJsonChanged(); // stamping may have changed the config
     }
     else {
         sendMessage("ERROR: could not save user config to " + filePath);
@@ -314,9 +324,12 @@ void backEnd::newUserConfig()
 
     m_userConfig = cfg;
     m_userConfigFileName.clear();   // brand-new config: unseed the Save-As dialog
+    emit userConfigFileNameChanged();
+    m_savedConfig = QJsonObject();  // nothing on disk yet -> dirty until saved
 
     updateHasDevices();
     checkUserConfigForIssues();     // emits userConfigOKChanged() -> enables Save/Run
+    updateDirtyState();
     emit userConfigJsonChanged();
 }
 
@@ -430,6 +443,7 @@ void backEnd::addDevice(const QString &category, const QString &deviceType,
 
     updateHasDevices();
     checkUserConfigForIssues();
+    updateDirtyState();
     emit userConfigJsonChanged();
 }
 
@@ -667,9 +681,9 @@ void backEnd::loadUserConfigFile()
 
     // Correct for old device structure in user config files
     QJsonObject tempObj;
-    QJsonObject deviceObj = m_userConfig["devices"].toObject();
-    if (m_userConfig["devices"].toObject()["miniscopes"].isArray()) {
-        QJsonArray tempAry = m_userConfig["devices"].toObject()["miniscopes"].toArray();
+    QJsonObject deviceObj = m_userConfig.value("devices").toObject();
+    if (m_userConfig.value("devices").toObject()["miniscopes"].isArray()) {
+        QJsonArray tempAry = m_userConfig.value("devices").toObject()["miniscopes"].toArray();
         QJsonObject miniObj;
         sList.clear();
         count = 0;
@@ -691,8 +705,8 @@ void backEnd::loadUserConfigFile()
         deviceObj["miniscopes"] = miniObj;
 
     }
-    if (m_userConfig["devices"].toObject()["cameras"].isArray()) {
-        QJsonArray tempAry = m_userConfig["devices"].toObject()["cameras"].toArray();
+    if (m_userConfig.value("devices").toObject()["cameras"].isArray()) {
+        QJsonArray tempAry = m_userConfig.value("devices").toObject()["cameras"].toArray();
         QJsonObject camObj;
         sList.clear();
         count = 0;
@@ -896,6 +910,10 @@ void backEnd::stopSessionThreads()
 void backEnd::handleUserConfigFileNameChanged()
 {
     loadUserConfigFile();
+    // Freshly loaded == clean, even when loadUserConfigFile migrated an
+    // old-format device section (the migration notes flag that separately).
+    m_savedConfig = m_userConfig;
+    updateDirtyState();
     parseUserConfig();
     updateHasDevices();
     checkUserConfigForIssues();
@@ -942,7 +960,17 @@ void backEnd::configEdited()
     parseUserConfig();
     updateHasDevices();
     checkUserConfigForIssues();
+    updateDirtyState();
     emit userConfigJsonChanged();
+}
+
+void backEnd::updateDirtyState()
+{
+    const bool dirty = (m_userConfig != m_savedConfig);
+    if (m_configDirty == dirty)
+        return;
+    m_configDirty = dirty;
+    emit configDirtyChanged();
 }
 
 void backEnd::setConfigValue(const QVariantList &path, const QVariant &value)
@@ -1185,21 +1213,21 @@ bool backEnd::checkUserConfigForIssues()
 
 void backEnd::parseUserConfig()
 {
-    QJsonObject devices = m_userConfig["devices"].toObject();
+    QJsonObject devices = m_userConfig.value("devices").toObject();
     QJsonArray tempArray;
     QJsonObject tempObj;
     QStringList s;
     int count = 0;
 
     // Main JSON header
-    researcherName = m_userConfig["researcherName"].toString();
-    dataDirectory= m_userConfig["dataDirectory"].toString();
-    dataStructureOrder = m_userConfig["dataStructureOrder"].toArray();
-    experimentName = m_userConfig["experimentName"].toString();
-    animalName = m_userConfig["animalName"].toString();
+    researcherName = m_userConfig.value("researcherName").toString();
+    dataDirectory= m_userConfig.value("dataDirectory").toString();
+    dataStructureOrder = m_userConfig.value("dataStructureOrder").toArray();
+    experimentName = m_userConfig.value("experimentName").toString();
+    animalName = m_userConfig.value("animalName").toString();
 
     // JSON subsections
-    ucExperiment = m_userConfig["experiment"].toObject();
+    ucExperiment = m_userConfig.value("experiment").toObject();
 
     if (devices["miniscopes"].isArray()) {
         tempArray = devices["miniscopes"].toArray();
@@ -1253,7 +1281,6 @@ void backEnd::parseUserConfig()
         for (int i=0; i < s.length(); i++) {
             tempObj = devices["cameras"].toObject()[s[i]].toObject();
             tempObj["deviceName"] = s[i];
-            qDebug() << "DNSOSNDAIOASDNO" << tempObj;
             ucBehaviorCams[s[i]] = tempObj;
         }
 
@@ -1261,9 +1288,9 @@ void backEnd::parseUserConfig()
 
 //    ucBehaviorCams = devices["cameras"].toArray();
 
-    ucBehaviorTracker = m_userConfig["behaviorTracker"].toObject();
-    ucTraceDisplay = m_userConfig["traceDisplay"].toObject();
-    ucCommutator = m_userConfig["commutator"].toObject();
+    ucBehaviorTracker = m_userConfig.value("behaviorTracker").toObject();
+    ucTraceDisplay = m_userConfig.value("traceDisplay").toObject();
+    ucCommutator = m_userConfig.value("commutator").toObject();
 
 
 }

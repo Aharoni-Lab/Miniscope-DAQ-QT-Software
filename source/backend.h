@@ -26,6 +26,7 @@ class backEnd : public QObject
     Q_PROPERTY(QString userConfigFileName READ userConfigFileName WRITE setUserConfigFileName NOTIFY userConfigFileNameChanged)
     Q_PROPERTY(QString userConfigDisplay READ userConfigDisplay WRITE setUserConfigDisplay NOTIFY userConfigDisplayChanged)
     Q_PROPERTY(QString configCheckNotes READ configCheckNotes NOTIFY configCheckNotesChanged)
+    Q_PROPERTY(bool configDirty READ configDirty NOTIFY configDirtyChanged)
     Q_PROPERTY(bool userConfigOK READ userConfigOK WRITE setUserConfigOK NOTIFY userConfigOKChanged)
     Q_PROPERTY(bool hasDevices READ hasDevices NOTIFY hasDevicesChanged)
     Q_PROPERTY(QString availableCodecList READ availableCodecList WRITE setAvailableCodecList NOTIFY availableCodecListChanged)
@@ -73,6 +74,11 @@ public:
 
     QString userConfigDisplay(){ return m_userConfigDisplay; }
     void setUserConfigDisplay(const QString &input);
+
+    // True when the in-memory config differs from what was last loaded from /
+    // saved to disk. Drives the Save button, the "edited" chip in the header,
+    // and the save-before-Run/Open/New prompts.
+    bool configDirty() const { return m_configDirty; }
 
     // Migration notes + schema warnings from the last config load, newline-
     // separated; empty when the config is clean. Shown as a banner above the
@@ -179,6 +185,7 @@ signals:
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();
     void configCheckNotesChanged();
+    void configDirtyChanged();
     void userConfigOKChanged();
     void hasDevicesChanged();
     void availableCodecListChanged();
@@ -236,6 +243,9 @@ private:
     // Re-run the load-time checks (schema notes, device names, codecs,
     // hasDevices) after any form mutation and notify QML.
     void configEdited();
+    // Recompute m_configDirty (m_userConfig vs the m_savedConfig snapshot) and
+    // notify QML on change. Call after any config mutation, load, or save.
+    void updateDirtyState();
 
     // Per-OS implementations behind scanVideoDevices(); each is defined only on its
     // platform (calls to the others are #ifdef'd out, so they're never odr-used
@@ -255,6 +265,10 @@ private:
     bool m_userConfigOK;
     bool m_hasDevices = false;
     QJsonObject m_userConfig;
+    // Snapshot of m_userConfig as of the last load/save; the dirty flag is
+    // "current config != this". Empty for a brand-new unsaved config.
+    QJsonObject m_savedConfig;
+    bool m_configDirty = false;
     QJsonObject m_configProps;
     QJsonObject m_deviceCatalog;   // deviceConfigs/videoDevices.json (device types + defaults)
 
