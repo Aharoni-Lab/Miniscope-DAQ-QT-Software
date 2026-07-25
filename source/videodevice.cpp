@@ -153,6 +153,15 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
         // Handle request for reinitialization of commands
         QObject::connect(deviceStream, &VideoStreamBase::requestInitCommands, this, &VideoDevice::handleInitCommandsRequest);
 
+        // Drive a persistent "disconnected" indicator on the device window.
+        // Queued to the GUI thread (deviceStream lives on its own thread),
+        // mirroring the existing recording-indicator property push.
+        QObject::connect(deviceStream, &VideoStreamBase::connectionLost, this,
+                         [this](bool lost) {
+                             if (rootObject)
+                                 rootObject->setProperty("connected", !lost);
+                         });
+
         // --- USED ONLY FOR MINISCOPE INITIALLY -------------------------------
         // Handle external triggering passthrough
         QObject::connect(this, &VideoDevice::setExtTriggerTrackingState, deviceStream, &VideoStreamBase::setExtTriggerTrackingState);

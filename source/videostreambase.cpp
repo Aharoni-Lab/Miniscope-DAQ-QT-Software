@@ -224,6 +224,7 @@ bool VideoStreamBase::runReconnectCycle(ReconnectBackoff &backoff, const QString
 {
     if (backoff.firstFailure()) {
         sendMessage("Warning: " + m_deviceName + " " + what + " failed. Attempting to reconnect.");
+        emit connectionLost(true);
         diagnoseStreamFailure();
     }
     // Interruptible backoff: sleep in short slices, delivering queued events
@@ -241,6 +242,7 @@ bool VideoStreamBase::runReconnectCycle(ReconnectBackoff &backoff, const QString
     if (attemptReconnect()) {
         sendMessage("Warning: " + m_deviceName + " reconnected (after " +
                     QString::number(backoff.attempts()) + " attempts).");
+        emit connectionLost(false);
         qDebug() << "Reconnect to camera" << m_cameraID;
         backoff.reset();
         // The device may have power-cycled, resetting its hardware frame

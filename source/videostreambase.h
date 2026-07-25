@@ -115,6 +115,11 @@ signals:
     void newFrameAvailable(QString name, int frameNum);
     void extTriggered(bool triggerState);
     void requestInitCommands();
+    // Connection state for a persistent UI indicator: true on the first failure
+    // of a reconnect episode, false once the device is back. The scrolling
+    // message log already records the same events, but is easy to miss during an
+    // unattended multi-device session (issue #74).
+    void connectionLost(bool lost);
 
 public slots:
     virtual void startStream() = 0;
