@@ -79,6 +79,37 @@ target_include_directories(tst_twistcalculator PRIVATE ${CMAKE_SOURCE_DIR}/sourc
 target_link_libraries(tst_twistcalculator PRIVATE Qt6::Gui Qt6::Test)
 add_test(NAME twistcalculator COMMAND tst_twistcalculator)
 
+# --- Session lifecycle (Run -> endSession -> Run, one process) -----------------
+# Links the full app core (miniscope_app) and drives the real backend with a
+# file-playback video stream: capture thread, device window, control panel, and
+# DataSaver thread all start and stop twice. Pins the re-entrancy invariant the
+# ui-v3 Setup<->Acquire shell depends on. Offscreen platform: windows are
+# created but never exposed, so no GL context is needed.
+qt_add_executable(tst_sessionlifecycle tst_sessionlifecycle.cpp
+    ${CMAKE_SOURCE_DIR}/source/qml.qrc)
+target_link_libraries(tst_sessionlifecycle PRIVATE miniscope_app Qt6::Test)
+# Same skip as the app target: conda-forge's qmlimportscanner can fail to launch.
+set_target_properties(tst_sessionlifecycle PROPERTIES QT_QML_MODULE_NO_IMPORT_SCAN ON)
+add_test(NAME sessionlifecycle COMMAND tst_sessionlifecycle)
+# The backend resolves ./deviceConfigs/*.json relative to the CWD.
+set_tests_properties(sessionlifecycle PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
+# --- Form config editor (backend form API + ConfigForm.qml) --------------------
+# Round-trips a shipped example config through the form-editing API and pins
+# that COMMENT_* / unknown keys survive to disk (the old tree editor dropped
+# them), that QML-number doubles store as JSON ints, and that ConfigForm.qml
+# instantiates against a real config and edits it.
+qt_add_executable(tst_configform tst_configform.cpp
+    ${CMAKE_SOURCE_DIR}/source/qml.qrc)
+target_link_libraries(tst_configform PRIVATE miniscope_app Qt6::Test)
+set_target_properties(tst_configform PROPERTIES QT_QML_MODULE_NO_IMPORT_SCAN ON)
+add_test(NAME configform COMMAND tst_configform)
+set_tests_properties(configform PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
 # --- Shader compile check ------------------------------------------------------
 # Compiles + links every custom GLSL program in an offscreen GL context, so a
 # shader edit that breaks any platform's GL dialect fails CI instead of failing

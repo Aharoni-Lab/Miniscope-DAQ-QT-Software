@@ -3,15 +3,17 @@
 Status: **working on Ubuntu 24.04 LTS** — builds, launches (Wayland or X11),
 streams Miniscope + webcam video, records, all device controls work, **and the
 BNO head-orientation traces + frame counter work** (see the libuvc section
-below for why that took special handling). Work happens on the **`ubuntu-port`**
-branch.
+below for why that took special handling). This work lives on the **`ui-v3`**
+integration branch.
 
 The C++/CMake were already cross-platform: every Windows-specific bit is gated
 behind `if(WIN32)` (CMake) or `#ifdef Q_OS_WINDOWS` (C++), and the OpenGL
 renderers use legacy GLSL that compiles against Linux's GL compatibility profile
 unchanged. The two Linux-specific additions made for this port are:
 
-1. The CMake Qt floor was lowered `6.5 → 6.4` (harmless; satisfied by any newer Qt).
+1. The CMake Qt floor is `6.8` (the ui-v3 frontend needs WindowContainer and
+   QStyleHints::setColorScheme; satisfied by any newer Qt, including the conda
+   env's 6.11).
 2. A **libuvc capture backend** for Miniscopes (`VideoStreamLibUVC`), because the
    kernel `uvcvideo` driver caches UVC control reads — see below.
 
@@ -27,17 +29,17 @@ it has been validated end-to-end on Ubuntu 24.04 — including launching nativel
 **Wayland** with no `xcb`/`libGL` friction (the historical conda-Qt-on-Linux
 worry did **not** materialize here).
 
-apt's Qt 6.4 / OpenCV 4.6 should also work now that the CMake floor is 6.4, and is
-the natural path toward a `.deb`, but conda is the tested path documented here.
+An apt toolchain needs Qt ≥ 6.8 (Ubuntu 24.04's Qt 6.4 is below the CMake floor);
+conda is the tested path documented here.
 
 ---
 
 ## 1. Clone & checkout
 
 ```bash
-git clone https://github.com/fnsangiul/Miniscope-DAQ-QT-Software.git
+git clone https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software.git
 cd Miniscope-DAQ-QT-Software
-git checkout ubuntu-port
+git checkout ui-v3
 ```
 
 ---

@@ -150,6 +150,9 @@ class BehaviorTracker : public QObject
     Q_OBJECT
 public:
     explicit BehaviorTracker(QObject *parent = nullptr, QJsonObject userConfig = QJsonObject(), qint64 softwareStartTime = 0);
+    // Session teardown: joins the (already-stopped) worker thread, frees the
+    // worker, and closes/frees the tracker window.
+    ~BehaviorTracker() override;
     void parseUserConfigTracker();
     void loadCamCalibration(QString name);
     void setBehaviorCamBufferParameters(QString name, qint64* timeBuf, cv::Mat* frameBuf, int bufSize, QAtomicInt* acqFrameNum);

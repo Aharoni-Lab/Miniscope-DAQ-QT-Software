@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Miniscope.Theme 1.0
 
 // Modal dialog for the user-config generator's "Add Device" action. The user
 // picks a category (Miniscope vs Camera), a device type from the catalog
@@ -9,7 +10,7 @@ import QtQuick.Layouts
 // each labelled with the connected-device name when known, so two devices can't
 // share an ID. A full scan of connected devices is also shown as a hint. On OK
 // the chosen values are exposed via the category / deviceType / deviceID /
-// deviceName properties and the built-in accepted() signal fires; main.qml
+// deviceName properties and the built-in accepted() signal fires; SetupView.qml
 // forwards them to backend.addDevice().
 Dialog {
     id: control
@@ -21,8 +22,8 @@ Dialog {
     standardButtons: Dialog.Ok | Dialog.Cancel
     closePolicy: Popup.CloseOnEscape
 
-    // Results read by the caller (main.qml) on accept. deviceID is the leading
-    // integer of the dropdown label (e.g. "0  (Asus Webcam)" -> 0).
+    // Results read by the caller (SetupView.qml) on accept. deviceID is the
+    // leading integer of the dropdown label (e.g. "0  (Asus Webcam)" -> 0).
     property string category:   catCombo.currentText === "Miniscope" ? "miniscopes" : "cameras"
     property string deviceType: typeCombo.currentText
     property int    deviceID:   idCombo.currentText.length > 0 ? parseInt(idCombo.currentText) : 0
@@ -52,11 +53,10 @@ Dialog {
         rowSpacing: 12
         width: parent.width
 
-        Label { text: "Category"; font.pointSize: 12 }
-        ComboBox {
+        Label { text: "Category"; font: Theme.fontBody; color: Theme.textPrimary }
+        UiComboBox {
             id: catCombo
             Layout.fillWidth: true
-            font.pointSize: 12
             model: [ "Miniscope", "Camera" ]
             // Changing the category re-filters the device-type dropdown (via its
             // model binding), so reset it to the new category's first type. Also
@@ -69,11 +69,10 @@ Dialog {
             }
         }
 
-        Label { text: "Device type"; font.pointSize: 12 }
-        ComboBox {
+        Label { text: "Device type"; font: Theme.fontBody; color: Theme.textPrimary }
+        UiComboBox {
             id: typeCombo
             Layout.fillWidth: true
-            font.pointSize: 12
             // Only the types valid for the category chosen above, filtered by the
             // backend from deviceConfigs/videoDevices.json. Re-evaluates whenever
             // the category changes.
@@ -81,20 +80,17 @@ Dialog {
                        catCombo.currentText === "Miniscope" ? "miniscopes" : "cameras") : []
         }
 
-        Label { text: "Device ID"; font.pointSize: 12 }
-        ComboBox {
+        Label { text: "Device ID"; font: Theme.fontBody; color: Theme.textPrimary }
+        UiComboBox {
             id: idCombo
             Layout.fillWidth: true
-            font.pointSize: 12
             // Populated in onAboutToShow with only the unused IDs.
         }
 
-        Label { text: "Name"; font.pointSize: 12 }
-        TextField {
+        Label { text: "Name"; font: Theme.fontBody; color: Theme.textPrimary }
+        UiTextField {
             id: nameField
             Layout.fillWidth: true
-            font.pointSize: 12
-            selectByMouse: true
             placeholderText: "e.g. My V4 Miniscope"
         }
 

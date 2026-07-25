@@ -79,12 +79,12 @@ bool DataSaver::setupFilePaths()
     // TODO: save metadata in base directory for experiment. Maybe some thing like saveBaseMetaDataJscon();
 
     // Setup directories for each recording device
-    QJsonObject devices = m_userConfig["devices"].toObject();
+    QJsonObject devices = m_userConfig.value("devices").toObject();
 
     QStringList deviceList;
     deviceList = devices["miniscopes"].toObject().keys();
     for (int i = 0; i < deviceList.length(); i++) { // Miniscopes
-        tempString = deviceList[i]; //devices["miniscopes"].toObject()[deviceList[i]].toObject()["deviceName"].toString();
+        tempString = deviceList[i]; //devices["miniscopes"].toObject()[deviceList[i]].toObject().value("deviceName").toString();
         tempString2 = tempString;
         tempString2.replace(" ", "_");
         deviceDirectory[tempString] = baseDirectory + "/" + tempString2;
@@ -92,14 +92,14 @@ bool DataSaver::setupFilePaths()
     }
     deviceList = devices["cameras"].toObject().keys();
     for (int i = 0; i < deviceList.length(); i++) { // Cameras
-        tempString = deviceList[i]; //devices["cameras"].toArray()[i].toObject()["deviceName"].toString();
+        tempString = deviceList[i]; //devices["cameras"].toArray()[i].toObject().value("deviceName").toString();
         tempString2 = tempString;
         tempString2.replace(" ", "_");
         deviceDirectory[tempString] = baseDirectory + "/" + tempString2;
         QDir().mkdir(deviceDirectory[tempString]);
     }
 
-    if (!m_userConfig["behaviorTracker"].toObject().isEmpty()) {
+    if (!m_userConfig.value("behaviorTracker").toObject().isEmpty()) {
         QDir().mkdir(baseDirectory + "/behaviorTracker");
     }
 
@@ -134,10 +134,10 @@ void DataSaver::setupBaseDirectory()
 {
 //    if (baseDirectory.isEmpty()) {
         QString tempString, tempString2;
-        QJsonArray directoryStructure = m_userConfig["directoryStructure"].toArray();
+        QJsonArray directoryStructure = m_userConfig.value("directoryStructure").toArray();
 
         // Construct and make base directory
-        baseDirectory = m_userConfig["dataDirectory"].toString();
+        baseDirectory = m_userConfig.value("dataDirectory").toString();
         for (int i = 0; i < directoryStructure.size(); i++) {
             tempString = directoryStructure[i].toString();
             // "date"/"time" are reserved tokens; accept any casing ("Date",
@@ -148,7 +148,7 @@ void DataSaver::setupBaseDirectory()
             else if (tempString.compare("time", Qt::CaseInsensitive) == 0)
                 baseDirectory += "/" + recordStartDateTime.time().toString("HH_mm_ss");
             else {
-                tempString2 = m_userConfig[tempString].toString().replace(" ", "_");
+                tempString2 = m_userConfig.value(tempString).toString().replace(" ", "_");
 
                 if (tempString2.isEmpty()) {
                     // Entry does not exist in User Config JSON file
@@ -159,14 +159,7 @@ void DataSaver::setupBaseDirectory()
                 else
                     baseDirectory += "/" + tempString2;
             }
-//            else if (tempString == "researcherName")
-//                baseDirectory += "/" + m_userConfig["researcherName"].toString().replace(" ", "_");
-//            else if (tempString == "experimentName")
-//                baseDirectory += "/" + m_userConfig["experimentName"].toString().replace(" ", "_");
-//            else if (tempString == "animalName")
-//                baseDirectory += " /" + m_userConfig["animalName"].toString().replace(" ", "_");
         }
-//    }
 }
 
 void DataSaver::startRunning()
@@ -183,7 +176,9 @@ void DataSaver::startRunning()
 
     QString poseData;
 
-    QStringList names;
+    // The device set is fixed for the lifetime of a run (all frame buffers are
+    // registered before this thread starts), so resolve the names once.
+    const QStringList names = frameBuffer.keys();
     while(m_running) {
         idle = true;
         // For Behavior Tracker
@@ -205,8 +200,7 @@ void DataSaver::startRunning()
         }
 
         // for video streams
-        names = frameBuffer.keys();
-        for (i = 0; i < frameBuffer.size(); i++) {
+        for (i = 0; i < names.size(); i++) {
             while (usedCount[names[i]]->tryAcquire()) {
                 idle = false;
                 // grab info from buffer in a threadsafe way
@@ -384,30 +378,30 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
         QString deviceName;
         QStringList deviceList;
         // For Miniscopes
-        deviceList = m_userConfig["devices"].toObject()["miniscopes"].toObject().keys();
+        deviceList = m_userConfig.value("devices").toObject().value("miniscopes").toObject().keys();
         for (int i = 0; i < deviceList.length(); i++) {
             deviceName = deviceList[i];
             jDoc = constructDeviceMetaData("miniscopes", deviceName);
             saveJson(jDoc, deviceDirectory[deviceName] + "/metaData.json");
 
             // Get user config frames per file
-            framesPerFile[deviceName] = m_userConfig["devices"].toObject()["miniscopes"].toObject()[deviceList[i]].toObject()["framesPerFile"].toInt(1000);
+            framesPerFile[deviceName] = m_userConfig.value("devices").toObject().value("miniscopes").toObject()[deviceList[i]].toObject().value("framesPerFile").toInt(1000);
         }
         // For Cameras
-        deviceList = m_userConfig["devices"].toObject()["cameras"].toObject().keys();
+        deviceList = m_userConfig.value("devices").toObject().value("cameras").toObject().keys();
         for (int i = 0; i < deviceList.length(); i++) {
             deviceName = deviceList[i];
             jDoc = constructDeviceMetaData("cameras", deviceName);
             saveJson(jDoc, deviceDirectory[deviceName] + "/metaData.json");
 
             // Get user config frames per file
-            framesPerFile[deviceName] = m_userConfig["devices"].toObject()["cameras"].toObject()[deviceList[i]].toObject()["framesPerFile"].toInt(1000);
+            framesPerFile[deviceName] = m_userConfig.value("devices").toObject().value("cameras").toObject()[deviceList[i]].toObject().value("framesPerFile").toInt(1000);
         }
 
         // For Behavior Tracker
-        if (!m_userConfig["behaviorTracker"].toObject().isEmpty()) {
+        if (!m_userConfig.value("behaviorTracker").toObject().isEmpty()) {
             // TODO: Add behavior camera name(s) that are used in behaviorTracker
-            jDoc.setObject(m_userConfig["behaviorTracker"].toObject());
+            jDoc.setObject(m_userConfig.value("behaviorTracker").toObject());
             saveJson(jDoc, baseDirectory + "/behaviorTracker/metaData.json");
 
             // Create pose data file
@@ -628,19 +622,19 @@ QJsonDocument DataSaver::constructBaseDirectoryMetaData()
 
     QJsonObject startTimeObject;
 
-    QJsonArray directoryStructure = m_userConfig["directoryStructure"].toArray();
+    QJsonArray directoryStructure = m_userConfig.value("directoryStructure").toArray();
     for (int i = 0; i < directoryStructure.size(); i++) {
         tempString = directoryStructure[i].toString();
         if (tempString.compare("date", Qt::CaseInsensitive) != 0
             && tempString.compare("time", Qt::CaseInsensitive) != 0 && !tempString.isEmpty())
-            metaData[tempString] = m_userConfig[tempString].toString();
+            metaData[tempString] = m_userConfig.value(tempString).toString();
     }
     if (!metaData.contains("researcherName"))
-        metaData["researcherName"] = m_userConfig["researcherName"].toString();
+        metaData["researcherName"] = m_userConfig.value("researcherName").toString();
     if (!metaData.contains("animalName"))
-        metaData["animalName"] = m_userConfig["animalName"].toString();
+        metaData["animalName"] = m_userConfig.value("animalName").toString();
     if (!metaData.contains("experimentName"))
-        metaData["experimentName"] = m_userConfig["experimentName"].toString();
+        metaData["experimentName"] = m_userConfig.value("experimentName").toString();
 
     metaData["baseDirectory"] = baseDirectory;
 
@@ -659,16 +653,16 @@ QJsonDocument DataSaver::constructBaseDirectoryMetaData()
     //Device info
     QStringList list;
 
-    list = m_userConfig["devices"].toObject()["miniscopes"].toObject().keys();
+    list = m_userConfig.value("devices").toObject().value("miniscopes").toObject().keys();
     metaData["miniscopes"] = QJsonArray().fromStringList(list);
 
     list.clear();
-    list = m_userConfig["devices"].toObject()["cameras"].toObject().keys();
+    list = m_userConfig.value("devices").toObject().value("cameras").toObject().keys();
     metaData["cameras"] = QJsonArray().fromStringList(list);
 
     list.clear();
-    if (!m_userConfig["behaviorTracker"].toObject().isEmpty())
-        metaData["behaviorTracker"] = m_userConfig["behaviorTracker"].toObject();
+    if (!m_userConfig.value("behaviorTracker").toObject().isEmpty())
+        metaData["behaviorTracker"] = m_userConfig.value("behaviorTracker").toObject();
 
     jDoc.setObject(metaData);
     return jDoc;
@@ -679,7 +673,7 @@ QJsonDocument DataSaver::constructDeviceMetaData(QString type, QString deviceNam
     QJsonObject metaData;
     QJsonDocument jDoc;
 
-    QJsonObject deviceObj = m_userConfig["devices"].toObject()[type].toObject()[deviceName].toObject();
+    QJsonObject deviceObj = m_userConfig.value("devices").toObject()[type].toObject()[deviceName].toObject();
 
     metaData["deviceName"] = deviceName;
     metaData["deviceType"] = deviceObj["deviceType"].toString();

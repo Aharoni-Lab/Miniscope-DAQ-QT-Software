@@ -52,6 +52,9 @@ class VideoDevice : public QObject
     Q_OBJECT
 public:
     explicit VideoDevice(QObject *parent = nullptr, QJsonObject ucDevice = QJsonObject(), qint64 softwareStartTime = 0, bool preferDirectControl = false);
+    // Session teardown: joins the (already-stopped) stream thread, frees the
+    // stream object, and closes/frees this device's window.
+    ~VideoDevice() override;
     QJsonObject getDeviceConfig(QString deviceType);
     QObject* getRootDisplayObject() { return rootObject; }
     QQuickItem* getRootDisplayChild(QString childName) { return rootObject->findChild<QQuickItem*>(childName); }
@@ -78,6 +81,28 @@ public:
     QAtomicInt* getAcqFrameNumPointer(){return m_acqFrameNum;}
     QAtomicInt* getDAQFrameNumPointer() { return m_daqFrameNum; }
     QString getDeviceName(){return m_deviceName;}
+    // The device's stream window, for embedding as a pane in the Acquire view.
+    QQuickView *deviceView() const { return view; }
+    // Native video aspect (catalog width/height); the pane letterboxes to this.
+    double displayAspectRatio() const {
+        const double w = m_cDevice.value("width").toDouble();
+        const double h = m_cDevice.value("height").toDouble();
+        return (w > 0 && h > 0) ? w / h : 0.0;
+    }
+    // REC chip on the device window. Display only - recording itself is
+    // DataSaver's; cameras must not get the startRecording signal chain
+    // because VideoStreamOCV::startRecording() writes the Miniscope DAQ's
+    // UVC side-channel (CAP_PROP_SATURATION), which changes a real webcam's
+    // image.
+    void setWindowRecordingIndicator(bool on) {
+        if (rootObject)
+            rootObject->setProperty("recording", on);
+    }
+    // Session-bar telemetry (GUI thread; the counters are atomics/semaphores
+    // shared with the capture thread).
+    int acqFrameCount() const { return m_acqFrameNum->loadRelaxed(); }
+    int droppedFrameEstimate() const { return deviceStream ? deviceStream->droppedFrameEstimate() : -1; }
+    int bufferUsedCount() const { return usedFrames ? usedFrames->available() : 0; }
     int getErrors() { return m_errors; }
     QSize getResolution() {return m_resolution;}
 

@@ -1,0 +1,69 @@
+pragma Singleton
+import QtQuick
+import Miniscope.Theme 1.0 as Shared // for the ThemeState C++ singleton
+
+// Design tokens for the ui-v3 frontend. Every color, size, and font in the
+// QML comes from here — no inline hex values or per-control font settings.
+// Registered as the "Theme" singleton in main.cpp (qmlRegisterSingletonType).
+//
+// Two palettes: dark (default — rig rooms are dim and live video reads best
+// on a neutral dark canvas) and light (matches the original config-screen
+// mockup). `dark` is the switch; all color tokens derive from it.
+QtObject {
+    id: root
+
+    // Derived from the process-wide ThemeState (C++): each window's engine has
+    // its own Theme instance, but they all track the same dark flag. Toggle by
+    // writing ThemeState.dark, never this property.
+    readonly property bool dark: Shared.ThemeState.dark
+
+    // --- Palette -------------------------------------------------------------
+    // Accent is the periwinkle the DAQ has used since the Qt5 UI (#a8a7fd) —
+    // kept deliberately so the app stays recognizable rather than defaulting to
+    // a generic violet. Light scheme runs a touch deeper for white-text contrast.
+    readonly property color accent: dark ? "#a8a7fd" : "#6e6cd4"
+    readonly property color accentHover: dark ? "#bcbbff" : "#8180e0"
+    readonly property color accentText: dark ? "#0e0e14" : "#ffffff"
+
+    readonly property color background: dark ? "#131318" : "#eeedf4"
+    readonly property color surface: dark ? "#1d1d25" : "#f7f7fb"
+    readonly property color surfaceAlt: dark ? "#26262f" : "#e9e8f2"
+    readonly property color border: dark ? "#34343f" : "#d8d7e4"
+
+    readonly property color textPrimary: dark ? "#e8e8ef" : "#26262e"
+    readonly property color textSecondary: dark ? "#a3a3b0" : "#6b6b78"
+    readonly property color textDisabled: dark ? "#5c5c68" : "#b0afbd"
+
+    readonly property color success: dark ? "#5dbb7a" : "#2e8b4d"
+    readonly property color warning: dark ? "#e0b34c" : "#b07d18"
+    readonly property color danger: dark ? "#e06060" : "#c03535"
+    readonly property color recording: "#e53935" // one red in both schemes
+
+    // Video panes sit on pure black so the imagery, not the chrome, dominates.
+    readonly property color videoCanvas: "#000000"
+
+    // --- Typography ------------------------------------------------------------
+    // System UI font (no more hardcoded Arial); mono for numeric telemetry so
+    // FPS / clock / disk readouts don't jitter as digits change.
+    readonly property font fontBody: Qt.font({ pointSize: 12 })
+    readonly property font fontSmall: Qt.font({ pointSize: 10 })
+    readonly property font fontTitle: Qt.font({ pointSize: 15, weight: Font.DemiBold })
+    readonly property font fontDisplay: Qt.font({ pointSize: 22, weight: Font.DemiBold })
+    // Qt.font takes ONE family (no CSS-style fallback lists), so pick per OS.
+    readonly property font fontMono: Qt.font({
+        family: Qt.platform.os === "osx" ? "Menlo"
+              : Qt.platform.os === "windows" ? "Consolas" : "monospace",
+        pointSize: 11
+    })
+
+    // --- Metrics ---------------------------------------------------------------
+    readonly property int spacing: 8        // base unit; use multiples
+    readonly property int padding: 16       // card / page padding
+    readonly property int radius: 8         // cards, buttons
+    readonly property int radiusSmall: 5    // fields, chips
+    readonly property int controlHeight: 36 // buttons, fields
+    readonly property int touchTarget: 40   // minimum interactive size
+
+    // Motion: one standard duration; no decorative animation.
+    readonly property int animMs: 120
+}

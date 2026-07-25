@@ -17,6 +17,39 @@ published together from CI.
 
 ### Added
 
+**User interface (v3 rewrite)**
+- **Single-window app**: a launcher-less shell with two modes — *Setup*
+  (recent configs plus a form-based config editor) and *Acquire*. Ending a
+  session returns to Setup, so switching configs no longer requires
+  restarting the program.
+- **Form config editor** replaces the JSON tree: cards for
+  General/Recording/Devices/Trace display/Behavior tracker/Commutator with
+  device-catalog-driven dropdowns (gain, frame rate, codec…), plus a raw-JSON
+  tab for anything not surfaced in the form. Unknown/`COMMENT_` keys are
+  preserved on save. Unsaved edits are flagged, and Run/Open/New prompt to
+  save first.
+- **Embedded video panes with pop-out**: device streams, and the trace
+  display, dock as panes in a grid inside the main window; any pane can pop
+  out to a floating window and dock back. Which panes float and their
+  positions persist **per config file**, so a rig's arrangement comes back on
+  every run. A Lock Layout toggle prevents accidental changes.
+- **Session bar**: record/stop transport with a live clock (stop is
+  hold-to-confirm), note logging while recording, external-trigger toggle,
+  disk-free readout with low-space warnings, per-device FPS / dropped-frame /
+  buffer chips, and a collapsible session message log — telemetry that
+  previously lived in a separate control panel window or was hidden in
+  hover menus.
+- **Redesigned video windows**: always-visible status chips (REC indicator,
+  FPS, drops, buffer) and always-visible sensor-value chips (LED, gain,
+  focus…) whose slider/stepper slides out on hover — set values stay
+  glanceable without eating video space. Display-only controls
+  (contrast/brightness, saturation highlight, LUT colormap, ΔF/F) and
+  actions sit in an auto-hiding, pinnable side rail. The recording-ROI
+  selection now draws its rectangle over the video and stays outlined after
+  committing.
+- **Dark theme** by default with a light toggle (persisted); native dialogs
+  follow the app theme.
+
 **Platforms & packaging**
 - **macOS support (Apple Silicon)**: full native port, bench-validated on real
   Miniscope V4 hardware ([#83](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/pull/83)–[#89](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/pull/89)).
@@ -127,7 +160,7 @@ published together from CI.
   / `commutatorAxis` / `fallbackMode`). Off unless configured.
 
 ### Changed
-- Build system: qmake → **CMake** (Qt 6.4+, C++17). The old `.pro` file is no
+- Build system: qmake → **CMake** (Qt 6.8+, C++17). The old `.pro` file is no
   longer used.
 - Qt 5 → **Qt 6.11**; OpenCV updated to 4.13.
 - The embedded-Python DeepLabCut-Live behavior tracker is now opt-in at build

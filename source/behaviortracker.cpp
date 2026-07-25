@@ -38,6 +38,9 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64
     usedPoses(new QSemaphore()),
     m_btPoseCount(new QAtomicInt(0)),
     m_previousBtPoseFrameNum(0),
+    view(nullptr),
+    rootObject(nullptr),
+    trackerDisplay(nullptr),
     m_trackingRunning(false),
     m_pCutoffDisplay(0),
     m_softwareStartTime(softwareStartTime)
@@ -54,12 +57,27 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64
     parseUserConfigTracker();
 
 
-    behavTrackWorker = new BehaviorTrackerWorker(NULL, m_userConfig["behaviorTracker"].toObject());
+    behavTrackWorker = new BehaviorTrackerWorker(NULL, m_userConfig.value("behaviorTracker").toObject());
     behavTrackWorker->setPoseBufferParameters(poseBuffer, poseFrameNumBuffer, POSE_BUFFER_SIZE, m_btPoseCount, freePoses, usedPoses);
     workerThread = new QThread();
 
 
 
+}
+
+BehaviorTracker::~BehaviorTracker()
+{
+    // Normally a no-op: session teardown already joined the worker thread.
+    stopAndJoinWorker();
+    // The worker was moved to the (now finished) worker thread, so it may be
+    // deleted from here.
+    delete behavTrackWorker;
+    behavTrackWorker = nullptr;
+    if (view) {
+        view->close();
+        view->deleteLater();
+        view = nullptr;
+    }
 }
 
 int BehaviorTracker::initNumpy()
@@ -72,23 +90,23 @@ int BehaviorTracker::initNumpy()
 
 void BehaviorTracker::parseUserConfigTracker()
 {
-    m_btConfig = m_userConfig["behaviorTracker"].toObject();
+    m_btConfig = m_userConfig.value("behaviorTracker").toObject();
 //    QJsonObject jTracker = m_userConfig["behaviorTracker"].toObject();
 //    m_trackerType = jTracker["type"].toString("None");
-    m_pCutoffDisplay = m_btConfig["pCutoffDisplay"].toDouble(0);
+    m_pCutoffDisplay = m_btConfig.value("pCutoffDisplay").toDouble(0);
 
     if (m_btConfig.contains("occupancyPlot")) {
-        if (m_btConfig["occupancyPlot"].toObject()["enabled"].toBool(true)) {
+        if (m_btConfig.value("occupancyPlot").toObject().value("enabled").toBool(true)) {
             m_plotOcc = true;
             // The documented keys are numBinsX/numBinsY; this code
             // historically read numBinX/numBinY (so the documented spelling
             // was silently ignored). Prefer the documented one.
-            const QJsonObject occ = m_btConfig["occupancyPlot"].toObject();
+            const QJsonObject occ = m_btConfig.value("occupancyPlot").toObject();
             m_occNumBinsX = occ.contains("numBinsX") ? occ["numBinsX"].toInt(20)
                                                      : occ["numBinX"].toInt(20);
             m_occNumBinsY = occ.contains("numBinsY") ? occ["numBinsY"].toInt(20)
                                                      : occ["numBinY"].toInt(20);
-            QJsonArray tempArray = m_btConfig["occupancyPlot"].toObject()["poseIdxToUse"].toArray();
+            QJsonArray tempArray = m_btConfig.value("occupancyPlot").toObject().value("poseIdxToUse").toArray();
 
             for (int i=0; i< tempArray.size(); i++) {
                 m_poseIdxUsed.append(tempArray[i].toInt());
@@ -102,16 +120,16 @@ void BehaviorTracker::parseUserConfigTracker()
 
     // For pose Overlay
     if (m_btConfig.contains("poseOverlay")) {
-        m_poseOverlayEnabled = m_btConfig["poseOverlay"].toObject()["enabled"].toBool(true);
-        m_overlayType = m_btConfig["poseOverlay"].toObject()["type"].toString("point");
-        m_overlayNumPoses = m_btConfig["poseOverlay"].toObject()["numOfPastPoses"].toInt(0) + 1;
-        m_poseMarkerSize = m_btConfig["poseOverlay"].toObject()["markerSize"].toDouble(10);
+        m_poseOverlayEnabled = m_btConfig.value("poseOverlay").toObject().value("enabled").toBool(true);
+        m_overlayType = m_btConfig.value("poseOverlay").toObject().value("type").toString("point");
+        m_overlayNumPoses = m_btConfig.value("poseOverlay").toObject().value("numOfPastPoses").toInt(0) + 1;
+        m_poseMarkerSize = m_btConfig.value("poseOverlay").toObject().value("markerSize").toDouble(10);
         // Was `if (m_poseOverlayEnabled = ...contains("skeleton"))`: the
         // assignment overwrote the enabled flag parsed above, so a config
         // without a skeleton section had its pose overlay silently disabled
         // (and one with a skeleton had it force-enabled).
-        if (m_btConfig["poseOverlay"].toObject().contains("skeleton")) {
-            QJsonObject tempSk = m_btConfig["poseOverlay"].toObject()["skeleton"].toObject();
+        if (m_btConfig.value("poseOverlay").toObject().contains("skeleton")) {
+            QJsonObject tempSk = m_btConfig.value("poseOverlay").toObject().value("skeleton").toObject();
             m_poseOverlaySkeletonEnabled = tempSk["enabled"].toBool(true);
             QJsonArray tempArray = tempSk["connectedIndices"].toArray();
             QJsonArray connectedArray;
@@ -163,7 +181,7 @@ void BehaviorTracker::setupDisplayTraces()
     QString tempS;
     int idx;
     if (m_btConfig.contains("poseIdxForTraceDisplay")) {
-        QJsonArray tempArray = m_btConfig["poseIdxForTraceDisplay"].toArray();
+        QJsonArray tempArray = m_btConfig.value("poseIdxForTraceDisplay").toArray();
         for (int i=0; i<tempArray.size();i++) {
             tempS = tempArray[i].toString();
             if (tempS.endsWith("wh",Qt::CaseInsensitive) || tempS.endsWith("hw",Qt::CaseInsensitive)) {
@@ -213,7 +231,7 @@ void BehaviorTracker::cameraCalibration()
 void BehaviorTracker::createView(QSize resolution)
 {
     m_camResolution = resolution;
-    QJsonObject btConfig = m_userConfig["behaviorTracker"].toObject();
+    QJsonObject btConfig = m_userConfig.value("behaviorTracker").toObject();
 
     qmlRegisterType<TrackerDisplay>("TrackerDisplay", 1, 0, "TrackerDisplay");
     const QUrl url("qrc:/behaviorTracker.qml");
@@ -273,8 +291,8 @@ void BehaviorTracker::setUpDLCLive()
 void BehaviorTracker::startThread()
 {
     //TODO: Stop thread and working if missing path to py env.
-    if (m_userConfig["behaviorTracker"].toObject().contains("pyEnvPath")) {
-        sendMessage("Using \"" + m_userConfig["behaviorTracker"].toObject()["pyEnvPath"].toString() + "\" as Python Environment.");
+    if (m_userConfig.value("behaviorTracker").toObject().contains("pyEnvPath")) {
+        sendMessage("Using \"" + m_userConfig.value("behaviorTracker").toObject().value("pyEnvPath").toString() + "\" as Python Environment.");
 
         behavTrackWorker->moveToThread(workerThread);
 
@@ -539,8 +557,15 @@ void BehaviorTracker::stopAndJoinWorker()
         return;
     emit closeWorker();
     workerThread->quit();
-    if (!workerThread->wait(3000))
+    if (!workerThread->wait(3000)) {
         qWarning() << "Behavior tracker worker thread did not stop within 3s; leaking it";
+        // The worker still lives on the runaway thread; deleting it from here
+        // would race. Leak it along with its thread.
+        behavTrackWorker = nullptr;
+        workerThread = nullptr;
+        return;
+    }
+    workerThread->deleteLater();
     workerThread = nullptr;
 }
 

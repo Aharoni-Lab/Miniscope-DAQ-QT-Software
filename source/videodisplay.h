@@ -98,10 +98,24 @@ public:
     void setAcqFPS(double acqFPS) { m_acqFPS = acqFPS; acqFPSChanged();}
     void setROI(QList<int> roi);
     void setAddTraceROI(QList<int> roi);
-    void setBufferUsed(int bufUsed) { m_bufferUsed = bufUsed; }
-    void setMaxBuffer(int maxBuf) { m_maxBuffer = maxBuf; }
-
-    void setDroppedFrameCount(int count) { m_droppedFrameCount = count; }
+    // These emit their NOTIFY signals: the window shell's status chips bind
+    // to them directly (the old windows repainted these inside an
+    // onAcqFPSChanged handler, so the missing emits went unnoticed).
+    void setBufferUsed(int bufUsed) {
+        if (m_bufferUsed == bufUsed) return;
+        m_bufferUsed = bufUsed;
+        emit bufferUsedChanged();
+    }
+    void setMaxBuffer(int maxBuf) {
+        if (m_maxBuffer == maxBuf) return;
+        m_maxBuffer = maxBuf;
+        emit maxBufferChanged();
+    }
+    void setDroppedFrameCount(int count) {
+        if (m_droppedFrameCount == count) return;
+        m_droppedFrameCount = count;
+        emit droppedFrameCountChanged();
+    }
     void setDisplayFrame(QImage frame);
     void setAlpha(double a) {m_renderer->setAlpha(a);}
     void setBeta(double b) {m_renderer->setBeta(b);}

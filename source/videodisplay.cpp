@@ -17,6 +17,7 @@ VideoDisplay::VideoDisplay()
       m_addTraceRoiSelectionActive(false),   // was uninitialized: garbage-true made a
                                              // plain click on the video spawn a neuron
       m_ROI({0,0,10,10,0}),
+      m_addTraceROI({0,0,10,10,0}),
       m_hasPressPos(false)
 {
 //    m_displayFrame2.load("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png");

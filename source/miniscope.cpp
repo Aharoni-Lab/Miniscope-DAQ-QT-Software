@@ -37,7 +37,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucDevice, qint64 softwareStart
     // --------------------
 
     m_ucDevice = ucDevice; // hold user config for this device
-    m_cDevice = getDeviceConfig(m_ucDevice["deviceType"].toString());
+    m_cDevice = getDeviceConfig(m_ucDevice.value("deviceType").toString());
 
 //    QObject::connect(this, &VideoDevice::displayCreated, this, &Miniscope::displayHasBeenCreated);
 //    QObject::connect(this, &Miniscope::displayCreated, this, &Miniscope::displayHasBeenCreated);
@@ -56,7 +56,6 @@ void Miniscope::setupDisplayObjectPointers()
 }
 void Miniscope::handleDFFSwitchChange(bool checked)
 {
-    qDebug() << "Switch" << checked;
     if (checked)
         m_displatState = "dFF";
     else
@@ -65,7 +64,7 @@ void Miniscope::handleDFFSwitchChange(bool checked)
 
 void Miniscope::handleAddNewTraceROI(int leftEdge, int topEdge, int width, int height)
 {
-    double windowScale = m_ucDevice["windowScale"].toDouble(1);
+    double windowScale = m_ucDevice.value("windowScale").toDouble(1);
     if (m_numTraces < NUM_MAX_NEURON_TRACES) {
 
 //        qDebug() << leftEdge << topEdge << width << height;
@@ -361,7 +360,7 @@ void Miniscope::setupBNOTraceDisplay()
     bnoScale[2] = 1.0f/(4.0f*3.141592f);
 
     if (getHeadOrienataionStreamState()) {
-        QJsonArray tempArray = m_ucDevice["headOrientation"].toObject()["plotTrace"].toArray();
+        QJsonArray tempArray = m_ucDevice.value("headOrientation").toObject().value("plotTrace").toArray();
         QString name;
         bool sameOffset;
         int count = 0;

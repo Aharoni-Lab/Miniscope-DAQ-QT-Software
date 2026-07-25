@@ -236,15 +236,14 @@ class TraceDisplayBackend : public QObject
     Q_OBJECT
 public:
     TraceDisplayBackend(QObject *parent = nullptr, QJsonObject ucTraceDisplay = QJsonObject(), qint64 softwareStartTime = 0);
+    ~TraceDisplayBackend() override;
     void createView();
+    // The trace window, for embedding as a pane in the Acquire view.
+    QQuickView *displayView() const { return view; }
 
 public slots:
     void addNewTrace(QString name, float color[3], float scale, QString units, bool sameOffset, QAtomicInt* displayBufNum, QAtomicInt* numDataInBuf, int bufSize, float* dataT, float* dataY);
     void close();
-
-private slots:
-    // Tears the window down when the user closes it (X button) or on app exit.
-    void handleWindowClosing();
 
 private:
     NewQuickView *view;
