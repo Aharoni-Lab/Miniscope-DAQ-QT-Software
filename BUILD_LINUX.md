@@ -11,7 +11,9 @@ behind `if(WIN32)` (CMake) or `#ifdef Q_OS_WINDOWS` (C++), and the OpenGL
 renderers use legacy GLSL that compiles against Linux's GL compatibility profile
 unchanged. The two Linux-specific additions made for this port are:
 
-1. The CMake Qt floor was lowered `6.5 → 6.4` (harmless; satisfied by any newer Qt).
+1. The CMake Qt floor is `6.8` (the ui-v3 frontend needs WindowContainer and
+   QStyleHints::setColorScheme; satisfied by any newer Qt, including the conda
+   env's 6.11).
 2. A **libuvc capture backend** for Miniscopes (`VideoStreamLibUVC`), because the
    kernel `uvcvideo` driver caches UVC control reads — see below.
 
@@ -25,8 +27,8 @@ it has been validated end-to-end on Ubuntu 24.04 — including launching nativel
 **Wayland** with no `xcb`/`libGL` friction (the historical conda-Qt-on-Linux
 worry did **not** materialize here).
 
-apt's Qt 6.4 / OpenCV 4.6 should also work now that the CMake floor is 6.4, and is
-the natural path toward a `.deb`, but conda is the tested path documented here.
+An apt toolchain needs Qt ≥ 6.8 (Ubuntu 24.04's Qt 6.4 is below the CMake floor);
+conda is the tested path documented here.
 
 ---
 

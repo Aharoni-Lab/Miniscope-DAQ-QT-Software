@@ -43,8 +43,10 @@ set(CMAKE_AUTORCC ON)   # compiles source/qml.qrc automatically
 # need it.
 # SerialPort (Qt6::SerialPort) drives the optional Open Ephys commutator. It is a
 # separate conda-forge package, qt6-serialport, version-locked to qt6-main.
-find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Widgets OpenGL SerialPort)
-qt_standard_project_setup(REQUIRES 6.4)
+# The 6.8 floor is required by the ui-v3 frontend: WindowContainer (pane
+# pop-out/embed) and QStyleHints::setColorScheme (dark/light theme switching).
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Widgets OpenGL SerialPort)
+qt_standard_project_setup(REQUIRES 6.8)
 
 # This project has no .ui files (the UI is all QML), so AUTOUIC is unnecessary.
 # qt_standard_project_setup() turns it on, so turn it back off here.
