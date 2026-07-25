@@ -16,9 +16,11 @@ so macOS compiles the portable paths as-is.
 
 ## 1. Toolchain: Miniforge (conda-forge)
 
-Use the repo's `environment.yml` — it pins the *exact* same Qt/OpenCV/Python
-stack as the Windows and Linux CI builds (Qt 6.11, OpenCV 4.13, Python 3.12),
-and every pin resolves on `osx-arm64` unchanged.
+Use the repo's `environment.yml` — it pins the same Qt/OpenCV/Python stack as
+the Windows and Linux CI builds to major.minor (Qt 6.11, OpenCV 4.13,
+Python 3.12), floating only the patch level, and every pin resolves on
+`osx-arm64` unchanged. For the exact package set of a released version, use
+`conda-lock.yml` (see RELEASING.md).
 
 Prerequisites: Xcode Command Line Tools (`xcode-select --install`; AppleClang
 is the compiler — no full Xcode needed).

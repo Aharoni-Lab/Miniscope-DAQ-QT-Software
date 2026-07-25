@@ -64,11 +64,19 @@ published together from CI.
   head-orientation reads work despite kernel-side UVC control caching. See
   `BUILD_LINUX.md`.
 - **Windows installer** (`Setup.exe`, Inno Setup) alongside the portable zip,
-  both produced by CI.
+  both produced by CI. On Windows, your user configs and recordings now live in
+  `Documents\Miniscope` (matching macOS and Linux) instead of inside the install
+  folder, so they survive upgrades and uninstalls; the installed folder holds
+  only read-only example configs.
 - One tagged release now publishes Windows zip + installer, Linux AppImage,
-  and macOS DMG together from a single CI workflow.
+  and macOS DMG together from a single CI workflow, as a reviewable draft with
+  the changelog as its release notes.
+- All platforms now build, test, and ship the same configuration — the optional
+  DeepLabCut-Live tracker (embedded Python) is no longer bundled on Windows,
+  matching macOS and Linux. Build it locally with `-DUSE_PYTHON=ON` if needed.
 - Reproducible toolchain: `environment.yml` (conda-forge) pins the same
-  Qt 6.11 / OpenCV 4.13 / Python 3.12 stack on all three platforms.
+  Qt 6.11 / OpenCV 4.13 / Python 3.12 stack (to major.minor) on all three
+  platforms; `conda-lock.yml` records the exact package set per release.
 
 **Reliability & diagnostics**
 - Unit-test infrastructure (QtTest/CTest) run by CI on every PR: protocol

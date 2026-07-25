@@ -162,10 +162,15 @@ set(HEADERS
 
 if(APPLE)
     # The hybrid Miniscope backend (AVFoundation frames + IOKit pipe-0 controls),
-    # plus the .app bundle's runtime path setup (bundlepaths.cpp is portable Qt
-    # so the tests can run it everywhere, but only macOS main() calls it).
+    # plus the packaged-runtime path setup (bundlepaths.cpp is portable Qt so the
+    # tests can run it everywhere; macOS main() calls prepareBundleRuntime()).
     list(APPEND SOURCES source/videostreammac.cpp source/bundlepaths.cpp)
     list(APPEND HEADERS source/videostreammac.h source/bundlepaths.h)
+elseif(WIN32)
+    # Windows main() calls BundlePaths::seedUserDataDirs() to keep user configs
+    # and recordings in ~/Documents/Miniscope, outside the install dir.
+    list(APPEND SOURCES source/bundlepaths.cpp)
+    list(APPEND HEADERS source/bundlepaths.h)
 endif()
 
 # --- Application core library ------------------------------------------------

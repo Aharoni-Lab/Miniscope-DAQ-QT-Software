@@ -21,8 +21,10 @@ unchanged. The two Linux-specific additions made for this port are:
 
 ## Toolchain: conda (validated) vs. apt
 
-**Use the conda environment (`environment.yml`).** It pins the *exact* same
-Qt/OpenCV/Python as the Windows CI build (Qt 6.11, OpenCV 4.13, Python 3.12), and
+**Use the conda environment (`environment.yml`).** It pins the same
+Qt/OpenCV/Python as the Windows CI build to major.minor (Qt 6.11, OpenCV 4.13,
+Python 3.12), floating only the patch level (use `conda-lock.yml` for a
+released version's exact package set — see RELEASING.md), and
 it has been validated end-to-end on Ubuntu 24.04 — including launching natively on
 **Wayland** with no `xcb`/`libGL` friction (the historical conda-Qt-on-Linux
 worry did **not** materialize here).
