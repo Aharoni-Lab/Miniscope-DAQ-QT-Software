@@ -33,6 +33,9 @@ Item {
 
     property bool miniscope: false
     property bool recording: false
+    // Driven from C++ (VideoDevice) on device connection loss/recovery. Defaults
+    // true so the disconnect chip only appears once a drop actually happens.
+    property bool connected: true
 
     signal takeScreenShotSignal()
     signal vidPropChangedSignal(string name, double displayValue, double i2cValue, double i2cValue2)
@@ -217,6 +220,11 @@ Item {
         anchors.margins: Theme.spacing
         spacing: 6
 
+        StatusChip {
+            visible: !root.connected
+            text: qsTr("⚠ DISCONNECTED")
+            textColor: Theme.warning
+        }
         StatusChip {
             visible: root.recording
             text: qsTr("● REC")
