@@ -2,37 +2,51 @@
 # publish ALL THREE as a single GitHub Release.
 #
 # Triggers:
-#   * push a tag like v1.10  -> build all three, then create/update ONE Release
-#                               with the Windows installer + portable zip, the
-#                               Linux AppImage, and the macOS DMG.
+#   * push a tag like v2.0.0 -> check the tag matches CMakeLists.txt, build all
+#                               three, then cut ONE DRAFT Release carrying the
+#                               Windows installer + portable zip, the Linux
+#                               AppImage, and the macOS DMG. The maintainer runs
+#                               the artifact sanity-check (RELEASING.md) and then
+#                               clicks Publish. A pre-release suffix (v2.0.0-rc1)
+#                               publishes as a prerelease, not "Latest".
+#   * push to master         -> build + test only (no packaging, no Release), so
+#                               a merge that breaks the build is caught before a
+#                               tag is cut rather than mid-release.
 #   * manual "Run workflow"  -> build all and upload them as run artifacts only
 #                               (no Release created).
-#   * pull request into qt6-port -> build-only validation on all platforms (the
-#                               release job is tag-gated, so PRs never publish).
-#                               Note workflow_dispatch can't be used for branch
-#                               validation here: the workflow isn't on the repo's
-#                               default branch, so GitHub doesn't register it for
-#                               manual dispatch; pull_request runs use the PR
-#                               branch's workflow file directly.
+#   * pull request into qt6-port / master -> build + test only on all platforms
+#                               (the packaging + release steps are gated to tags
+#                               and manual runs, so PRs never publish).
 #
 # Shape: three independent build jobs (build-windows, build-linux, build-macos)
-# each upload their artifacts; a final `release` job gathers them and cuts the
-# Release. So a tag yields ONE release carrying every platform's binaries,
-# rather than a separate release per OS.
+# each upload their artifacts; a `check-version` job guards the tag, and a final
+# `release` job gathers the artifacts and cuts the Release. So a tag yields ONE
+# release carrying every platform's binaries, rather than a separate release per
+# OS. Least-privilege: build jobs run read-only; only `release` writes.
 name: Build & Release
 
 on:
   push:
     tags:
       - "v*"
+    branches:
+      - master      # build+test validation on direct pushes / PR merges to master
   workflow_dispatch:
   pull_request:
     branches:
       - qt6-port
       - master      # keeps PR validation alive after the qt6 work merges home
 
+# Least privilege by default: build/test jobs run read-only (they pull network
+# deps and run dependency code), and only the release job is granted write to
+# publish the Release. Keeps future signing secrets out of PR-triggered jobs.
 permissions:
-  contents: write          # needed to create the Release on tag pushes
+  contents: read
+
+concurrency:
+  # Coalesce superseded runs on the same ref, but never cancel a release build.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 jobs:
   # --- Windows ---------------------------------------------------------------
@@ -64,13 +78,15 @@ jobs:
         with:
           arch: x64
 
+      # USE_PYTHON=OFF to match what all three platforms actually ship: the
+      # DeepLabCut-Live tracker is not bundled (the DMG/AppImage scripts already
+      # build OFF), so CI builds, tests, and packages the SAME configuration.
       - name: Configure (CMake + Ninja + MSVC)
         run: >
           cmake -B build -S . -G Ninja
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_PREFIX_PATH="$env:CONDA_PREFIX/Library"
-          -DPython3_EXECUTABLE="$env:CONDA_PREFIX/python.exe"
-          -DUSE_PYTHON=ON
+          -DUSE_PYTHON=OFF
 
       - name: Build (Release)
         run: cmake --build build --config Release
@@ -83,10 +99,11 @@ jobs:
       - name: Deploy standalone bundle (into build/Release/)
         run: cmake --build build --config Release --target deploy
 
-      # PRs stop after build+test+deploy: the zip/installer/artifacts below
-      # exist to be released or downloaded, and nothing consumes them on a PR.
+      # PRs and plain branch pushes stop after build+test+deploy: the
+      # zip/installer/artifacts below exist to be released (tag) or downloaded
+      # (manual run), and nothing consumes them otherwise.
       - name: Package the release folder into a zip
-        if: github.event_name != 'pull_request'
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
         run: |
           $name = if ($env:GITHUB_REF_TYPE -eq 'tag') { "MiniscopeDAQ-$env:GITHUB_REF_NAME-Windows-x64.zip" } else { "MiniscopeDAQ-Windows-x64.zip" }
           Compress-Archive -Path build/Release/* -DestinationPath $name -Force
@@ -94,15 +111,18 @@ jobs:
           "Built $name"
 
       - name: Build installer (Inno Setup)
-        if: github.event_name != 'pull_request'
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
         run: |
-          # The in-installer version label comes from the app itself
-          # (source/main.cpp: #define VERSION_NUMBER "x.y"), so it always matches
-          # what the running app reports regardless of tag vs manual trigger.
-          $m = Select-String -Path source/main.cpp -Pattern '#define\s+VERSION_NUMBER\s+"([^"]+)"'
-          if (-not $m) { throw "VERSION_NUMBER not found in source/main.cpp" }
+          # The in-installer version label comes from CMakeLists.txt's
+          # project(MiniscopeDAQ VERSION x.y.z) - the single source of truth that
+          # also drives the app's displayed version (via MINISCOPE_VERSION) and
+          # the DMG/AppImage file names, so every artifact and the running app
+          # always report the same number. (build-dmg.sh / build-appimage.sh
+          # extract it the same way.)
+          $m = Select-String -Path CMakeLists.txt -Pattern 'project\(MiniscopeDAQ\s+VERSION\s+([0-9.]+)'
+          if (-not $m) { throw "project(MiniscopeDAQ VERSION ...) not found in CMakeLists.txt" }
           $ver = $m.Matches[0].Groups[1].Value
-          "App version (from main.cpp): $ver"
+          "App version (from CMakeLists.txt): $ver"
 
           # The artifact FILE name tracks the git tag (or a generic name for
           # manual runs) so each tagged release stays identifiable.
@@ -131,13 +151,14 @@ jobs:
           "Built $base.exe"
 
       - name: Upload Windows artifacts
-        if: github.event_name != 'pull_request'
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v7
         with:
           name: MiniscopeDAQ-Windows-x64
           path: |
             ${{ env.ZIP_NAME }}
             ${{ env.INSTALLER_NAME }}
+          if-no-files-found: error
           retention-days: 14
 
   # --- Linux (AppImage) ------------------------------------------------------
@@ -180,23 +201,36 @@ jobs:
       - name: Run unit tests
         run: ctest --test-dir build-appimage --output-on-failure
 
+      # Record the exact resolved dependency set - especially libuvc, which is
+      # installed outside environment.yml and so is absent from conda-lock.yml -
+      # so a Linux release can be reconstructed after the CI logs expire. Ships
+      # alongside the AppImage on the release.
+      - name: Record dependency versions
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+        run: conda list -n miniscope-qt6 > dist/versions-linux-x86_64.txt
+
       - name: Name the artifact
-        if: github.event_name != 'pull_request'
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
         run: |
+          set -o pipefail
           f=$(ls dist/Miniscope_DAQ*-x86_64.AppImage | head -1)
+          [ -n "$f" ] || { echo "::error::No AppImage found in dist/"; exit 1; }
           echo "APPIMAGE_PATH=$f" >> "$GITHUB_ENV"
           echo "Built $f"
 
       - name: Upload Linux artifact
-        if: github.event_name != 'pull_request'
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v7
         with:
           name: MiniscopeDAQ-Linux-x86_64
-          path: ${{ env.APPIMAGE_PATH }}
+          path: |
+            ${{ env.APPIMAGE_PATH }}
+            dist/versions-linux-x86_64.txt
+          if-no-files-found: error
           retention-days: 14
 
   # --- macOS (Apple Silicon) ---------------------------------------------------
-  # Build + test with USE_PYTHON=ON (validates the full source tree), then
+  # Build + test with USE_PYTHON=OFF (the configuration that ships), then
   # package the distributable .app + DMG with packaging/macos/build-dmg.sh
   # (its own USE_PYTHON=OFF build, matching the lean Linux AppImage). Runs on
   # the arm64 runner with the same conda-forge stack as the other jobs
@@ -221,13 +255,14 @@ jobs:
           activate-environment: miniscope-qt6
           auto-activate: false
 
+      # USE_PYTHON=OFF so the tested tree matches the shipped DMG (build-dmg.sh
+      # also builds OFF); DeepLabCut-Live is not bundled on any platform.
       - name: Configure (CMake + Ninja)
         run: >
           cmake -B build -S . -G Ninja
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_PREFIX_PATH="$CONDA_PREFIX"
-          -DPython3_EXECUTABLE="$CONDA_PREFIX/bin/python3"
-          -DUSE_PYTHON=ON
+          -DUSE_PYTHON=OFF
 
       - name: Build (Release)
         run: cmake --build build
@@ -237,41 +272,94 @@ jobs:
       - name: Run unit tests
         run: ctest --test-dir build --output-on-failure
 
-      # PRs stop after build+test, like the other platforms.
+      # PRs and plain branch pushes stop after build+test; only tags and manual
+      # runs package.
       - name: Build .app + DMG
-        if: github.event_name != 'pull_request'
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
         run: packaging/macos/build-dmg.sh
 
       - name: Name the artifact
-        if: github.event_name != 'pull_request'
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
         run: |
+          set -o pipefail
           f=$(ls dist/Miniscope-DAQ*-macOS-*.dmg | head -1)
+          [ -n "$f" ] || { echo "::error::No DMG found in dist/"; exit 1; }
           echo "DMG_PATH=$f" >> "$GITHUB_ENV"
           echo "Built $f"
 
       - name: Upload macOS artifact
-        if: github.event_name != 'pull_request'
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v7
         with:
           name: MiniscopeDAQ-macOS-arm64
           path: ${{ env.DMG_PATH }}
+          if-no-files-found: error
           retention-days: 14
 
-  # --- Single release --------------------------------------------------------
-  # Gather all three platforms' artifacts and publish them as ONE Release. Only
-  # runs on tag pushes; manual runs stop after the build jobs (artifacts only).
-  release:
-    needs: [build-windows, build-linux, build-macos]
+  # --- Version guard ---------------------------------------------------------
+  # A tag MUST match project(MiniscopeDAQ VERSION x.y.z) in CMakeLists.txt (the
+  # single source that drives every artifact's file name and the in-app version).
+  # This blocks the release below, so a mistyped tag can never publish a release
+  # whose artifacts and running app disagree on the version. Skipped on non-tag
+  # runs, so it never interferes with PR / branch validation.
+  check-version:
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Assert tag matches CMakeLists.txt version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          cmake_ver=$(sed -nE 's/^project\(MiniscopeDAQ[[:space:]]+VERSION[[:space:]]+([0-9.]+).*/\1/p' CMakeLists.txt | head -1)
+          tag_ver="${TAG#v}"
+          echo "tag=$tag_ver  CMakeLists.txt=$cmake_ver"
+          if [ "$cmake_ver" != "$tag_ver" ]; then
+            echo "::error::Tag $TAG (version $tag_ver) != CMakeLists.txt project() version $cmake_ver. Bump CMakeLists.txt to match the tag (or retag), then push again."
+            exit 1
+          fi
+
+  # --- Single release --------------------------------------------------------
+  # Gather all three platforms' artifacts and publish them as ONE Release. Only
+  # runs on tag pushes (manual runs stop after the build jobs, artifacts only).
+  # Published as a DRAFT so the maintainer runs RELEASING.md's artifact
+  # sanity-check before clicking Publish; a tag with a pre-release suffix
+  # (e.g. v2.0.0-rc1) goes out as a prerelease instead of "Latest".
+  release:
+    needs: [check-version, build-windows, build-linux, build-macos]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # only this job writes the Release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
       - name: Download all build artifacts
         uses: actions/download-artifact@v8
         with:
           path: artifacts       # each artifact lands in artifacts/<name>/
 
-      - name: Publish Release
+      # Release notes = the curated CHANGELOG section for this version (what
+      # users should read), not the raw merged-PR list. Grabs the block under
+      # the first "## [" header, which RELEASING.md step 2 renames from
+      # "[Unreleased]" to the version + date at release time.
+      - name: Extract changelog section for release notes
+        run: |
+          set -euo pipefail
+          awk '/^## \[/{n++} n==1{print} n==2{exit}' CHANGELOG.md > RELEASE_NOTES.md
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "::error::Could not extract a changelog section from CHANGELOG.md"; exit 1
+          fi
+          echo "----- release notes -----"; cat RELEASE_NOTES.md
+
+      - name: Publish Release (draft)
         uses: softprops/action-gh-release@v3
         with:
           files: artifacts/**/*
-          generate_release_notes: true
+          fail_on_unmatched_files: true
+          body_path: RELEASE_NOTES.md
+          draft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
