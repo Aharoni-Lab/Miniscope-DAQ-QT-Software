@@ -1247,6 +1247,17 @@ void backEnd::connectSnS()
         QObject::connect(dataSaver, &DataSaver::recordingFailed, behavCam[i],
                          [cam = behavCam[i]] { cam->setWindowRecordingIndicator(false); });
 
+        // External-trigger support for MiniCAMs. A MiniCAM uses the same DAQ
+        // PCB/firmware as a Miniscope, so it reports the trigger state over the
+        // same UVC side-channel; these are the two connections the miniscope
+        // loop above makes. Gated on isMiniCAM so real webcams (which have no
+        // such side-channel) are left untouched. Fixes the standalone-MiniCAM
+        // TTL trigger not starting recordings (issue #67).
+        if (behavCam[i]->getIsMiniCAM()) {
+            QObject::connect(controlPanel, &ControlPanel::setExtTriggerTrackingState, behavCam[i], &VideoDevice::setExtTriggerTrackingState);
+            QObject::connect(behavCam[i], &VideoDevice::extTriggered, controlPanel, &ControlPanel::extTriggerTriggered);
+        }
+
 //        if (behavTracker) {
 //            QObject::connect(behavCam[i], SIGNAL(newFrameAvailable(QString, int)), behavTracker, SLOT( handleNewFrameAvailable(QString, int)));
 //        }

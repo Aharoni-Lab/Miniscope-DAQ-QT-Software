@@ -39,6 +39,12 @@ public slots:
     // LEAVE THIS!!!!
     void handleCamPropsClicked() { emit openCamPropsDialog();}
 
+public:
+    // A MiniCAM rides the same DAQ PCB/firmware as a Miniscope, so it reports
+    // the external-trigger state over the same UVC side-channel. Webcams do not,
+    // which is why the ext-trigger wiring in backEnd is gated on this.
+    bool getIsMiniCAM() const { return isMiniCAM; }
+
 private:
     QJsonObject m_ucDevice;
     QJsonObject m_cDevice;
