@@ -1,6 +1,8 @@
 #include "backend.h"
 #include "monotonicclock.h"
 #include <QDebug>
+#include <QSerialPortInfo>
+#include <cmath>
 #include <QFileDialog>
 #include <QApplication>
 
@@ -683,6 +685,7 @@ void backEnd::newUserConfig()
     constructJsonTreeModel();
     updateHasDevices();
     checkUserConfigForIssues();     // emits userConfigOKChanged() -> enables Save/Run
+    emit userConfigJsonChanged();
 }
 
 void backEnd::enrichDeviceDefaults(QJsonObject &device, const QString &category,
@@ -799,6 +802,7 @@ void backEnd::addDevice(const QString &category, const QString &deviceType,
     constructJsonTreeModel();
     updateHasDevices();
     checkUserConfigForIssues();
+    emit userConfigJsonChanged();
 }
 
 // Public entry (wired to the "Scan Devices" button): dispatch to the OS-specific
@@ -1270,6 +1274,122 @@ void backEnd::handleUserConfigFileNameChanged()
     parseUserConfig();
     updateHasDevices();
     checkUserConfigForIssues();
+    emit userConfigJsonChanged();
+}
+
+// --- Form-editor API ---------------------------------------------------------
+// The form mutates m_userConfig directly (QJson types are value types, so a
+// nested write rebuilds the object chain up to the root). Keys the editor
+// doesn't know about - COMMENT_* annotations, retired settings, lab notes -
+// ride along untouched, which the JSON tree editor never managed.
+
+QJsonValue backEnd::jsonWithValueAtPath(const QJsonValue &node, const QStringList &path,
+                                        const QJsonValue &value)
+{
+    if (path.isEmpty())
+        return value;
+    QJsonObject obj = node.toObject(); // non-object intermediate -> becomes one
+    obj[path.first()] = jsonWithValueAtPath(obj.value(path.first()), path.mid(1), value);
+    return obj;
+}
+
+QJsonValue backEnd::jsonWithKeyRemoved(const QJsonValue &node, const QStringList &path)
+{
+    QJsonObject obj = node.toObject();
+    if (path.size() <= 1) {
+        obj.remove(path.value(0));
+        return obj;
+    }
+    if (!obj.contains(path.first()))
+        return node; // nothing to remove
+    obj[path.first()] = jsonWithKeyRemoved(obj.value(path.first()), path.mid(1));
+    return obj;
+}
+
+void backEnd::configEdited()
+{
+    // Same checks as a fresh load, minus the file I/O: advisory schema notes,
+    // then the blocking checks that gate Run.
+    const QStringList configNotes = checkUserConfig(m_userConfig);
+    m_configCheckNotes = configNotes.join(QLatin1Char('\n'));
+    emit configCheckNotesChanged();
+
+    parseUserConfig();
+    updateHasDevices();
+    checkUserConfigForIssues();
+    emit userConfigJsonChanged();
+}
+
+void backEnd::setConfigValue(const QVariantList &path, const QVariant &value)
+{
+    QStringList keys;
+    for (const QVariant &p : path)
+        keys << p.toString();
+    if (keys.isEmpty())
+        return;
+
+    QJsonValue v = QJsonValue::fromVariant(value);
+    // QML numbers arrive as doubles; store integral values as JSON ints so
+    // integer-typed schema fields (deviceID, framesPerFile, ...) stay integers.
+    if (v.isDouble()) {
+        const double d = v.toDouble();
+        if (d == std::floor(d) && std::abs(d) <= 9007199254740992.0)
+            v = QJsonValue(static_cast<qint64>(d));
+    }
+
+    m_userConfig = jsonWithValueAtPath(m_userConfig, keys, v).toObject();
+    configEdited();
+}
+
+void backEnd::removeConfigKey(const QVariantList &path)
+{
+    QStringList keys;
+    for (const QVariant &p : path)
+        keys << p.toString();
+    if (keys.isEmpty())
+        return;
+    m_userConfig = jsonWithKeyRemoved(m_userConfig, keys).toObject();
+    configEdited();
+}
+
+void backEnd::removeDevice(const QString &category, const QString &deviceName)
+{
+    removeConfigKey(QVariantList{QStringLiteral("devices"), category, deviceName});
+}
+
+QString backEnd::rawConfigJson() const
+{
+    return QString::fromUtf8(QJsonDocument(m_userConfig).toJson(QJsonDocument::Indented));
+}
+
+QString backEnd::applyRawConfigJson(const QString &text)
+{
+    QJsonParseError err;
+    const QJsonDocument doc = QJsonDocument::fromJson(text.toUtf8(), &err);
+    if (doc.isNull())
+        return QStringLiteral("JSON parse error at offset %1: %2")
+            .arg(err.offset).arg(err.errorString());
+    if (!doc.isObject())
+        return QStringLiteral("The config must be a JSON object.");
+    m_userConfig = doc.object();
+    configEdited();
+    return QString();
+}
+
+QVariantList backEnd::availableSerialPorts() const
+{
+    QVariantList out;
+    const auto ports = QSerialPortInfo::availablePorts();
+    for (const QSerialPortInfo &p : ports) {
+        QString label = p.portName();
+        if (!p.description().isEmpty())
+            label += QStringLiteral(" — ") + p.description();
+        else if (!p.manufacturer().isEmpty())
+            label += QStringLiteral(" — ") + p.manufacturer();
+        out.append(QVariantMap{{QStringLiteral("name"), p.portName()},
+                               {QStringLiteral("label"), label}});
+    }
+    return out;
 }
 
 void backEnd::connectSnS()

@@ -39,6 +39,11 @@ class backEnd : public QObject
     Q_PROPERTY(QString buildInfo READ buildInfo WRITE setBuildInfo NOTIFY buildInfoChanged)
 
     Q_PROPERTY(QStandardItemModel* jsonTreeModel READ jsonTreeModel WRITE setJsonTreeModel NOTIFY jsonTreeModelChanged)
+    // The loaded user config as a QML value (maps/lists), for the form editor.
+    // Re-read on userConfigJsonChanged; mutate ONLY via setConfigValue /
+    // removeConfigKey / addDevice / removeDevice so unknown and COMMENT_* keys
+    // survive round-trips (the config object itself is the single source of truth).
+    Q_PROPERTY(QVariantMap userConfigJson READ userConfigJson NOTIFY userConfigJsonChanged)
 
 public:
     explicit backEnd(QObject *parent = nullptr);
@@ -96,6 +101,26 @@ public:
 
     QStandardItemModel* jsonTreeModel() { return m_jsonTreeModel; }
     void setJsonTreeModel(QStandardItemModel* model) { m_jsonTreeModel = model; }
+
+    // --- Form-editor API -------------------------------------------------------
+    QVariantMap userConfigJson() const { return m_userConfig.toVariantMap(); }
+    // Set/remove a value at a key path (e.g. ["devices","cameras","Cam1","gain"]).
+    // Path elements are strings; integral doubles are stored as JSON ints.
+    // Re-checks the config and emits userConfigJsonChanged.
+    Q_INVOKABLE void setConfigValue(const QVariantList &path, const QVariant &value);
+    Q_INVOKABLE void removeConfigKey(const QVariantList &path);
+    // Remove a device from devices.<category> (category "miniscopes"/"cameras").
+    Q_INVOKABLE void removeDevice(const QString &category, const QString &deviceName);
+    // Per-key editor metadata (types + tips) and the device catalog (control
+    // ranges/choices), for building form widgets. Constant per run.
+    Q_INVOKABLE QVariantMap configPropsJson() const { return m_configProps.toVariantMap(); }
+    Q_INVOKABLE QVariantMap deviceCatalogJson() const { return m_deviceCatalog.toVariantMap(); }
+    // Raw-JSON tab: current config text, and apply-edited-text (returns "" on
+    // success or a human-readable parse error; nothing changes on error).
+    Q_INVOKABLE QString rawConfigJson() const;
+    Q_INVOKABLE QString applyRawConfigJson(const QString &text);
+    // Serial ports for the commutator's port picker: [{name, label}, ...].
+    Q_INVOKABLE QVariantList availableSerialPorts() const;
 
     void constructJsonTreeModel();
     Q_INVOKABLE void treeViewTextChanged(const QModelIndex &index, QString text);
@@ -174,6 +199,7 @@ signals:
     void versionNumberChanged();
     void buildInfoChanged();
     void jsonTreeModelChanged();
+    void userConfigJsonChanged();
 
     void closeAll();
     void showErrorMessage();
@@ -217,6 +243,14 @@ private:
     QJsonValue defaultFromProps(const QJsonValue &propNode);
     QJsonValue defaultForType(const QString &type);
     void enrichDeviceDefaults(QJsonObject &device, const QString &category, const QString &deviceType);
+
+    // Recursive path write/remove for the form-editor API (QJson types are
+    // value types, so nested edits rebuild the chain up to the root).
+    static QJsonValue jsonWithValueAtPath(const QJsonValue &node, const QStringList &path, const QJsonValue &value);
+    static QJsonValue jsonWithKeyRemoved(const QJsonValue &node, const QStringList &path);
+    // Re-run the load-time checks (schema notes, device names, codecs,
+    // hasDevices) after any form mutation and notify QML.
+    void configEdited();
 
     // Per-OS implementations behind scanVideoDevices(); each is defined only on its
     // platform (calls to the others are #ifdef'd out, so they're never odr-used
