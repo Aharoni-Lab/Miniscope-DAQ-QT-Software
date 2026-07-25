@@ -471,9 +471,11 @@ Window {
             id: rbRun
             height: 40
             radius: 10
-            text: "Run"
+            // While a session runs, this button ends it (tearing down the
+            // acquisition windows/threads) instead of starting another.
+            text: backend && backend.sessionActive ? "End Session" : "Run"
             // Need a valid config AND at least one device (miniscope or camera).
-            enabled: backend ? (backend.userConfigOK && backend.hasDevices) : false
+            enabled: backend ? (backend.sessionActive || (backend.userConfigOK && backend.hasDevices)) : false
             Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             Layout.preferredHeight: 40
             font.family: "Arial"
@@ -490,7 +492,7 @@ Window {
             }
 
             Layout.fillWidth: true
-            onClicked: backend.onRunClicked()
+            onClicked: backend.sessionActive ? backend.endSession() : backend.onRunClicked()
             onHoveredChanged: hovered ? runRect.color = "#f8a7fd" : runRect.color = "#a8a7fd"
         }
 

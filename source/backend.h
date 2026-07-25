@@ -33,6 +33,7 @@ class backEnd : public QObject
     Q_PROPERTY(QString availableCodecList READ availableCodecList WRITE setAvailableCodecList NOTIFY availableCodecListChanged)
     Q_PROPERTY(QStringList availableCodecs READ availableCodecs CONSTANT)
     Q_PROPERTY(QStringList availableLUTs READ availableLUTs CONSTANT)
+    Q_PROPERTY(bool sessionActive READ sessionActive NOTIFY sessionActiveChanged)
     Q_PROPERTY(QString versionNumber READ versionNumber WRITE setVersionNumber NOTIFY versionNumberChanged)
     Q_PROPERTY(QString buildInfo READ buildInfo WRITE setBuildInfo NOTIFY buildInfoChanged)
 
@@ -50,6 +51,17 @@ public:
     // True when the config has at least one device (miniscope or camera). The Run
     // button is gated on this so you can't run a config with nothing to record.
     bool hasDevices() const { return m_hasDevices; }
+
+    // True between a successful Run and the matching endSession(): the
+    // acquisition windows/threads exist. Lets QML flip between the config
+    // (Setup) view and the running-session (Acquire) view.
+    bool sessionActive() const { return m_sessionActive; }
+
+    // Live session object counts. Used by the session-lifecycle test to pin the
+    // Run -> endSession -> Run cycle (no leftover or doubled devices); will move
+    // to the Session object when backEnd is split.
+    int sessionMiniscopeCount() const { return miniscope.size(); }
+    int sessionCameraCount() const { return behavCam.size(); }
 
     QString userConfigDisplay(){ return m_userConfigDisplay; }
     void setUserConfigDisplay(const QString &input);
@@ -145,6 +157,7 @@ public:
 
 
 signals:
+    void sessionActiveChanged();
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();
     void configCheckNotesChanged();
@@ -163,6 +176,10 @@ signals:
 public slots:
     void onRunClicked();
     void onRecordClicked();
+    // End the running acquisition session WITHOUT quitting: stop and join all
+    // worker threads, destroy the session's windows/objects, and reset state
+    // so another config can be loaded and Run in the same process.
+    void endSession();
     void exitClicked();
     void handleUserConfigFileNameChanged();
 
@@ -172,10 +189,11 @@ public slots:
 private:
     void connectSnS();
     void setupDataSaver();
-    // Stop capture/saver/tracker threads and join them; idempotent. Runs
-    // before the QML engine quits so no thread outlives the objects it uses.
-    void shutdownThreads();
-    bool m_threadsShutdown = false;
+    // Stop the current session's capture/saver/commutator/tracker threads and
+    // join them, so no thread outlives the objects it uses. Called by
+    // endSession(); callers guard with m_sessionActive.
+    void stopSessionThreads();
+    bool m_sessionActive = false;
 
     void testCodecSupport();
 

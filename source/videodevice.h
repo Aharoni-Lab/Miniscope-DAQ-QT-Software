@@ -52,6 +52,9 @@ class VideoDevice : public QObject
     Q_OBJECT
 public:
     explicit VideoDevice(QObject *parent = nullptr, QJsonObject ucDevice = QJsonObject(), qint64 softwareStartTime = 0, bool preferDirectControl = false);
+    // Session teardown: joins the (already-stopped) stream thread, frees the
+    // stream object, and closes/frees this device's window.
+    ~VideoDevice() override;
     QJsonObject getDeviceConfig(QString deviceType);
     QObject* getRootDisplayObject() { return rootObject; }
     QQuickItem* getRootDisplayChild(QString childName) { return rootObject->findChild<QQuickItem*>(childName); }

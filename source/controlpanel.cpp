@@ -253,3 +253,13 @@ void ControlPanel::close()
 {
     view->close();
 }
+
+ControlPanel::~ControlPanel()
+{
+    if (view) {
+        view->close();
+        // Deferred: session teardown can be triggered from this window's own QML.
+        view->deleteLater();
+        view = nullptr;
+    }
+}

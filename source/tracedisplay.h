@@ -236,6 +236,7 @@ class TraceDisplayBackend : public QObject
     Q_OBJECT
 public:
     TraceDisplayBackend(QObject *parent = nullptr, QJsonObject ucTraceDisplay = QJsonObject(), qint64 softwareStartTime = 0);
+    ~TraceDisplayBackend() override;
     void createView();
 
 public slots:

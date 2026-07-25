@@ -126,7 +126,6 @@ set(SOURCES
     source/behaviortrackerworker.cpp
     source/controlpanel.cpp
     source/datasaver.cpp
-    source/main.cpp
     source/miniscope.cpp
     source/newquickview.cpp
     source/tracedisplay.cpp
@@ -166,18 +165,55 @@ if(APPLE)
     list(APPEND HEADERS source/videostreammac.h source/bundlepaths.h)
 endif()
 
-qt_add_executable(MiniscopeDAQ
+# --- Application core library ------------------------------------------------
+# Everything except main.cpp, so the session-lifecycle integration test
+# (tests/tst_sessionlifecycle) can drive the real backend/session machinery.
+# The QML (qml.qrc) is added to each executable, not here: resources embedded
+# in a static library need Q_INIT_RESOURCE gymnastics in every consumer.
+qt_add_library(miniscope_app STATIC
     ${SOURCES}
     ${HEADERS}
+)
+target_include_directories(miniscope_app PUBLIC
+    source
+    ${OpenCV_INCLUDE_DIRS}
+)
+# Header-only JSON Schema validator (see thirdparty/valijson/README.md).
+# SYSTEM: vendored headers are not ours to fix; keep their warnings out of
+# our -W flags.
+target_include_directories(miniscope_app SYSTEM PUBLIC thirdparty/valijson/include)
+target_link_libraries(miniscope_app PUBLIC
+    miniscope_protocol
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Qml
+    Qt6::Quick
+    Qt6::QuickControls2
+    Qt6::Widgets
+    Qt6::OpenGL
+    Qt6::SerialPort
+    ${OpenCV_LIBS}
+)
+if(APPLE)
+    target_link_libraries(miniscope_app PUBLIC uvccontrol_mac avfenumerator_mac avfgrabber_mac)
+endif()
+if(WIN32)
+    # DirectShow video-device enumeration (backEnd::scanVideoDevices): strmiids
+    # provides the CLSID/IID symbols, ole32/oleaut32 the COM + VARIANT helpers.
+    target_link_libraries(miniscope_app PUBLIC strmiids ole32 oleaut32)
+endif()
+
+qt_add_executable(MiniscopeDAQ
+    source/main.cpp
     source/qml.qrc
 )
+target_link_libraries(MiniscopeDAQ PRIVATE miniscope_app)
 
 # Single source of truth for the app version: the project() line above. The
 # UI (main.cpp) and the packaging scripts all derive from it.
 target_compile_definitions(MiniscopeDAQ PRIVATE MINISCOPE_VERSION="${PROJECT_VERSION}")
 
 if(APPLE)
-    target_link_libraries(MiniscopeDAQ PRIVATE uvccontrol_mac avfenumerator_mac avfgrabber_mac)
 
     # Build as a .app bundle. This is not just packaging polish: macOS kills
     # any camera-touching process whose bundle lacks NSCameraUsageDescription,
@@ -236,9 +272,6 @@ if(WIN32)
         OUTPUT_NAME "MiniscopeDAQ-launcher"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/launcher")
 
-    # DirectShow video-device enumeration (backEnd::scanVideoDevices): strmiids
-    # provides the CLSID/IID symbols, ole32/oleaut32 the COM + VARIANT helpers.
-    target_link_libraries(MiniscopeDAQ PRIVATE strmiids ole32 oleaut32)
 elseif(APPLE)
     # The configs ship inside the bundle at Contents/Resources; at launch,
     # BundlePaths::prepareBundleRuntime() (main.cpp) copies the app-internal
@@ -249,28 +282,6 @@ else()
     # configs sit next to the exe, exactly as before.
     set(MINISCOPE_RELEASE_TOP "$<TARGET_FILE_DIR:MiniscopeDAQ>")
 endif()
-
-target_include_directories(MiniscopeDAQ PRIVATE
-    source
-    ${OpenCV_INCLUDE_DIRS}
-)
-# Header-only JSON Schema validator (see thirdparty/valijson/README.md).
-# SYSTEM: vendored headers are not ours to fix; keep their warnings out of
-# our -W flags.
-target_include_directories(MiniscopeDAQ SYSTEM PRIVATE thirdparty/valijson/include)
-
-target_link_libraries(MiniscopeDAQ PRIVATE
-    miniscope_protocol
-    Qt6::Core
-    Qt6::Gui
-    Qt6::Qml
-    Qt6::Quick
-    Qt6::QuickControls2
-    Qt6::Widgets
-    Qt6::OpenGL
-    Qt6::SerialPort
-    ${OpenCV_LIBS}
-)
 
 # --- libuvc backend (Linux Miniscope capture) ------------------------------
 # On Linux the kernel uvcvideo driver caches UVC control reads, so OpenCV/V4L2
@@ -287,12 +298,12 @@ if(UNIX AND NOT APPLE)
     find_library(LIBUSB1_LIBRARY NAMES usb-1.0)
     if(LIBUVC_INCLUDE_DIR AND LIBUVC_LIBRARY)
         message(STATUS "libuvc found (${LIBUVC_LIBRARY}); Miniscope Linux capture backend enabled")
-        target_include_directories(MiniscopeDAQ PRIVATE ${LIBUVC_INCLUDE_DIR})
-        target_link_libraries(MiniscopeDAQ PRIVATE ${LIBUVC_LIBRARY})
+        target_include_directories(miniscope_app PUBLIC ${LIBUVC_INCLUDE_DIR})
+        target_link_libraries(miniscope_app PUBLIC ${LIBUVC_LIBRARY})
         if(LIBUSB1_LIBRARY)
-            target_link_libraries(MiniscopeDAQ PRIVATE ${LIBUSB1_LIBRARY})
+            target_link_libraries(miniscope_app PUBLIC ${LIBUSB1_LIBRARY})
         endif()
-        target_compile_definitions(MiniscopeDAQ PRIVATE HAVE_LIBUVC)
+        target_compile_definitions(miniscope_app PUBLIC HAVE_LIBUVC)
     elseif(REQUIRE_LIBUVC)
         message(FATAL_ERROR
             "libuvc not found. It is required for the Miniscope capture backend on Linux "
@@ -311,8 +322,10 @@ if(USE_PYTHON)
     # Use a maintained interpreter (3.11/3.12). Python 3.7 used by the old
     # build is end-of-life. Override discovery with -DPython3_ROOT_DIR=...
     find_package(Python3 REQUIRED COMPONENTS Development NumPy)
-    target_compile_definitions(MiniscopeDAQ PRIVATE USE_PYTHON)
-    target_link_libraries(MiniscopeDAQ PRIVATE Python3::Python Python3::NumPy)
+    # PUBLIC: USE_PYTHON changes class layouts in headers (behaviortracker.h),
+    # so every consumer of the app library must see the same definition.
+    target_compile_definitions(miniscope_app PUBLIC USE_PYTHON)
+    target_link_libraries(miniscope_app PUBLIC Python3::Python Python3::NumPy)
 endif()
 
 # Note: there used to be a second "MiniscopeDAQ-launch.bat" launcher here that

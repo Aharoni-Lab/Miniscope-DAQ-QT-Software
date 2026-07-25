@@ -38,6 +38,9 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64
     usedPoses(new QSemaphore()),
     m_btPoseCount(new QAtomicInt(0)),
     m_previousBtPoseFrameNum(0),
+    view(nullptr),
+    rootObject(nullptr),
+    trackerDisplay(nullptr),
     m_trackingRunning(false),
     m_pCutoffDisplay(0),
     m_softwareStartTime(softwareStartTime)
@@ -60,6 +63,21 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64
 
 
 
+}
+
+BehaviorTracker::~BehaviorTracker()
+{
+    // Normally a no-op: session teardown already joined the worker thread.
+    stopAndJoinWorker();
+    // The worker was moved to the (now finished) worker thread, so it may be
+    // deleted from here.
+    delete behavTrackWorker;
+    behavTrackWorker = nullptr;
+    if (view) {
+        view->close();
+        view->deleteLater();
+        view = nullptr;
+    }
 }
 
 int BehaviorTracker::initNumpy()
@@ -539,8 +557,15 @@ void BehaviorTracker::stopAndJoinWorker()
         return;
     emit closeWorker();
     workerThread->quit();
-    if (!workerThread->wait(3000))
+    if (!workerThread->wait(3000)) {
         qWarning() << "Behavior tracker worker thread did not stop within 3s; leaking it";
+        // The worker still lives on the runaway thread; deleting it from here
+        // would race. Leak it along with its thread.
+        behavTrackWorker = nullptr;
+        workerThread = nullptr;
+        return;
+    }
+    workerThread->deleteLater();
     workerThread = nullptr;
 }
 

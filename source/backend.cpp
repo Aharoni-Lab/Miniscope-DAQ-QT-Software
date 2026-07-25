@@ -1098,16 +1098,24 @@ void backEnd::loadUserConfigFile()
 
 void backEnd::onRunClicked()
 {
-//    qDebug() << "Run was clicked!";
+    if (m_sessionActive)
+        return; // a session is already running; endSession() first
+
     generateUserConfigFromModel();
     parseUserConfig();
     updateHasDevices();
     checkUserConfigForIssues();
     if (m_userConfigOK) {
+        // Fresh timeline origin per session: every device timestamp and trace
+        // time axis is relative to this.
+        m_softwareStartTime = monotonicTimeMs();
 
         constructUserConfigGUI();
 
         setupDataSaver(); // must happen after devices have been made
+
+        m_sessionActive = true;
+        emit sessionActiveChanged();
     }
     else {
         // TODO: throw out error
@@ -1124,20 +1132,78 @@ void backEnd::onRecordClicked()
 
 void backEnd::exitClicked()
 {
-    shutdownThreads();
+    endSession();
     emit closeAll();
 }
 
-// Orderly teardown, called from both quit paths (Exit button and main-window
-// close) before the QML engine quits. Without this no worker thread was ever
-// joined: the process exited while capture/saver threads were still touching
-// buffers and Qt objects - a use-after-free lottery on every quit.
-void backEnd::shutdownThreads()
+// End the acquisition session without quitting the app: join every worker
+// thread, then destroy the session's windows and objects and reset per-session
+// state, so a (possibly different) config can be Run again in this process.
+// Safe to call from the session's own QML (all views die via deleteLater).
+void backEnd::endSession()
 {
-    if (m_threadsShutdown)
+    if (!m_sessionActive)
         return;
-    m_threadsShutdown = true;
+    m_sessionActive = false;
 
+    stopSessionThreads();
+
+    // Device objects own their windows and their (now joined) stream threads;
+    // ~VideoDevice closes the window and frees the stream. Deferred deletion
+    // because this can be triggered from one of those windows' QML.
+    for (Miniscope *m : miniscope) { m->close(); m->deleteLater(); }
+    miniscope.clear();
+    for (BehaviorCam *c : behavCam) { c->close(); c->deleteLater(); }
+    behavCam.clear();
+
+    if (controlPanel) {
+        controlPanel->close();
+        controlPanel->deleteLater();
+        controlPanel = nullptr;
+    }
+    if (traceDisplay) {
+        traceDisplay->deleteLater(); // ~TraceDisplayBackend closes the window
+        traceDisplay = nullptr;
+    }
+    if (behavTracker) {
+        behavTracker->deleteLater(); // ~BehaviorTracker closes window + frees worker
+        behavTracker = nullptr;
+    }
+
+    // Commutator worker: its thread was stopped in stopSessionThreads(). If the
+    // thread failed to stop (3s timeout) both were leaked, deliberately.
+    if (commutatorThread && !commutatorThread->isRunning()) {
+        if (commutator) {
+            // Its thread has finished, so it may be moved (then deleted) from here.
+            commutator->moveToThread(thread());
+            commutator->deleteLater();
+        }
+        commutatorThread->deleteLater();
+    }
+    commutator = nullptr;
+    commutatorThread = nullptr;
+
+    // Recycle the DataSaver so the next session's setupDataSaver() starts from
+    // a pristine saver on a fresh thread. Skipped (leaked, with the warning
+    // already printed) if its thread failed to stop.
+    if (dataSaverThread && !dataSaverThread->isRunning()) {
+        dataSaverThread->deleteLater();
+        dataSaverThread = nullptr;
+        dataSaver->moveToThread(thread());
+        dataSaver->deleteLater();
+        dataSaver = new DataSaver();
+    }
+
+    emit sessionActiveChanged();
+}
+
+// Orderly per-session thread teardown, run before the session's objects are
+// destroyed (endSession) - and therefore also on quit, which routes through
+// endSession. Without this no worker thread was ever joined: the process
+// exited while capture/saver threads were still touching buffers and Qt
+// objects - a use-after-free lottery on every quit.
+void backEnd::stopSessionThreads()
+{
     // 1. A recording in progress stops properly first: drains the ring
     //    buffers and closes every file. Blocking invoke so the files are
     //    complete before the pipeline is torn down.

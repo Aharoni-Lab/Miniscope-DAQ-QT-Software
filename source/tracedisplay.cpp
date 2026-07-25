@@ -80,6 +80,13 @@ void TraceDisplayBackend::addNewTrace(QString name, float color[3], float scale,
     m_traceDisplay->addNewTrace(newTrace);
 }
 
+TraceDisplayBackend::~TraceDisplayBackend()
+{
+    // Routes through handleWindowClosing(), which nulls m_traceDisplay and
+    // defers the view deletion; no-op if the user already closed the window.
+    close();
+}
+
 void TraceDisplayBackend::close()
 {
     // Routes through handleWindowClosing() via NewQuickView::closing. Guard against

@@ -22,8 +22,10 @@
 VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime, bool preferDirectControl) :
     QObject(parent),
     m_camConnected(false),
+    view(nullptr),
     deviceStream(nullptr),
     m_preferDirectControlBackend(preferDirectControl),
+    videoStreamThread(nullptr),
     rootObject(nullptr),
     vidDisplay(nullptr),
     m_previousDisplayFrameNum(0),
@@ -184,6 +186,24 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     }
 }
 
+
+VideoDevice::~VideoDevice()
+{
+    // Normally the stream thread was already joined by the session teardown
+    // (backEnd::stopSessionThreads); this is a no-op then, and a safety net
+    // for any other deletion path.
+    stopAndJoinStream();
+    // The stream object was moved to the (now finished) stream thread, so it
+    // may be deleted from here.
+    delete deviceStream;
+    deviceStream = nullptr;
+    if (view) {
+        view->close();
+        // Deferred: we may be inside a handler of one of the view's signals.
+        view->deleteLater();
+        view = nullptr;
+    }
+}
 
 void VideoDevice::createView()
 {
@@ -897,8 +917,12 @@ void VideoDevice::stopAndJoinStream()
     // event processing. The stream loop then exits and the thread finishes.
     deviceStream->stopStream();
     videoStreamThread->quit();
-    if (!videoStreamThread->wait(3000))
+    if (!videoStreamThread->wait(3000)) {
         qWarning() << m_deviceName << "stream thread did not stop within 3s; leaking it";
+        // The stream object still lives on the runaway thread; deleting it
+        // (see ~VideoDevice) would race. Leak it along with its thread.
+        deviceStream = nullptr;
+    }
     // The thread deletes itself via its finished() -> deleteLater() connection.
     videoStreamThread = nullptr;
 }

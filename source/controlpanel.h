@@ -13,6 +13,7 @@ class ControlPanel : public QObject
     Q_OBJECT
 public:
     explicit ControlPanel(QObject *parent = nullptr, QJsonObject userConfig = QJsonObject());
+    ~ControlPanel() override;
     void createView();
     void connectSnS();
     void fillUCEditText();

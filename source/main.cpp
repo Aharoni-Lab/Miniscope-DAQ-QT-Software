@@ -30,7 +30,6 @@
 #define MINISCOPE_VERSION "unknown"
 #endif
 #define VERSION_NUMBER MINISCOPE_VERSION
-// TODO: have exit button close everything
 
 // For Window's deployment
 //C:\Qt\5.12.6>C:\Qt\5.12.6\msvc2017_64\bin\windeployqt.exe --qmldir C:\Users\DBAharoni\Documents\Projects\Miniscope-DAQ-QT-Software\Miniscope-DAQ-QT-Software\ C:\Users\DBAharoni\Documents\Projects\Miniscope-DAQ-QT-Software\build-Miniscope-DAQ-QT-Software-Desktop_Qt_5_12_6_MSVC2017_64bit-Release\release\Miniscope-DAQ-QT-Software.exe
