@@ -536,7 +536,6 @@ static void stampConfigMetadata(QJsonObject &config)
 
 void backEnd::saveConfigObject()
 {
-    generateUserConfigFromModel();
     stampConfigMetadata(m_userConfig);
     QJsonDocument d;
     d.setObject(m_userConfig);
@@ -555,7 +554,6 @@ void backEnd::saveConfigObject()
 
 void backEnd::saveConfigObjectAs(const QString &filePath)
 {
-    generateUserConfigFromModel();
     stampConfigMetadata(m_userConfig);
     QJsonDocument d;
     d.setObject(m_userConfig);
@@ -778,9 +776,6 @@ void backEnd::addDevice(const QString &category, const QString &deviceType,
     if (category != "miniscopes" && category != "cameras")
         return;
 
-    // Capture any edits already made in the tree before we rebuild it.
-    generateUserConfigFromModel();
-
     QJsonObject devices = m_userConfig.value("devices").toObject();
     QJsonObject section = devices.value(category).toObject();
     if (section.contains(deviceName))
@@ -971,9 +966,6 @@ QString backEnd::scanVideoDevicesMac()
 
 QStringList backEnd::availableDeviceIDs()
 {
-    // Capture any edits made in the tree so the used-ID set reflects the live config.
-    generateUserConfigFromModel();
-
     // IDs already assigned to a device in the config.
     QList<int> used;
     const QJsonObject devs = m_userConfig.value("devices").toObject();
@@ -1105,7 +1097,8 @@ void backEnd::onRunClicked()
     if (m_sessionActive)
         return; // a session is already running; endSession() first
 
-    generateUserConfigFromModel();
+    // m_userConfig is already current: the form editor writes every edit
+    // straight into it (setConfigValue / applyRawConfigJson).
     parseUserConfig();
     updateHasDevices();
     checkUserConfigForIssues();

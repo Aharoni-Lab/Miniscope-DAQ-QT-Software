@@ -2,6 +2,13 @@
     <qresource prefix="/">
         <file>Theme.qml</file>
         <file>UiButton.qml</file>
+        <file>UiTextField.qml</file>
+        <file>UiComboBox.qml</file>
+        <file>UiSpinBox.qml</file>
+        <file>UiSwitch.qml</file>
+        <file>FormCard.qml</file>
+        <file>FormRow.qml</file>
+        <file>ConfigForm.qml</file>
         <file>AppShell.qml</file>
         <file>SetupView.qml</file>
         <file>AcquireView.qml</file>

@@ -4,10 +4,9 @@ import QtQuick.Layouts
 import QtQuick.Dialogs
 import Miniscope.Theme 1.0
 
-// Setup mode: pick / create / edit a user config, then Run.
-// V1 of the ui-v3 shell keeps the JSON tree editor; the schema-driven form
-// editor replaces it in a later step. All actions and dialogs from the old
-// launcher window (main.qml) live on here.
+// Setup mode: pick / create / edit a user config, then Run. The editor is
+// the schema-driven card form (ConfigForm); all actions and dialogs from the
+// old launcher window (main.qml) live on here.
 Item {
     id: setupRoot
 
@@ -130,12 +129,6 @@ Item {
                     deviceScanDialog.open()
                 }
             }
-            UiButton {
-                text: qsTr("+ Add Device")
-                primary: true
-                visible: setupRoot.configOpen
-                onClicked: addDeviceDialog.open()
-            }
         }
 
         // Migration notes / schema warnings from the config load. Warnings only -
@@ -198,39 +191,12 @@ Item {
             }
         }
 
-        // Config editor (the JSON tree, until the form editor replaces it)
-        Rectangle {
+        // Config editor: the schema-driven card form + raw-JSON tab.
+        ConfigForm {
             visible: setupRoot.configOpen
             Layout.fillWidth: true
             Layout.fillHeight: true
-            radius: Theme.radius
-            color: Theme.surface
-            border.color: Theme.border
-            border.width: 1
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: Theme.spacing
-                spacing: Theme.spacing
-
-                TreeViewerJSON {
-                    id: treeView
-                    model: backend ? backend.jsonTreeModel : null
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                }
-
-                // Help text for the focused config field
-                Text {
-                    visible: treeView.toolTipText.length > 0
-                    text: treeView.toolTipText
-                    wrapMode: Text.WordWrap
-                    font: Theme.fontSmall
-                    color: Theme.textSecondary
-                    Layout.fillWidth: true
-                    Layout.maximumHeight: 80
-                }
-            }
+            onAddDeviceRequested: addDeviceDialog.open()
         }
 
         // Run
