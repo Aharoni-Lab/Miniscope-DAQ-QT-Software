@@ -297,7 +297,7 @@ void backEnd::newUserConfig()
     // Trace display: on by default with a real window size, so it actually appears
     // (a 0x0 window never shows). "type" has a single valid value.
     if (cfg.contains("traceDisplay")) {
-        QJsonObject td = cfg["traceDisplay"].toObject();
+        QJsonObject td = cfg.value("traceDisplay").toObject();
         td["enabled"]      = true;
         td["type"]         = "scrolling";
         td["windowX"]      = 100;
@@ -310,7 +310,7 @@ void backEnd::newUserConfig()
     // Behavior tracker stays off (it needs an external Python/DLC-Live setup), but
     // give it sane non-zero values so the section isn't all blanks/zeros if enabled.
     if (cfg.contains("behaviorTracker")) {
-        QJsonObject bt = cfg["behaviorTracker"].toObject();
+        QJsonObject bt = cfg.value("behaviorTracker").toObject();
         bt["type"]           = "DeepLabCut-Live";
         bt["resize"]         = 0.5;
         bt["pCutoffDisplay"] = 0.3;

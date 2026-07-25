@@ -55,7 +55,7 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     m_lutColormap = 1; // default to the green LUT when toggled on
     m_ucDevice = ucDevice; // hold user config for this device
     parseUserConfigDevice();
-    m_cDevice = getDeviceConfig(m_ucDevice["deviceType"].toString()); // holds specific Miniscope configuration
+    m_cDevice = getDeviceConfig(m_ucDevice.value("deviceType").toString()); // holds specific Miniscope configuration
 
     // Thread safe buffer stuff
     freeFrames = new QSemaphore;
@@ -64,10 +64,10 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     // -------------------------
 
     // Setup camera stream backend.
-    m_resolution = QSize(m_cDevice["width"].toInt(-1), m_cDevice["height"].toInt(-1));
-    const int devWidth = m_cDevice["width"].toInt(-1);
-    const int devHeight = m_cDevice["height"].toInt(-1);
-    const double devPixelClock = m_cDevice["pixelClock"].toDouble(-1);
+    m_resolution = QSize(m_cDevice.value("width").toInt(-1), m_cDevice.value("height").toInt(-1));
+    const int devWidth = m_cDevice.value("width").toInt(-1);
+    const int devHeight = m_cDevice.value("height").toInt(-1);
+    const double devPixelClock = m_cDevice.value("pixelClock").toDouble(-1);
 
     // Miniscopes need a direct-control backend where plain OpenCV can't reach
     // the DAQ's control channel (see videostreambase.h): libuvc on Linux (the
@@ -76,7 +76,7 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     // real live camera (deviceID) is required - video-file playback always
     // uses OpenCV.
     deviceStream = nullptr;
-    const bool liveCamera = m_ucDevice.contains("deviceID") && !m_ucDevice["deviceID"].isNull();
+    const bool liveCamera = m_ucDevice.contains("deviceID") && !m_ucDevice.value("deviceID").isNull();
 #if defined(HAVE_LIBUVC)
     if (m_preferDirectControlBackend && liveCamera) {
         deviceStream = new VideoStreamLibUVC(nullptr, devWidth, devHeight, devPixelClock);
@@ -101,29 +101,29 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
 
     // Checks to make sure user config and miniscope device type are supporting BNO streaming
     if (m_ucDevice.contains("headOrientation")) {
-        m_headOrientationStreamState = m_ucDevice["headOrientation"].toObject()["enabled"].toBool(false);
-        m_headOrientationFilterState = m_ucDevice["headOrientation"].toObject()["filterBadData"].toBool(false);
+        m_headOrientationStreamState = m_ucDevice.value("headOrientation").toObject().value("enabled").toBool(false);
+        m_headOrientationFilterState = m_ucDevice.value("headOrientation").toObject().value("filterBadData").toBool(false);
     }
     // DEPRICATED
     if (m_ucDevice.contains("streamHeadOrientation")) {
-        m_headOrientationStreamState = m_ucDevice["streamHeadOrientation"].toBool(false) && m_cDevice["headOrientation"].toBool(false);
+        m_headOrientationStreamState = m_ucDevice.value("streamHeadOrientation").toBool(false) && m_cDevice.value("headOrientation").toBool(false);
         // TODO: Tell user this name/value is depricated
     }
     // ==========
     deviceStream->setHeadOrientationConfig(m_headOrientationStreamState, m_headOrientationFilterState);
 
-    deviceStream->setIsColor(m_cDevice["isColor"].toBool(false));
+    deviceStream->setIsColor(m_cDevice.value("isColor").toBool(false));
 
-    if (m_ucDevice.contains("deviceID") && !m_ucDevice["deviceID"].isNull()) {
-        m_camConnected = deviceStream->connect2Camera(m_ucDevice["deviceID"].toInt());
+    if (m_ucDevice.contains("deviceID") && !m_ucDevice.value("deviceID").isNull()) {
+        m_camConnected = deviceStream->connect2Camera(m_ucDevice.value("deviceID").toInt());
     }
     else if (m_ucDevice.contains("videoPlayback")) {
-        m_camConnected = deviceStream->connect2Video(m_ucDevice["videoPlayback"].toObject()["folderPath"].toString(),
-                m_ucDevice["videoPlayback"].toObject()["filePrefix"].toString(),
-                m_ucDevice["videoPlayback"].toObject()["frameRate"].toDouble());
+        m_camConnected = deviceStream->connect2Video(m_ucDevice.value("videoPlayback").toObject().value("folderPath").toString(),
+                m_ucDevice.value("videoPlayback").toObject().value("filePrefix").toString(),
+                m_ucDevice.value("videoPlayback").toObject().value("frameRate").toDouble());
     }
     if (m_camConnected == 0) {
-        qDebug() << "Not able to connect and open " << m_ucDevice["deviceName"].toString();
+        qDebug() << "Not able to connect and open " << m_ucDevice.value("deviceName").toString();
     }
     else {
         // TODO: bnoBuffer isn't used for behavior cams. Think about how to get rid of it
@@ -216,15 +216,15 @@ void VideoDevice::createView()
 
         // Setup device window
 //        const QUrl url(m_cBehavCam["qmlFile"].toString("qrc:/behaviorCam.qml"));
-        const QUrl url(m_cDevice["qmlFile"].toString());
+        const QUrl url(m_cDevice.value("qmlFile").toString());
         view = new NewQuickView(url);
 
-        view->setWidth(m_cDevice["width"].toInt() * m_ucDevice["windowScale"].toDouble(1));
-        view->setHeight(m_cDevice["height"].toInt() * m_ucDevice["windowScale"].toDouble(1));
+        view->setWidth(m_cDevice.value("width").toInt() * m_ucDevice.value("windowScale").toDouble(1));
+        view->setHeight(m_cDevice.value("height").toInt() * m_ucDevice.value("windowScale").toDouble(1));
 
         view->setTitle(m_deviceName);
-        view->setX(m_ucDevice["windowX"].toInt(1));
-        view->setY(m_ucDevice["windowY"].toInt(1));
+        view->setX(m_ucDevice.value("windowX").toInt(1));
+        view->setY(m_ucDevice.value("windowY").toInt(1));
 
         // Let the video display scale with the window, locked to the camera's
         // aspect ratio (the full-screen video quad would otherwise distort).
@@ -262,10 +262,10 @@ void VideoDevice::createView()
         configureDeviceControls();
         vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
         vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
-        vidDisplay->setWindowScaleValue(m_ucDevice["windowScale"].toDouble(1));
+        vidDisplay->setWindowScaleValue(m_ucDevice.value("windowScale").toDouble(1));
 
         // Turn on or off show saturation display
-        if (m_ucDevice["showSaturation"].toBool(false)) {
+        if (m_ucDevice.value("showSaturation").toBool(false)) {
             vidDisplay->setShowSaturation(1);
             rootObject->findChild<QQuickItem*>("saturationSwitch")->setProperty("checked", true);
         }
@@ -278,7 +278,7 @@ void VideoDevice::createView()
         // in m_lutColormap (used by the on-window "Apply LUT" toggle); the switch
         // starts on when the config selects a real LUT. "None"/absent keeps the
         // green default available for when the user toggles it.
-        const QString lutName = m_ucDevice["lut"].toString("None");
+        const QString lutName = m_ucDevice.value("lut").toString("None");
         bool lutOn = true;
         if (lutName == "Red")          m_lutColormap = 2;
         else if (lutName == "Inferno") m_lutColormap = 3;
@@ -403,7 +403,7 @@ void VideoDevice::sendInitCommands()
     long preambleKey;
     int tempValue;
 
-    QVector<QMap<QString,int>> sendCommands = parseSendCommand(m_cDevice["initialize"].toArray());
+    QVector<QMap<QString,int>> sendCommands = parseSendCommand(m_cDevice.value("initialize").toArray());
     QMap<QString,int> command;
 
     for (int i = 0; i < sendCommands.length(); i++) {
@@ -471,7 +471,7 @@ void VideoDevice::configureDeviceControls() {
     QJsonObject values; // min, max, startingValue, and stepSize for each control used in 'j' loop
     QStringList keys;
 
-    QJsonObject controlSettings = m_cDevice["controlSettings"].toObject(); // Get controlSettings from json
+    QJsonObject controlSettings = m_cDevice.value("controlSettings").toObject(); // Get controlSettings from json
 
     if (controlSettings.isEmpty()) {
         qDebug() << "controlSettings missing from videoDevices.json for deviceType = " << m_deviceType;
@@ -488,7 +488,7 @@ void VideoDevice::configureDeviceControls() {
         // config sets "<control>FineSteps": true. take() runs unconditionally
         // so the block is never forwarded to the QML item as a property.
         const QJsonObject fineSteps = values.take("fineSteps").toObject();
-        if (m_ucDevice[controlName[i] + "FineSteps"].toBool()) {
+        if (m_ucDevice.value(controlName[i] + "FineSteps").toBool()) {
             if (fineSteps.isEmpty()) {
                 sendMessage("Warning: " + m_deviceName + " has " + controlName[i] + "FineSteps set, but "
                             + m_deviceType + " defines no fine-steps mapping for " + controlName[i]
@@ -502,10 +502,10 @@ void VideoDevice::configureDeviceControls() {
         }
 
         if (m_ucDevice.contains(controlName[i])) {// sets starting value if it is defined in user config
-            if (m_ucDevice[controlName[i]].isDouble())
-                values["startValue"] = m_ucDevice[controlName[i]].toDouble();
-            if (m_ucDevice[controlName[i]].isString()) {
-                values["startValue"] = m_ucDevice[controlName[i]].toString();
+            if (m_ucDevice.value(controlName[i]).isDouble())
+                values["startValue"] = m_ucDevice.value(controlName[i]).toDouble();
+            if (m_ucDevice.value(controlName[i]).isString()) {
+                values["startValue"] = m_ucDevice.value(controlName[i]).toString();
 //                qDebug() << "START:" << values["startValue"];
             }
         }
@@ -837,12 +837,12 @@ QSizeF VideoDevice::displayPerCameraScale()
     // The video fills the display item, so display/camera gives pixels-per-camera-
     // pixel. Computed live so it stays correct as the window is resized; falls back
     // to the static config windowScale before the display exists.
-    const double camW = m_cDevice["width"].toInt(-1);
-    const double camH = m_cDevice["height"].toInt(-1);
+    const double camW = m_cDevice.value("width").toInt(-1);
+    const double camH = m_cDevice.value("height").toInt(-1);
     if (vidDisplay && camW > 0 && camH > 0 && vidDisplay->width() > 0 && vidDisplay->height() > 0)
         return QSizeF(vidDisplay->width() / camW, vidDisplay->height() / camH);
 
-    const double s = m_ucDevice["windowScale"].toDouble(1);
+    const double s = m_ucDevice.value("windowScale").toDouble(1);
     return QSizeF(s, s);
 }
 
@@ -891,14 +891,14 @@ void VideoDevice::handleNewROI(int leftEdge, int topEdge, int width, int height)
     m_roiBoundingBox[2] = round(width / scale.width());
     m_roiBoundingBox[3] = round(height / scale.height());
 
-    if ((m_roiBoundingBox[0] + m_roiBoundingBox[2]) > m_cDevice["width"].toInt(-1)) {
+    if ((m_roiBoundingBox[0] + m_roiBoundingBox[2]) > m_cDevice.value("width").toInt(-1)) {
         // Edge is off screen
-        m_roiBoundingBox[2] = m_cDevice["width"].toInt(-1) - m_roiBoundingBox[0];
+        m_roiBoundingBox[2] = m_cDevice.value("width").toInt(-1) - m_roiBoundingBox[0];
         sendMessage("Warning: Right edge of ROI drawn beyond right edge of video. If this is incorrect you can change the width and height values in deviceConfigs/videoDevices.json");
     }
-    if ((m_roiBoundingBox[1] + m_roiBoundingBox[3]) > m_cDevice["height"].toInt(-1)) {
+    if ((m_roiBoundingBox[1] + m_roiBoundingBox[3]) > m_cDevice.value("height").toInt(-1)) {
         // Edge is off screen
-        m_roiBoundingBox[3] = m_cDevice["height"].toInt(-1) - m_roiBoundingBox[1];
+        m_roiBoundingBox[3] = m_cDevice.value("height").toInt(-1) - m_roiBoundingBox[1];
         sendMessage("Warning: Bottm edge of ROI drawn beyond bottom edge of video. If this is incorrect you can change the width and height values in deviceConfigs/videoDevices.json");
 
     }

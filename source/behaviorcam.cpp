@@ -22,10 +22,10 @@ BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     m_softwareStartTime(softwareStartTime)
 {
     m_ucDevice = ucDevice; // hold user config for this device
-    m_cDevice = getDeviceConfig(m_ucDevice["deviceType"].toString());
+    m_cDevice = getDeviceConfig(m_ucDevice.value("deviceType").toString());
 
     // TODO: Handle cases where there is more than webcams and MiniCAMs
-    if (m_ucDevice["deviceType"].toString().toLower().contains("webcam")) {
+    if (m_ucDevice.value("deviceType").toString().toLower().contains("webcam")) {
         isMiniCAM = false;
 
         // USED BEFORE VIDEODEVICE CLASS
