@@ -48,7 +48,12 @@ QtObject {
     readonly property font fontSmall: Qt.font({ pointSize: 10 })
     readonly property font fontTitle: Qt.font({ pointSize: 15, weight: Font.DemiBold })
     readonly property font fontDisplay: Qt.font({ pointSize: 22, weight: Font.DemiBold })
-    readonly property font fontMono: Qt.font({ family: "Menlo, Consolas, monospace", pointSize: 11 })
+    // Qt.font takes ONE family (no CSS-style fallback lists), so pick per OS.
+    readonly property font fontMono: Qt.font({
+        family: Qt.platform.os === "osx" ? "Menlo"
+              : Qt.platform.os === "windows" ? "Consolas" : "monospace",
+        pointSize: 11
+    })
 
     // --- Metrics ---------------------------------------------------------------
     readonly property int spacing: 8        // base unit; use multiples
