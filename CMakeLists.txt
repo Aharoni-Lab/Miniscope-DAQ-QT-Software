@@ -128,6 +128,7 @@ set(SOURCES
     source/datasaver.cpp
     source/miniscope.cpp
     source/newquickview.cpp
+    source/themecontroller.cpp
     source/tracedisplay.cpp
     source/twistcalculator.cpp
     source/videodevice.cpp
@@ -148,6 +149,7 @@ set(HEADERS
     source/datasaver.h
     source/miniscope.h
     source/newquickview.h
+    source/themecontroller.h
     source/tracedisplay.h
     source/twistcalculator.h
     source/videodevice.h

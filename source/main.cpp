@@ -14,6 +14,7 @@
 #include <QStyleHints>
 
 #include "backend.h"
+#include "themecontroller.h"
 #ifdef Q_OS_MACOS
 #include "bundlepaths.h"
 #endif
@@ -74,10 +75,9 @@ int main(int argc, char *argv[])
 
     qRegisterMetaType < QVector<quint8> >("QVector<quint8>");
 
-    // Design-token singleton: every color/font/metric in the QML comes from
-    // here (import Miniscope.Theme 1.0).
-    qmlRegisterSingletonType(QUrl(QStringLiteral("qrc:/Theme.qml")),
-                             "Miniscope.Theme", 1, 0, "Theme");
+    // Register Miniscope.Theme (the shared ThemeState + the Theme.qml token
+    // singleton) before any engine loads QML that imports it.
+    registerMiniscopeQmlTypes();
 
     QQmlApplicationEngine engine;
     // For a deployed (standalone) build, find the bundled QML modules next to

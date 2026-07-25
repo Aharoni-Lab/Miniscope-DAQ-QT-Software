@@ -1,5 +1,6 @@
 pragma Singleton
 import QtQuick
+import Miniscope.Theme 1.0 as Shared // for the ThemeState C++ singleton
 
 // Design tokens for the ui-v3 frontend. Every color, size, and font in the
 // QML comes from here — no inline hex values or per-control font settings.
@@ -11,8 +12,10 @@ import QtQuick
 QtObject {
     id: root
 
-    // Persisted/toggled by the shell's theme switch.
-    property bool dark: true
+    // Derived from the process-wide ThemeState (C++): each window's engine has
+    // its own Theme instance, but they all track the same dark flag. Toggle by
+    // writing ThemeState.dark, never this property.
+    readonly property bool dark: Shared.ThemeState.dark
 
     // --- Palette -------------------------------------------------------------
     // Accent stays in the app's historical lavender family so the app remains

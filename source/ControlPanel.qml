@@ -1,6 +1,7 @@
 import QtQuick          // Qt6: unversioned so RegularExpressionValidator (QtQuick 2.14+) resolves
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
+import Miniscope.Theme 1.0
 
 Item {
     id: root
@@ -23,7 +24,7 @@ Item {
 
     Rectangle {
         id: rectangle
-        color: "#cacaca"
+        color: Theme.background
         anchors.fill: parent
     }
 
@@ -63,6 +64,7 @@ Item {
             id: switchExtTrigger
             objectName: "switchExtTrigger"
             text: qsTr("Triggerable")
+            palette.windowText: Theme.textPrimary
             checked: false
             enabled: true
             onToggled: {
@@ -132,22 +134,21 @@ Item {
     //                 anchors.fill: flick1
                      font.pointSize: 10
                      readOnly: true
+                     color: Theme.textPrimary
                      background: Rectangle {
-     //                    radius: rbSelectUserConfig.radius
-    //                     anchors.fill: flick1
-     //                    border.width: 1
-                         color: "#ebebeb"
+                         color: Theme.surface
                      }
                      function log_color(msg, color){
                          return "<span style='color: " + color +  ";' >" + msg + "</span>";
                      }
                      function logMessage(time, msg){
 
-                         var color = "darkgreen";
+                         // Colors picked per theme at log time (rich text bakes them in).
+                         var color = Theme.dark ? "#7ec98f" : "darkgreen";
                          if(msg.toLowerCase().indexOf('error') >= 0){
-                             color = "red";
+                             color = Theme.dark ? "#ff7b7b" : "red";
                          } else if (msg.toLowerCase().indexOf('warning') >= 0){
-                             color = "goldenrod";
+                             color = Theme.dark ? "#e8c35a" : "goldenrod";
                          }
 
                          var _time = log_color(time, "0xFFFFFF")
@@ -193,11 +194,12 @@ Item {
                                 color: "transparent"
                                 anchors.left: parent.left
                                 anchors.leftMargin: 5
-                                border.color: "#555555"
+                                border.color: Theme.border
 
                                 Label {
 
                                     text: root.ucProps[index]
+                                    color: Theme.textPrimary
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     horizontalAlignment: Text.AlignHCenter
                                     anchors.top: parent.top
@@ -315,6 +317,7 @@ Item {
             objectName: "recordTimeText"
 
             text: (root.ucRecordLength > 0) ? root.currentRecordTime.toString() + "/" + root.ucRecordLength.toString() + "s" : root.currentRecordTime.toString() + "s"
+            color: root.recording ? Theme.recording : Theme.textPrimary
             Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             font.pointSize: 12
             font.family: "Arial"

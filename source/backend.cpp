@@ -1132,17 +1132,33 @@ void backEnd::onRecordClicked()
 
 void backEnd::exitClicked()
 {
-    endSession();
+    // force: quitting mid-recording stops the recording cleanly first
+    // (blocking stopRecording in stopSessionThreads), as the app always did.
+    endSessionImpl(true);
     emit closeAll();
 }
 
-// End the acquisition session without quitting the app: join every worker
-// thread, then destroy the session's windows and objects and reset per-session
-// state, so a (possibly different) config can be Run again in this process.
-// Safe to call from the session's own QML (all views die via deleteLater).
+// End the acquisition session without quitting the app. Refuses while a
+// recording is running - ending the session would trash the experiment; the
+// user must Stop first.
 void backEnd::endSession()
 {
+    if (m_recording) {
+        sendMessage("Warning: recording in progress - press Stop before ending the session.");
+        return;
+    }
+    endSessionImpl(false);
+}
+
+// Join every worker thread, then destroy the session's windows and objects and
+// reset per-session state, so a (possibly different) config can be Run again in
+// this process. Safe to call from the session's own QML (all views die via
+// deleteLater).
+void backEnd::endSessionImpl(bool force)
+{
     if (!m_sessionActive)
+        return;
+    if (m_recording && !force)
         return;
     m_sessionActive = false;
 
@@ -1192,7 +1208,16 @@ void backEnd::endSession()
         dataSaver = new DataSaver();
     }
 
+    setRecordingState(false); // stopSessionThreads stopped any recording
     emit sessionActiveChanged();
+}
+
+void backEnd::setRecordingState(bool recording)
+{
+    if (m_recording == recording)
+        return;
+    m_recording = recording;
+    emit recordingChanged();
 }
 
 // Orderly per-session thread teardown, run before the session's objects are
@@ -1264,6 +1289,16 @@ void backEnd::connectSnS()
     // A recording that could not create/continue its files must drop the UI's
     // "Recording" state instead of pretending to record.
     QObject::connect(dataSaver, &DataSaver::recordingFailed, controlPanel, &ControlPanel::onRecordingFailed);
+
+    // Track recording state at the session level: it gates endSession() and
+    // drives the shell's indicators. All start paths (Record button, external
+    // trigger) route through these ControlPanel signals.
+    QObject::connect(controlPanel, &ControlPanel::recordStart, this,
+                     [this](QMap<QString, QVariant>) { setRecordingState(true); });
+    QObject::connect(controlPanel, &ControlPanel::recordStop, this,
+                     [this] { setRecordingState(false); });
+    QObject::connect(dataSaver, &DataSaver::recordingFailed, this,
+                     [this] { setRecordingState(false); });
 
     for (int i = 0; i < miniscope.length(); i++) {
         // For triggering screenshots

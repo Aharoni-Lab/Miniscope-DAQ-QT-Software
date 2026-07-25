@@ -209,6 +209,7 @@ void ControlPanel::recordTimerTick()
         recordTimer->stop();
         recordStop();
         receiveMessage("Recording Stopped.");
+        m_recording = false;   // keep the internal flag in step with the UI state
         rootObject->setProperty("recording", false);
         currentRecordTime = 0;
     }

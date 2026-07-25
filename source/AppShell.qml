@@ -28,7 +28,7 @@ ApplicationWindow {
         category: "ui"
         property bool darkTheme: true
     }
-    Component.onCompleted: Theme.dark = uiSettings.darkTheme
+    Component.onCompleted: ThemeState.dark = uiSettings.darkTheme
 
     // --- Header bar -----------------------------------------------------------
     header: Rectangle {
@@ -92,8 +92,9 @@ ApplicationWindow {
                 Switch {
                     checked: !Theme.dark
                     onToggled: {
-                        Theme.dark = !checked
-                        uiSettings.darkTheme = Theme.dark
+                        // Shared across every window's engine (control panel etc.).
+                        ThemeState.dark = !checked
+                        uiSettings.darkTheme = !checked
                     }
                 }
             }

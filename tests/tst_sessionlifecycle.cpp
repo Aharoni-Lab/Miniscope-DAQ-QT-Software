@@ -25,6 +25,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "backend.h"
+#include "themecontroller.h"
 
 class TestSessionLifecycle : public QObject
 {
@@ -151,6 +152,7 @@ int main(int argc, char *argv[])
     // Match the app: the custom video renderers are raw OpenGL (see main.cpp).
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     QGuiApplication app(argc, argv);
+    registerMiniscopeQmlTypes(); // session windows import Miniscope.Theme
     TestSessionLifecycle tc;
     return QTest::qExec(&tc, argc, argv);
 }

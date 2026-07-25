@@ -29,11 +29,15 @@ Item {
 
                 RowLayout {
                     spacing: Theme.spacing
-                    Rectangle { width: 10; height: 10; radius: 5; color: Theme.success }
+                    Rectangle {
+                        width: 10; height: 10; radius: 5
+                        color: backend && backend.recording ? Theme.recording : Theme.success
+                    }
                     Text {
-                        text: qsTr("Acquisition session running")
+                        text: backend && backend.recording ? qsTr("RECORDING")
+                                                           : qsTr("Acquisition session running")
                         font: Theme.fontTitle
-                        color: Theme.textPrimary
+                        color: backend && backend.recording ? Theme.recording : Theme.textPrimary
                     }
                 }
                 Text {
@@ -61,8 +65,19 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.touchTarget
             // Tears down all session windows/threads and returns to Setup -
-            // load a different config (or the same one) and Run again.
+            // load a different config (or the same one) and Run again. Blocked
+            // while recording (the backend refuses too): stopping the session
+            // mid-recording would end the experiment by accident.
+            enabled: backend ? !backend.recording : false
             onClicked: backend.endSession()
+        }
+
+        Text {
+            visible: backend ? backend.recording : false
+            text: qsTr("Stop the recording before ending the session.")
+            font: Theme.fontSmall
+            color: Theme.textSecondary
+            Layout.alignment: Qt.AlignHCenter
         }
     }
 }

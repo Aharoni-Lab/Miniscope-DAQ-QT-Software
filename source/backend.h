@@ -34,6 +34,7 @@ class backEnd : public QObject
     Q_PROPERTY(QStringList availableCodecs READ availableCodecs CONSTANT)
     Q_PROPERTY(QStringList availableLUTs READ availableLUTs CONSTANT)
     Q_PROPERTY(bool sessionActive READ sessionActive NOTIFY sessionActiveChanged)
+    Q_PROPERTY(bool recording READ recording NOTIFY recordingChanged)
     Q_PROPERTY(QString versionNumber READ versionNumber WRITE setVersionNumber NOTIFY versionNumberChanged)
     Q_PROPERTY(QString buildInfo READ buildInfo WRITE setBuildInfo NOTIFY buildInfoChanged)
 
@@ -56,6 +57,11 @@ public:
     // acquisition windows/threads exist. Lets QML flip between the config
     // (Setup) view and the running-session (Acquire) view.
     bool sessionActive() const { return m_sessionActive; }
+
+    // True while a recording is in progress in the active session. Gates
+    // endSession() (ending the session mid-recording would trash an
+    // experiment); the quit path force-stops the recording cleanly instead.
+    bool recording() const { return m_recording; }
 
     // Live session object counts. Used by the session-lifecycle test to pin the
     // Run -> endSession -> Run cycle (no leftover or doubled devices); will move
@@ -158,6 +164,7 @@ public:
 
 signals:
     void sessionActiveChanged();
+    void recordingChanged();
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();
     void configCheckNotesChanged();
@@ -193,7 +200,13 @@ private:
     // join them, so no thread outlives the objects it uses. Called by
     // endSession(); callers guard with m_sessionActive.
     void stopSessionThreads();
+    // The real teardown behind endSession()/exitClicked(). force=true (quit
+    // path) proceeds even mid-recording: stopSessionThreads() stops the
+    // recording cleanly first, same as the app always did on quit.
+    void endSessionImpl(bool force);
+    void setRecordingState(bool recording);
     bool m_sessionActive = false;
+    bool m_recording = false;
 
     void testCodecSupport();
 
