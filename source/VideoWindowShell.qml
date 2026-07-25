@@ -11,8 +11,11 @@ import Miniscope.Theme 1.0
 //
 // Design: telemetry lives in always-visible status chips over the video (REC
 // state above all - the old windows showed nothing during a recording);
-// hardware controls sit in an auto-hiding right rail, with display-only
-// toggles (saturation / LUT / dFF) separated from sensor controls.
+// hardware controls are always-visible value chips at the top right whose
+// slider/stepper slides out on hover (values glanceable at all times,
+// adjustment UI only when needed); display-only controls (contrast /
+// brightness / saturation / LUT / dFF) and actions sit in an auto-hiding
+// right rail.
 //
 // C++ contract (videodevice/miniscope/behaviorcam.cpp attach by objectName
 // and root signal - keep these stable):
@@ -144,6 +147,62 @@ Item {
         }
     }
 
+    // Inline slider row for the rail's display controls (0-1 range).
+    component RailSlider: RowLayout {
+        id: railSlider
+        property alias iconPath: railSliderIcon.source
+        property alias value: railSliderSlider.value
+        signal moved(double value)
+        spacing: 8
+        Image {
+            id: railSliderIcon
+            width: 18
+            height: 18
+            sourceSize.width: 24
+            sourceSize.height: 24
+            fillMode: Image.PreserveAspectFit
+            Layout.preferredWidth: 18
+            Layout.preferredHeight: 18
+        }
+        Slider {
+            id: railSliderSlider
+            Layout.fillWidth: true
+            from: 0
+            to: 1
+            stepSize: 0.01
+            onValueChanged: railSlider.moved(value)
+            background: Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.availableWidth
+                height: 4
+                radius: 2
+                color: "#3a3a46"
+                Rectangle {
+                    width: railSliderSlider.visualPosition * parent.width
+                    height: parent.height
+                    radius: 2
+                    color: "#7e7ef0"
+                }
+            }
+            handle: Rectangle {
+                x: railSliderSlider.leftPadding + railSliderSlider.visualPosition
+                   * railSliderSlider.availableWidth - width / 2
+                anchors.verticalCenter: parent.verticalCenter
+                width: 14
+                height: 14
+                radius: 7
+                color: railSliderSlider.pressed ? "#a8a7fd" : "#d8d8e0"
+                border.width: 1
+                border.color: "#5a5a68"
+            }
+        }
+        Text {
+            text: railSliderSlider.value.toFixed(2)
+            font: Theme.fontSmall
+            color: "#d8d8e0"
+        }
+    }
+
     // --- Status chips (always visible; fixed dark styling over the video) -----
     component StatusChip: Rectangle {
         property alias text: chipText.text
@@ -199,6 +258,59 @@ Item {
         opacity: 0.9
     }
 
+    // --- Sensor value chips (always visible, top right) ------------------------
+    // Each shows its current value at a glance; hovering a chip slides out
+    // its slider/stepper. The catalog (videoDevices.json) defines which
+    // controls exist per device type; C++ shows and configures them.
+    Column {
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.topMargin: Theme.spacing
+        anchors.rightMargin: 34 // clear of the rail's edge-hover zone
+        spacing: 6
+
+        VideoSpinBoxControl {
+            objectName: "gain"
+            visible: false
+            anchors.right: parent.right
+            iconPath: "img/icon/gain.png"
+            onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
+                root.vidPropChangedSignal("gain", displayValue, i2cValue, i2cValue2)
+        }
+        VideoSpinBoxControl {
+            objectName: "frameRate"
+            visible: false
+            anchors.right: parent.right
+            iconPath: "img/icon/fps.png"
+            onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
+                root.vidPropChangedSignal("frameRate", displayValue, i2cValue, i2cValue2)
+        }
+        VideoSliderControl {
+            objectName: "led0"
+            visible: false
+            anchors.right: parent.right
+            iconPath: "img/icon/led.png"
+            onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
+                root.vidPropChangedSignal("led0", displayValue, i2cValue, i2cValue2)
+        }
+        VideoSliderControl {
+            objectName: "led1"
+            visible: false
+            anchors.right: parent.right
+            iconPath: "img/icon/led.png"
+            onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
+                root.vidPropChangedSignal("led1", displayValue, i2cValue, i2cValue2)
+        }
+        VideoSliderControl {
+            objectName: "ewl"
+            visible: false
+            anchors.right: parent.right
+            iconPath: "img/icon/ewl.png"
+            onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
+                root.vidPropChangedSignal("ewl", displayValue, i2cValue, i2cValue2)
+        }
+    }
+
     // --- Control rail (auto-hide, right edge) ----------------------------------
     // Fixed dark styling: the rail floats over live video, independent of the
     // app theme.
@@ -231,7 +343,7 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     Text {
-                        text: qsTr("Sensor")
+                        text: qsTr("Display (not recorded)")
                         font: Theme.fontSmall
                         color: "#8a8a96"
                     }
@@ -250,81 +362,19 @@ Item {
                     }
                 }
 
-                // Hardware controls: the catalog (videoDevices.json) defines
-                // which exist per device type; C++ shows and configures them.
-                VideoSpinBoxControl {
-                    objectName: "gain"
-                    visible: false
-                    textColor: "#d8d8e0"
-                    iconPath: "img/icon/gain.png"
-                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
-                        root.vidPropChangedSignal("gain", displayValue, i2cValue, i2cValue2)
-                }
-                VideoSpinBoxControl {
-                    objectName: "frameRate"
-                    visible: false
-                    textColor: "#d8d8e0"
-                    iconPath: "img/icon/fps.png"
-                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
-                        root.vidPropChangedSignal("frameRate", displayValue, i2cValue, i2cValue2)
-                }
-                VideoSliderControl {
-                    objectName: "led0"
-                    visible: false
-                    textColor: "#d8d8e0"
-                    iconPath: "img/icon/led.png"
-                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
-                        root.vidPropChangedSignal("led0", displayValue, i2cValue, i2cValue2)
-                }
-                VideoSliderControl {
-                    objectName: "led1"
-                    visible: false
-                    textColor: "#d8d8e0"
-                    iconPath: "img/icon/led.png"
-                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
-                        root.vidPropChangedSignal("led1", displayValue, i2cValue, i2cValue2)
-                }
-                VideoSliderControl {
-                    objectName: "ewl"
-                    visible: false
-                    textColor: "#d8d8e0"
-                    iconPath: "img/icon/ewl.png"
-                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
-                        root.vidPropChangedSignal("ewl", displayValue, i2cValue, i2cValue2)
-                }
-
-                Rectangle { Layout.fillWidth: true; height: 1; color: "#33333d" }
-                Text {
-                    text: qsTr("Display (does not affect recordings)")
-                    font: Theme.fontSmall
-                    color: "#8a8a96"
-                }
-
                 // Contrast/brightness of the on-screen image only; the C++
                 // side routes these straight to the display shader.
-                VideoSliderControl {
-                    id: alphaControl
-                    textColor: "#d8d8e0"
+                RailSlider {
+                    Layout.fillWidth: true
                     iconPath: "img/icon/alpha.png"
-                    startValue: 1
-                    min: 0
-                    max: 1
-                    stepSize: 0.01
-                    decimalPrecision: 2
-                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
-                        root.vidPropChangedSignal("alpha", displayValue, i2cValue, i2cValue2)
+                    value: 1
+                    onMoved: v => root.vidPropChangedSignal("alpha", v, v, 0)
                 }
-                VideoSliderControl {
-                    id: betaControl
-                    textColor: "#d8d8e0"
+                RailSlider {
+                    Layout.fillWidth: true
                     iconPath: "img/icon/beta.png"
-                    startValue: 0
-                    min: 0
-                    max: 1
-                    stepSize: 0.01
-                    decimalPrecision: 2
-                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
-                        root.vidPropChangedSignal("beta", displayValue, i2cValue, i2cValue2)
+                    value: 0
+                    onMoved: v => root.vidPropChangedSignal("beta", v, v, 0)
                 }
 
                 UiSwitch {
