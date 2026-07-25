@@ -27,8 +27,15 @@ MACDEPLOYQT="$CONDA_PREFIX/lib/qt6/bin/macdeployqt"
 [ -x "$MACDEPLOYQT" ] || MACDEPLOYQT="$(command -v macdeployqt)"
 
 echo "### configure + build (USE_PYTHON=OFF)"
+# Speed rebuilds with ccache when it's on PATH (CI caches its dir across runs,
+# and this DMG build reuses objects from the test build earlier in the job); a
+# no-op for local builds that don't have ccache installed.
+CCACHE_ARGS=()
+if command -v ccache >/dev/null 2>&1; then
+    CCACHE_ARGS=(-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+fi
 cmake -B "$BUILD" -S "$REPO" -G Ninja -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" -DUSE_PYTHON=OFF -DBUILD_TESTING=OFF
+      -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" -DUSE_PYTHON=OFF -DBUILD_TESTING=OFF "${CCACHE_ARGS[@]}"
 cmake --build "$BUILD" -j"$(sysctl -n hw.ncpu)"
 
 APP="$BUILD/MiniscopeDAQ.app"

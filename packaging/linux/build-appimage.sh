@@ -25,8 +25,14 @@ DIST="$REPO/dist"
 export APPIMAGE_EXTRACT_AND_RUN="${APPIMAGE_EXTRACT_AND_RUN:-1}"
 
 echo "### configure + build (USE_PYTHON=OFF)"
+# Speed rebuilds with ccache when it's on PATH (CI caches its dir across runs);
+# a no-op for local builds that don't have ccache installed.
+CCACHE_ARGS=()
+if command -v ccache >/dev/null 2>&1; then
+    CCACHE_ARGS=(-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
+fi
 cmake -B "$BUILD" -S "$REPO" -G Ninja -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" -DUSE_PYTHON=OFF
+      -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" -DUSE_PYTHON=OFF "${CCACHE_ARGS[@]}"
 cmake --build "$BUILD" -j"$(nproc)"
 
 echo "### fetch linuxdeploy + qt plugin (cached in $TOOLS)"

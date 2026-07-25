@@ -63,10 +63,20 @@ jobs:
         shell: pwsh
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Cache the conda package downloads (setup-miniconda's default pkgs dir) so
+      # the ~1-2 GB Qt/OpenCV stack isn't re-fetched every run. Keyed on
+      # environment.yml; restore-keys let an unrelated edit still reuse most of it.
+      - name: Cache conda packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/conda_pkgs_dir
+          key: ${{ runner.os }}-conda-${{ hashFiles('environment.yml') }}
+          restore-keys: ${{ runner.os }}-conda-
 
       - name: Set up conda env (Miniforge + environment.yml)
-        uses: conda-incubator/setup-miniconda@v4
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
         with:
           miniforge-version: latest
           environment-file: environment.yml
@@ -74,7 +84,7 @@ jobs:
           auto-activate: false
 
       - name: Set up MSVC toolchain (x64)
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: x64
 
@@ -152,7 +162,7 @@ jobs:
 
       - name: Upload Windows artifacts
         if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: MiniscopeDAQ-Windows-x64
           path: |
@@ -167,22 +177,41 @@ jobs:
   # see BUILD_LINUX.md), then packaged with linuxdeploy + its Qt plugin.
   build-linux:
     runs-on: ubuntu-latest
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache   # cached below; build-appimage.sh picks up ccache
     defaults:
       run:
         shell: bash -el {0}    # login shell so `conda activate` works
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # OpenGL/EGL dev libs for linking Qt6::OpenGL on the runner (conda provides
-      # Qt/OpenCV/ninja; the GL loader libs come from the system).
+      # Qt/OpenCV/ninja; the GL loader libs come from the system) + ccache.
       - name: Install system build libs
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-dev libegl1-mesa-dev libglu1-mesa-dev
+          sudo apt-get install -y libgl1-mesa-dev libegl1-mesa-dev libglu1-mesa-dev ccache
+
+      # See the Windows job for the conda-package cache rationale.
+      - name: Cache conda packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/conda_pkgs_dir
+          key: ${{ runner.os }}-conda-${{ hashFiles('environment.yml') }}
+          restore-keys: ${{ runner.os }}-conda-
+
+      # Reuse compiled objects across runs; restore-keys grabs the most recent
+      # cache when this commit's exact key misses.
+      - name: Cache ccache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ${{ runner.os }}-ccache-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-ccache-
 
       - name: Set up conda env (Miniforge + environment.yml)
-        uses: conda-incubator/setup-miniconda@v4
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
         with:
           miniforge-version: latest
           environment-file: environment.yml
@@ -220,7 +249,7 @@ jobs:
 
       - name: Upload Linux artifact
         if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: MiniscopeDAQ-Linux-x86_64
           path: |
@@ -240,29 +269,54 @@ jobs:
   # script later without workflow changes.
   build-macos:
     runs-on: macos-latest    # arm64 (Apple Silicon)
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache   # cached below; used by both builds in this job
     defaults:
       run:
         shell: bash -el {0}    # login shell so the conda env is active
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # See the Windows job for the conda-package cache rationale.
+      - name: Cache conda packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/conda_pkgs_dir
+          key: ${{ runner.os }}-conda-${{ hashFiles('environment.yml') }}
+          restore-keys: ${{ runner.os }}-conda-
+
+      # Shared by the inline test build and the DMG build (build-dmg.sh), and
+      # reused across runs via restore-keys.
+      - name: Cache ccache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ${{ runner.os }}-ccache-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-ccache-
 
       - name: Set up conda env (Miniforge + environment.yml)
-        uses: conda-incubator/setup-miniconda@v4
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
         with:
           miniforge-version: latest
           environment-file: environment.yml
           activate-environment: miniscope-qt6
           auto-activate: false
 
+      - name: Install ccache
+        run: conda install -n miniscope-qt6 -c conda-forge -y ccache
+
       # USE_PYTHON=OFF so the tested tree matches the shipped DMG (build-dmg.sh
       # also builds OFF); DeepLabCut-Live is not bundled on any platform.
+      # The compiler launchers route this build through ccache too.
       - name: Configure (CMake + Ninja)
         run: >
           cmake -B build -S . -G Ninja
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_PREFIX_PATH="$CONDA_PREFIX"
           -DUSE_PYTHON=OFF
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build (Release)
         run: cmake --build build
@@ -289,7 +343,7 @@ jobs:
 
       - name: Upload macOS artifact
         if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: MiniscopeDAQ-macOS-arm64
           path: ${{ env.DMG_PATH }}
@@ -307,7 +361,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Assert tag matches CMakeLists.txt version
         env:
           TAG: ${{ github.ref_name }}
@@ -335,10 +389,10 @@ jobs:
       contents: write        # only this job writes the Release
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download all build artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: artifacts       # each artifact lands in artifacts/<name>/
 
@@ -356,7 +410,7 @@ jobs:
           echo "----- release notes -----"; cat RELEASE_NOTES.md
 
       - name: Publish Release (draft)
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           files: artifacts/**/*
           fail_on_unmatched_files: true
