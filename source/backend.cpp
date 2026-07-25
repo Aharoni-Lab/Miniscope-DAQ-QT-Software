@@ -6,6 +6,7 @@
 #include <QSettings>
 #include <QStorageInfo>
 #include <QQmlEngine>
+#include <QJSValue>
 #include <QWindow>
 #include <cmath>
 #include <QFileDialog>
@@ -990,7 +991,14 @@ void backEnd::setConfigValue(const QVariantList &path, const QVariant &value)
     if (keys.isEmpty())
         return;
 
-    QJsonValue v = QJsonValue::fromVariant(value);
+    // A JS array/object (e.g. the folder-structure editor) reaches this
+    // QVariant parameter wrapped in a QJSValue, which QJsonValue::fromVariant
+    // cannot convert. Unwrap it to a QVariantList/QVariantMap first.
+    QVariant plain = value;
+    if (plain.userType() == qMetaTypeId<QJSValue>())
+        plain = plain.value<QJSValue>().toVariant();
+
+    QJsonValue v = QJsonValue::fromVariant(plain);
     // QML numbers arrive as doubles; store integral values as JSON ints so
     // integer-typed schema fields (deviceID, framesPerFile, ...) stay integers.
     if (v.isDouble()) {

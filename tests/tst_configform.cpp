@@ -13,6 +13,7 @@
 #include <QQmlEngine>
 #include <QQmlComponent>
 #include <QQmlContext>
+#include <QQmlExpression>
 #include <QQuickItem>
 #include <QQuickStyle>
 #include <QJsonDocument>
@@ -31,6 +32,7 @@ private slots:
     void formApiRoundTrip();
     void dirtyTracking();
     void configFormQml();
+    void directoryStructureArrayEdit();
 
 private:
     // setUserConfigFileName() expects a file URL (it comes from QML file
@@ -211,6 +213,50 @@ void TestConfigForm::configFormQml()
     QQuickItem *hint = form->findChild<QQuickItem *>("traceSourceHint");
     QVERIFY2(hint, "traceSourceHint missing from ConfigForm.qml");
     QVERIFY(hint->isVisible());
+}
+
+// The "Folder structure" field writes a JS array of strings through
+// form.set -> backend.setConfigValue. A JS array arrives at a QVariant
+// parameter wrapped in a QJSValue, which QJsonValue::fromVariant cannot turn
+// into a JSON array on its own — so the value was stored as null, the config
+// failed schema validation ("type not permitted"), and the field blanked on
+// the next edit. This drives the real QML write path to pin the fix.
+void TestConfigForm::directoryStructureArrayEdit()
+{
+    backEnd backend;
+    loadExampleConfig(backend);
+
+    QQmlEngine engine;
+    engine.rootContext()->setContextProperty("backend", &backend);
+    QQmlComponent component(&engine, QUrl("qrc:/ConfigForm.qml"));
+    QScopedPointer<QObject> form(component.create());
+    QVERIFY2(form, "ConfigForm.qml failed to create");
+
+    // Exactly what the field's onTextEdited does: a JS array literal handed to
+    // form.set(). QQmlExpression evaluates it in the form's own JS scope.
+    QQmlExpression expr(engine.rootContext(), form.data(),
+        "set(['directoryStructure'], ['researcherName', 'animalName', 'date', 'time'])");
+    bool valueIsUndefined = false;
+    expr.evaluate(&valueIsUndefined);
+    QVERIFY2(!expr.hasError(), qPrintable(expr.error().toString()));
+
+    // Must be stored as a 4-element string array, not null.
+    const QVariantList stored =
+        backend.userConfigJson().value("directoryStructure").toList();
+    QCOMPARE(stored.size(), 4);
+    QCOMPARE(stored.at(0).toString(), QStringLiteral("researcherName"));
+    QCOMPARE(stored.at(3).toString(), QStringLiteral("time"));
+
+    // The raw JSON must round-trip as a JSON array of strings...
+    const QJsonValue ds = QJsonDocument::fromJson(backend.rawConfigJson().toUtf8())
+                              .object().value("directoryStructure");
+    QVERIFY2(ds.isArray(), "directoryStructure did not serialize as a JSON array");
+    QCOMPARE(ds.toArray().size(), 4);
+
+    // ...and the schema check must not reject it.
+    QVERIFY2(!backend.configCheckNotes().contains("directoryStructure"),
+             qPrintable("config check flagged directoryStructure: "
+                        + backend.configCheckNotes()));
 }
 
 int main(int argc, char *argv[])
