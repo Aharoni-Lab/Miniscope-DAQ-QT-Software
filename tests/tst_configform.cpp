@@ -203,6 +203,14 @@ void TestConfigForm::configFormQml()
     const QString firstScope = devs.value("miniscopes").toMap().firstKey();
     backend.removeDevice("miniscopes", firstScope);
     QCOMPARE(form->property("deviceRows").toList().size(), expected - 1);
+
+    // The trace-display card warns when the config has traceDisplay enabled
+    // but no source that ever feeds traces. The example config enables
+    // traceDisplay with its tracker disabled, so removing the only miniscope
+    // (above) must surface the hint.
+    QQuickItem *hint = form->findChild<QQuickItem *>("traceSourceHint");
+    QVERIFY2(hint, "traceSourceHint missing from ConfigForm.qml");
+    QVERIFY(hint->isVisible());
 }
 
 int main(int argc, char *argv[])

@@ -690,6 +690,7 @@ Item {
                                    && cams !== null && Object.keys(cams).length > 0
                         }
                         Text {
+                            objectName: "traceSourceHint"
                             visible: traceCard.switchChecked === true
                                      && !traceCard.hasTraceSource
                             Layout.fillWidth: true
