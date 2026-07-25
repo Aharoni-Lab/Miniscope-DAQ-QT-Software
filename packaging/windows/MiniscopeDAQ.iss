@@ -7,10 +7,14 @@
 ; shortcut, optional desktop shortcut, and an entry in "Add or Remove Programs"
 ; with a working uninstaller.
 ;
-; Per-user is deliberate: the launcher writes ./userConfigs relative to the
-; install dir, so the app must land somewhere the user can write to. {autopf}
-; with PrivilegesRequired=lowest resolves to %LocalAppData%\Programs, which is
-; user-writable and needs no elevation.
+; Per-user is deliberate: the launcher sets the working dir to the install root
+; and the app refreshes ./deviceConfigs + ./Scripts there, so the app must land
+; somewhere the user can write to. {autopf} with PrivilegesRequired=lowest
+; resolves to %LocalAppData%\Programs, which is user-writable and needs no
+; elevation. The user's OWN configs and recordings do NOT live here - the app
+; seeds them into %USERPROFILE%\Documents\Miniscope on first run (see
+; BundlePaths::seedUserDataDirs), so they survive upgrades and uninstall. The
+; userConfigs shipped into {app} below are read-only seed examples.
 ;
 ; Build locally (after `cmake --build build --config Release --target deploy`):
 ;   iscc packaging\windows\MiniscopeDAQ.iss
@@ -49,8 +53,9 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 ; Controls the wizard caption AND the "Add or Remove Programs" display name.
 ; Without this, Inno shows "<AppName> version <AppVersion>"; set it explicitly
-; for a clean "Miniscope DAQ 1.2" that matches the version shown in the app's
-; Help (sourced from source/main.cpp VERSION_NUMBER - see the CI step).
+; for a clean "Miniscope DAQ 2.0.0" that matches the version shown in the app's
+; Help. MyAppVersion is passed in by CI from CMakeLists.txt's project() version
+; (the single source of truth) - see the "Build installer" step.
 AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}

@@ -85,6 +85,17 @@ static QString defaultEnvDir(const char *name, const QString &dirPath)
     return dir;
 }
 
+void seedUserDataDirs(const QString &seedRoot)
+{
+    const QString docs =
+        QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)
+        + QStringLiteral("/Miniscope");
+    const QString userConfigDir =
+        defaultEnvDir("MINISCOPE_USERCONFIG_DIR", docs + QStringLiteral("/userConfigs"));
+    seedDirectory(seedRoot + QStringLiteral("/userConfigs"), userConfigDir);
+    defaultEnvDir("MINISCOPE_DATA_DIR", docs + QStringLiteral("/data"));
+}
+
 bool prepareBundleRuntime()
 {
     const QString resources =
@@ -103,16 +114,11 @@ bool prepareBundleRuntime()
         return false;
     }
 
-    const QString docs =
-        QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)
-        + QStringLiteral("/Miniscope");
-    const QString userConfigDir =
-        defaultEnvDir("MINISCOPE_USERCONFIG_DIR", docs + QStringLiteral("/userConfigs"));
-    seedDirectory(resources + QStringLiteral("/userConfigs"), userConfigDir);
-    defaultEnvDir("MINISCOPE_DATA_DIR", docs + QStringLiteral("/data"));
+    seedUserDataDirs(resources);
 
     qInfo().nospace() << "Bundle runtime: working dir " << work
-                      << ", user configs " << userConfigDir;
+                      << ", user configs "
+                      << qEnvironmentVariable("MINISCOPE_USERCONFIG_DIR");
     return true;
 }
 

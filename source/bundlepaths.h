@@ -4,15 +4,17 @@
 #include <QString>
 #include <QStringList>
 
-// Runtime path setup for the packaged macOS .app bundle.
+// Runtime path setup for packaged builds.
 //
 // The app reads its runtime data (./deviceConfigs, ./Scripts) and the example
 // user configs relative to the WORKING DIRECTORY - fine for a dev build run
 // from the repo root, wrong for a double-clicked .app whose working directory
-// is "/". The Windows launcher and the Linux AppImage wrapper solve this
-// outside the app; on macOS a wrapper script inside the bundle would break
-// code signing and TCC camera-permission attribution, so the same setup runs
-// natively in main() instead (prepareBundleRuntime below, macOS-only call).
+// is "/". The Linux AppImage wrapper solves this entirely outside the app; on
+// macOS a wrapper script inside the bundle would break code signing and TCC
+// camera-permission attribution, so the full setup runs natively in main()
+// instead (prepareBundleRuntime below, macOS-only call). On Windows the
+// launcher already puts the working directory at the install root, so main()
+// only needs the user-config/data half of the contract (seedUserDataDirs).
 //
 // The helpers are plain path->path functions so the unit tests can exercise
 // them against temp directories on every platform.
@@ -34,6 +36,16 @@ bool refreshWorkingData(const QString &srcRoot, const QString &workRoot,
 // (user edits survive upgrades). Creates dstDir. Returns the number seeded,
 // or -1 if dstDir cannot be created.
 int seedDirectory(const QString &srcDir, const QString &dstDir);
+
+// Point the user's config/data folders at ~/Documents/Miniscope and seed the
+// example user configs there (from seedRoot/userConfigs, never clobbering
+// existing files). Defaults MINISCOPE_USERCONFIG_DIR / MINISCOPE_DATA_DIR
+// (respecting any preexisting values) so the config open/save dialogs and the
+// new-config data directory land in ~/Documents/Miniscope/{userConfigs,data} -
+// OUTSIDE the install dir, so the user's own configs and recordings survive an
+// upgrade (which refreshes the install dir) and an uninstall (which deletes
+// it). Shared by the macOS bundle path and the Windows launcher path.
+void seedUserDataDirs(const QString &seedRoot);
 
 // Full bundle bootstrap, called from main() on macOS before the backend is
 // constructed (it reads ./deviceConfigs in its constructor). No-op (returns

@@ -14,8 +14,10 @@
 #include <QStyleHints>
 
 #include "backend.h"
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) || defined(Q_OS_WIN)
 #include "bundlepaths.h"
+#include <QDir>
+#include <QFileInfo>
 #endif
 
 #include <opencv2/core/version.hpp>   // CV_VERSION (e.g. "4.13.0"); macro-only header
@@ -48,12 +50,23 @@ int main(int argc, char *argv[])
 
     QGuiApplication app(argc, argv);
 
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS)
     // Packaged .app: switch to a writable working directory holding the
     // app-internal configs and default the user-config/data folders, BEFORE
     // the backend is constructed (it reads ./deviceConfigs in its
     // constructor). No-op for dev builds run from the repo root.
     BundlePaths::prepareBundleRuntime();
+#elif defined(Q_OS_WIN)
+    // Packaged Windows build: the launcher has already set the working
+    // directory to the install root (holding deviceConfigs/Scripts/userConfigs),
+    // so unlike macOS we only need the user-config/data half of the contract:
+    // seed the example configs into ~/Documents/Miniscope and point the dialogs
+    // there, so the user's own configs and recordings live outside the install
+    // dir (which upgrades refresh and uninstall deletes). Detected by the real
+    // exe living under .../bin (the deployed layout); a dev build run straight
+    // from the build tree keeps the run-from-CWD behavior.
+    if (QFileInfo(QCoreApplication::applicationDirPath()).fileName() == QLatin1String("bin"))
+        BundlePaths::seedUserDataDirs(QDir::currentPath());
 #endif
 
     // Qt6: the default Controls style on Windows is the native style, which does
