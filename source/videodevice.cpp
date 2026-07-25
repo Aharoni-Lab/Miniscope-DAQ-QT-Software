@@ -358,17 +358,25 @@ void VideoDevice::defineDeviceAddrs()
 }
 
 void VideoDevice::parseUserConfigDevice() {
-    // Currently not needed. If arrays get added into JSON config then this might
-    m_deviceName = m_ucDevice["deviceName"].toString("VideoDevice " + QString::number(m_ucDevice["deviceID"].toInt()));
-    m_compressionType = m_ucDevice["compression"].toString("None");
+    // .value() everywhere: QJsonObject's non-const operator[] INSERTS a null
+    // for a missing key, and (keys being kept sorted) that insertion shifts
+    // the index under any QJsonValueRef already taken from the same object.
+    // With no "deviceID" in the config (file-playback devices), the old
+    // ["deviceName"].toString(... ["deviceID"] ...) line hit exactly that:
+    // the deviceName ref went stale and every playback device fell back to
+    // "VideoDevice 0".
+    m_deviceName = m_ucDevice.value("deviceName")
+                       .toString("VideoDevice " + QString::number(m_ucDevice.value("deviceID").toInt()));
+    m_compressionType = m_ucDevice.value("compression").toString("None");
 
     if (m_ucDevice.contains("ROI")) {
         // User Config defines ROI Bounding Box
+        const QJsonObject roi = m_ucDevice.value("ROI").toObject();
         m_roiIsDefined = true;
-        m_roiBoundingBox[0] = m_ucDevice["ROI"].toObject()["leftEdge"].toInt(-1);
-        m_roiBoundingBox[1] = m_ucDevice["ROI"].toObject()["topEdge"].toInt(-1);
-        m_roiBoundingBox[2] = m_ucDevice["ROI"].toObject()["width"].toInt(-1);
-        m_roiBoundingBox[3] = m_ucDevice["ROI"].toObject()["height"].toInt(-1);
+        m_roiBoundingBox[0] = roi.value("leftEdge").toInt(-1);
+        m_roiBoundingBox[1] = roi.value("topEdge").toInt(-1);
+        m_roiBoundingBox[2] = roi.value("width").toInt(-1);
+        m_roiBoundingBox[3] = roi.value("height").toInt(-1);
         // TODO: Throw error is values are incorrect or missing
     }
 //    else {

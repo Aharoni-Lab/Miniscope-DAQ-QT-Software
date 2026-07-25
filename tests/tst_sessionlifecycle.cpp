@@ -128,6 +128,15 @@ void TestSessionLifecycle::runEndRunCycle()
     QVERIFY(backend.sessionActive());
     QCOMPARE(backend.sessionCameraCount(), 1);
     QCOMPARE(backend.sessionMiniscopeCount(), 0);
+
+    // Pane descriptors: the camera pane plus the control panel, carrying the
+    // CONFIG's device name (a playback device has no deviceID - the old
+    // operator[] lookup corrupted its name to "VideoDevice 0").
+    const QVariantList panes = backend.sessionPanes();
+    QCOMPARE(panes.size(), 2);
+    QCOMPARE(panes[0].toMap().value("name").toString(), QStringLiteral("PlaybackCam"));
+    QVERIFY(panes[0].toMap().value("window").value<QObject *>() != nullptr);
+    QCOMPARE(panes[1].toMap().value("name").toString(), QStringLiteral("Control Panel"));
     drainEvents(500); // let the capture + saver threads actually run a bit
 
     backend.endSession();

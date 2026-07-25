@@ -157,7 +157,7 @@ void backEnd::setUserConfigFileName(const QString &input)
     if (furl.contains(".json")) {
         if (furl != m_userConfigFileName) {
             m_userConfigFileName = furl;
-            //emit userConfigFileNameChanged();
+            emit userConfigFileNameChanged(); // header shows the loaded path
         }
 
         handleUserConfigFileNameChanged();

@@ -32,8 +32,10 @@ Item {
     }
 
     // Apply the saved layout when a session's panes appear (and reset state
-    // when they clear at session end).
+    // when they clear at session end). Also on creation, in case the session
+    // was already running when this view instantiated.
     onPanesChanged: restoreLayout()
+    Component.onCompleted: restoreLayout()
     function restoreLayout() {
         var st = {}
         if (panes.length > 0) {

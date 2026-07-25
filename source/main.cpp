@@ -7,6 +7,7 @@
 #include <QTreeView>
 
 #include <QThreadPool>
+#include <QTimer>
 
 #include <QQuickWindow>
 #include <QSGRendererInterface>
@@ -117,5 +118,39 @@ int main(int argc, char *argv[])
 //    qDebug() << "TTTEEEE" << engine.rootObjects().first()->findChild<QObject*>("treeView");
 //    QObject::connect(engine.rootObjects().first()->findChild<QObject*>("treeView"), &QTreeView::clicked, &backend, &backEnd::treeViewclicked);
     QObject::connect(&backend, &backEnd::closeAll, &engine, &QQmlApplicationEngine::quit);
+
+    // Development hook: load the given config and Run immediately, so the full
+    // Acquire path can be exercised (and screenshotted) without any clicking.
+    const QString autorunConfig = qEnvironmentVariable("MINISCOPE_AUTORUN_CONFIG");
+    if (!autorunConfig.isEmpty()) {
+        backend.setUserConfigFileName(QUrl::fromLocalFile(autorunConfig).toString());
+        if (backend.userConfigOK())
+            backend.onRunClicked();
+        else
+            qWarning() << "MINISCOPE_AUTORUN_CONFIG: config failed checks, not running:"
+                       << autorunConfig;
+
+        // Companion hook: after the session has run a few seconds, grab every
+        // visible Quick window (shell + panes, GL underlays included) to PNGs
+        // in the given directory, then quit. For automated visual checks.
+        const QString shotDir = qEnvironmentVariable("MINISCOPE_AUTORUN_SHOT_DIR");
+        if (!shotDir.isEmpty()) {
+            QTimer::singleShot(6000, &backend, [shotDir]() {
+                int i = 0;
+                const auto windows = QGuiApplication::allWindows();
+                for (QWindow *w : windows) {
+                    auto *qw = qobject_cast<QQuickWindow *>(w);
+                    if (!qw || !qw->isVisible())
+                        continue;
+                    const QString title = qw->title().isEmpty() ? QStringLiteral("pane")
+                                                                : qw->title();
+                    qw->grabWindow().save(QStringLiteral("%1/win%2_%3.png")
+                                              .arg(shotDir).arg(i++).arg(title));
+                }
+                QCoreApplication::quit();
+            });
+        }
+    }
+
     return app.exec();
 }
