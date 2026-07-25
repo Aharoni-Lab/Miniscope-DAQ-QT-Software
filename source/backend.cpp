@@ -1145,7 +1145,14 @@ void backEnd::setPaneEmbedded(QObject *paneWindow, bool embedded, double aspect)
         view->setMinimumSize(QSize(0, 0));
     } else {
         view->setParent(nullptr); // release from the container -> top-level again
+#ifdef Q_OS_WINDOWS
+        // Same flags createView uses: resizable + minimizable, but no maximize
+        // (it would break the locked aspect ratio).
+        view->setFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+                       | Qt::WindowMinimizeButtonHint);
+#else
         view->setFlags(Qt::Window);
+#endif
         view->setLockedAspectRatio(aspect > 0 ? aspect : 0);
         view->setMinimumSize(QSize(240, 180));
         view->show();
