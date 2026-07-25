@@ -9,8 +9,6 @@
 #include <QString>
 #include <QStringList>
 #include <QUrl>
-#include <QStandardItemModel>
-#include <QStandardItem>
 
 #include "miniscope.h"
 #include "behaviorcam.h"
@@ -38,7 +36,6 @@ class backEnd : public QObject
     Q_PROPERTY(QString versionNumber READ versionNumber WRITE setVersionNumber NOTIFY versionNumberChanged)
     Q_PROPERTY(QString buildInfo READ buildInfo WRITE setBuildInfo NOTIFY buildInfoChanged)
 
-    Q_PROPERTY(QStandardItemModel* jsonTreeModel READ jsonTreeModel WRITE setJsonTreeModel NOTIFY jsonTreeModelChanged)
     // The loaded user config as a QML value (maps/lists), for the form editor.
     // Re-read on userConfigJsonChanged; mutate ONLY via setConfigValue /
     // removeConfigKey / addDevice / removeDevice so unknown and COMMENT_* keys
@@ -85,10 +82,10 @@ public:
     QString availableCodecList(){ return m_availableCodecList; }
     void setAvailableCodecList(const QString &input);
 
-    // List of host-supported codecs, for the compression dropdown in the tree editor.
+    // List of host-supported codecs, for the form editor's compression dropdowns.
     QStringList availableCodecs() const { return QStringList(m_availableCodec.begin(), m_availableCodec.end()); }
 
-    // Display LUTs (colormaps) offered in the tree editor's "lut" dropdown. Must
+    // Display LUTs (colormaps) offered in the form editor's "lut" dropdown. Must
     // stay in sync with the lutMode mapping in VideoDevice::createView and the
     // shader. "None" = grayscale.
     QStringList availableLUTs() const { return {"None", "Green", "Red", "Inferno"}; }
@@ -98,9 +95,6 @@ public:
 
     QString buildInfo() { return m_buildInfo; }
     void setBuildInfo(const QString &input) { m_buildInfo = input; emit buildInfoChanged(); }
-
-    QStandardItemModel* jsonTreeModel() { return m_jsonTreeModel; }
-    void setJsonTreeModel(QStandardItemModel* model) { m_jsonTreeModel = model; }
 
     // --- Form-editor API -------------------------------------------------------
     QVariantMap userConfigJson() const { return m_userConfig.toVariantMap(); }
@@ -122,10 +116,8 @@ public:
     // Serial ports for the commutator's port picker: [{name, label}, ...].
     Q_INVOKABLE QVariantList availableSerialPorts() const;
 
-    void constructJsonTreeModel();
-    Q_INVOKABLE void treeViewTextChanged(const QModelIndex &index, QString text);
     // Convert a file:// URL from a QML folder/file dialog to a native path, so
-    // the path-browse buttons in the config tree editor can store a plain path.
+    // the path-browse buttons in the config form editor can store a plain path.
     Q_INVOKABLE QString urlToLocalFile(const QUrl &url) const { return url.toLocalFile(); }
     // Inverse of urlToLocalFile: build a file:// URL to seed the Save-As dialog.
     Q_INVOKABLE QUrl localFileToUrl(const QString &path) const { return QUrl::fromLocalFile(path); }
@@ -136,12 +128,6 @@ public:
         const QString dir = qEnvironmentVariable("MINISCOPE_USERCONFIG_DIR");
         return dir.isEmpty() ? QUrl() : QUrl::fromLocalFile(dir);
     }
-    QStandardItem *handleJsonObject(QStandardItem* parent, QJsonObject obj, QJsonObject objProps);
-    QStandardItem *handleJsonArray(QStandardItem* parent, QJsonArray arry, QString type);
-    void generateUserConfigFromModel();
-    QJsonObject getObjectFromModel(QModelIndex index);
-    QJsonArray getArrayFromModel(QModelIndex index);
-    Q_INVOKABLE void saveConfigObject();
     // Save the (edited) user config to a user-chosen path from the Save-As dialog.
     Q_INVOKABLE void saveConfigObjectAs(const QString &filePath);
     // Enumerate connected video devices as "deviceID N: <name>" lines so the user
@@ -198,7 +184,6 @@ signals:
     void availableCodecListChanged();
     void versionNumberChanged();
     void buildInfoChanged();
-    void jsonTreeModelChanged();
     void userConfigJsonChanged();
 
     void closeAll();
@@ -308,11 +293,6 @@ private:
     QVector<QString> unAvailableCodec;
 
     qint64 m_softwareStartTime;
-
-    QHash <int,QByteArray> roles;
-    QStandardItemModel* m_jsonTreeModel;
-    QVector<QStandardItem*> m_standardItem;
-
 };
 
 #endif // BACKEND_H

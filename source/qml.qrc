@@ -50,7 +50,6 @@
         <file>shaders/tracker.frag</file>
         <file>shaders/trackerOverlay.frag</file>
         <file>shaders/trackerOverlay.vert</file>
-        <file>TreeViewerJSON.qml</file>
         <file>AddDeviceDialog.qml</file>
     </qresource>
 </RCC>

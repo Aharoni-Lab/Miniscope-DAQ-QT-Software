@@ -18,9 +18,6 @@
 #include <QUrl>
 #include <QString>
 #include <QDateTime>
-#include <QStandardItemModel>
-#include <QStandardItem>
-#include <QModelIndex>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -66,8 +63,7 @@ backEnd::backEnd(QObject *parent) :
     m_userConfigFileName(""),
     m_userConfigOK(false),
     traceDisplay(nullptr),
-    behavTracker(nullptr),
-    m_jsonTreeModel(new QStandardItemModel())
+    behavTracker(nullptr)
 {
 #ifdef DEBUG
 //    QString homePath = QDir::homePath();
@@ -180,349 +176,6 @@ void backEnd::setAvailableCodecList(const QString &input)
     m_availableCodecList = input;
 }
 
-void backEnd::constructJsonTreeModel()
-{
-    m_jsonTreeModel->clear();
-    m_jsonTreeModel->setColumnCount(3);
-    m_standardItem.clear();
-
-
-    roles[Qt::UserRole + 1] = "key";
-    roles[Qt::UserRole + 2] = "value";
-    roles[Qt::UserRole + 3] = "type";
-    roles[Qt::UserRole + 4] = "tips";
-
-    m_jsonTreeModel->setItemRoleNames(roles);
-//    qDebug() << "ROLE" << m_jsonTreeModel->roleNames();
-
-//    QStandardItem *parentItem = m_jsonTreeModel->invisibleRootItem();
-
-    QStringList keys = m_userConfig.keys();
-    QString tempType;
-    QString tempS;
-    for (int i=0; i < keys.length(); i++) {
-        if (!keys[i].contains("COMMENT")) {
-            tempType = m_configProps[keys[i]].toObject()["type"].toString("String");
-            tempS = m_userConfig[keys[i]].toString();
-            if (tempType.contains("path") || tempType.contains("Path")) {
-
-                tempS = tempS.replace("\\","/"); // Corrects the slashes
-            }
-
-            if(m_userConfig[keys[i]].isObject()) {
-                m_standardItem.append(new QStandardItem());
-                m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
-                m_standardItem.last()->setData("", Qt::UserRole + 2);
-                m_standardItem.last()->setData("Object", Qt::UserRole + 3);
-    //            m_standardItem.append(handleJsonObject(m_standardItem.last(), m_userConfig[keys[i]].toObject()));
-                m_jsonTreeModel->appendRow(handleJsonObject(m_standardItem.last(), m_userConfig[keys[i]].toObject(), m_configProps[keys[i]].toObject()));
-            }
-            else if (m_userConfig[keys[i]].isArray()) {
-                m_standardItem.append(new QStandardItem());
-                m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
-                m_standardItem.last()->setData("", Qt::UserRole + 2);
-                m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["type"].toString(), Qt::UserRole + 3);
-                m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
-                m_jsonTreeModel->appendRow(handleJsonArray(m_standardItem.last(), m_userConfig[keys[i]].toArray(), m_configProps[keys[i]].toObject()["type"].toString()));
-
-            }
-            else if (m_userConfig[keys[i]].isString()){
-                m_standardItem.append(new QStandardItem());
-                m_standardItem.last()->setColumnCount(3);
-                m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
-                m_standardItem.last()->setData(tempS, Qt::UserRole + 2);
-                m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["type"].toString("String"), Qt::UserRole + 3);
-                m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
-                m_jsonTreeModel->appendRow(m_standardItem.last());
-            }
-            else if (m_userConfig[keys[i]].isBool()) {
-                m_standardItem.append(new QStandardItem());
-                m_standardItem.last()->setColumnCount(3);
-                m_standardItem.last()->setData(keys[i],Qt::UserRole + 1);
-                m_standardItem.last()->setData(m_userConfig[keys[i]].toBool(),Qt::UserRole + 2);
-                m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["type"].toString("Bool"),Qt::UserRole + 3);
-                m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
-                m_jsonTreeModel->appendRow(m_standardItem.last());
-            }
-            else if (m_userConfig[keys[i]].isDouble()) {
-                m_standardItem.append(new QStandardItem());
-                m_standardItem.last()->setColumnCount(3);
-                m_standardItem.last()->setData(keys[i],Qt::UserRole + 1);
-                m_standardItem.last()->setData(m_userConfig[keys[i]].toDouble(),Qt::UserRole + 2);
-                m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["type"].toString("Double"),Qt::UserRole + 3);
-                m_standardItem.last()->setData(m_configProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
-                m_jsonTreeModel->appendRow(m_standardItem.last());
-            }
-        }
-    }
-}
-
-void backEnd::treeViewTextChanged(const QModelIndex &index, QString text)
-{
-    if (index.isValid()) {
-
-        QStandardItem *item = m_jsonTreeModel->itemFromIndex(index);
-
-        if (item->data(Qt::UserRole + 3).toString().contains("path") || item->data(Qt::UserRole + 3).toString().contains("Path") ) {
-            text = text.replace("\\","/");
-        }
-
-        item->setData(text,Qt::UserRole + 2);
-//        qDebug() << "TEXT!"  << item->data(Qt::UserRole + 1) << item->data(Qt::UserRole + 2) << text;
-    }
-}
-
-QStandardItem *backEnd::handleJsonObject(QStandardItem *parent, QJsonObject obj, QJsonObject objProps)
-{
-    QStringList keys = obj.keys();
-
-    QString tempType;
-    QString tempS;
-
-    for (int i=0; i < keys.length(); i++) {
-        if (!keys[i].contains("COMMENT")) {
-
-            tempType = objProps[keys[i]].toObject()["type"].toString();
-            tempS = obj[keys[i]].toString();
-            if (tempType.contains("path") || tempType.contains("Path")) {
-                tempS = tempS.replace("\\","/"); // Corrects the slashes
-            }
-
-            if(obj[keys[i]].isObject()) {
-                m_standardItem.append(new QStandardItem());
-                m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
-                m_standardItem.last()->setData("", Qt::UserRole + 2);
-                m_standardItem.last()->setData("Object", Qt::UserRole + 3);
-
-                if (parent->data(Qt::UserRole + 1).toString() == "cameras")
-                    parent->appendRow(handleJsonObject(m_standardItem.last(), obj[keys[i]].toObject(), objProps["cameraDeviceName"].toObject()));
-                else if (parent->data(Qt::UserRole + 1).toString() == "miniscopes")
-                    parent->appendRow(handleJsonObject(m_standardItem.last(), obj[keys[i]].toObject(), objProps["miniscopeDeviceName"].toObject()));
-                else
-                    parent->appendRow(handleJsonObject(m_standardItem.last(), obj[keys[i]].toObject(), objProps[keys[i]].toObject()));
-
-            }
-            else if (obj[keys[i]].isArray()) {
-                m_standardItem.append(new QStandardItem());
-                m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
-                m_standardItem.last()->setData("", Qt::UserRole + 2);
-                m_standardItem.last()->setData(objProps[keys[i]].toObject()["type"].toString(), Qt::UserRole + 3);
-                m_standardItem.last()->setData(objProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
-                parent->appendRow(handleJsonArray(m_standardItem.last(), obj[keys[i]].toArray(), objProps[keys[i]].toObject()["type"].toString()));
-
-            }
-            else if (obj[keys[i]].isString()){
-                m_standardItem.append(new QStandardItem());
-    //            m_standardItem.last()->setColumnCount(3);
-                m_standardItem.last()->setData(keys[i], Qt::UserRole + 1);
-                m_standardItem.last()->setData(tempS, Qt::UserRole + 2);
-                m_standardItem.last()->setData(objProps[keys[i]].toObject()["type"].toString("String"), Qt::UserRole + 3);
-                m_standardItem.last()->setData(objProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
-                parent->appendRow(m_standardItem.last());
-            }
-            else if (obj[keys[i]].isBool()) {
-                m_standardItem.append(new QStandardItem());
-    //            m_standardItem.last()->setColumnCount(3);
-                m_standardItem.last()->setData(keys[i],Qt::UserRole + 1);
-                m_standardItem.last()->setData(obj[keys[i]].toBool(),Qt::UserRole + 2);
-                m_standardItem.last()->setData(objProps[keys[i]].toObject()["type"].toString("Bool"),Qt::UserRole + 3);
-                m_standardItem.last()->setData(objProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
-                parent->appendRow(m_standardItem.last());
-            }
-            else if (obj[keys[i]].isDouble()) {
-                m_standardItem.append(new QStandardItem());
-    //            m_standardItem.last()->setColumnCount(3);
-                m_standardItem.last()->setData(keys[i],Qt::UserRole + 1);
-                m_standardItem.last()->setData(obj[keys[i]].toDouble(),Qt::UserRole + 2);
-                m_standardItem.last()->setData(objProps[keys[i]].toObject()["type"].toString("Double"),Qt::UserRole + 3);
-                m_standardItem.last()->setData(objProps[keys[i]].toObject()["tips"].toString(), Qt::UserRole + 4);
-                parent->appendRow(m_standardItem.last());
-            }
-        }
-    }
-    return parent;
-}
-
-QStandardItem *backEnd::handleJsonArray(QStandardItem *parent, QJsonArray arry, QString type)
-{
-//    QStringList keys = obj.keys();
-//    type = type.right(6);
-    type = type.right(type.length() - 6);
-    type = type.chopped(1);
-    qDebug() << "TYPE" << type;
-    if (type != "String" && type != "Bool" && type != "Integer" && type != "Double" && type != "Number" && type != "Object" && type.left(5) != "Array") {
-        qDebug() << "TYPE" << type;
-        type = "String";
-    }
-
-    for (int i=0; i < arry.size(); i++) {
-        if(arry[i].isObject()) {
-            m_standardItem.append(new QStandardItem());
-            m_standardItem.last()->setData("Object", Qt::UserRole + 1);
-            m_standardItem.last()->setData("", Qt::UserRole + 2);
-            m_standardItem.last()->setData("Object", Qt::UserRole + 3);
-            parent->appendRow(handleJsonObject(m_standardItem.last(), arry[i].toObject(), QJsonObject()));
-        }
-        else if (arry[i].isArray()) {
-            m_standardItem.append(new QStandardItem());
-            m_standardItem.last()->setData("Array", Qt::UserRole + 1);
-            m_standardItem.last()->setData("", Qt::UserRole + 2);
-            m_standardItem.last()->setData(type, Qt::UserRole + 3);
-            parent->appendRow(handleJsonArray(m_standardItem.last(), arry[i].toArray(), type));
-
-        }
-        else if (arry[i].isString()){
-            m_standardItem.append(new QStandardItem());
-//            m_standardItem.last()->setColumnCount(3);
-            m_standardItem.last()->setData("", Qt::UserRole + 1);
-            m_standardItem.last()->setData(arry[i].toString(),Qt::UserRole + 2);
-            m_standardItem.last()->setData(type, Qt::UserRole + 3);
-            parent->appendRow(m_standardItem.last());
-        }
-        else if (arry[i].isBool()) {
-            m_standardItem.append(new QStandardItem());
-//            m_standardItem.last()->setColumnCount(3);
-            m_standardItem.last()->setData("",Qt::UserRole + 1);
-            m_standardItem.last()->setData(arry[i].toBool(),Qt::UserRole + 2);
-            m_standardItem.last()->setData(type,Qt::UserRole + 3);
-            parent->appendRow(m_standardItem.last());
-        }
-        else if (arry[i].isDouble()) {
-            m_standardItem.append(new QStandardItem());
-//            m_standardItem.last()->setColumnCount(3);
-            m_standardItem.last()->setData("",Qt::UserRole + 1);
-            m_standardItem.last()->setData(arry[i].toDouble(),Qt::UserRole + 2);
-            m_standardItem.last()->setData(type,Qt::UserRole + 3);
-            parent->appendRow(m_standardItem.last());
-        }
-    }
-    return parent;
-}
-
-void backEnd::generateUserConfigFromModel()
-{
-
-//    void forEach(QAbstractItemModel* model, QModelIndex parent = QModelIndex()) {
-//        for(int r = 0; r < model->rowCount(parent); ++r) {
-//            QModelIndex index = model->index(r, 0, parent);
-//            QVariant name = model->data(index);
-//            qDebug() << name;
-//            // here is your applicable code
-//            if( model->hasChildren(index) ) {
-//                forEach(model, index);
-//            }
-//        }
-//    }
-
-    QJsonObject jConfig;
-    QString key, value, type;
-    for (int i=0; i < m_jsonTreeModel->rowCount(); i++) {
-        QModelIndex index = m_jsonTreeModel->index(i, 0);
-        key = m_jsonTreeModel->data(index, Qt::UserRole + 1).toString();
-        value = m_jsonTreeModel->data(index, Qt::UserRole + 2).toString();
-        type = m_jsonTreeModel->data(index, Qt::UserRole + 3).toString();
-        if (type == "Object") {
-            jConfig[key] = getObjectFromModel(index);
-        }
-        else if (type.left(5) == "Array") {
-             jConfig[key] = getArrayFromModel(index);
-        }
-        else if (type == "String" || type == "DirPath" || type == "FilePath" || type == "CameraDeviceType" || type == "MiniscopeDeviceType") {
-            jConfig[key] = value;
-        }
-        else if (type == "Bool") {
-            if (value == "true")
-                jConfig[key] = true;
-            else if (value == "false")
-                jConfig[key] = false;
-        }
-        else if (type == "Number" || type == "Integer" || type == "Double") {
-            jConfig[key] = value.toDouble();
-        }
-    }
-
-    m_userConfig = jConfig;
-//    QJsonDocument d;
-//    d.setObject(jConfig);
-//    QFile file;
-//    file.setFileName("JSONNNNNNN.json");
-//    file.open(QFile::WriteOnly | QFile::Text | QFile::Truncate);
-//    file.write(d.toJson());
-//    file.close();
-}
-
-QJsonObject backEnd::getObjectFromModel(QModelIndex idx)
-{
-    QJsonObject jObj;
-
-    QString key, value, type;
-
-    for (int i=0; i < m_jsonTreeModel->rowCount(idx); i++) {
-        QModelIndex index = m_jsonTreeModel->index(i, 0, idx);
-        key = m_jsonTreeModel->data(index, Qt::UserRole + 1).toString();
-        value = m_jsonTreeModel->data(index, Qt::UserRole + 2).toString();
-        type = m_jsonTreeModel->data(index, Qt::UserRole + 3).toString();
-
-        if (type == "Object") {
-            jObj[key] = getObjectFromModel(index);
-        }
-        else if (type.left(5) == "Array") {
-             jObj[key] = getArrayFromModel(index);
-        }
-        else if (type == "String" || type == "DirPath" || type == "FilePath" || type == "CameraDeviceType" || type == "MiniscopeDeviceType") {
-            jObj[key] = value;
-        }
-        else if (type == "Bool") {
-            if (value == "true")
-                jObj[key] = true;
-            else if (value == "false")
-                jObj[key] = false;
-        }
-        else if (type == "Number" || type == "Integer" || type == "Double") {
-            jObj[key] = value.toDouble();
-        }
-
-    }
-
-    return jObj;
-}
-
-QJsonArray backEnd::getArrayFromModel(QModelIndex idx)
-{
-    QJsonArray jAry;
-
-    QString key, value, type;
-
-    for (int i=0; i < m_jsonTreeModel->rowCount(idx); i++) {
-        QModelIndex index = m_jsonTreeModel->index(i, 0, idx);
-        key = m_jsonTreeModel->data(index, Qt::UserRole + 1).toString();
-        value = m_jsonTreeModel->data(index, Qt::UserRole + 2).toString();
-        type = m_jsonTreeModel->data(index, Qt::UserRole + 3).toString();
-        if (type == "Object") {
-            jAry.append(getObjectFromModel(index));
-        }
-        else if (type.left(5) == "Array") {
-             jAry.append(getArrayFromModel(index));
-        }
-        else if (type == "String" || type == "DirPath" || type == "FilePath" || type == "CameraDeviceType" || type == "MiniscopeDeviceType") {
-            qDebug() << "STRRRRIIINNNGGG" << value;
-            jAry.append(value);
-        }
-        else if (type == "Bool") {
-            if (value == "true")
-                jAry.append(true);
-            else if (value == "false")
-                jAry.append(false);
-        }
-        else if (type == "Number" || type == "Integer" || type == "Double") {
-            jAry.append(value.toDouble());
-        }
-
-    }
-
-    return jAry;
-}
-
 // Saved configs carry the schema version they were written by and a $schema
 // pointer so editors (VS Code etc.) validate and autocomplete them. Only
 // added at save time, so configs the user never saves are never touched.
@@ -532,24 +185,6 @@ static void stampConfigMetadata(QJsonObject &config)
     if (!config.contains("$schema"))
         config["$schema"] = "https://raw.githubusercontent.com/Aharoni-Lab/"
                             "Miniscope-DAQ-QT-Software/master/deviceConfigs/userConfigSchema.json";
-}
-
-void backEnd::saveConfigObject()
-{
-    stampConfigMetadata(m_userConfig);
-    QJsonDocument d;
-    d.setObject(m_userConfig);
-    QFile file;
-    QString fName = m_userConfigFileName;
-    fName.chop(5);
-    fName.append("_new.json");
-    file.setFileName(fName);
-    if (!file.open(QFile::WriteOnly | QFile::Text | QFile::Truncate)) {
-        qWarning() << "Could not save user config to" << fName << ":" << file.errorString();
-        return;
-    }
-    file.write(d.toJson());
-    file.close();
 }
 
 void backEnd::saveConfigObjectAs(const QString &filePath)
@@ -575,9 +210,9 @@ void backEnd::saveConfigObjectAs(const QString &filePath)
 // file. newUserConfig() synthesizes a complete default skeleton straight from the
 // schema (deviceConfigs/userConfigProps.json); addDevice() inserts a device built
 // from the matching schema template, enriched with sensible starting values pulled
-// from the device catalog (deviceConfigs/videoDevices.json). Both then rebuild the
-// tree model and re-run the validity check (which enables Save / Run). All of the
-// existing editor, serialization and save machinery is reused unchanged.
+// from the device catalog (deviceConfigs/videoDevices.json). Both then re-run the
+// validity check (which enables Save / Run) and notify the form editor. All of the
+// existing serialization and save machinery is reused unchanged.
 // ---------------------------------------------------------------------------
 
 QJsonValue backEnd::defaultForType(const QString &type)
@@ -680,7 +315,6 @@ void backEnd::newUserConfig()
     m_userConfig = cfg;
     m_userConfigFileName.clear();   // brand-new config: unseed the Save-As dialog
 
-    constructJsonTreeModel();
     updateHasDevices();
     checkUserConfigForIssues();     // emits userConfigOKChanged() -> enables Save/Run
     emit userConfigJsonChanged();
@@ -794,7 +428,6 @@ void backEnd::addDevice(const QString &category, const QString &deviceType,
     devices[category]       = section;
     m_userConfig["devices"] = devices;
 
-    constructJsonTreeModel();
     updateHasDevices();
     checkUserConfigForIssues();
     emit userConfigJsonChanged();
@@ -1263,7 +896,6 @@ void backEnd::stopSessionThreads()
 void backEnd::handleUserConfigFileNameChanged()
 {
     loadUserConfigFile();
-    constructJsonTreeModel();
     parseUserConfig();
     updateHasDevices();
     checkUserConfigForIssues();
