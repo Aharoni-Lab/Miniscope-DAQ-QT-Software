@@ -98,9 +98,6 @@ public:
     Q_INVOKABLE QString urlToLocalFile(const QUrl &url) const { return url.toLocalFile(); }
     // Inverse of urlToLocalFile: build a file:// URL to seed the Save-As dialog.
     Q_INVOKABLE QUrl localFileToUrl(const QString &path) const { return QUrl::fromLocalFile(path); }
-    // Theme toggle support: keep the OS-level color scheme (native dialogs,
-    // palette-derived defaults) in step with the QML Theme singleton.
-    Q_INVOKABLE void setColorSchemeDark(bool dark);
     // Folder the user-config open/save dialogs should default to. Driven by
     // MINISCOPE_USERCONFIG_DIR (set by the Linux AppImage's first-run prompt);
     // empty URL when unset, in which case QML leaves the dialog default alone.

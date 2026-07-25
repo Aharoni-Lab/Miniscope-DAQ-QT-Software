@@ -64,9 +64,13 @@ int main(int argc, char *argv[])
     // is Qt6's renamed, fully-customizable "Default" style from Qt5.
     QQuickStyle::setStyle("Basic");
 
-    // Dark scheme by default, matching the Theme singleton's default; the
-    // shell's theme toggle switches both (backEnd::setColorSchemeDark).
-    app.styleHints()->setColorScheme(Qt::ColorScheme::Dark);
+    // Keep the OS-level scheme LIGHT for now: the legacy session windows
+    // (ControlPanel.qml, the device/trace/tracker windows) rely on light
+    // palette text over hardcoded light backgrounds, so a dark palette makes
+    // them unreadable. The new shell doesn't care - all its colors come from
+    // the Theme singleton, so it renders dark regardless. Flip this to follow
+    // Theme.dark once the legacy windows are replaced.
+    app.styleHints()->setColorScheme(Qt::ColorScheme::Light);
 
     qRegisterMetaType < QVector<quint8> >("QVector<quint8>");
 

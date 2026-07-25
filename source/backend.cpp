@@ -1,8 +1,6 @@
 #include "backend.h"
 #include "monotonicclock.h"
 #include <QDebug>
-#include <QGuiApplication>
-#include <QStyleHints>
 #include <QFileDialog>
 #include <QApplication>
 
@@ -148,12 +146,6 @@ backEnd::backEnd(QObject *parent) :
         // Can't find config props file. Possibly throw an error/warning somewhere???
     }
 
-}
-
-void backEnd::setColorSchemeDark(bool dark)
-{
-    QGuiApplication::styleHints()->setColorScheme(
-        dark ? Qt::ColorScheme::Dark : Qt::ColorScheme::Light);
 }
 
 void backEnd::setUserConfigFileName(const QString &input)
@@ -1178,15 +1170,14 @@ void backEnd::endSession()
         behavTracker = nullptr;
     }
 
-    // Commutator worker: its thread was stopped in stopSessionThreads(). If the
-    // thread failed to stop (3s timeout) both were leaked, deliberately.
+    // Commutator worker: its thread was stopped in stopSessionThreads(). Direct
+    // delete after the join - moveToThread can only PUSH from the object's own
+    // thread (even a finished one), and deleteLater on a dead event loop never
+    // runs. Same pattern as ~VideoDevice's stream cleanup. If the thread failed
+    // to stop (3s timeout) both are leaked, deliberately.
     if (commutatorThread && !commutatorThread->isRunning()) {
-        if (commutator) {
-            // Its thread has finished, so it may be moved (then deleted) from here.
-            commutator->moveToThread(thread());
-            commutator->deleteLater();
-        }
-        commutatorThread->deleteLater();
+        delete commutator;
+        commutatorThread->deleteLater(); // QThread object lives on the GUI thread
     }
     commutator = nullptr;
     commutatorThread = nullptr;
@@ -1197,8 +1188,7 @@ void backEnd::endSession()
     if (dataSaverThread && !dataSaverThread->isRunning()) {
         dataSaverThread->deleteLater();
         dataSaverThread = nullptr;
-        dataSaver->moveToThread(thread());
-        dataSaver->deleteLater();
+        delete dataSaver; // its thread is joined; direct delete is the safe form
         dataSaver = new DataSaver();
     }
 

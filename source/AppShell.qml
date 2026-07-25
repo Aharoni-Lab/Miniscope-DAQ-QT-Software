@@ -28,10 +28,7 @@ ApplicationWindow {
         category: "ui"
         property bool darkTheme: true
     }
-    Component.onCompleted: {
-        Theme.dark = uiSettings.darkTheme
-        backend.setColorSchemeDark(Theme.dark)
-    }
+    Component.onCompleted: Theme.dark = uiSettings.darkTheme
 
     // --- Header bar -----------------------------------------------------------
     header: Rectangle {
@@ -97,7 +94,6 @@ ApplicationWindow {
                     onToggled: {
                         Theme.dark = !checked
                         uiSettings.darkTheme = Theme.dark
-                        backend.setColorSchemeDark(Theme.dark)
                     }
                 }
             }
@@ -131,24 +127,37 @@ ApplicationWindow {
         modal: true
         anchors.centerIn: parent
         width: Math.min(620, root.width - 2 * Theme.padding)
-        title: qsTr("Miniscope DAQ Help")
-        standardButtons: Dialog.Close
+        padding: Theme.padding
 
+        // Fully explicit styling: the Basic-style title/button areas follow the
+        // OS palette, which is pinned light for the legacy windows' sake.
         background: Rectangle {
             color: Theme.surface
             radius: Theme.radius
             border.color: Theme.border
             border.width: 1
         }
+        header: null
+        footer: null
 
-        Text {
-            width: parent.width
-            textFormat: Text.RichText
-            wrapMode: Text.WordWrap
-            font: Theme.fontBody
-            color: Theme.textPrimary
-            linkColor: Theme.accent
-            text: "Miniscope DAQ Software version " + (backend ? backend.versionNumber : "") + "<br/>" +
+        contentItem: Column {
+            spacing: Theme.spacing * 2
+
+            Text {
+                text: qsTr("Miniscope DAQ Help")
+                font: Theme.fontTitle
+                color: Theme.textPrimary
+            }
+
+            Text {
+                id: helpText
+                width: helpDialog.availableWidth
+                textFormat: Text.RichText
+                wrapMode: Text.WordWrap
+                font: Theme.fontBody
+                color: Theme.textPrimary
+                linkColor: Theme.accent
+                text: "Miniscope DAQ Software version " + (backend ? backend.versionNumber : "") + "<br/>" +
                   (backend ? backend.buildInfo : "") + "<br/><br/>" +
                   "Developed by the <a href='https://aharoni-lab.github.io/'>Aharoni Lab</a>, UCLA<br/>" +
                   "Overview of the UCLA Miniscope project: <a href='http://www.miniscope.org'>miniscope.org</a><br/>" +
@@ -156,9 +165,16 @@ ApplicationWindow {
                   "Discussion board: <a href='https://groups.google.com/d/forum/miniscope'>groups.google.com/d/forum/miniscope</a><br/>" +
                   "Issues and suggestions: <a href='https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software'>github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software</a><br/><br/>" +
                   "Icons from <a href='https://icons8.com/'>icons8</a>"
-            onLinkActivated: link => Qt.openUrlExternally(link)
-            HoverHandler {
-                cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
+                onLinkActivated: link => Qt.openUrlExternally(link)
+                HoverHandler {
+                    cursorShape: helpText.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
+                }
+            }
+
+            UiButton {
+                text: qsTr("Close")
+                width: parent.width
+                onClicked: helpDialog.close()
             }
         }
     }
