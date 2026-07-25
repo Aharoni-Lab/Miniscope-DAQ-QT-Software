@@ -8,6 +8,11 @@ import Miniscope.Theme 1.0
 Switch {
     id: control
 
+    // Override on fixed-dark surfaces (the video windows' control rail):
+    // theme colors follow the app theme, which makes the label dark-on-dark
+    // there in light mode.
+    property color textColor: Theme.textPrimary
+
     property var syncChecked
     onSyncCheckedChanged: {
         var b = syncChecked === true
@@ -43,7 +48,7 @@ Switch {
     contentItem: Text {
         text: control.text
         font: control.font
-        color: control.enabled ? Theme.textPrimary : Theme.textDisabled
+        color: control.enabled ? control.textColor : Theme.textDisabled
         verticalAlignment: Text.AlignVCenter
         leftPadding: control.indicator.width + (control.text.length > 0 ? Theme.spacing : 0)
     }

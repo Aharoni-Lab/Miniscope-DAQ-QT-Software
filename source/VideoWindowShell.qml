@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
+import QtQuick.Effects
 import VideoDisplay 1.0
 import Miniscope.Theme 1.0
 
@@ -154,15 +155,24 @@ Item {
         property alias value: railSliderSlider.value
         signal moved(double value)
         spacing: 8
-        Image {
-            id: railSliderIcon
-            width: 18
-            height: 18
-            sourceSize.width: 24
-            sourceSize.height: 24
-            fillMode: Image.PreserveAspectFit
+        // Icon glyphs are black (old light-toolbar art); recolor for the
+        // fixed-dark rail.
+        Item {
             Layout.preferredWidth: 18
             Layout.preferredHeight: 18
+            Image {
+                id: railSliderIcon
+                anchors.fill: parent
+                visible: false
+                sourceSize.width: 24
+                sourceSize.height: 24
+                fillMode: Image.PreserveAspectFit
+            }
+            MultiEffect {
+                anchors.fill: parent
+                source: railSliderIcon
+                brightness: 0.85 // black glyph -> near-white, alpha keeps shape
+            }
         }
         Slider {
             id: railSliderSlider
@@ -380,17 +390,20 @@ Item {
                 UiSwitch {
                     objectName: "saturationSwitch"
                     text: qsTr("Show saturation")
+                    textColor: "#d8d8e0"
                     onToggled: root.saturationSwitchChanged(checked)
                 }
                 UiSwitch {
                     objectName: "lutSwitch"
                     visible: root.miniscope
                     text: qsTr("Apply LUT colormap")
+                    textColor: "#d8d8e0"
                     onToggled: root.lutSwitchChanged(checked)
                 }
                 UiSwitch {
                     visible: root.miniscope
                     text: qsTr("ΔF/F display")
+                    textColor: "#d8d8e0"
                     onToggled: root.dFFSwitchChanged(checked)
                 }
 

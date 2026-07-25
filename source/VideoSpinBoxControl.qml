@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 
 // Compact video-overlay stepped control (gain, frame rate): the current
 // value stays visible as a small chip; hovering slides out a -/+ stepper to
@@ -66,14 +67,26 @@ Item {
             id: chipRow
             anchors.centerIn: parent
             spacing: 5
-            Image {
+            // The icon glyphs are black (drawn for the old light toolbar);
+            // recolor them to the chip's text color.
+            Item {
                 height: 16
                 width: 16
                 anchors.verticalCenter: parent.verticalCenter
-                sourceSize.height: 24
-                sourceSize.width: 24
-                fillMode: Image.PreserveAspectFit
-                source: root.iconPath
+                Image {
+                    id: chipIcon
+                    anchors.fill: parent
+                    visible: false
+                    sourceSize.height: 24
+                    sourceSize.width: 24
+                    fillMode: Image.PreserveAspectFit
+                    source: root.iconPath
+                }
+                MultiEffect {
+                    anchors.fill: parent
+                    source: chipIcon
+                    brightness: 0.85 // black glyph -> near-white, alpha keeps shape
+                }
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
