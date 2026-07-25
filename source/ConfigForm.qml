@@ -669,11 +669,35 @@ Item {
 
                     // --- Trace display ---
                     FormCard {
+                        id: traceCard
                         title: qsTr("Trace display")
                         subtitle: qsTr("Plots head orientation, fluorescence ROIs, and pose traces in a scrolling window during acquisition.")
                         showSwitch: true
                         switchChecked: form.val(["traceDisplay", "enabled"], false)
                         onSwitchToggled: checked => form.set(["traceDisplay", "enabled"], checked)
+
+                        // Mirrors the backend gating: traces are only fed by
+                        // miniscopes or the behavior tracker, so the window is
+                        // suppressed for configs with neither (webcam-only).
+                        readonly property bool hasTraceSource: {
+                            var ms = form.val(["devices", "miniscopes"], null)
+                            if (ms !== null && Object.keys(ms).length > 0)
+                                return true
+                            var bt = form.val(["behaviorTracker"], null)
+                            var cams = form.val(["devices", "cameras"], null)
+                            return bt !== null && Object.keys(bt).length > 0
+                                   && bt.enabled !== false
+                                   && cams !== null && Object.keys(cams).length > 0
+                        }
+                        Text {
+                            visible: traceCard.switchChecked === true
+                                     && !traceCard.hasTraceSource
+                            Layout.fillWidth: true
+                            text: qsTr("This configuration has no trace sources, so the trace window will not open. Traces come from Miniscopes (head orientation, fluorescence ROIs) or the behavior tracker.")
+                            font: Theme.fontSmall
+                            color: Theme.warning
+                            wrapMode: Text.WordWrap
+                        }
                     }
 
                     // --- Behavior tracker ---
