@@ -56,7 +56,6 @@ void Miniscope::setupDisplayObjectPointers()
 }
 void Miniscope::handleDFFSwitchChange(bool checked)
 {
-    qDebug() << "Switch" << checked;
     if (checked)
         m_displatState = "dFF";
     else

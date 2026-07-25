@@ -114,13 +114,10 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
 
     deviceStream->setIsColor(m_cDevice["isColor"].toBool(false));
 
-    qDebug() << m_ucDevice;
     if (m_ucDevice.contains("deviceID") && !m_ucDevice["deviceID"].isNull()) {
-        qDebug() << "Camera" << m_ucDevice["deviceID"].toInt();
         m_camConnected = deviceStream->connect2Camera(m_ucDevice["deviceID"].toInt());
     }
     else if (m_ucDevice.contains("videoPlayback")) {
-        qDebug() << "VIDEO!!!";
         m_camConnected = deviceStream->connect2Video(m_ucDevice["videoPlayback"].toObject()["folderPath"].toString(),
                 m_ucDevice["videoPlayback"].toObject()["filePrefix"].toString(),
                 m_ucDevice["videoPlayback"].toObject()["frameRate"].toDouble());
