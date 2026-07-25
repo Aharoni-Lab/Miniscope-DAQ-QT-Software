@@ -273,23 +273,78 @@ Item {
                                 }
                             }
                         }
-                        Text {
+                        // Live folder-structure feedback: the exact path a
+                        // recording will build, plus whether every entry
+                        // resolves. Mirrors DataSaver::setupBaseDirectory so the
+                        // preview matches what actually gets written to disk.
+                        ColumnLayout {
+                            id: dirPreview
                             Layout.fillWidth: true
-                            text: {
-                                var parts = form.val(["directoryStructure"], [])
+                            spacing: 2
+
+                            property var parts: form.val(["directoryStructure"], [])
+                            property string dataDir: form.val(["dataDirectory"], "")
+                            // Entries that are neither date/time nor a non-empty
+                            // key in this config; the DAQ saves these as literal
+                            // "<name>Missing" folders.
+                            property var missing: {
+                                var bad = []
+                                for (var i = 0; i < parts.length; i++) {
+                                    var t = String(parts[i]); var tl = t.toLowerCase()
+                                    if (tl === "date" || tl === "time") continue
+                                    if (String(form.val([t], "")).length === 0) bad.push(t)
+                                }
+                                return bad
+                            }
+                            property bool valid: missing.length === 0 && dataDir.length > 0
+                            property string builtPath: {
                                 var mapped = []
                                 for (var i = 0; i < parts.length; i++) {
-                                    var t = parts[i]
-                                    if (t === "Date") mapped.push("YYYY_MM_DD")
-                                    else if (t === "Time") mapped.push("HH_MM_SS")
-                                    else mapped.push(String(form.val([t], t)))
+                                    var t = String(parts[i]); var tl = t.toLowerCase()
+                                    if (tl === "date") mapped.push("YYYY_MM_DD")
+                                    else if (tl === "time") mapped.push("HH_MM_SS")
+                                    else {
+                                        var v = String(form.val([t], ""))
+                                        mapped.push(v.length ? v.replace(/ /g, "_") : t + "Missing")
+                                    }
                                 }
-                                return qsTr("Recordings will be saved to:  %1")
-                                    .arg(form.val(["dataDirectory"], "") + "/" + mapped.join("/"))
+                                var base = dataDir.length ? dataDir : qsTr("‹set a data directory›")
+                                return base + "/" + mapped.join("/")
                             }
-                            font: Theme.fontSmall
-                            color: Theme.textSecondary
-                            elide: Text.ElideMiddle
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: qsTr("Recordings will be saved to:")
+                                font: Theme.fontSmall
+                                color: Theme.textSecondary
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: dirPreview.builtPath
+                                font: Theme.fontMono
+                                color: Theme.textPrimary
+                                wrapMode: Text.WrapAnywhere
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                font: Theme.fontSmall
+                                wrapMode: Text.WordWrap
+                                color: dirPreview.valid ? Theme.success : Theme.warning
+                                text: {
+                                    if (dirPreview.valid)
+                                        return qsTr("✓  Every folder resolves.")
+                                    var issues = []
+                                    if (dirPreview.dataDir.length === 0)
+                                        issues.push(qsTr("no data directory set"))
+                                    if (dirPreview.missing.length === 1)
+                                        issues.push(qsTr("\"%1\" has no value in this config, so it saves as \"%1Missing\"")
+                                                    .arg(dirPreview.missing[0]))
+                                    else if (dirPreview.missing.length > 1)
+                                        issues.push(qsTr("%1 have no values in this config, so they save as \"…Missing\" folders")
+                                                    .arg(dirPreview.missing.join(", ")))
+                                    return "⚠  " + issues.join(";  ")
+                                }
+                            }
                         }
                     }
 

@@ -13,7 +13,7 @@
     },
     "directoryStructure": {
         "type": "Array(String)",
-        "tips": "This is an array of strings which defines the structure of the save directory. 'Time' and 'Date' will generate the exact time and data when recording starts. All other entries can be whatever you want but they also need to have their own \"key\": \"value\" pair defined within this file."
+        "tips": "An ordered list of folders created under 'dataDirectory' for each recording (shown here separated by ' / '). The reserved words 'date' and 'time' — capitalization doesn't matter — are filled in automatically from when the recording starts. Every other entry must match the name of another key in this file (such as 'researcherName'), and that key's value is used as the folder name. Example: researcherName / animalName / date / time saves to dataDirectory/Jane_Doe/Mouse01/2026_07_25/14_30_02."
     },
     "researcherName": {
         "type": "String",
