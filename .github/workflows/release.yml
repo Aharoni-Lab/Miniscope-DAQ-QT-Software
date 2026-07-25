@@ -96,13 +96,13 @@ jobs:
       - name: Build installer (Inno Setup)
         if: github.event_name != 'pull_request'
         run: |
-          # The in-installer version label comes from the app itself
-          # (source/main.cpp: #define VERSION_NUMBER "x.y"), so it always matches
-          # what the running app reports regardless of tag vs manual trigger.
-          $m = Select-String -Path source/main.cpp -Pattern '#define\s+VERSION_NUMBER\s+"([^"]+)"'
-          if (-not $m) { throw "VERSION_NUMBER not found in source/main.cpp" }
+          # The in-installer version label comes from the project version in
+          # CMakeLists.txt (compiled into the app as MINISCOPE_VERSION), so it
+          # always matches what the running app reports, tag or manual trigger.
+          $m = Select-String -Path CMakeLists.txt -Pattern 'project\(MiniscopeDAQ\s+VERSION\s+([0-9.]+)'
+          if (-not $m) { throw "project VERSION not found in CMakeLists.txt" }
           $ver = $m.Matches[0].Groups[1].Value
-          "App version (from main.cpp): $ver"
+          "App version (from CMakeLists.txt): $ver"
 
           # The artifact FILE name tracks the git tag (or a generic name for
           # manual runs) so each tagged release stays identifiable.
