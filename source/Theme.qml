@@ -18,10 +18,11 @@ QtObject {
     readonly property bool dark: Shared.ThemeState.dark
 
     // --- Palette -------------------------------------------------------------
-    // Accent stays in the app's historical lavender family so the app remains
-    // recognizable, tuned per scheme for contrast.
-    readonly property color accent: dark ? "#8b8aee" : "#7c7bdd"
-    readonly property color accentHover: dark ? "#a3a2f4" : "#918fe8"
+    // Accent is the periwinkle the DAQ has used since the Qt5 UI (#a8a7fd) —
+    // kept deliberately so the app stays recognizable rather than defaulting to
+    // a generic violet. Light scheme runs a touch deeper for white-text contrast.
+    readonly property color accent: dark ? "#a8a7fd" : "#6e6cd4"
+    readonly property color accentHover: dark ? "#bcbbff" : "#8180e0"
     readonly property color accentText: dark ? "#0e0e14" : "#ffffff"
 
     readonly property color background: dark ? "#131318" : "#eeedf4"

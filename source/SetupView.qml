@@ -208,7 +208,7 @@ Item {
                 onClicked: setupRoot.saveInPlace(null)
             }
             UiButton {
-                text: qsTr("Save As…")
+                text: qsTr("Save as…")
                 enabled: backend ? backend.userConfigOK : false
                 onClicked: {
                     saveConfigDialog.pendingAction = null
@@ -217,7 +217,7 @@ Item {
                 }
             }
             UiButton {
-                text: qsTr("Scan Devices")
+                text: qsTr("Scan devices")
                 onClicked: {
                     deviceScanDialog.text = backend.scanVideoDevices()
                     deviceScanDialog.open()
@@ -295,7 +295,7 @@ Item {
 
         // Run
         UiButton {
-            text: qsTr("▶  Run")
+            text: qsTr("▶ Run")
             primary: true
             font: Theme.fontTitle
             Layout.fillWidth: true

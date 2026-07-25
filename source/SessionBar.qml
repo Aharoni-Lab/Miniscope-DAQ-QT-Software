@@ -64,7 +64,7 @@ ColumnLayout {
             color: bar.recording ? Theme.recording : Theme.success
         }
         Text {
-            text: bar.recording ? qsTr("RECORDING") : qsTr("Session running")
+            text: bar.recording ? qsTr("Recording") : qsTr("Session running")
             font: Theme.fontTitle
             color: bar.recording ? Theme.recording : Theme.textPrimary
         }
@@ -123,7 +123,7 @@ ColumnLayout {
         }
 
         UiButton {
-            text: qsTr("End Session")
+            text: qsTr("End session")
             danger: true
             // The backend refuses mid-recording too: ending the session would
             // end the experiment by accident.
