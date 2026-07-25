@@ -47,6 +47,10 @@ int main(int argc, char *argv[])
 
     QGuiApplication app(argc, argv);
 
+    // For QSettings-backed state (theme choice, window layouts).
+    QCoreApplication::setOrganizationName("Aharoni Lab");
+    QCoreApplication::setApplicationName("Miniscope DAQ");
+
 #ifdef Q_OS_MACOS
     // Packaged .app: switch to a writable working directory holding the
     // app-internal configs and default the user-config/data folders, BEFORE
@@ -60,19 +64,23 @@ int main(int argc, char *argv[])
     // is Qt6's renamed, fully-customizable "Default" style from Qt5.
     QQuickStyle::setStyle("Basic");
 
-    // Qt6 follows the OS dark/light theme, but this UI is designed for light
-    // backgrounds with implicit (palette) text colors; under Windows dark mode
-    // the default text becomes light and is invisible. Force the light scheme.
-    app.styleHints()->setColorScheme(Qt::ColorScheme::Light);
+    // Dark scheme by default, matching the Theme singleton's default; the
+    // shell's theme toggle switches both (backEnd::setColorSchemeDark).
+    app.styleHints()->setColorScheme(Qt::ColorScheme::Dark);
 
     qRegisterMetaType < QVector<quint8> >("QVector<quint8>");
+
+    // Design-token singleton: every color/font/metric in the QML comes from
+    // here (import Miniscope.Theme 1.0).
+    qmlRegisterSingletonType(QUrl(QStringLiteral("qrc:/Theme.qml")),
+                             "Miniscope.Theme", 1, 0, "Theme");
 
     QQmlApplicationEngine engine;
     // For a deployed (standalone) build, find the bundled QML modules next to
     // the exe. Harmless when running against the conda env. (Qt auto-finds the
     // platform/image plugins in <appdir>/<category>.)
     engine.addImportPath(QCoreApplication::applicationDirPath() + "/qml");
-    const QUrl url(QStringLiteral("qrc:/main.qml"));
+    const QUrl url(QStringLiteral("qrc:/AppShell.qml"));
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
                      &app, [url](QObject *obj, const QUrl &objUrl) {
         if (!obj && url == objUrl)

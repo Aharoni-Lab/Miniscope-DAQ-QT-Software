@@ -1,6 +1,8 @@
 #include "backend.h"
 #include "monotonicclock.h"
 #include <QDebug>
+#include <QGuiApplication>
+#include <QStyleHints>
 #include <QFileDialog>
 #include <QApplication>
 
@@ -146,6 +148,12 @@ backEnd::backEnd(QObject *parent) :
         // Can't find config props file. Possibly throw an error/warning somewhere???
     }
 
+}
+
+void backEnd::setColorSchemeDark(bool dark)
+{
+    QGuiApplication::styleHints()->setColorScheme(
+        dark ? Qt::ColorScheme::Dark : Qt::ColorScheme::Light);
 }
 
 void backEnd::setUserConfigFileName(const QString &input)

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
+import Miniscope.Theme 1.0
 
 // ---------------------------------------------------------------------------
 // User-config tree editor - Qt6 port.
@@ -28,6 +29,8 @@ import QtQuick.Dialogs
 // ---------------------------------------------------------------------------
 TreeView {
     id: root
+    // Theme for the page-background-dependent bits (expander arrows); the
+    // pastel type chips keep their fixed light colors with dark text.
     property string toolTipText: ""
     property int expandTick: 0          // bump to re-evaluate isExpanded() bindings
     property var browseTarget: null     // QModelIndex currently being set via a dialog
@@ -104,7 +107,7 @@ TreeView {
                     visible: cell.hasKids
                     text: cell.nodeOpen ? "▾" : "▸"   // down / right triangle
                     font.pointSize: 11
-                    color: "#333333"
+                    color: Theme.textPrimary          // page background follows the theme
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -123,6 +126,7 @@ TreeView {
                     anchors.left: parent.left; anchors.leftMargin: 4
                     text: cell.model.key === undefined ? "" : cell.model.key
                     font.pointSize: 10
+                    color: "#26262e"   // the chip background is always light (typeColor)
                 }
                 TapHandler { onTapped: root.toolTipText = cell.model.tips }
             }
@@ -240,6 +244,7 @@ TreeView {
                     anchors.left: parent.left; anchors.leftMargin: 4
                     text: cell.model.type === undefined ? "" : cell.model.type
                     font.pointSize: 10
+                    color: "#26262e"   // the chip background is always light (typeColor)
                 }
             }
         }

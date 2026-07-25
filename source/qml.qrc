@@ -1,9 +1,11 @@
 <RCC>
     <qresource prefix="/">
-        <file>main.qml</file>
-        <file>Miniscope_V4.qml</file>
+        <file>Theme.qml</file>
+        <file>UiButton.qml</file>
+        <file>AppShell.qml</file>
+        <file>SetupView.qml</file>
+        <file>AcquireView.qml</file>
         <file>behaviorCam.qml</file>
-        <file>FpsItem.qml</file>
         <file>VideoSliderControl.qml</file>
         <file>img/iconEWL.png</file>
         <file>img/icon/ewl.ico</file>
@@ -28,7 +30,6 @@
         <file>img/icon/fps.png</file>
         <file>img/icon/gain.png</file>
         <file>img/icon/led.png</file>
-        <file>Miniscope_V3.qml</file>
         <file>TraceDisplayWindow.qml</file>
         <file>shaders/grid.vert</file>
         <file>shaders/grid.frag</file>
