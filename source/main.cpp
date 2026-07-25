@@ -16,7 +16,6 @@
 
 #include "backend.h"
 #include "themecontroller.h"
-#ifdef Q_OS_MACOS
 #if defined(Q_OS_MACOS) || defined(Q_OS_WIN)
 #include "bundlepaths.h"
 #include <QDir>
@@ -56,7 +55,6 @@ int main(int argc, char *argv[])
     QCoreApplication::setOrganizationName("Aharoni Lab");
     QCoreApplication::setApplicationName("Miniscope DAQ");
 
-#ifdef Q_OS_MACOS
 #if defined(Q_OS_MACOS)
     // Packaged .app: switch to a writable working directory holding the
     // app-internal configs and default the user-config/data folders, BEFORE
