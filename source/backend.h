@@ -145,6 +145,10 @@ public:
     // width, height, ...} — whatever map QML hands over comes back verbatim.
     Q_INVOKABLE QVariantMap paneLayout(const QString &paneName) const;
     Q_INVOKABLE void savePaneLayout(const QString &paneName, const QVariantMap &state);
+    // Environment lookup for QML (dev hooks like MINISCOPE_PANE_TEST).
+    Q_INVOKABLE QString env(const QString &name) const {
+        return qEnvironmentVariable(name.toUtf8().constData());
+    }
 
     // Convert a file:// URL from a QML folder/file dialog to a native path, so
     // the path-browse buttons in the config form editor can store a plain path.

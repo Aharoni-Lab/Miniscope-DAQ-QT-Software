@@ -133,22 +133,42 @@ int main(int argc, char *argv[])
         // Companion hook: after the session has run a few seconds, grab every
         // visible Quick window (shell + panes, GL underlays included) to PNGs
         // in the given directory, then quit. For automated visual checks.
+        // With MINISCOPE_PANE_TEST also set, AcquireView pops the first pane
+        // out at 2.5s and docks it at 6.5s; shots are taken in both states.
         const QString shotDir = qEnvironmentVariable("MINISCOPE_AUTORUN_SHOT_DIR");
         if (!shotDir.isEmpty()) {
-            QTimer::singleShot(6000, &backend, [shotDir]() {
+            auto grabAll = [shotDir](const QString &tag) {
                 int i = 0;
                 const auto windows = QGuiApplication::allWindows();
                 for (QWindow *w : windows) {
                     auto *qw = qobject_cast<QQuickWindow *>(w);
-                    if (!qw || !qw->isVisible())
+                    if (!qw)
+                        continue;
+                    qInfo() << "panewin" << tag << qw->title()
+                            << "visible" << qw->isVisible()
+                            << "parent" << (void *)qw->parent()
+                            << "flags" << qw->flags()
+                            << "geom" << qw->geometry();
+                    if (!qw->isVisible())
                         continue;
                     const QString title = qw->title().isEmpty() ? QStringLiteral("pane")
                                                                 : qw->title();
-                    qw->grabWindow().save(QStringLiteral("%1/win%2_%3.png")
-                                              .arg(shotDir).arg(i++).arg(title));
+                    qw->grabWindow().save(QStringLiteral("%1/%2_win%3_%4.png")
+                                              .arg(shotDir, tag).arg(i++).arg(title));
                 }
-                QCoreApplication::quit();
-            });
+            };
+            if (qEnvironmentVariableIsSet("MINISCOPE_PANE_TEST")) {
+                QTimer::singleShot(5000, &backend, [grabAll] { grabAll("floating"); });
+                QTimer::singleShot(9000, &backend, [grabAll] {
+                    grabAll("docked");
+                    QCoreApplication::quit();
+                });
+            } else {
+                QTimer::singleShot(6000, &backend, [grabAll] {
+                    grabAll("shot");
+                    QCoreApplication::quit();
+                });
+            }
         }
     }
 

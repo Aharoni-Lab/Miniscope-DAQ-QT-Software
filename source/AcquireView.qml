@@ -57,10 +57,14 @@ Item {
     }
 
     function setFloating(pane, floating) {
-        var st = paneStates
-        if (!st[pane.name])
-            st[pane.name] = {}
-        st[pane.name].floating = floating
+        // Build a FRESH object: reassigning the same JS object reference back
+        // to a var property emits no change signal, so no binding updates -
+        // the WindowContainer then never releases/reattaches the window and
+        // keeps overriding its state (the pop-out-snaps-back-on-drag bug).
+        var st = {}
+        for (var name in paneStates)
+            st[name] = paneStates[name]
+        st[pane.name] = { floating: floating }
         paneStates = st // containers attach/detach via their window binding
         backend.setPaneEmbedded(pane.window, !floating, pane.aspect)
         if (!floating)
@@ -73,6 +77,22 @@ Item {
             ? { floating: true, x: pane.window.x, y: pane.window.y,
                 width: pane.window.width, height: pane.window.height }
             : { floating: false })
+    }
+
+    // Dev-only (MINISCOPE_PANE_TEST): drive a pop-out -> dock cycle on the
+    // first pane so the float/dock machinery can be exercised and
+    // screenshotted without clicks. See the shot hook in main.cpp.
+    Timer {
+        interval: 2500
+        running: backend && backend.env("MINISCOPE_PANE_TEST").length > 0
+                 && acquireRoot.panes.length > 0
+        onTriggered: acquireRoot.setFloating(acquireRoot.panes[0], true)
+    }
+    Timer {
+        interval: 6500
+        running: backend && backend.env("MINISCOPE_PANE_TEST").length > 0
+                 && acquireRoot.panes.length > 0
+        onTriggered: acquireRoot.setFloating(acquireRoot.panes[0], false)
     }
 
     ColumnLayout {
@@ -121,18 +141,10 @@ Item {
                     border.width: 1
                     border.color: Theme.border
 
-                    // Geometry changes while floating are saved (debounced);
-                    // the close/visible logs are diagnostics only.
+                    // Geometry changes while floating are saved, debounced.
                     Connections {
                         target: paneFrame.modelData.window
                         enabled: paneFrame.floating
-                        function onClosing(close) {
-                            console.log("pane-diag:", paneFrame.modelData.name, "closing signal")
-                        }
-                        function onVisibleChanged() {
-                            console.log("pane-diag:", paneFrame.modelData.name,
-                                        "visible ->", paneFrame.modelData.window.visible)
-                        }
                         function onXChanged() { saveTimer.restart() }
                         function onYChanged() { saveTimer.restart() }
                         function onWidthChanged() { saveTimer.restart() }
@@ -173,7 +185,7 @@ Item {
                                 // Pop out / dock back
                                 Rectangle {
                                     visible: !acquireRoot.layoutLocked
-                                    width: paneButtonText.implicitWidth + 12
+                                    width: paneButtonText.implicitWidth + 16
                                     height: 22
                                     radius: Theme.radiusSmall
                                     color: popOutArea.containsMouse ? Theme.surface : "transparent"
@@ -210,6 +222,7 @@ Item {
 
                             WindowContainer {
                                 window: paneFrame.floating ? null : paneFrame.modelData.window
+                                visible: !paneFrame.floating
                                 anchors.centerIn: parent
                                 width: paneFrame.modelData.aspect > 0
                                        ? Math.min(parent.width, parent.height * paneFrame.modelData.aspect)
