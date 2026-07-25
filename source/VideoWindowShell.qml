@@ -43,11 +43,32 @@ Item {
     signal calibrateCameraStart()
     signal calibrateCameraQuit()
 
+    // gnuplot-style colormap for trace-ROI outlines; matches the trace
+    // display's coloring so an outline pairs visually with its trace.
+    function colormapGnuPlot(x) {
+        return Qt.rgba(Math.abs(2.0 * x - 0.5),
+                       Math.sin(3.141592 * x),
+                       Math.cos(3.141592 / 2.0 * x), 1.0)
+    }
+
+    focus: true
+    Keys.onSpacePressed: root.takeScreenShotSignal()
+
     // --- Video ---------------------------------------------------------------
     VideoDisplay {
         id: videoDisplay
         objectName: "vD"
         anchors.fill: parent
+
+        // Committed trace ROIs: Miniscope::handleAddNewTraceROI appends to
+        // these arrays via setProperty, then numTraceROIs (incremented below
+        // when a selection commits) tells the Repeater to draw them.
+        property var traceROIx: []
+        property var traceROIy: []
+        property var traceROIw: []
+        property var traceROIh: []
+        property var traceColor: []
+        property int numTraceROIs: 0
 
         // Rolling average FPS from the inter-frame intervals (acqFPS is the
         // interval in ms), like the old windows' 20-sample window.
@@ -61,6 +82,65 @@ Item {
             for (var i = 0; i < fpsWindow.length; i++)
                 sum += fpsWindow[i]
             aveFps = sum > 0 ? 1000.0 * fpsWindow.length / sum : 0
+        }
+
+        // Recording-ROI overlay. C++ drives videoDisplay.ROI in display
+        // pixels: [x, y, w, h, selecting] while the user drags, then
+        // selecting flips to 0 and the committed region stays outlined
+        // (VideoDevice::handleDisplayResized keeps it placed on resize).
+        // roiSeen: the ROI property starts with a placeholder value, so the
+        // overlay only appears once a selection actually happens.
+        property bool roiSeen: false
+        onRoiChanged: roiSeen = true
+        Rectangle {
+            visible: videoDisplay.roiSeen && videoDisplay.ROI.length === 5
+            x: videoDisplay.ROI[0]
+            y: videoDisplay.ROI[1]
+            width: videoDisplay.ROI[2]
+            height: videoDisplay.ROI[3]
+            color: videoDisplay.ROI[4] === 1 ? "#40ffffff" : "transparent"
+            border.color: "red"
+            border.width: 2
+        }
+
+        // Trace-ROI selection overlay, visible during the drag. When the
+        // selection commits ([4] flips to 0), C++ has already appended the
+        // region to the arrays above - bumping the count reveals it in the
+        // committed Repeater below.
+        onAddTraceROIChanged: {
+            if (addTraceROI.length === 5 && addTraceROI[4] !== 1)
+                numTraceROIs++
+        }
+        Rectangle {
+            visible: videoDisplay.addTraceROI.length === 5
+                     && videoDisplay.addTraceROI[4] === 1
+            x: videoDisplay.addTraceROI[0]
+            y: videoDisplay.addTraceROI[1]
+            width: videoDisplay.addTraceROI[2]
+            height: videoDisplay.addTraceROI[3]
+            color: "#40ffffff"
+            border.color: "yellow"
+            border.width: 2
+        }
+
+        // Committed trace ROIs, numbered and colored to match their traces.
+        Repeater {
+            model: videoDisplay.numTraceROIs
+            Rectangle {
+                x: videoDisplay.traceROIx[index]
+                y: videoDisplay.traceROIy[index]
+                width: videoDisplay.traceROIw[index]
+                height: videoDisplay.traceROIh[index]
+                color: "transparent"
+                border.color: root.colormapGnuPlot(videoDisplay.traceColor[index])
+                border.width: 1
+                Text {
+                    text: index
+                    color: parent.border.color
+                    anchors.right: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
         }
     }
 
@@ -197,6 +277,14 @@ Item {
                         root.vidPropChangedSignal("led0", displayValue, i2cValue, i2cValue2)
                 }
                 VideoSliderControl {
+                    objectName: "led1"
+                    visible: false
+                    textColor: "#d8d8e0"
+                    iconPath: "img/icon/led.png"
+                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
+                        root.vidPropChangedSignal("led1", displayValue, i2cValue, i2cValue2)
+                }
+                VideoSliderControl {
                     objectName: "ewl"
                     visible: false
                     textColor: "#d8d8e0"
@@ -210,6 +298,33 @@ Item {
                     text: qsTr("Display (does not affect recordings)")
                     font: Theme.fontSmall
                     color: "#8a8a96"
+                }
+
+                // Contrast/brightness of the on-screen image only; the C++
+                // side routes these straight to the display shader.
+                VideoSliderControl {
+                    id: alphaControl
+                    textColor: "#d8d8e0"
+                    iconPath: "img/icon/alpha.png"
+                    startValue: 1
+                    min: 0
+                    max: 1
+                    stepSize: 0.01
+                    decimalPrecision: 2
+                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
+                        root.vidPropChangedSignal("alpha", displayValue, i2cValue, i2cValue2)
+                }
+                VideoSliderControl {
+                    id: betaControl
+                    textColor: "#d8d8e0"
+                    iconPath: "img/icon/beta.png"
+                    startValue: 0
+                    min: 0
+                    max: 1
+                    stepSize: 0.01
+                    decimalPrecision: 2
+                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
+                        root.vidPropChangedSignal("beta", displayValue, i2cValue, i2cValue2)
                 }
 
                 UiSwitch {

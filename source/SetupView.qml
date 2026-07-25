@@ -92,7 +92,7 @@ Item {
         contentItem: ColumnLayout {
             spacing: Theme.spacing * 2
             Text {
-                text: backend.userConfigFileName.length > 0
+                text: backend && backend.userConfigFileName.length > 0
                       ? qsTr("This configuration has changes that are not saved to\n%1").arg(backend.userConfigFileName)
                       : qsTr("This new configuration has not been saved to a file yet.")
                 font: Theme.fontBody
