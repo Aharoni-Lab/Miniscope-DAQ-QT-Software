@@ -16,6 +16,7 @@
         <file>SessionBar.qml</file>
         <file>behaviorCam.qml</file>
         <file>VideoSliderControl.qml</file>
+        <file>RecoloredIcon.qml</file>
         <file>img/iconEWL.png</file>
         <file>img/icon/ewl.ico</file>
         <file>img/icon/led.ico</file>

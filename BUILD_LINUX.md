@@ -3,8 +3,8 @@
 Status: **working on Ubuntu 24.04 LTS** — builds, launches (Wayland or X11),
 streams Miniscope + webcam video, records, all device controls work, **and the
 BNO head-orientation traces + frame counter work** (see the libuvc section
-below for why that took special handling). Work happens on the **`ubuntu-port`**
-branch.
+below for why that took special handling). This work lives on the **`ui-v3`**
+integration branch.
 
 The C++/CMake were already cross-platform: every Windows-specific bit is gated
 behind `if(WIN32)` (CMake) or `#ifdef Q_OS_WINDOWS` (C++), and the OpenGL
@@ -35,9 +35,9 @@ conda is the tested path documented here.
 ## 1. Clone & checkout
 
 ```bash
-git clone https://github.com/fnsangiul/Miniscope-DAQ-QT-Software.git
+git clone https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software.git
 cd Miniscope-DAQ-QT-Software
-git checkout ubuntu-port
+git checkout ui-v3
 ```
 
 ---

@@ -159,14 +159,7 @@ void DataSaver::setupBaseDirectory()
                 else
                     baseDirectory += "/" + tempString2;
             }
-//            else if (tempString == "researcherName")
-//                baseDirectory += "/" + m_userConfig["researcherName"].toString().replace(" ", "_");
-//            else if (tempString == "experimentName")
-//                baseDirectory += "/" + m_userConfig["experimentName"].toString().replace(" ", "_");
-//            else if (tempString == "animalName")
-//                baseDirectory += " /" + m_userConfig["animalName"].toString().replace(" ", "_");
         }
-//    }
 }
 
 void DataSaver::startRunning()
@@ -183,7 +176,9 @@ void DataSaver::startRunning()
 
     QString poseData;
 
-    QStringList names;
+    // The device set is fixed for the lifetime of a run (all frame buffers are
+    // registered before this thread starts), so resolve the names once.
+    const QStringList names = frameBuffer.keys();
     while(m_running) {
         idle = true;
         // For Behavior Tracker
@@ -205,8 +200,7 @@ void DataSaver::startRunning()
         }
 
         // for video streams
-        names = frameBuffer.keys();
-        for (i = 0; i < frameBuffer.size(); i++) {
+        for (i = 0; i < names.size(); i++) {
             while (usedCount[names[i]]->tryAcquire()) {
                 idle = false;
                 // grab info from buffer in a threadsafe way

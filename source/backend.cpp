@@ -82,15 +82,9 @@ backEnd::backEnd(QObject *parent) :
     m_softwareStartTime = monotonicTimeMs();
 
     // User Config default values
-    researcherName = "";
     dataDirectory = "";
-    experimentName = "";
-    animalName = "";
-    dataStructureOrder = {"researcherName", "experimentName", "animalName", "date"};
 
     ucExperiment["type"] = "None";
-//    ucMiniscopes = {"None"};
-//    ucBehaviorCams = {"None"};
     ucBehaviorTracker["type"] = "None";
     ucTraceDisplay["type"] = "None";
 
@@ -1374,11 +1368,7 @@ void backEnd::parseUserConfig()
     int count = 0;
 
     // Main JSON header
-    researcherName = m_userConfig.value("researcherName").toString();
     dataDirectory= m_userConfig.value("dataDirectory").toString();
-    dataStructureOrder = m_userConfig.value("dataStructureOrder").toArray();
-    experimentName = m_userConfig.value("experimentName").toString();
-    animalName = m_userConfig.value("animalName").toString();
 
     // JSON subsections
     ucExperiment = m_userConfig.value("experiment").toObject();
@@ -1410,7 +1400,6 @@ void backEnd::parseUserConfig()
         }
 
     }
-//    ucMiniscopes = devices["miniscopes"].toArray();
 
     if (devices["cameras"].isArray()) {
         tempArray = devices["cameras"].toArray();
@@ -1439,8 +1428,6 @@ void backEnd::parseUserConfig()
         }
 
     }
-
-//    ucBehaviorCams = devices["cameras"].toArray();
 
     ucBehaviorTracker = m_userConfig.value("behaviorTracker").toObject();
     ucTraceDisplay = m_userConfig.value("traceDisplay").toObject();

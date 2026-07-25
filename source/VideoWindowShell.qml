@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
-import QtQuick.Effects
 import VideoDisplay 1.0
 import Miniscope.Theme 1.0
 
@@ -22,7 +21,7 @@ import Miniscope.Theme 1.0
 // and root signal - keep these stable):
 //   root signals: takeScreenShotSignal, vidPropChangedSignal, dFFSwitchChanged,
 //     saturationSwitchChanged, lutSwitchChanged, setRoiClicked,
-//     addTraceRoiClicked, camPropsClicked, calibrateCamera{Clicked,Start,Quit}
+//     addTraceRoiClicked, camPropsClicked
 //   objectNames: vD (VideoDisplay), gain / frameRate / led0 / ewl (control
 //     rows; C++ makes the catalog-defined ones visible and configures their
 //     ranges), saturationSwitch, lutSwitch, addTraceRoi, camProps, bno
@@ -43,9 +42,6 @@ Item {
     signal setRoiClicked()
     signal addTraceRoiClicked()
     signal camPropsClicked()
-    signal calibrateCameraClicked()
-    signal calibrateCameraStart()
-    signal calibrateCameraQuit()
 
     // gnuplot-style colormap for trace-ROI outlines; matches the trace
     // display's coloring so an outline pairs visually with its trace.
@@ -155,24 +151,10 @@ Item {
         property alias value: railSliderSlider.value
         signal moved(double value)
         spacing: 8
-        // Icon glyphs are black (old light-toolbar art); recolor for the
-        // fixed-dark rail.
-        Item {
+        RecoloredIcon {
+            id: railSliderIcon
             Layout.preferredWidth: 18
             Layout.preferredHeight: 18
-            Image {
-                id: railSliderIcon
-                anchors.fill: parent
-                visible: false
-                sourceSize.width: 24
-                sourceSize.height: 24
-                fillMode: Image.PreserveAspectFit
-            }
-            MultiEffect {
-                anchors.fill: parent
-                source: railSliderIcon
-                brightness: 0.85 // black glyph -> near-white, alpha keeps shape
-            }
         }
         Slider {
             id: railSliderSlider

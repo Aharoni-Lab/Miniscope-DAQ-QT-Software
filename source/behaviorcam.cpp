@@ -17,8 +17,6 @@
 
 BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime) :
     VideoDevice(parent, ucDevice, softwareStartTime),
-    m_camCalibWindowOpen(false),
-    m_camCalibRunning(false),
     m_softwareStartTime(softwareStartTime)
 {
     m_ucDevice = ucDevice; // hold user config for this device
@@ -50,12 +48,6 @@ void BehaviorCam::setupDisplayObjectPointers()
         QObject::connect(rootDistplayObject, SIGNAL( camPropsClicked() ), this, SLOT( handleCamPropsClicked()));
         QObject::connect(this, SIGNAL( openCamPropsDialog()), deviceStream, SLOT( openCamPropsDialog()));
     }
-
-    // Handle camera calibration signals from GUI
-    QObject::connect(rootDistplayObject, SIGNAL( calibrateCameraClicked() ), this, SLOT( handleCamCalibClicked()));
-    QObject::connect(rootDistplayObject, SIGNAL( calibrateCameraStart() ), this, SLOT( handleCamCalibStart()));
-    QObject::connect(rootDistplayObject, SIGNAL( calibrateCameraQuit() ), this, SLOT( handleCamCalibQuit()));
-
 }
 
 void BehaviorCam::handleNewDisplayFrame(qint64 /*timeStamp*/, cv::Mat frame, int /*bufIdx*/, VideoDisplay *vidDisp)
@@ -75,37 +67,5 @@ void BehaviorCam::handleNewDisplayFrame(qint64 /*timeStamp*/, cv::Mat frame, int
     if (isMiniCAM == false)
         vidDisp->setDroppedFrameCount(-1); // This overwrites display value in videodevice sendNewFrame function
 
-}
-
-void BehaviorCam::handleCamCalibClicked()
-{
-    // This slot gets called when user clicks "camera calibration" in behavior cam GUI
-    qDebug() << "Entering camera calibration";
-    m_camCalibWindowOpen = true;
-    // camCalibWindow will open up. This is located in the behaviorCam.qml file
-    // This window will display directions begin/quit buttons, and progress of calibration
-
-}
-
-void BehaviorCam::handleCamCalibStart()
-{
-    qDebug() << "Beginning camera calibration";
-    m_camCalibRunning = true;
-    // Probably can use an if statement in sendNewFrame() to send frames somewhere for camera calibration
-    // Probably want to update the cam calib window that opens up with info as the cam is being calibrated
-
-    // When done, calibration should be saved in a file and the file path should be updated in the user config or
-    // Another option would be to just save all the calibration data directly into the user config file
-
-}
-
-void BehaviorCam::handleCamCalibQuit()
-{
-    qDebug() << "Quitting camera calibration";
-    if (m_camCalibRunning) {
-        // Do stuff to exit cam calibration algorithm without issue
-        m_camCalibRunning = false;
-    }
-    m_camCalibWindowOpen = false;
 }
 

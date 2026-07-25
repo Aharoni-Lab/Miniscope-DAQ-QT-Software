@@ -102,8 +102,8 @@ ApplicationWindow {
                     font: Theme.fontSmall
                     color: Theme.textSecondary
                 }
-                Switch {
-                    checked: !Theme.dark
+                UiSwitch {
+                    syncChecked: !Theme.dark
                     onToggled: {
                         // Shared across every window's engine (control panel etc.).
                         ThemeState.dark = !checked

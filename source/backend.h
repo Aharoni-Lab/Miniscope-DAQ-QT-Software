@@ -309,11 +309,7 @@ private:
 
     // Break down of different types in user config file
     // 'uc' stands for userConfig
-    QString researcherName;
     QString dataDirectory;
-    QJsonArray dataStructureOrder;
-    QString experimentName;
-    QString animalName;
 
     QJsonObject ucExperiment;
     QJsonObject ucMiniscopes;

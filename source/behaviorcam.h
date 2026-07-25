@@ -39,13 +39,6 @@ public slots:
     // LEAVE THIS!!!!
     void handleCamPropsClicked() { emit openCamPropsDialog();}
 
-    // NOT SURE WHAT TO DO WITH THESE!!
-    // Camera calibration slots
-    void handleCamCalibClicked();
-    void handleCamCalibStart();
-    void handleCamCalibQuit();
-
-
 private:
     QJsonObject m_ucDevice;
     QJsonObject m_cDevice;
@@ -54,10 +47,6 @@ private:
     VideoStreamBase *deviceStream;
     // Handle MiniCAM stuff
     bool isMiniCAM;
-
-    // Camera Calibration Vars
-    bool m_camCalibWindowOpen;
-    bool m_camCalibRunning;
 
     qint64 m_softwareStartTime;
 

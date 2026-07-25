@@ -148,6 +148,7 @@ set(HEADERS
     source/controlpanel.h
     source/datasaver.h
     source/miniscope.h
+    source/monotonicclock.h
     source/newquickview.h
     source/themecontroller.h
     source/tracedisplay.h
