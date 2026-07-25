@@ -197,6 +197,56 @@
                 "windowWidth": { "type": "integer", "minimum": 1 },
                 "windowHeight": { "type": "integer", "minimum": 1 }
             }
+        },
+        "commutator": {
+            "type": "object",
+            "description": "Optional Open Ephys commutator control (github.com/open-ephys/commutator-controller). When enabled, the software drives the commutator over its USB serial port using a Miniscope's live BNO head orientation, so the tether unwinds as the animal turns - no Bonsai needed. Needs a V4_BNO (or newer) Miniscope with headOrientation.enabled true.",
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "description": "Turns the whole commutator feature on/off."
+                },
+                "port": {
+                    "type": "string",
+                    "description": "Serial port the commutator is on, e.g. \"COM5\" (Windows), \"/dev/ttyACM0\" (Linux), \"/dev/cu.usbmodemXXXX\" (macOS). If it can't be opened, the software logs the available ports."
+                },
+                "deviceName": {
+                    "type": "string",
+                    "description": "Which Miniscope's head orientation drives the commutator (its key under devices.miniscopes). Optional: if omitted, the first Miniscope with headOrientation enabled is used."
+                },
+                "led": {
+                    "type": "boolean",
+                    "description": "Turn the commutator's indicator LED on (default true)."
+                },
+                "sampleRate": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "How many times per second (Hz) the orientation is sampled to compute a turn command. Default 10."
+                },
+                "headstageAxis": {
+                    "type": "array",
+                    "items": { "type": "number" },
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "description": "Direction the tether leaves the headstage, as [x, y, z] in the IMU's reference frame. Default [0, 0, 1]. Negate it (e.g. [0, 0, -1]) if the commutator winds the tether up instead of unwinding it."
+                },
+                "commutatorAxis": {
+                    "type": "array",
+                    "items": { "type": "number" },
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "description": "Direction the tether enters the rotating commutator element, as [x, y, z] in the global frame. Default [0, 0, 1] for an upright mount."
+                },
+                "fallbackThreshold": {
+                    "type": "number",
+                    "description": "Advanced: cosine threshold below which the twist estimate uses a fallback near its mathematical pole (headstage and commutator axes nearly opposed). Default -0.9."
+                },
+                "fallbackMode": {
+                    "type": "string",
+                    "enum": ["global", "local"],
+                    "description": "Advanced: which rotation to assume at the pole - \"global\" (orbital motion about the commutator) or \"local\" (about the headstage tether axis). Default \"global\"."
+                }
+            }
         }
     },
     "definitions": {

@@ -39,6 +39,13 @@ public:
 
 
     void setupBNOTraceDisplay() override; // overrides parent
+
+signals:
+    // Emitted once per displayed frame with the latest good BNO quaternion
+    // (w, x, y, z) while head-orientation streaming is on. Drives the optional
+    // Commutator (queued connection to its worker thread).
+    void newHeadQuaternion(double w, double x, double y, double z);
+
 public slots:
 //    void displayHasBeenCreated();
     void handleDFFSwitchChange(bool checked);

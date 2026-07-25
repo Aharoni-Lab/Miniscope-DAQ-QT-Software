@@ -197,6 +197,11 @@ void VideoStreamBase::commitFrame(const cv::Mat &frame, qint64 timestampMs)
                 // would poison the offset for the whole recording).
                 m_daqFrameNumOffset = *daqFrameNum - 1;
                 m_daqOffsetSeeded = true;
+                // Remember where the acquisition count stood, so the live
+                // dropped-frame readout can be measured within this connection
+                // epoch (see droppedFrameEstimate()). 0 at stream start; the
+                // current (large) count after a reconnect.
+                m_acqAtDaqSeed = m_acqFrameNum->loadRelaxed();
             }
         }
         // On failure *daqFrameNum keeps its last value; the CSV gets -1 below.

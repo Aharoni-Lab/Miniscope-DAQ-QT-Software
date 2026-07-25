@@ -1151,6 +1151,16 @@ void backEnd::shutdownThreads()
     for (int i = 0; i < behavCam.length(); i++)
         behavCam[i]->stopAndJoinStream();
 
+    // 2b. Commutator worker: disable the motor and stop its thread. Done after
+    //     the Miniscopes are quiet so no more orientation samples are queued to
+    //     it. Blocking invoke so {enable:false} is written before the port closes.
+    if (commutatorThread && commutatorThread->isRunning()) {
+        QMetaObject::invokeMethod(commutator, "stopRunning", Qt::BlockingQueuedConnection);
+        commutatorThread->quit();
+        if (!commutatorThread->wait(3000))
+            qWarning() << "Commutator thread did not stop within 3s; leaking it";
+    }
+
     // 3. Then the saver loop and its thread.
     if (dataSaverThread && dataSaverThread->isRunning()) {
         QMetaObject::invokeMethod(dataSaver, "stopRunning", Qt::QueuedConnection);
@@ -1409,6 +1419,7 @@ void backEnd::parseUserConfig()
 
     ucBehaviorTracker = m_userConfig["behaviorTracker"].toObject();
     ucTraceDisplay = m_userConfig["traceDisplay"].toObject();
+    ucCommutator = m_userConfig["commutator"].toObject();
 
 
 }
@@ -1583,6 +1594,57 @@ void backEnd::constructUserConfigGUI()
         }
     }
 
+    // Optional commutator (needs a Miniscope with head orientation to drive it,
+    // so create it after the Miniscopes exist).
+    setupCommutator();
+
     connectSnS();
+}
+
+// Create the commutator worker and put it on its own thread when the config asks
+// for one. The BNO quaternion of the chosen source Miniscope is wired straight to
+// it; from then on the worker owns the serial port and does all I/O off the GUI
+// thread. Every early-return path explains itself in the message console rather
+// than failing silently.
+void backEnd::setupCommutator()
+{
+    if (ucCommutator.isEmpty() || !ucCommutator["enabled"].toBool(false))
+        return;
+
+    // Resolve the source Miniscope: the named one, else the first with head
+    // orientation streaming enabled.
+    const QString wanted = ucCommutator["deviceName"].toString();
+    Miniscope *source = nullptr;
+    for (Miniscope *m : miniscope) {
+        if (!wanted.isEmpty()) {
+            if (m->getDeviceName() == wanted) { source = m; break; }
+        }
+        else if (m->getHeadOrienataionStreamState()) {
+            source = m;
+            break;
+        }
+    }
+
+    if (!source) {
+        if (!wanted.isEmpty())
+            sendMessage("ERROR: Commutator deviceName \"" + wanted
+                        + "\" matches no configured Miniscope; commutator disabled.");
+        else
+            sendMessage("ERROR: Commutator needs a Miniscope with headOrientation enabled to "
+                        "drive it, but none was found; commutator disabled.");
+        return;
+    }
+    if (!source->getHeadOrienataionStreamState())
+        sendMessage("Warning: Commutator source \"" + source->getDeviceName()
+                    + "\" does not have headOrientation enabled, so no rotation data will flow.");
+
+    commutator = new Commutator(nullptr, ucCommutator);
+    QObject::connect(commutator, SIGNAL(sendMessage(QString)), controlPanel, SLOT(receiveMessage(QString)));
+    QObject::connect(source, &Miniscope::newHeadQuaternion, commutator, &Commutator::handleNewQuaternion);
+
+    commutatorThread = new QThread;
+    commutator->moveToThread(commutatorThread);
+    QObject::connect(commutatorThread, SIGNAL(started()), commutator, SLOT(startRunning()));
+    commutatorThread->start();
 }
 
