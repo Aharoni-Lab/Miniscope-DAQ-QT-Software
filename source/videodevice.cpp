@@ -241,7 +241,8 @@ void VideoDevice::createView()
         view->setFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
                        | Qt::WindowMinimizeButtonHint);
 #endif
-        view->show();
+        // Not shown here: the Acquire pane host either embeds the view as a
+        // pane (WindowContainer) or floats it, per the saved layout.
         // --------------------
 
         rootObject = view->rootObject();
@@ -303,7 +304,8 @@ void VideoDevice::createView()
         // Link up Add Trace ROI signal and slot
         QObject::connect(vidDisplay, &VideoDisplay::newAddTraceROISignal, this, &VideoDevice::handleAddNewTraceROI);
 
-        QObject::connect(view, &NewQuickView::closing, deviceStream, &VideoStreamBase::stopStream);
+        // (No stop-stream-on-close: closing a floating pane re-docks it in the
+        // Acquire view; streams only stop when the session ends.)
         QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &VideoDevice::sendNewFrame);
 
         // Keep the ROI overlay tracking the video as the window is resized.

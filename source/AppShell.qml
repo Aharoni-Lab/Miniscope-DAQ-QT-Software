@@ -13,9 +13,10 @@ import Miniscope.Theme 1.0
 ApplicationWindow {
     id: root
     visible: true
-    width: 880
+    // Wide enough for a 2-column pane grid in Acquire; Setup centers its form.
+    width: 1280
     height: 940
-    minimumWidth: 640
+    minimumWidth: 720
     minimumHeight: 560
     color: Theme.background
     title: qsTr("Miniscope DAQ")

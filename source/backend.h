@@ -33,6 +33,11 @@ class backEnd : public QObject
     Q_PROPERTY(QStringList availableCodecs READ availableCodecs CONSTANT)
     Q_PROPERTY(QStringList availableLUTs READ availableLUTs CONSTANT)
     Q_PROPERTY(bool sessionActive READ sessionActive NOTIFY sessionActiveChanged)
+    // The running session's windows as pane descriptors for the Acquire view:
+    // [{name, type ("video"/"panel"/"trace"), window (QWindow*), aspect}].
+    // Rebuilt on Run, cleared (and emitted) FIRST during session teardown so
+    // QML releases its WindowContainers before the windows are destroyed.
+    Q_PROPERTY(QVariantList sessionPanes READ sessionPanes NOTIFY sessionPanesChanged)
     Q_PROPERTY(bool recording READ recording NOTIFY recordingChanged)
     Q_PROPERTY(QString versionNumber READ versionNumber WRITE setVersionNumber NOTIFY versionNumberChanged)
     Q_PROPERTY(QString buildInfo READ buildInfo WRITE setBuildInfo NOTIFY buildInfoChanged)
@@ -122,6 +127,17 @@ public:
     // Serial ports for the commutator's port picker: [{name, label}, ...].
     Q_INVOKABLE QVariantList availableSerialPorts() const;
 
+    // --- Acquire pane host -------------------------------------------------------
+    QVariantList sessionPanes() const { return m_sessionPanes; }
+    // Switch a pane window between container-embedded (aspect handled by the
+    // QML letterbox, free window resize) and top-level floating (re-shown with
+    // its interactive aspect lock restored).
+    Q_INVOKABLE void setPaneEmbedded(QObject *paneWindow, bool embedded, double aspect);
+    // Per-config, per-pane layout persistence (QSettings): {floating, x, y,
+    // width, height, ...} — whatever map QML hands over comes back verbatim.
+    Q_INVOKABLE QVariantMap paneLayout(const QString &paneName) const;
+    Q_INVOKABLE void savePaneLayout(const QString &paneName, const QVariantMap &state);
+
     // Convert a file:// URL from a QML folder/file dialog to a native path, so
     // the path-browse buttons in the config form editor can store a plain path.
     Q_INVOKABLE QString urlToLocalFile(const QUrl &url) const { return url.toLocalFile(); }
@@ -181,6 +197,7 @@ public:
 
 signals:
     void sessionActiveChanged();
+    void sessionPanesChanged();
     void recordingChanged();
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();
@@ -223,8 +240,13 @@ private:
     // recording cleanly first, same as the app always did on quit.
     void endSessionImpl(bool force);
     void setRecordingState(bool recording);
+    // Build the pane list from the session's live windows / hide the panes'
+    // windows and empty the list (notifying QML in both cases).
+    void rebuildSessionPanes();
+    void clearSessionPanes();
     bool m_sessionActive = false;
     bool m_recording = false;
+    QVariantList m_sessionPanes;
 
     void testCodecSupport();
 

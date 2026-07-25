@@ -38,6 +38,12 @@ signals:
 
 private:
     NewQuickView *view;
+
+public:
+    // The control panel's window, for embedding as a pane in the Acquire view.
+    QQuickView *panelView() const { return view; }
+
+private:
     QObject *rootObject;
     QQuickItem  *messageTextArea;
     QQuickItem *recordTimeText;

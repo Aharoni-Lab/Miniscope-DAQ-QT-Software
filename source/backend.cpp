@@ -1,7 +1,11 @@
 #include "backend.h"
 #include "monotonicclock.h"
+#include "newquickview.h"
 #include <QDebug>
 #include <QSerialPortInfo>
+#include <QSettings>
+#include <QQmlEngine>
+#include <QWindow>
 #include <cmath>
 #include <QFileDialog>
 #include <QApplication>
@@ -758,6 +762,10 @@ void backEnd::onRunClicked()
 
         setupDataSaver(); // must happen after devices have been made
 
+        // Pane descriptors must exist before sessionActive flips the shell to
+        // the Acquire view, which builds its containers from them.
+        rebuildSessionPanes();
+
         m_sessionActive = true;
         emit sessionActiveChanged();
     }
@@ -805,6 +813,11 @@ void backEnd::endSessionImpl(bool force)
     if (m_recording && !force)
         return;
     m_sessionActive = false;
+
+    // Empty the pane list before touching any window: the Acquire view reacts
+    // synchronously, destroying its WindowContainers, so no container still
+    // references a window the teardown below is about to delete.
+    clearSessionPanes();
 
     stopSessionThreads();
 
@@ -1043,6 +1056,104 @@ QVariantList backEnd::availableSerialPorts() const
                                {QStringLiteral("label"), label}});
     }
     return out;
+}
+
+// --- Acquire pane host ---------------------------------------------------------
+// The session's windows stay what they always were - one QQuickView per device/
+// panel, each with its own QML engine and (for video) a raw-GL underlay - but the
+// Acquire view now embeds them as panes via WindowContainer, with pop-out to a
+// floating window. The backend only describes the windows; QML owns the layout.
+
+void backEnd::rebuildSessionPanes()
+{
+    m_sessionPanes.clear();
+    auto addPane = [this](const QString &name, const QString &type,
+                          QQuickView *view, double aspect) {
+        if (!view)
+            return; // device that never connected has no window
+        // The views are parentless QObjects; without an explicit ownership
+        // claim, exposing them to QML would let the JS GC delete them.
+        QQmlEngine::setObjectOwnership(view, QQmlEngine::CppOwnership);
+        m_sessionPanes.append(QVariantMap{
+            {QStringLiteral("name"), name},
+            {QStringLiteral("type"), type},
+            {QStringLiteral("window"), QVariant::fromValue(static_cast<QWindow *>(view))},
+            {QStringLiteral("aspect"), aspect}});
+    };
+
+    for (int i = 0; i < miniscope.length(); i++)
+        addPane(miniscope[i]->getDeviceName(), QStringLiteral("video"),
+                miniscope[i]->deviceView(), miniscope[i]->displayAspectRatio());
+    for (int i = 0; i < behavCam.length(); i++)
+        addPane(behavCam[i]->getDeviceName(), QStringLiteral("video"),
+                behavCam[i]->deviceView(), behavCam[i]->displayAspectRatio());
+    if (controlPanel)
+        addPane(QStringLiteral("Control Panel"), QStringLiteral("panel"),
+                controlPanel->panelView(), 0);
+    if (traceDisplay)
+        addPane(QStringLiteral("Traces"), QStringLiteral("trace"),
+                traceDisplay->displayView(), 0);
+    // (The behavior tracker keeps its own floating window for now.)
+
+    emit sessionPanesChanged();
+}
+
+void backEnd::clearSessionPanes()
+{
+    // Hide first so released windows can't flash as top-levels mid-teardown.
+    for (const QVariant &p : std::as_const(m_sessionPanes)) {
+        if (auto *w = qvariant_cast<QWindow *>(p.toMap().value(QStringLiteral("window"))))
+            w->setVisible(false);
+    }
+    m_sessionPanes.clear();
+    emit sessionPanesChanged();
+}
+
+void backEnd::setPaneEmbedded(QObject *paneWindow, bool embedded, double aspect)
+{
+    auto *view = qobject_cast<NewQuickView *>(paneWindow);
+    if (!view)
+        return;
+    if (embedded) {
+        // The pane letterboxes to the aspect itself; the window must follow
+        // the container's geometry freely.
+        view->setLockedAspectRatio(0);
+        view->setMinimumSize(QSize(0, 0));
+    } else {
+        view->setParent(nullptr); // release from the container -> top-level again
+        view->setFlags(Qt::Window);
+        view->setLockedAspectRatio(aspect > 0 ? aspect : 0);
+        view->setMinimumSize(QSize(240, 180));
+        view->show();
+        view->requestActivate();
+    }
+}
+
+// Layouts are stored per config file per pane; the path is hashed into a
+// clean settings key (the layout is machine-local state, not config content).
+static QString paneSettingsGroup(const QString &configPath, const QString &paneName)
+{
+    return QStringLiteral("paneLayouts/%1/%2")
+        .arg(QString::number(qHash(configPath), 16), paneName);
+}
+
+QVariantMap backEnd::paneLayout(const QString &paneName) const
+{
+    QSettings settings;
+    settings.beginGroup(paneSettingsGroup(m_userConfigFileName, paneName));
+    QVariantMap out;
+    const QStringList keys = settings.childKeys();
+    for (const QString &k : keys)
+        out.insert(k, settings.value(k));
+    return out;
+}
+
+void backEnd::savePaneLayout(const QString &paneName, const QVariantMap &state)
+{
+    QSettings settings;
+    settings.beginGroup(paneSettingsGroup(m_userConfigFileName, paneName));
+    for (auto it = state.constBegin(); it != state.constEnd(); ++it)
+        settings.setValue(it.key(), it.value());
 }
 
 void backEnd::connectSnS()

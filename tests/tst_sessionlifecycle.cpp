@@ -14,6 +14,9 @@
 
 #include <QtTest>
 #include <QGuiApplication>
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
+#include <QQuickStyle>
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include <QTemporaryDir>
@@ -111,6 +114,15 @@ void TestSessionLifecycle::runEndRunCycle()
     QVERIFY(backend.hasDevices());
     QVERIFY(!backend.sessionActive());
 
+    // Run the full shell too (Setup/Acquire stack + the Acquire pane host), so
+    // Run / endSession also exercise WindowContainer embed and release against
+    // the real window teardown. Offscreen: everything is created, nothing is
+    // composited.
+    QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty("backend", &backend);
+    engine.load(QUrl(QStringLiteral("qrc:/AppShell.qml")));
+    QVERIFY2(!engine.rootObjects().isEmpty(), "AppShell.qml failed to load");
+
     // --- Session 1 -----------------------------------------------------------
     backend.onRunClicked();
     QVERIFY(backend.sessionActive());
@@ -149,9 +161,15 @@ void TestSessionLifecycle::runEndRunCycle()
 
 int main(int argc, char *argv[])
 {
-    // Match the app: the custom video renderers are raw OpenGL (see main.cpp).
+    // Match the app: the custom video renderers are raw OpenGL, and the
+    // controls style must allow customization (see main.cpp).
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+    QQuickStyle::setStyle("Basic");
     QGuiApplication app(argc, argv);
+    // AppShell's Settings element needs these; distinct names keep test runs
+    // out of the real app's stored settings (theme, pane layouts).
+    QCoreApplication::setOrganizationName("Aharoni Lab Tests");
+    QCoreApplication::setApplicationName("Miniscope DAQ Test");
     registerMiniscopeQmlTypes(); // session windows import Miniscope.Theme
     TestSessionLifecycle tc;
     return QTest::qExec(&tc, argc, argv);

@@ -50,7 +50,7 @@ void ControlPanel::createView()
 #ifdef Q_OS_WINDOWS
         view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
 #endif
-    view->show();
+    // Not shown here: the Acquire pane host embeds or floats it per the saved layout.
 
     rootObject = view->rootObject();
     messageTextArea = rootObject->findChild<QQuickItem*>("messageTextArea");

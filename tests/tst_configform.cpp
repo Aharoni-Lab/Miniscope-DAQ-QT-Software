@@ -14,6 +14,7 @@
 #include <QQmlComponent>
 #include <QQmlContext>
 #include <QQuickItem>
+#include <QQuickStyle>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
@@ -206,6 +207,7 @@ void TestConfigForm::configFormQml()
 
 int main(int argc, char *argv[])
 {
+    QQuickStyle::setStyle("Basic");  // match the app; allows control customization
     QGuiApplication app(argc, argv); // QML needs a Gui app
     registerMiniscopeQmlTypes();     // ThemeState / Theme singletons
     TestConfigForm tc;

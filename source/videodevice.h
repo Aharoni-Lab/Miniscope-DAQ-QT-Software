@@ -81,6 +81,14 @@ public:
     QAtomicInt* getAcqFrameNumPointer(){return m_acqFrameNum;}
     QAtomicInt* getDAQFrameNumPointer() { return m_daqFrameNum; }
     QString getDeviceName(){return m_deviceName;}
+    // The device's stream window, for embedding as a pane in the Acquire view.
+    QQuickView *deviceView() const { return view; }
+    // Native video aspect (catalog width/height); the pane letterboxes to this.
+    double displayAspectRatio() const {
+        const double w = m_cDevice.value("width").toDouble();
+        const double h = m_cDevice.value("height").toDouble();
+        return (w > 0 && h > 0) ? w / h : 0.0;
+    }
     int getErrors() { return m_errors; }
     QSize getResolution() {return m_resolution;}
 

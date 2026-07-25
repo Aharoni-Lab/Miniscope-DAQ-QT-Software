@@ -61,13 +61,12 @@ void TraceDisplayBackend::createView()
     view->setFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
                    | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
 #endif
-    view->show();
+    // Not shown here: the Acquire pane host embeds or floats it per the saved
+    // layout, and closing a floating trace pane re-docks it instead of tearing
+    // it down (teardown happens only in close(), at session end).
 
     m_traceDisplay = view->rootObject()->findChild<TraceDisplay*>("traceDisplay");
     m_traceDisplay->setSoftwareStartTime(m_softwareStartTime);
-
-    // Tear down cleanly when the window is closed (user X button or app exit).
-    QObject::connect(view, &NewQuickView::closing, this, &TraceDisplayBackend::handleWindowClosing);
 }
 
 void TraceDisplayBackend::addNewTrace(QString name, float color[3], float scale, QString units, bool sameOffset, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY)
@@ -82,28 +81,20 @@ void TraceDisplayBackend::addNewTrace(QString name, float color[3], float scale,
 
 TraceDisplayBackend::~TraceDisplayBackend()
 {
-    // Routes through handleWindowClosing(), which nulls m_traceDisplay and
-    // defers the view deletion; no-op if the user already closed the window.
+    // No-op if close() already ran (session end calls it before deleteLater).
     close();
 }
 
 void TraceDisplayBackend::close()
 {
-    // Routes through handleWindowClosing() via NewQuickView::closing. Guard against
-    // a second close (e.g. closeAll() after the user already closed the window).
-    if (view)
-        view->close();
-}
-
-void TraceDisplayBackend::handleWindowClosing()
-{
+    if (!view)
+        return;
     // Null the QML item first so a late addNewTrace() can't touch a dying object,
-    // then defer the view deletion (we're inside the view's own close event).
+    // then defer the view deletion (queued signals may still reference it).
     m_traceDisplay = nullptr;
-    if (view) {
-        view->deleteLater();
-        view = nullptr;
-    }
+    view->close();
+    view->deleteLater();
+    view = nullptr;
 }
 
 TraceDisplay::TraceDisplay()
