@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
     QQuickStyle::setStyle("Basic");
 
     // Keep the OS-level scheme LIGHT for now: the legacy session windows
-    // (ControlPanel.qml, the device/trace/tracker windows) rely on light
+    // (the device/trace/tracker windows) rely on light
     // palette text over hardcoded light backgrounds, so a dark palette makes
     // them unreadable. The new shell doesn't care - all its colors come from
     // the Theme singleton, so it renders dark regardless. Flip this to follow

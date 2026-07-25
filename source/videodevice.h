@@ -89,6 +89,11 @@ public:
         const double h = m_cDevice.value("height").toDouble();
         return (w > 0 && h > 0) ? w / h : 0.0;
     }
+    // Session-bar telemetry (GUI thread; the counters are atomics/semaphores
+    // shared with the capture thread).
+    int acqFrameCount() const { return m_acqFrameNum->loadRelaxed(); }
+    int droppedFrameEstimate() const { return deviceStream ? deviceStream->droppedFrameEstimate() : -1; }
+    int bufferUsedCount() const { return usedFrames ? usedFrames->available() : 0; }
     int getErrors() { return m_errors; }
     QSize getResolution() {return m_resolution;}
 

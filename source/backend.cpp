@@ -4,6 +4,7 @@
 #include <QDebug>
 #include <QSerialPortInfo>
 #include <QSettings>
+#include <QStorageInfo>
 #include <QQmlEngine>
 #include <QWindow>
 #include <cmath>
@@ -66,6 +67,7 @@ backEnd::backEnd(QObject *parent) :
     m_buildInfo(""),
     m_userConfigFileName(""),
     m_userConfigOK(false),
+    controlPanel(nullptr), // read by sessionControl() before any session runs
     traceDisplay(nullptr),
     behavTracker(nullptr)
 {
@@ -830,9 +832,9 @@ void backEnd::endSessionImpl(bool force)
     behavCam.clear();
 
     if (controlPanel) {
-        controlPanel->close();
-        controlPanel->deleteLater();
+        controlPanel->deleteLater(); // windowless; nothing to close
         controlPanel = nullptr;
+        emit sessionControlChanged();
     }
     if (traceDisplay) {
         traceDisplay->deleteLater(); // ~TraceDisplayBackend closes the window
@@ -1087,9 +1089,6 @@ void backEnd::rebuildSessionPanes()
     for (int i = 0; i < behavCam.length(); i++)
         addPane(behavCam[i]->getDeviceName(), QStringLiteral("video"),
                 behavCam[i]->deviceView(), behavCam[i]->displayAspectRatio());
-    if (controlPanel)
-        addPane(QStringLiteral("Control Panel"), QStringLiteral("panel"),
-                controlPanel->panelView(), 0);
     if (traceDisplay)
         addPane(QStringLiteral("Traces"), QStringLiteral("trace"),
                 traceDisplay->displayView(), 0);
@@ -1107,6 +1106,31 @@ void backEnd::clearSessionPanes()
     }
     m_sessionPanes.clear();
     emit sessionPanesChanged();
+}
+
+QVariantMap backEnd::sessionTelemetry() const
+{
+    QVariantMap out;
+    out.insert(QStringLiteral("diskFreeBytes"),
+               dataDirectory.isEmpty()
+                   ? -1.0
+                   : double(QStorageInfo(dataDirectory).bytesAvailable()));
+
+    QVariantList devices;
+    auto addDevice = [&devices](VideoDevice *d) {
+        devices.append(QVariantMap{
+            {QStringLiteral("name"), d->getDeviceName()},
+            {QStringLiteral("frames"), d->acqFrameCount()},
+            {QStringLiteral("dropped"), d->droppedFrameEstimate()},
+            {QStringLiteral("bufferUsed"), d->bufferUsedCount()},
+            {QStringLiteral("bufferSize"), d->getBufferSize()}});
+    };
+    for (int i = 0; i < miniscope.length(); i++)
+        addDevice(miniscope[i]);
+    for (int i = 0; i < behavCam.length(); i++)
+        addDevice(behavCam[i]);
+    out.insert(QStringLiteral("devices"), devices);
+    return out;
 }
 
 void backEnd::setPaneEmbedded(QObject *paneWindow, bool embedded, double aspect)
@@ -1163,7 +1187,6 @@ void backEnd::connectSnS()
     QObject::connect(controlPanel, SIGNAL( recordStart(QMap<QString,QVariant>)), dataSaver, SLOT (startRecording(QMap<QString,QVariant>)));
     QObject::connect(controlPanel, SIGNAL( recordStop()), dataSaver, SLOT (stopRecording()));
     QObject::connect((controlPanel), SIGNAL( sendNote(QString) ), dataSaver, SLOT ( takeNote(QString) ));
-    QObject::connect(this, SIGNAL( closeAll()), controlPanel, SLOT (close()));
 
     // Trace window is optional; only tear it down on exit if it was created.
     if (traceDisplay)
@@ -1484,9 +1507,10 @@ void backEnd::constructUserConfigGUI()
     int idx;
     QStringList keys;
 
-    // Load main control GUI
+    // The session controller behind the QML session bar (windowless).
     controlPanel = new ControlPanel(this, m_userConfig);
     QObject::connect(this, SIGNAL (sendMessage(QString) ), controlPanel, SLOT( receiveMessage(QString)));
+    emit sessionControlChanged();
 
     // Make trace display. Traces are only ever fed by miniscopes (BNO / head
     // orientation) or the behavior tracker, so don't open an empty trace window

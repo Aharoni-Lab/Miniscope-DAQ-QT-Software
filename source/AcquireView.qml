@@ -86,49 +86,14 @@ Item {
         anchors.margins: Theme.padding
         spacing: Theme.spacing
 
-        // --- Session bar (v1: status + layout lock + End Session) ---------------
-        RowLayout {
+        // --- Session bar: transport, telemetry, layout lock, End Session --------
+        SessionBar {
             Layout.fillWidth: true
-            spacing: Theme.spacing * 2
-
-            Rectangle {
-                width: 12; height: 12; radius: 6
-                color: backend && backend.recording ? Theme.recording : Theme.success
+            layoutLocked: acquireRoot.layoutLocked
+            onLockToggled: locked => {
+                acquireRoot.layoutLocked = locked
+                backend.savePaneLayout("__layout", { locked: locked })
             }
-            Text {
-                text: backend && backend.recording ? qsTr("RECORDING")
-                                                   : qsTr("Session running")
-                font: Theme.fontTitle
-                color: backend && backend.recording ? Theme.recording : Theme.textPrimary
-            }
-
-            Item { Layout.fillWidth: true }
-
-            UiSwitch {
-                text: qsTr("Lock layout")
-                syncChecked: acquireRoot.layoutLocked
-                onToggled: {
-                    acquireRoot.layoutLocked = checked
-                    backend.savePaneLayout("__layout", { locked: checked })
-                }
-            }
-
-            UiButton {
-                text: qsTr("End Session")
-                danger: true
-                // Blocked while recording (the backend refuses too): ending the
-                // session mid-recording would end the experiment by accident.
-                enabled: backend ? !backend.recording : false
-                onClicked: backend.endSession()
-            }
-        }
-
-        Text {
-            visible: backend ? backend.recording : false
-            text: qsTr("Stop the recording before ending the session.")
-            font: Theme.fontSmall
-            color: Theme.textSecondary
-            Layout.alignment: Qt.AlignRight
         }
 
         // --- Pane grid -----------------------------------------------------------

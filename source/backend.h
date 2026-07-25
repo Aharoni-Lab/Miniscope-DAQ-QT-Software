@@ -38,6 +38,9 @@ class backEnd : public QObject
     // Rebuilt on Run, cleared (and emitted) FIRST during session teardown so
     // QML releases its WindowContainers before the windows are destroyed.
     Q_PROPERTY(QVariantList sessionPanes READ sessionPanes NOTIFY sessionPanesChanged)
+    // The running session's controller (recording state machine + message
+    // log) for the QML session bar. Null outside a session.
+    Q_PROPERTY(QObject *sessionControl READ sessionControl NOTIFY sessionControlChanged)
     Q_PROPERTY(bool recording READ recording NOTIFY recordingChanged)
     Q_PROPERTY(QString versionNumber READ versionNumber WRITE setVersionNumber NOTIFY versionNumberChanged)
     Q_PROPERTY(QString buildInfo READ buildInfo WRITE setBuildInfo NOTIFY buildInfoChanged)
@@ -129,6 +132,11 @@ public:
 
     // --- Acquire pane host -------------------------------------------------------
     QVariantList sessionPanes() const { return m_sessionPanes; }
+    QObject *sessionControl() const { return controlPanel; }
+    // One polling snapshot for the session bar's telemetry chips:
+    // {diskFreeBytes, devices: [{name, frames, dropped, bufferUsed,
+    // bufferSize}]}. QML polls ~1 Hz and differentiates frame counts to FPS.
+    Q_INVOKABLE QVariantMap sessionTelemetry() const;
     // Switch a pane window between container-embedded (aspect handled by the
     // QML letterbox, free window resize) and top-level floating (re-shown with
     // its interactive aspect lock restored).
@@ -198,6 +206,7 @@ public:
 signals:
     void sessionActiveChanged();
     void sessionPanesChanged();
+    void sessionControlChanged();
     void recordingChanged();
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();

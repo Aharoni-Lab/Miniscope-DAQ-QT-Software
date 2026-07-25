@@ -129,14 +129,32 @@ void TestSessionLifecycle::runEndRunCycle()
     QCOMPARE(backend.sessionCameraCount(), 1);
     QCOMPARE(backend.sessionMiniscopeCount(), 0);
 
-    // Pane descriptors: the camera pane plus the control panel, carrying the
-    // CONFIG's device name (a playback device has no deviceID - the old
-    // operator[] lookup corrupted its name to "VideoDevice 0").
+    // Pane descriptors: one camera pane, carrying the CONFIG's device name (a
+    // playback device has no deviceID - the old operator[] lookup corrupted
+    // its name to "VideoDevice 0"). The session controller is windowless.
     const QVariantList panes = backend.sessionPanes();
-    QCOMPARE(panes.size(), 2);
+    QCOMPARE(panes.size(), 1);
     QCOMPARE(panes[0].toMap().value("name").toString(), QStringLiteral("PlaybackCam"));
     QVERIFY(panes[0].toMap().value("window").value<QObject *>() != nullptr);
-    QCOMPARE(panes[1].toMap().value("name").toString(), QStringLiteral("Control Panel"));
+
+    // Session controller: drives a real record/stop round trip (DataSaver
+    // threads, file creation, the backend's recording flag).
+    QObject *ctl = backend.sessionControl();
+    QVERIFY(ctl != nullptr);
+    QCOMPARE(ctl->property("recording").toBool(), false);
+    QVERIFY(QMetaObject::invokeMethod(ctl, "startRecording"));
+    drainEvents(600); // queued cross-thread start + a few saved frames
+    QVERIFY(backend.recording());
+    QCOMPARE(ctl->property("recording").toBool(), true);
+    QVERIFY(QMetaObject::invokeMethod(ctl, "stopRecording"));
+    drainEvents(300);
+    QVERIFY(!backend.recording());
+
+    // Telemetry snapshot: the device appears with live counters.
+    const QVariantMap telemetry = backend.sessionTelemetry();
+    QCOMPARE(telemetry.value("devices").toList().size(), 1);
+    QVERIFY(telemetry.value("devices").toList()[0].toMap()
+                .value("frames").toInt() > 0);
     drainEvents(500); // let the capture + saver threads actually run a bit
 
     backend.endSession();
