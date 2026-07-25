@@ -11,6 +11,7 @@ import Miniscope.Theme 1.0
 // gets their arrangement back on every run.
 Item {
     id: acquireRoot
+    objectName: "acquireView" // main.cpp's dev hooks drive setFloating via this
 
     readonly property var panes: backend ? backend.sessionPanes : []
     // Per-pane UI state keyed by pane name ({floating: bool}); reassigned
@@ -77,22 +78,6 @@ Item {
             ? { floating: true, x: pane.window.x, y: pane.window.y,
                 width: pane.window.width, height: pane.window.height }
             : { floating: false })
-    }
-
-    // Dev-only (MINISCOPE_PANE_TEST): drive a pop-out -> dock cycle on the
-    // first pane so the float/dock machinery can be exercised and
-    // screenshotted without clicks. See the shot hook in main.cpp.
-    Timer {
-        interval: 2500
-        running: backend && backend.env("MINISCOPE_PANE_TEST").length > 0
-                 && acquireRoot.panes.length > 0
-        onTriggered: acquireRoot.setFloating(acquireRoot.panes[0], true)
-    }
-    Timer {
-        interval: 6500
-        running: backend && backend.env("MINISCOPE_PANE_TEST").length > 0
-                 && acquireRoot.panes.length > 0
-        onTriggered: acquireRoot.setFloating(acquireRoot.panes[0], false)
     }
 
     ColumnLayout {

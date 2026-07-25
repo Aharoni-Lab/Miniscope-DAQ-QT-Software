@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
         // Companion hook: after the session has run a few seconds, grab every
         // visible Quick window (shell + panes, GL underlays included) to PNGs
         // in the given directory, then quit. For automated visual checks.
-        // With MINISCOPE_PANE_TEST also set, AcquireView pops the first pane
+        // With MINISCOPE_PANE_TEST also set, the hook pops the first pane
         // out at 2.5s and docks it at 6.5s; shots are taken in both states.
         const QString shotDir = qEnvironmentVariable("MINISCOPE_AUTORUN_SHOT_DIR");
         if (!shotDir.isEmpty()) {
@@ -152,6 +152,25 @@ int main(int argc, char *argv[])
                 }
             };
             if (qEnvironmentVariableIsSet("MINISCOPE_PANE_TEST")) {
+                // Drive the first pane through a float -> dock cycle by
+                // invoking the pane host's own setFloating (the same path
+                // the pane-header button takes), then shoot both states.
+                auto setFloating = [&engine, &backend](bool floating) {
+                    const QVariantList panes = backend.sessionPanes();
+                    if (panes.isEmpty())
+                        return;
+                    const auto roots = engine.rootObjects();
+                    for (QObject *root : roots) {
+                        if (QObject *view = root->findChild<QObject *>("acquireView")) {
+                            QMetaObject::invokeMethod(view, "setFloating",
+                                                      Q_ARG(QVariant, panes.first()),
+                                                      Q_ARG(QVariant, floating));
+                            return;
+                        }
+                    }
+                };
+                QTimer::singleShot(2500, &backend, [setFloating] { setFloating(true); });
+                QTimer::singleShot(6500, &backend, [setFloating] { setFloating(false); });
                 QTimer::singleShot(5000, &backend, [grabAll] { grabAll("floating"); });
                 QTimer::singleShot(9000, &backend, [grabAll] {
                     grabAll("docked");

@@ -154,6 +154,24 @@ ApplicationWindow {
         header: null
         footer: null
 
+        // Where to point people (label -> URL), rendered by the Repeater
+        // below. Edit this list, not markup.
+        readonly property var helpLinks: [
+            { label: qsTr("Miniscope wiki"),
+              url: "https://miniscope.org" },
+            { label: qsTr("Discussion forum"),
+              url: "https://miniscope.org/wiki/Forum:Home" },
+            { label: qsTr("Software repository (source, issues, releases)"),
+              url: "https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software" },
+            { label: qsTr("@miniscope on Bluesky"),
+              url: "https://bsky.app/profile/miniscope.bsky.social" },
+            { label: qsTr("Aharoni Lab, UCLA"),
+              url: "https://aharoni-lab.github.io/" },
+        ]
+        readonly property string versionText:
+            "Miniscope DAQ Software " + (backend ? backend.versionNumber : "") + "\n"
+            + (backend ? backend.buildInfo : "")
+
         contentItem: Column {
             spacing: Theme.spacing * 2
 
@@ -163,25 +181,71 @@ ApplicationWindow {
                 color: Theme.textPrimary
             }
 
-            Text {
-                id: helpText
+            // Version + build details, copyable for bug reports.
+            Rectangle {
                 width: helpDialog.availableWidth
+                height: versionRow.implicitHeight + 2 * Theme.spacing
+                radius: Theme.radiusSmall
+                color: Theme.surfaceAlt
+                RowLayout {
+                    id: versionRow
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.margins: Theme.spacing
+                    spacing: Theme.spacing
+                    TextEdit {
+                        id: versionInfo
+                        Layout.fillWidth: true
+                        text: helpDialog.versionText
+                        readOnly: true
+                        selectByMouse: true
+                        wrapMode: Text.WordWrap
+                        font: Theme.fontSmall
+                        color: Theme.textSecondary
+                        selectionColor: Theme.accent
+                    }
+                    UiButton {
+                        text: qsTr("Copy")
+                        onClicked: {
+                            versionInfo.selectAll()
+                            versionInfo.copy()
+                            versionInfo.deselect()
+                        }
+                    }
+                }
+            }
+
+            Column {
+                spacing: Theme.spacing
+                Repeater {
+                    model: helpDialog.helpLinks
+                    Text {
+                        required property var modelData
+                        text: "<a href='" + modelData.url + "'>" + modelData.label + "</a>"
+                        textFormat: Text.RichText
+                        font: Theme.fontBody
+                        linkColor: Theme.accent
+                        onLinkActivated: link => Qt.openUrlExternally(link)
+                        HoverHandler {
+                            cursorShape: parent.hoveredLink ? Qt.PointingHandCursor
+                                                            : Qt.ArrowCursor
+                        }
+                    }
+                }
+            }
+
+            Text {
+                id: creditText
+                text: qsTr("Icons from <a href='https://icons8.com/'>icons8</a>")
                 textFormat: Text.RichText
-                wrapMode: Text.WordWrap
-                font: Theme.fontBody
-                color: Theme.textPrimary
+                font: Theme.fontSmall
+                color: Theme.textSecondary
                 linkColor: Theme.accent
-                text: "Miniscope DAQ Software version " + (backend ? backend.versionNumber : "") + "<br/>" +
-                  (backend ? backend.buildInfo : "") + "<br/><br/>" +
-                  "Developed by the <a href='https://aharoni-lab.github.io/'>Aharoni Lab</a>, UCLA<br/>" +
-                  "Overview of the UCLA Miniscope project: <a href='http://www.miniscope.org'>miniscope.org</a><br/>" +
-                  "Miniscope Wiki: <a href='https://github.com/Aharoni-Lab/Miniscope-v4/wiki'>github.com/Aharoni-Lab/Miniscope-v4/wiki</a><br/>" +
-                  "Discussion board: <a href='https://groups.google.com/d/forum/miniscope'>groups.google.com/d/forum/miniscope</a><br/>" +
-                  "Issues and suggestions: <a href='https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software'>github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software</a><br/><br/>" +
-                  "Icons from <a href='https://icons8.com/'>icons8</a>"
                 onLinkActivated: link => Qt.openUrlExternally(link)
                 HoverHandler {
-                    cursorShape: helpText.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    cursorShape: creditText.hoveredLink ? Qt.PointingHandCursor
+                                                        : Qt.ArrowCursor
                 }
             }
 
