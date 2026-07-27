@@ -184,6 +184,15 @@ published together from CI.
   an error message instead of writing mixed-size frames into the recording.
 
 ### Fixed
+- Windows standalone build: opening any device window crashed the app
+  (access violation in Qt6Core) because the deployed layout was missing a
+  `qt.conf` — Qt's relocatable path lookup pointed at nonexistent
+  directories, so the per-device QML engines could not find modules like
+  `QtQuick.Window`. `deploy.py` now writes the `qt.conf`, matching what
+  macdeployqt (macOS) and linuxdeploy-plugin-qt (Linux) already do for the
+  other platforms' bundles. A device window whose QML fails to load for any
+  other reason now logs the loader errors and disables that device instead
+  of crashing.
 - Quitting the app now stops and joins every worker thread (capture loops,
   data saver, behavior tracker) in order — previously no thread was ever
   joined, so exit raced still-running threads against object teardown.

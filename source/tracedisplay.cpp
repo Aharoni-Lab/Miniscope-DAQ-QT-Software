@@ -3,6 +3,7 @@
 #include "newquickview.h"
 
 #include <QObject>
+#include <QDebug>
 #include <QGuiApplication>
 #include <QScreen>
 #include <QDateTime>
@@ -64,6 +65,20 @@ void TraceDisplayBackend::createView()
     // Not shown here: the Acquire pane host embeds or floats it per the saved
     // layout, and closing a floating trace pane re-docks it instead of tearing
     // it down (teardown happens only in close(), at session end).
+
+    // A failed QML load has no root object; bail out instead of dereferencing
+    // it. Console-only report: createView runs in the constructor, before the
+    // backend can wire up a message channel. close()/addNewTrace()/the pane
+    // host all already skip a null view / m_traceDisplay.
+    const QStringList loadErrors =
+        NewQuickView::loadFailureMessages(view, QStringLiteral("Trace display window"));
+    if (!loadErrors.isEmpty()) {
+        for (const QString &msg : loadErrors)
+            qWarning().noquote() << msg;
+        view->deleteLater();
+        view = nullptr;
+        return;
+    }
 
     m_traceDisplay = view->rootObject()->findChild<TraceDisplay*>("traceDisplay");
     m_traceDisplay->setSoftwareStartTime(m_softwareStartTime);

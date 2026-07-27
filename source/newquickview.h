@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QQuickView>
+#include <QStringList>
 
 // QQuickView with an optional aspect-ratio lock on interactive resizing.
 // (Close handling moved to the pane host: closing a floating pane re-docks
@@ -12,6 +13,13 @@ class NewQuickView: public QQuickView {
 public:
     NewQuickView(QUrl url):
         QQuickView(url) {}
+
+    // Failure report for a view whose QML produced no root object (bad
+    // qmlFile path, missing QML module in a broken deployment, ...): one
+    // summary line naming windowLabel plus one line per QML loader error.
+    // Empty when the view loaded fine. Every creation site checks this and
+    // bails out cleanly instead of dereferencing the null root object.
+    static QStringList loadFailureMessages(const QQuickView *view, const QString &windowLabel);
 
     // Lock interactive (border-drag) resizing to a fixed width:height ratio of the
     // client area. Pass 0 (the default) to leave the window freely resizable.

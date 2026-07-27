@@ -1,5 +1,20 @@
 #include "newquickview.h"
 
+#include <QQmlError>
+
+QStringList NewQuickView::loadFailureMessages(const QQuickView *view, const QString &windowLabel)
+{
+    if (view->rootObject())
+        return {};
+    QStringList messages;
+    messages << "ERROR: " + windowLabel + " failed to load ("
+                + view->source().toString() + "). It has been disabled.";
+    const auto errors = view->errors();
+    for (const QQmlError &e : errors)
+        messages << "ERROR: " + e.toString();
+    return messages;
+}
+
 #ifdef Q_OS_WINDOWS
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX

@@ -251,6 +251,21 @@ void VideoDevice::createView()
         // pane (WindowContainer) or floats it, per the saved layout.
         // --------------------
 
+        // Every lookup below would dereference a missing root object and
+        // crash, so report a failed QML load to the message log and take
+        // this device down instead.
+        const QStringList loadErrors =
+            NewQuickView::loadFailureMessages(view, m_deviceName + " display window");
+        if (!loadErrors.isEmpty()) {
+            for (const QString &msg : loadErrors)
+                sendMessage(msg);
+            stopAndJoinStream();
+            m_camConnected = 0;
+            view->deleteLater();
+            view = nullptr;
+            return;
+        }
+
         rootObject = view->rootObject();
 
         QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
