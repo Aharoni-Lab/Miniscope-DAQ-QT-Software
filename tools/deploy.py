@@ -107,6 +107,16 @@ for cat in PLUGIN_CATS:
 print("[3/6] copying QML modules ...")
 shutil.copytree(os.path.join(qt6, "qml"), os.path.join(bindir, "qml"))
 
+# qt.conf: conda's Qt is relocatable, so QLibraryInfo derives every path from
+# Qt6Core.dll's location. In the deployed layout that resolves to nonexistent
+# dirs (e.g. <top>/lib/qt6/qml), so any QQmlEngine beyond the main one (which
+# main.cpp patches by hand) fails imports like QtQuick.Window - the per-device
+# video windows came up empty and the app crashed. This points the built-in
+# paths at the bundled plugins/ and qml/ for EVERY engine in the process.
+# ("Imports"/"Qml2Imports" are the qt.conf keys for QML import paths.)
+with open(os.path.join(bindir, "qt.conf"), "w", encoding="utf-8") as f:
+    f.write("[Paths]\nPrefix = .\nPlugins = .\nImports = qml\nQml2Imports = qml\n")
+
 # --- dependency walk (everything into bin/) ------------------------------
 print("[4/6] copying conda dependencies ...")
 roots = [os.path.join(bindir, os.path.basename(EXE))]
