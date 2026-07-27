@@ -261,6 +261,19 @@ void BehaviorTracker::createView(QSize resolution)
 #endif
 
 
+    // A failed QML load has no root object; report it and bail out instead
+    // of dereferencing it. sendNewFrame is only connected below, so a bailed
+    // tracker never touches the null trackerDisplay again.
+    const QStringList loadErrors =
+        NewQuickView::loadFailureMessages(view, QStringLiteral("Behavior tracker window"));
+    if (!loadErrors.isEmpty()) {
+        for (const QString &msg : loadErrors)
+            sendMessage(msg);
+        view->deleteLater();
+        view = nullptr;
+        return;
+    }
+
     rootObject = view->rootObject();
     trackerDisplay = rootObject->findChild<TrackerDisplay*>("trackerDisplay");
     QObject::connect(trackerDisplay->window(), &QQuickWindow::beforeRendering, this, &BehaviorTracker::sendNewFrame);

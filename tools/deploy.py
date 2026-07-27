@@ -112,10 +112,10 @@ shutil.copytree(os.path.join(qt6, "qml"), os.path.join(bindir, "qml"))
 # dirs (e.g. <top>/lib/qt6/qml), so any QQmlEngine beyond the main one (which
 # main.cpp patches by hand) fails imports like QtQuick.Window - the per-device
 # video windows came up empty and the app crashed. This points the built-in
-# paths at the bundled plugins/ and qml/ for EVERY engine in the process.
-# ("Imports"/"Qml2Imports" are the qt.conf keys for QML import paths.)
+# paths at the bundled plugins/ and qml/ for EVERY engine in the process,
+# relative to the exe's dir (the qt.conf default prefix).
 with open(os.path.join(bindir, "qt.conf"), "w", encoding="utf-8") as f:
-    f.write("[Paths]\nPrefix = .\nPlugins = .\nImports = qml\nQml2Imports = qml\n")
+    f.write("[Paths]\nPlugins = .\nQmlImports = qml\n")
 
 # --- dependency walk (everything into bin/) ------------------------------
 print("[4/6] copying conda dependencies ...")

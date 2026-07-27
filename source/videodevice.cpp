@@ -8,7 +8,6 @@
 
 #include <QQuickView>
 #include <QQuickItem>
-#include <QQmlError>
 #include <QSemaphore>
 #include <QObject>
 #include <QTimer>
@@ -252,23 +251,22 @@ void VideoDevice::createView()
         // pane (WindowContainer) or floats it, per the saved layout.
         // --------------------
 
-        rootObject = view->rootObject();
-        if (!rootObject) {
-            // The window QML failed to load (bad qmlFile path, missing QML
-            // module in a deployed build, ...). Every lookup below would
-            // dereference null and crash, so report the loader's errors to
-            // the message log and take this device down instead.
-            sendMessage("ERROR: " + m_deviceName + " display window failed to load ("
-                        + url.toString() + "). The device has been disabled.");
-            const auto qmlErrors = view->errors();
-            for (const QQmlError &e : qmlErrors)
-                sendMessage("ERROR: " + e.toString());
+        // Every lookup below would dereference a missing root object and
+        // crash, so report a failed QML load to the message log and take
+        // this device down instead.
+        const QStringList loadErrors =
+            NewQuickView::loadFailureMessages(view, m_deviceName + " display window");
+        if (!loadErrors.isEmpty()) {
+            for (const QString &msg : loadErrors)
+                sendMessage(msg);
             stopAndJoinStream();
             m_camConnected = 0;
             view->deleteLater();
             view = nullptr;
             return;
         }
+
+        rootObject = view->rootObject();
 
         QObject::connect(rootObject, SIGNAL( takeScreenShotSignal() ),
                              this, SLOT( handleTakeScreenShotSignal() ));
