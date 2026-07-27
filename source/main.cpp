@@ -37,6 +37,21 @@
 
 // For Window's deployment
 //C:\Qt\5.12.6>C:\Qt\5.12.6\msvc2017_64\bin\windeployqt.exe --qmldir C:\Users\DBAharoni\Documents\Projects\Miniscope-DAQ-QT-Software\Miniscope-DAQ-QT-Software\ C:\Users\DBAharoni\Documents\Projects\Miniscope-DAQ-QT-Software\build-Miniscope-DAQ-QT-Software-Desktop_Qt_5_12_6_MSVC2017_64bit-Release\release\Miniscope-DAQ-QT-Software.exe
+
+#ifdef Q_OS_WIN
+// Ask hybrid-GPU (laptop iGPU + discrete) drivers to run this app on the
+// discrete GPU. By default the OpenGL scene graph + raw-GL video underlays
+// land on the power-saving iGPU, where resizing a session window stalls for
+// SECONDS per step inside SwapBuffers: the session holds two nested GL
+// swapchains (shell + embedded video pane), and the iGPU/DWM path serializes
+// their resizes pathologically (bench: 50-step resize storm 22.6s on Intel
+// Arc vs 3.4s on the discrete GPU, with capture starved to ~6 FPS vs a steady
+// ~30 FPS). These exported symbols are the documented NVIDIA/AMD opt-ins.
+extern "C" {
+__declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
+__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+}
+#endif
 int main(int argc, char *argv[])
 {
     // Qt6: high-DPI scaling is always on, so AA_EnableHighDpiScaling is gone

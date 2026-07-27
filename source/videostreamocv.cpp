@@ -120,6 +120,7 @@ int VideoStreamOCV::connect2Video(QString folderPath, QString filePrefix, float 
 void VideoStreamOCV::startStream()
 {
     resetStreamState();
+    m_transientFailures = 0;
     ReconnectBackoff backoff;
     cv::Mat frame;
     qint64 timestamp = 0;
@@ -153,25 +154,38 @@ void VideoStreamOCV::startStream()
         else
 #endif
         if (m_connectionType != "videoFile") {
+            // A grab/retrieve can fail transiently while the device is fine -
+            // bench-observed on Windows/DSHOW whenever a window is interactively
+            // resized (GPU/DWM contention during the GL swapchain rebuild).
+            // Releasing the camera on the first failure turns that blip into a
+            // full disconnect: seconds of reconnect backoff, frozen video, and
+            // the persistent "disconnected" indicator. So retry briefly in
+            // place, and only run the reconnect cycle when the failure persists
+            // for ~1 s (a genuinely unplugged device still reconnects, just one
+            // second later).
+            const char *failedStep = nullptr;
             if (!cam->grab()) {
+                failedStep = "grab frame";
+            } else {
+                timestamp = monotonicTimeMs();
+                if (!cam->retrieve(frame))
+                    failedStep = "retrieve frame";
+            }
+            if (failedStep) {
+                if (++m_transientFailures < kTransientFailureLimit) {
+                    QThread::msleep(kTransientRetryDelayMs);
+                    continue;
+                }
+                m_transientFailures = 0;
                 if (cam->isOpened()) {
-                    qDebug() << "Grab failed: Releasing cam" << m_cameraID;
+                    qDebug() << failedStep << "failed: Releasing cam" << m_cameraID;
                     cam->release();
                     qDebug() << "Released cam" << m_cameraID;
                 }
-                runReconnectCycle(backoff, "grab frame");
+                runReconnectCycle(backoff, QString::fromLatin1(failedStep));
                 continue;
             }
-            timestamp = monotonicTimeMs();
-            if (!cam->retrieve(frame)) {
-                if (cam->isOpened()) {
-                    qDebug() << "Retrieve failed: Releasing cam" << m_cameraID;
-                    cam->release();
-                    qDebug() << "Released cam" << m_cameraID;
-                }
-                runReconnectCycle(backoff, "retrieve frame");
-                continue;
-            }
+            m_transientFailures = 0;
             backoff.reset();
         }
         else {

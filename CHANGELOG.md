@@ -184,6 +184,17 @@ published together from CI.
   an error message instead of writing mixed-size frames into the recording.
 
 ### Fixed
+- Windows on hybrid-GPU laptops (iGPU + discrete): resizing a session window
+  stalled for seconds per step (lagging the whole desktop) because the app's
+  OpenGL rendering defaulted to the power-saving iGPU, where the session's
+  multiple GL windows serialize their swapchain resizes pathologically. The
+  app now requests the discrete GPU via the standard NVIDIA/AMD driver
+  opt-ins (bench: a 50-step scripted resize storm dropped from 22.6 s to
+  3.0 s, with webcam capture holding ~30 FPS instead of starving to ~6 FPS).
+- A transient camera grab/retrieve failure (e.g. GPU/driver contention while
+  a window is resized) no longer releases the camera and triggers a full
+  disconnect/reconnect cycle - the capture loop retries in place for up to
+  ~1 s first. A genuinely unplugged camera still reconnects as before.
 - Windows standalone build: opening any device window crashed the app
   (access violation in Qt6Core) because the deployed layout was missing a
   `qt.conf` — Qt's relocatable path lookup pointed at nonexistent
