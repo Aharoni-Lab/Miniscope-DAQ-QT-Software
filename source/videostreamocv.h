@@ -55,6 +55,13 @@ private:
     QString m_playbackFilePrefix;
     int m_playbackFileIndex;
 
+    // Transient grab/retrieve failure tolerance (see startStream): retry in
+    // place for up to limit * delay (~1 s) before treating the device as
+    // disconnected. Consecutive-failure count; any success resets it.
+    static constexpr int kTransientFailureLimit = 40;
+    static constexpr int kTransientRetryDelayMs = 25;
+    int m_transientFailures = 0;
+
 };
 
 #endif // VIDEOSTREAMOCV_H
