@@ -79,6 +79,18 @@ target_include_directories(tst_twistcalculator PRIVATE ${CMAKE_SOURCE_DIR}/sourc
 target_link_libraries(tst_twistcalculator PRIVATE Qt6::Gui Qt6::Test)
 add_test(NAME twistcalculator COMMAND tst_twistcalculator)
 
+# --- Commutator wire format (LF framing + turn serialization) -------------------
+# The host cannot see whether the controller accepted a command, so the protocol
+# rules (one LF-terminated command per line; fixed, locale-independent notation)
+# are pinned here instead of at the rig.
+qt_add_executable(tst_commutatorprotocol tst_commutatorprotocol.cpp
+    ${CMAKE_SOURCE_DIR}/source/commutator.cpp
+    ${CMAKE_SOURCE_DIR}/source/twistcalculator.cpp)
+target_include_directories(tst_commutatorprotocol PRIVATE ${CMAKE_SOURCE_DIR}/source)
+target_link_libraries(tst_commutatorprotocol PRIVATE
+    Qt6::Gui Qt6::SerialPort Qt6::Test)
+add_test(NAME commutatorprotocol COMMAND tst_commutatorprotocol)
+
 # --- Session lifecycle (Run -> endSession -> Run, one process) -----------------
 # Links the full app core (miniscope_app) and drives the real backend with a
 # file-playback video stream: capture thread, device window, control panel, and
