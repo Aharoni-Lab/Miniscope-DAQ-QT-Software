@@ -1,9 +1,10 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 
-// Compact video-overlay stepped control (gain, frame rate): the current
-// value stays visible as a small chip; hovering slides out a -/+ stepper to
-// its left.
+// One stepped hardware-control row for the left dock (gain, frame rate). The
+// current value is always visible (icon + number); the dock reveals a -/+
+// stepper in-row when it expands, matching VideoSliderControl's behaviour.
 //
 // C++ contract (videodevice.cpp control loop, keep stable): objectName set by
 // the window shell; catalog-driven properties displaySpinBoxValues/
@@ -13,9 +14,9 @@ import QtQuick.Controls
 // values reach the device through this path.
 Item {
     id: root
-    implicitWidth: chip.width
-    implicitHeight: chip.height
+    implicitHeight: 30
 
+    property bool expanded: false
     property color textColor: "#d8d8e0"
     property var iconPath: ""
     property var displaySpinBoxValues: []
@@ -48,64 +49,43 @@ Item {
             spinBox.value = idx
     }
 
-    readonly property bool expanded: chipHover.hovered || flyoutHover.hovered
+    RowLayout {
+        anchors.fill: parent
+        spacing: 6
 
-    Rectangle {
-        id: chip
-        anchors.right: parent.right
-        width: chipRow.implicitWidth + 12
-        height: 22
-        radius: 4
-        color: "#aa14141a"
-        border.width: root.expanded ? 1 : 0
-        border.color: "#5a5a68"
-
-        HoverHandler { id: chipHover }
-
-        Row {
-            id: chipRow
-            anchors.centerIn: parent
-            spacing: 5
-            RecoloredIcon {
-                height: 16
-                width: 16
-                anchors.verticalCenter: parent.verticalCenter
-                source: root.iconPath
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: root.displayTextValues[spinBox.value] !== undefined
-                      ? "" + root.displayTextValues[spinBox.value] : ""
-                color: root.textColor
-                font.pixelSize: 13
-                font.bold: true
-            }
+        RecoloredIcon {
+            Layout.preferredWidth: 16
+            Layout.preferredHeight: 16
+            source: root.iconPath
         }
-    }
 
-    Rectangle {
-        id: flyout
-        visible: root.expanded
-        anchors.right: chip.left
-        anchors.rightMargin: 4
-        anchors.verticalCenter: chip.verticalCenter
-        width: 110
-        height: 22
-        radius: 4
-        color: "#dd14141a"
-        border.width: 1
-        border.color: "#5a5a68"
-
-        HoverHandler { id: flyoutHover }
+        // Collapsed: a plain value label. Expanded: the -/+ stepper (which
+        // shows the same value). Only one is present at a time so the row
+        // stays narrow when collapsed.
+        Text {
+            visible: !root.expanded
+            Layout.fillWidth: true
+            text: root.displayTextValues[spinBox.value] !== undefined
+                  ? "" + root.displayTextValues[spinBox.value] : ""
+            color: root.textColor
+            font.pixelSize: 13
+            font.bold: true
+            horizontalAlignment: Text.AlignRight
+        }
 
         SpinBox {
             id: spinBox
-            anchors.fill: parent
+            visible: root.expanded
+            opacity: root.expanded ? 1 : 0
+            Layout.fillWidth: true
+            Layout.preferredHeight: root.implicitHeight
             from: 0
             to: Math.max(0, root.displaySpinBoxValues.length - 1)
             value: 0
             font.pixelSize: 13
             font.bold: true
+
+            Behavior on opacity { NumberAnimation { duration: 120 } }
 
             textFromValue: function(value) {
                 return root.displaySpinBoxValues[value] !== undefined

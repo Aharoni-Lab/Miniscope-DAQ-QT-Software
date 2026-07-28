@@ -11,11 +11,12 @@ import Miniscope.Theme 1.0
 //
 // Design: telemetry lives in always-visible status chips over the video (REC
 // state above all - the old windows showed nothing during a recording);
-// hardware controls are always-visible value chips at the top right whose
-// slider/stepper slides out on hover (values glanceable at all times,
-// adjustment UI only when needed); display-only controls (contrast /
-// brightness / saturation / LUT / dFF) and actions sit in an auto-hiding
-// right rail.
+// hardware controls (gain / frame rate / LEDs / EWL - the recorded device
+// settings) live in a left-edge dock whose value + icon are always visible,
+// and which expands on hover (or when pinned) to reveal every control's
+// slider/stepper at once (values glanceable at all times, adjustment UI only
+// when needed); display-only controls (contrast / brightness / saturation /
+// LUT / dFF) and actions sit in an auto-hiding right rail.
 //
 // C++ contract (videodevice/miniscope/behaviorcam.cpp attach by objectName
 // and root signal - keep these stable):
@@ -258,56 +259,131 @@ Item {
         opacity: 0.9
     }
 
-    // --- Sensor value chips (always visible, top right) ------------------------
-    // Each shows its current value at a glance; hovering a chip slides out
-    // its slider/stepper. The catalog (videoDevices.json) defines which
-    // controls exist per device type; C++ shows and configures them.
-    Column {
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.topMargin: Theme.spacing
-        anchors.rightMargin: 34 // clear of the rail's edge-hover zone
-        spacing: 6
+    // --- Hardware control dock (left edge) -------------------------------------
+    // The recorded device settings (gain / frame rate / LEDs / EWL). Value +
+    // icon are always visible so they stay glanceable during a recording;
+    // hovering the dock (or pinning it) expands it and reveals every control's
+    // slider/stepper at once - no per-control flyout floating over the video.
+    // The catalog (videoDevices.json) defines which controls exist per device
+    // type; C++ shows (visible) and configures each by objectName.
+    //
+    // Sizing is window-relative: video panes in the Acquire grid can get small,
+    // so the expanded width clamps to the pane and the rows scroll if a very
+    // short pane can't fit them all.
+    Rectangle {
+        id: hwDock
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.leftMargin: Theme.spacing
 
-        VideoSpinBoxControl {
-            objectName: "gain"
-            visible: false
-            anchors.right: parent.right
-            iconPath: "img/icon/gain.png"
-            onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
-                root.vidPropChangedSignal("gain", displayValue, i2cValue, i2cValue2)
-        }
-        VideoSpinBoxControl {
-            objectName: "frameRate"
-            visible: false
-            anchors.right: parent.right
-            iconPath: "img/icon/fps.png"
-            onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
-                root.vidPropChangedSignal("frameRate", displayValue, i2cValue, i2cValue2)
-        }
-        VideoSliderControl {
-            objectName: "led0"
-            visible: false
-            anchors.right: parent.right
-            iconPath: "img/icon/led.png"
-            onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
-                root.vidPropChangedSignal("led0", displayValue, i2cValue, i2cValue2)
-        }
-        VideoSliderControl {
-            objectName: "led1"
-            visible: false
-            anchors.right: parent.right
-            iconPath: "img/icon/led.png"
-            onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
-                root.vidPropChangedSignal("led1", displayValue, i2cValue, i2cValue2)
-        }
-        VideoSliderControl {
-            objectName: "ewl"
-            visible: false
-            anchors.right: parent.right
-            iconPath: "img/icon/ewl.png"
-            onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
-                root.vidPropChangedSignal("ewl", displayValue, i2cValue, i2cValue2)
+        readonly property bool hwExpanded: hwHover.hovered || hwPinned
+        property bool hwPinned: false
+        readonly property int collapsedWidth: 78
+        readonly property int expandedWidth: Math.min(240, root.width - 2 * Theme.spacing)
+
+        // Whether the catalog gave this device any hardware controls. C++ calls
+        // setVisible(true) on each control AFTER the window loads. We must NOT
+        // gate this Rectangle's own `visible` on the children's visibility:
+        // QML `item.visible` is EFFECTIVE visibility, so a hidden dock keeps its
+        // children effectively hidden, their visibleChanged never fires, and the
+        // dock stays hidden forever (chicken-and-egg). Keeping the dock itself
+        // visible lets the children's effective visibility track C++, so this
+        // binding resolves correctly; we hide the empty dock by collapsing its
+        // width and making it transparent instead.
+        readonly property bool hasControls:
+            gainCtl.visible || frameRateCtl.visible || led0Ctl.visible
+            || led1Ctl.visible || ewlCtl.visible
+
+        width: hasControls ? (hwExpanded ? expandedWidth : collapsedWidth) : 0
+        // Never taller than the pane (minus a margin); the ScrollView handles
+        // the overflow if it still doesn't fit.
+        height: Math.min(hwContent.implicitHeight + 2 * Theme.spacing,
+                         root.height - 2 * Theme.spacing)
+        radius: Theme.radiusSmall
+        color: !hasControls ? "transparent"
+                            : (hwExpanded ? "#dd14141a" : "#aa14141a")
+
+        Behavior on width { NumberAnimation { duration: Theme.animMs } }
+
+        HoverHandler { id: hwHover }
+
+        ScrollView {
+            anchors.fill: parent
+            anchors.margins: Theme.spacing
+            contentWidth: availableWidth
+            clip: true
+
+            ColumnLayout {
+                id: hwContent
+                width: hwDock.width - 2 * Theme.spacing
+                spacing: 4
+
+                // Pin (glove-friendly), shown only once expanded.
+                Text {
+                    Layout.alignment: Qt.AlignRight
+                    visible: hwDock.hwExpanded
+                    text: hwDock.hwPinned ? "📌" : "📍"
+                    font: Theme.fontSmall
+                    color: "#8a8a96"
+                    MouseArea {
+                        anchors.fill: parent
+                        anchors.margins: -6
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: hwDock.hwPinned = !hwDock.hwPinned
+                    }
+                }
+
+                VideoSpinBoxControl {
+                    id: gainCtl
+                    objectName: "gain"
+                    visible: false
+                    Layout.fillWidth: true
+                    expanded: hwDock.hwExpanded
+                    iconPath: "img/icon/gain.png"
+                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
+                        root.vidPropChangedSignal("gain", displayValue, i2cValue, i2cValue2)
+                }
+                VideoSpinBoxControl {
+                    id: frameRateCtl
+                    objectName: "frameRate"
+                    visible: false
+                    Layout.fillWidth: true
+                    expanded: hwDock.hwExpanded
+                    iconPath: "img/icon/fps.png"
+                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
+                        root.vidPropChangedSignal("frameRate", displayValue, i2cValue, i2cValue2)
+                }
+                VideoSliderControl {
+                    id: led0Ctl
+                    objectName: "led0"
+                    visible: false
+                    Layout.fillWidth: true
+                    expanded: hwDock.hwExpanded
+                    iconPath: "img/icon/led.png"
+                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
+                        root.vidPropChangedSignal("led0", displayValue, i2cValue, i2cValue2)
+                }
+                VideoSliderControl {
+                    id: led1Ctl
+                    objectName: "led1"
+                    visible: false
+                    Layout.fillWidth: true
+                    expanded: hwDock.hwExpanded
+                    iconPath: "img/icon/led.png"
+                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
+                        root.vidPropChangedSignal("led1", displayValue, i2cValue, i2cValue2)
+                }
+                VideoSliderControl {
+                    id: ewlCtl
+                    objectName: "ewl"
+                    visible: false
+                    Layout.fillWidth: true
+                    expanded: hwDock.hwExpanded
+                    iconPath: "img/icon/ewl.png"
+                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
+                        root.vidPropChangedSignal("ewl", displayValue, i2cValue, i2cValue2)
+                }
+            }
         }
     }
 
