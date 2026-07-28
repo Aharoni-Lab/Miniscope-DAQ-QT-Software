@@ -1,0 +1,215 @@
+{
+    "$schema": "https://raw.githubusercontent.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/master/deviceConfigs/userConfigSchema.json",
+    "configVersion": 1,
+    "COMMENT": "REFERENCE FILE: every key the software understands, with notes. It is not meant to be run as-is - the behavior tracker and commutator sections point at paths and ports that don't exist on your machine. Copy one of the numbered configs (01-05) to start a real experiment.",
+    "COMMENT2": "Keys with 'COMMENT' in the name are ignored by the software. So is any key it doesn't recognize - notes and custom entries survive being edited and saved in the app.",
+    "COMMENT3": "The '$schema' line above lets editors like VS Code validate and autocomplete this file. The software also checks it at load and reports problems in the Config check panel, but never refuses to run because of a schema warning.",
+
+    "COMMENT_dataDirectory": "Base folder all data is saved to. Absolute paths with forward slashes are recommended, e.g. 'D:/MiniscopeData'. './Data' (relative to the software folder) works for trying things out.",
+    "dataDirectory": "./Data",
+
+    "COMMENT_directoryStructure": "The folder hierarchy created under dataDirectory for each recording, outermost first.",
+    "COMMENT_directoryStructure2": "'date' and 'time' are filled in with the recording's start date/time. Every other entry must name a top-level key in this file whose string value becomes the folder name - including keys you invent, like customEntry0 below.",
+    "directoryStructure": [
+        "researcherName",
+        "experimentName",
+        "animalName",
+        "customEntry0",
+        "date",
+        "time"
+    ],
+    "researcherName": "MyName",
+    "experimentName": "Experiment1",
+    "animalName": "Animal1",
+    "customEntry0": "AnyValueYouWant",
+
+    "COMMENT_recordLengthInSeconds": "0 = record until you press Stop. Any positive value stops the recording automatically after that many seconds.",
+    "recordLengthInSeconds": 0,
+
+    "COMMENT_executables": "Run an external program when recording starts / stops, usually to synchronize third-party hardware. 'filePath' is an absolute path to the program; 'arguments' are passed to it. Leave enabled false if you don't need this.",
+    "executableOnStartRecording": {
+        "enabled": false,
+        "filePath": "C:/PATH/TO/PROGRAM.exe",
+        "arguments": [
+            "arg1",
+            "arg2"
+        ]
+    },
+    "executableOnStopRecording": {
+        "enabled": false,
+        "filePath": "C:/PATH/TO/PROGRAM.exe",
+        "arguments": [
+            "arg1"
+        ]
+    },
+
+    "COMMENT_traceDisplay": "The real-time scrolling trace window. Traces come from a Miniscope's head orientation, fluorescence ROIs added during acquisition, and the behavior tracker's pose data. Only type 'scrolling' is implemented. The window* keys are optional; they set the size the window opens at when it is popped out of the layout.",
+    "traceDisplay": {
+        "enabled": true,
+        "type": "scrolling",
+        "windowWidth": 600,
+        "windowHeight": 800
+    },
+
+    "COMMENT_commutator": "Drives an Open Ephys commutator from a Miniscope's live BNO head orientation, so the tether unwinds as the animal turns. Requires a V4_BNO (or newer) Miniscope with headOrientation.enabled true. See 05-Miniscope-V4-plus-Commutator.json for a ready-to-use version.",
+    "COMMENT_commutator2": "Hardware and firmware: https://github.com/open-ephys/commutator-controller",
+    "commutator": {
+        "enabled": false,
+        "COMMENT_port": "The commutator's USB serial port: 'COM3' on Windows, '/dev/ttyACM0' on Linux, '/dev/cu.usbmodem*' on macOS. The port dropdown in the app lists what is attached right now.",
+        "port": "COM3",
+        "COMMENT_deviceName": "Which Miniscope's head orientation drives it (its key under devices.miniscopes). Omit or leave empty to use the first Miniscope with headOrientation enabled.",
+        "deviceName": "",
+        "COMMENT_led": "The commutator's own indicator LED.",
+        "led": true,
+        "COMMENT_sampleRate": "How many times per second the orientation is sampled to compute a turn command.",
+        "sampleRate": 10,
+        "COMMENT_headstageAxis": "Direction the tether leaves the headstage, [x, y, z] in the IMU frame. Negate it ([0, 0, -1]) if the commutator winds the tether up instead of unwinding it.",
+        "headstageAxis": [
+            0,
+            0,
+            1
+        ],
+        "COMMENT_commutatorAxis": "Direction the tether enters the rotating commutator element, [x, y, z] in the global frame. [0, 0, 1] for an upright mount.",
+        "commutatorAxis": [
+            0,
+            0,
+            1
+        ],
+        "COMMENT_fallback": "Advanced. Near the twist estimate's mathematical pole (headstage and commutator axes nearly opposed) the software switches to an assumption: 'global' = orbital motion about the commutator, 'local' = rotation about the headstage tether axis. fallbackThreshold is the cosine below which that kicks in.",
+        "fallbackThreshold": -0.9,
+        "fallbackMode": "global"
+    },
+
+    "COMMENT_behaviorTracker": "Live pose tracking with DeepLabCut-Live. Beta, and it needs a working Python environment with DLC-Live installed: https://github.com/DeepLabCut/DeepLabCut-live",
+    "COMMENT_behaviorTracker2": "Only type 'DeepLabCut-Live' is supported. The software checks that pyEnvPath contains '/Lib/site-packages/dlclive'. Leave enabled false (or delete this section) if you don't use it - it lives under the app's Advanced tab.",
+    "behaviorTracker": {
+        "enabled": false,
+        "type": "DeepLabCut-Live",
+        "COMMENT_paths": "Absolute paths to the Python environment that can run DLC-Live, and to the DLC model.",
+        "pyEnvPath": "ABSOLUTE/PATH/TO/PYTHON/ENVIRONMENT",
+        "modelPath": "ABSOLUTE/PATH/TO/DLC/MODEL",
+        "COMMENT_resize": "Scales the behavior video before it reaches DLC (0 to 1). Use a smaller value if inference can't keep up.",
+        "resize": 1,
+        "COMMENT_pCutoffDisplay": "All pose data is recorded; this is the minimum p value for a point to be PLOTTED.",
+        "pCutoffDisplay": 0.3,
+        "COMMENT_window": "Optional: size/position the tracker window opens at.",
+        "windowX": 200,
+        "windowY": 100,
+        "windowScale": 0.75,
+        "COMMENT_occupancyPlot": "Inset in the tracker window showing the log of a 2D occupancy histogram - where the animal has spent its time. numBinsX/Y divide the camera image into spatial bins; poseIdxToUse are the pose indices whose mean position is binned (only points above pCutoffDisplay count).",
+        "occupancyPlot": {
+            "enabled": true,
+            "numBinsX": 100,
+            "numBinsY": 100,
+            "poseIdxToUse": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ]
+        },
+        "COMMENT_poseIdxForTraceDisplay": "Pose indices to plot in the trace display. Each entry is an index followed by 'w' (width / x position), 'h' (height / y position), or 'wh' for both.",
+        "poseIdxForTraceDisplay": [
+            "0wh",
+            "1w",
+            "2w"
+        ],
+        "COMMENT_poseOverlay": "Draws pose data over the camera image. 'type' is 'point', 'line', or 'ribbon'; numOfPastPoses is how many recent positions fade out behind the current one; markerSize is sensible between 3 and 20.",
+        "poseOverlay": {
+            "enabled": true,
+            "type": "point",
+            "numOfPastPoses": 6,
+            "markerSize": 20,
+            "COMMENT_skeleton": "Each inner array is a chain of pose indices to connect with lines.",
+            "skeleton": {
+                "enabled": true,
+                "connectedIndices": [
+                    [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+                    ],
+                    [
+                        6,
+                        7,
+                        8,
+                        9,
+                        10,
+                        11
+                    ],
+                    [
+                        12,
+                        13
+                    ]
+                ]
+            }
+        }
+    },
+
+    "COMMENT_devices": "Every input device for the session. Supported deviceType values are listed in deviceConfigs/videoDevices.json, and the app prints them at startup.",
+    "devices": {
+        "COMMENT_miniscopes": "One entry per Miniscope, keyed by a name of your choosing. The name must be unique across ALL devices - it becomes a folder name in the recording.",
+        "miniscopes": {
+            "Miniscope": {
+                "COMMENT_deviceType": "Miniscope_V4_BNO (V4 with the head-orientation IMU), Miniscope_V4, or Miniscope_V3.",
+                "deviceType": "Miniscope_V4_BNO",
+                "COMMENT_deviceID": "Which camera this device is on your computer, starting at 0. Use 'Scan devices...' in the Devices section rather than guessing; it is never higher than (number of connected cameras - 1).",
+                "deviceID": 0,
+                "COMMENT_headOrientation": "BNO head orientation, V4_BNO only. filterBadData drops samples whose quaternion norm is off. plotTrace picks which angles reach the trace display: roll, pitch, yaw.",
+                "headOrientation": {
+                    "enabled": true,
+                    "filterBadData": true,
+                    "plotTrace": [
+                        "roll",
+                        "pitch",
+                        "yaw"
+                    ]
+                },
+                "COMMENT_compression": "Imaging data is saved as .avi. Keep it LOSSLESS: 'GREY' does no compression (no CPU cost, largest files) and 'FFV1' compresses losslessly (identical pixels, smaller files) at some CPU cost. We use FFV1 when the computer keeps up - switch to GREY if the frame buffer fills up while recording.",
+                "compression": "FFV1",
+                "COMMENT_framesPerFile": "Recordings roll over to a new .avi after this many frames.",
+                "framesPerFile": 1000,
+                "COMMENT_showSaturation": "Highlight saturated pixels in the live display (not in the saved data).",
+                "showSaturation": true,
+                "COMMENT_lut": "Display colormap toggled by the window's LUT switch: 'None', 'Green', 'Red', or 'Inferno'. Display only - never applied to saved data.",
+                "lut": "None",
+                "COMMENT_startupValues": "gain / frameRate / led0 / ewl are the values the device boots with; all are adjustable during acquisition. Gain 'Low', 'Medium', 'High' are 1x, 2x and 3.5x on the V4.",
+                "gain": "Low",
+                "frameRate": "20FPS",
+                "COMMENT_led0": "Excitation LED power. 0-100 (%) by default. Many setups have trouble above ~70% because of current limits through longer coax.",
+                "led0": 10,
+                "COMMENT_led0FineSteps": "Set true to run led0 on a 0-255 scale instead, addressing each of the LED driver's hardware steps for 2.55x finer control over the same brightness range. New in v2.0. NOTE: the number in 'led0' is then read on the 0-255 scale, so a value carried over from a 0-100 config gets dimmer.",
+                "led0FineSteps": false,
+                "COMMENT_ewl": "Electrowetting lens (focus) starting value.",
+                "ewl": 50,
+                "COMMENT_ROI": "Optional: record only part of the sensor, in camera pixels. Delete this section (as the numbered configs do) to record the full frame. You can also draw it in the app.",
+                "ROI": {
+                    "leftEdge": 0,
+                    "topEdge": 0,
+                    "width": 600,
+                    "height": 600
+                },
+                "COMMENT_window": "Optional: the size this device's window opens at when popped out of the layout. It does not affect recorded data. Pane positions are remembered per config file, so you rarely need these.",
+                "windowScale": 0.75
+            }
+        },
+        "COMMENT_cameras": "One entry per behavior camera. Same keys as a Miniscope, minus the Miniscope-only hardware controls.",
+        "cameras": {
+            "BehaviorCam": {
+                "COMMENT_deviceType": "'WebCam' uses the camera's default resolution; 'WebCam-320x240', 'WebCam-640x480' and 'WebCam-1280x720' force one. For any other resolution, add an entry to deviceConfigs/videoDevices.json.",
+                "deviceType": "WebCam-640x480",
+                "deviceID": 1,
+                "COMMENT_compression": "Lossy compression is fine here: these codecs handle normal video well, unlike the fine spatial structure of Miniscope imaging. MJPG is the safe default; XVID gives smaller files. The app lists every codec your computer supports.",
+                "compression": "MJPG",
+                "framesPerFile": 1000,
+                "showSaturation": false,
+                "COMMENT_cameraCalibrationFileLocation": "Reserved for a per-camera calibration file; not interpreted yet.",
+                "cameraCalibrationFileLocation": ""
+            }
+        }
+    }
+}

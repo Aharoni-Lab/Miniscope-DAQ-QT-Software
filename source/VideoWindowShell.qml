@@ -251,9 +251,12 @@ Item {
         objectName: "bno"
         // Idle until the first quaternion sample arrives.
         visible: root.miniscope && (qw !== 0 || qx !== 0 || qy !== 0 || qz !== 0 || badData)
-        width: 90
-        height: 90
-        anchors.left: parent.left
+        // Bottom-right corner, clear of the left-edge hardware dock. Kept
+        // inside the pane at any orientation - the widget's box bounds the
+        // rotating logo (see BNODisplay.qml), and shrinks with small panes.
+        width: Math.min(84, root.width / 4, root.height / 4)
+        height: width
+        anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.margins: Theme.spacing
         opacity: 0.9

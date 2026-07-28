@@ -33,6 +33,12 @@ class backEnd : public QObject
     Q_PROPERTY(QStringList availableCodecs READ availableCodecs CONSTANT)
     Q_PROPERTY(QStringList availableLUTs READ availableLUTs CONSTANT)
     Q_PROPERTY(bool sessionActive READ sessionActive NOTIFY sessionActiveChanged)
+    // Run is synchronous: every device opens its camera on the GUI thread, which
+    // takes seconds and used to leave the app looking frozen with no feedback.
+    // These two drive the shell's "Starting session" overlay - the backend
+    // narrates each step and pumps the event loop between them so it paints.
+    Q_PROPERTY(bool starting READ starting NOTIFY startingChanged)
+    Q_PROPERTY(QString startupStage READ startupStage NOTIFY startupStageChanged)
     // The running session's windows as pane descriptors for the Acquire view:
     // [{name, type ("video"/"panel"/"trace"), window (QWindow*), aspect}].
     // Rebuilt on Run, cleared (and emitted) FIRST during session teardown so
@@ -42,6 +48,11 @@ class backEnd : public QObject
     // log) for the QML session bar. Null outside a session.
     Q_PROPERTY(QObject *sessionControl READ sessionControl NOTIFY sessionControlChanged)
     Q_PROPERTY(bool recording READ recording NOTIFY recordingChanged)
+    // Folder the current (or most recent) recording of this session writes into.
+    // Empty until the first recording starts. Pushed by the saver thread, so it
+    // is the real path including the date/time/name folders the config's
+    // directoryStructure produced - not just the configured dataDirectory.
+    Q_PROPERTY(QString recordDirectory READ recordDirectory NOTIFY recordDirectoryChanged)
     Q_PROPERTY(QString versionNumber READ versionNumber WRITE setVersionNumber NOTIFY versionNumberChanged)
     Q_PROPERTY(QString buildInfo READ buildInfo WRITE setBuildInfo NOTIFY buildInfoChanged)
 
@@ -69,10 +80,21 @@ public:
     // (Setup) view and the running-session (Acquire) view.
     bool sessionActive() const { return m_sessionActive; }
 
+    // True from the moment Run is pressed until the session is up (or failed).
+    bool starting() const { return m_starting; }
+    // What Run is doing right now, e.g. "Opening Miniscope \"My Miniscope\"…".
+    QString startupStage() const { return m_startupStage; }
+
     // True while a recording is in progress in the active session. Gates
     // endSession() (ending the session mid-recording would trash an
     // experiment); the quit path force-stops the recording cleanly instead.
     bool recording() const { return m_recording; }
+
+    QString recordDirectory() const { return m_recordDirectory; }
+    // Show a folder in the OS file manager. False when the path is empty or no
+    // longer exists (moved/deleted drive), so QML can say so instead of
+    // silently doing nothing.
+    Q_INVOKABLE bool openDirectory(const QString &path) const;
 
     // Live session object counts. Used by the session-lifecycle test to pin the
     // Run -> endSession -> Run cycle (no leftover or doubled devices); will move
@@ -186,7 +208,19 @@ public:
     // Add a device of the given catalog type under devices.<category> (category is
     // "miniscopes" or "cameras"), with sensible catalog-derived defaults, then
     // rebuild the tree. Names must be non-empty and unique within their category.
-    Q_INVOKABLE void addDevice(const QString &category, const QString &deviceType, const QString &deviceName, int deviceID);
+    // Adds a device to the config. False (and nothing added) when the name is
+    // empty or already taken - see deviceNameProblem().
+    Q_INVOKABLE bool addDevice(const QString &category, const QString &deviceType, const QString &deviceName, int deviceID);
+
+    // Device-name uniqueness, used by the Add-Device dialog. A name is a folder
+    // name in every recording, so uniqueness spans BOTH categories and ignores
+    // case and the space->underscore mangling DataSaver applies: two devices
+    // whose names differ only that way would write into one folder.
+    Q_INVOKABLE QStringList configuredDeviceNames() const;
+    // "" when `name` is usable for a new device, otherwise why it isn't.
+    Q_INVOKABLE QString deviceNameProblem(const QString &name) const;
+    // `base`, or the first "base 2", "base 3"... that isn't taken.
+    Q_INVOKABLE QString uniqueDeviceName(const QString &base) const;
 
 
     void loadUserConfigFile();
@@ -212,6 +246,9 @@ signals:
     void sessionPanesChanged();
     void sessionControlChanged();
     void recordingChanged();
+    void startingChanged();
+    void startupStageChanged();
+    void recordDirectoryChanged();
     void userConfigFileNameChanged();
     void userConfigDisplayChanged();
     void configCheckNotesChanged();
@@ -259,6 +296,14 @@ private:
     void clearSessionPanes();
     bool m_sessionActive = false;
     bool m_recording = false;
+    // Publish the current startup step AND give the UI a chance to paint it.
+    void setStartupStage(const QString &stage);
+    bool m_starting = false;
+    QString m_startupStage;
+    // Pushed from the saver thread on record start (see DataSaver::
+    // recordDirectoryReady); kept after the recording stops so the folder is
+    // still reachable, and cleared when a new session starts.
+    QString m_recordDirectory;
     QVariantList m_sessionPanes;
 
     void testCodecSupport();

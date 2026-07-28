@@ -17,9 +17,11 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickStyle>
+#include <QQuickItem>
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include <QTemporaryDir>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -38,6 +40,7 @@ private slots:
     void initTestCase();
     void runEndRunCycle();
     void configEditsBetweenRunsAreHonored();
+    void paneGridArrangement();
 
 private:
     // Let deferred deletions (endSession tears windows down via deleteLater)
@@ -53,6 +56,21 @@ private:
     // given names, all streaming the AVI generated in initTestCase. Returns its
     // path, or an empty string if it could not be written.
     QString writeConfig(const QString &fileName, const QStringList &cameraNames);
+
+    // Items a Repeater created (every pane of the grid) are not QObject children
+    // of the window, so findChildren() can't see them - walk the visual tree.
+    static void collectItems(QQuickItem *root, const QString &objectName,
+                             QList<QQuickItem *> &out)
+    {
+        if (!root)
+            return;
+        const QList<QQuickItem *> kids = root->childItems();
+        for (QQuickItem *kid : kids) {
+            if (kid->objectName() == objectName)
+                out.append(kid);
+            collectItems(kid, objectName, out);
+        }
+    }
 
     QTemporaryDir m_tempDir;
     QString m_configPath;
@@ -141,8 +159,16 @@ void TestSessionLifecycle::runEndRunCycle()
     QVERIFY2(!engine.rootObjects().isEmpty(), "AppShell.qml failed to load");
 
     // --- Session 1 -----------------------------------------------------------
+    // Run narrates its progress for the shell's startup overlay; whatever
+    // happens, `starting` must not be left true (the Run button and the overlay
+    // are gated on it, so a stuck flag locks the UI out permanently).
+    QSignalSpy startingSpy(&backend, &backEnd::startingChanged);
+    QVERIFY(!backend.starting());
     backend.onRunClicked();
     QVERIFY(backend.sessionActive());
+    QVERIFY2(!backend.starting(), "the starting flag was left set after Run");
+    QVERIFY(backend.startupStage().isEmpty());
+    QCOMPARE(startingSpy.count(), 2);   // on, then off
     QCOMPARE(backend.sessionCameraCount(), 1);
     QCOMPARE(backend.sessionMiniscopeCount(), 0);
 
@@ -163,6 +189,21 @@ void TestSessionLifecycle::runEndRunCycle()
     drainEvents(600); // queued cross-thread start + a few saved frames
     QVERIFY(backend.recording());
     QCOMPARE(ctl->property("recording").toBool(), true);
+
+    // The folder the recording actually writes into has to reach the GUI
+    // thread - it's what the session bar's "Data folder" button opens, and it
+    // is NOT the configured dataDirectory: DataSaver appends the
+    // directoryStructure folders (date / time / ...) at record start, on its
+    // own thread.
+    const QString recordDir = backend.recordDirectory();
+    QVERIFY2(!recordDir.isEmpty(), "the record directory never reached the backend");
+    QVERIFY2(QFileInfo(recordDir).isDir(), qPrintable(recordDir + " is not a directory"));
+    QVERIFY2(recordDir.startsWith(m_tempDir.path()), qPrintable(recordDir));
+    QVERIFY2(recordDir != m_tempDir.path(), "record directory skipped directoryStructure");
+    // Nothing to open when the path is gone or unset (no file manager is
+    // launched here: openDirectory rejects both before handing off to the OS).
+    QVERIFY(!backend.openDirectory(recordDir + "/no-such-subfolder"));
+    QVERIFY(!backend.openDirectory(QString()));
     QVERIFY(QMetaObject::invokeMethod(ctl, "stopRecording"));
     drainEvents(300);
     QVERIFY(!backend.recording());
@@ -183,6 +224,10 @@ void TestSessionLifecycle::runEndRunCycle()
     backend.onRunClicked();
     QVERIFY2(backend.sessionActive(), "second Run in the same process failed");
     QCOMPARE(backend.sessionCameraCount(), 1); // exactly one - not doubled
+    // A new session has recorded nothing yet: "Data folder" must not still
+    // point at the previous session's recording.
+    QVERIFY2(backend.recordDirectory().isEmpty(),
+             qPrintable("stale record directory: " + backend.recordDirectory()));
     drainEvents(500);
 
     // Run while active must be a no-op, not a device duplication.
@@ -253,6 +298,236 @@ void TestSessionLifecycle::configEditsBetweenRunsAreHonored()
     const QVariantList otherPanes = backend.sessionPanes();
     QCOMPARE(otherPanes.size(), 1);
     QCOMPARE(otherPanes[0].toMap().value("name").toString(), QStringLiteral("OtherCam"));
+    backend.endSession();
+    drainEvents();
+}
+
+// The Acquire grid is an editable arrangement: rows of panes the operator can
+// swap around and resize, with the row shape and the divider positions stored
+// per config file. This drives the arrangement side of that (the divider
+// dragging is SplitView's own) and pins the invariant that matters most: every
+// pane of the running session appears in the grid exactly once, whatever the
+// stored layout says - a config edited between runs must not leave a hole in
+// the grid or strand a device outside it.
+void TestSessionLifecycle::paneGridArrangement()
+{
+    backEnd backend;
+    if (!backend.availableCodecs().contains("MJPG"))
+        QSKIP("MJPG codec unavailable on this host");
+
+    const QString threeCams = writeConfig("grid.json", {"CamA", "CamB", "CamC"});
+    QVERIFY(!threeCams.isEmpty());
+    backend.setUserConfigFileName(QUrl::fromLocalFile(threeCams).toString());
+    QVERIFY2(backend.userConfigOK(), "three-camera config failed the backend's checks");
+
+    QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty("backend", &backend);
+    engine.load(QUrl(QStringLiteral("qrc:/AppShell.qml")));
+    QVERIFY2(!engine.rootObjects().isEmpty(), "AppShell.qml failed to load");
+
+    backend.onRunClicked();
+    QCOMPARE(backend.sessionCameraCount(), 3);
+    drainEvents(300);
+
+    QObject *grid = nullptr;
+    const auto roots = engine.rootObjects();
+    for (QObject *root : roots) {
+        grid = root->findChild<QObject *>("acquireView");
+        if (grid)
+            break;
+    }
+    QVERIFY2(grid, "acquireView missing from the shell");
+
+    // rows is [[name, ...], ...]; flatten for the "exactly once" checks.
+    const auto rows = [grid] { return grid->property("rows").toList(); };
+    const auto flatten = [](const QVariantList &rowList) {
+        QStringList out;
+        for (const QVariant &row : rowList)
+            out += row.toStringList();
+        return out;
+    };
+    const auto invoke = [grid](const char *fn, const QVariant &a = QVariant(),
+                               const QVariant &b = QVariant()) {
+        if (!a.isValid())
+            return QMetaObject::invokeMethod(grid, fn);
+        if (!b.isValid())
+            return QMetaObject::invokeMethod(grid, fn, Q_ARG(QVariant, a));
+        return QMetaObject::invokeMethod(grid, fn, Q_ARG(QVariant, a), Q_ARG(QVariant, b));
+    };
+
+    // Auto columns for three panes is 2, so: a row of two and a row of one.
+    QVariantList r = rows();
+    QCOMPARE(r.size(), 2);
+    QCOMPARE(r.at(0).toStringList().size(), 2);
+    QCOMPARE(r.at(1).toStringList().size(), 1);
+    QStringList flat = flatten(r);
+    QCOMPARE(flat.size(), 3);
+    for (const QString &name : {"CamA", "CamB", "CamC"})
+        QVERIFY2(flat.contains(name), qPrintable(name + QStringLiteral(" missing from the grid")));
+
+    // A REAL header drag through the window: press a pane's header, move past
+    // the drag threshold, release over another pane. This is the whole path -
+    // ghost, DropArea, drop delivery - and it is where the first version broke:
+    // setting Drag.active back to false on release CANCELS a drag, so the drop
+    // never arrived and panes never moved, while the drag itself looked fine.
+    {
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY2(window, "the shell root is not a window");
+        QList<QQuickItem *> frames;
+        collectItems(window->contentItem(), QStringLiteral("paneFrame"), frames);
+        QCOMPARE(frames.size(), 3);
+
+        QHash<QString, QQuickItem *> frameByName;
+        for (QQuickItem *frame : frames)
+            frameByName.insert(frame->property("modelData").toString(), frame);
+
+        // Header midpoints, left of the pop-out button that overlays the right
+        // end of the header.
+        const auto headerPoint = [](QQuickItem *frame) {
+            QList<QQuickItem *> headers;
+            collectItems(frame, QStringLiteral("paneHeader"), headers);
+            if (headers.isEmpty())
+                return QPoint();
+            QQuickItem *header = headers.first();
+            return header->mapToScene(QPointF(header->width() * 0.4,
+                                              header->height() / 2)).toPoint();
+        };
+        const QString fromName = flat.first();
+        const QString toName = flat.last();
+        QVERIFY(frameByName.contains(fromName) && frameByName.contains(toName));
+        const QPoint from = headerPoint(frameByName.value(fromName));
+        const QPoint to = headerPoint(frameByName.value(toName));
+        QVERIFY(!from.isNull() && !to.isNull());
+        QVERIFY2(from != to, "the two panes' headers are at the same place");
+
+        QTest::mousePress(window, Qt::LeftButton, Qt::NoModifier, from);
+        // Past the 8 px threshold, then onto the target.
+        QTest::mouseMove(window, from + QPoint(20, 0));
+        QTest::mouseMove(window, (from + to) / 2);
+        QTest::mouseMove(window, to);
+        QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier, to);
+        drainEvents(200);
+
+        flat = flatten(rows());
+        QCOMPARE(flat.size(), 3);
+        QCOMPARE(flat.indexOf(toName), 0);
+        QCOMPARE(flat.indexOf(fromName), 2);
+    }
+
+    // The same swap driven directly (the function the drop calls) - it never
+    // duplicates or drops a pane.
+    flat = flatten(rows());
+    const QString first = flat.first();
+    const QString last = flat.last();
+    QVERIFY(invoke("swapPanes", first, last));
+    flat = flatten(rows());
+    QCOMPARE(flat.size(), 3);
+    QCOMPARE(flat.first(), last);
+    QCOMPARE(flat.last(), first);
+
+    // Dropping on a divider places the pane in that slot instead of trading
+    // places with a neighbour. Rows are [[a, b], [c]] at this point.
+    const auto movePaneTo = [grid](const QString &name, int row, int position, bool asNewRow) {
+        return QMetaObject::invokeMethod(grid, "movePaneTo",
+                                         Q_ARG(QVariant, name), Q_ARG(QVariant, row),
+                                         Q_ARG(QVariant, position),
+                                         Q_ARG(QVariant, asNewRow));
+    };
+    r = rows();
+    QCOMPARE(r.size(), 2);
+    const QString a = r.at(0).toStringList().at(0);
+    const QString b = r.at(0).toStringList().at(1);
+    const QString c = r.at(1).toStringList().at(0);
+
+    // On the divider between a and b: it lands between them, and the row it
+    // came from - now empty - disappears.
+    QVERIFY(movePaneTo(c, 0, 1, false));
+    r = rows();
+    QCOMPARE(r.size(), 1);
+    QCOMPARE(r.at(0).toStringList(), QStringList({a, c, b}));
+
+    // On the divider between two rows: a row of its own, right there.
+    QVERIFY(movePaneTo(a, 1, 0, true));
+    r = rows();
+    QCOMPARE(r.size(), 2);
+    QCOMPARE(r.at(0).toStringList(), QStringList({c, b}));
+    QCOMPARE(r.at(1).toStringList(), QStringList({a}));
+
+    // A divider the pane already borders leaves the grid alone.
+    QVERIFY(movePaneTo(c, 0, 0, false));
+    QVERIFY(movePaneTo(c, 0, 1, false));
+    r = rows();
+    QCOMPARE(r.size(), 2);
+    QCOMPARE(r.at(0).toStringList(), QStringList({c, b}));
+
+    // The row's outer edges, which have no divider of their own: position 0 is
+    // the left edge (before every pane), position == length is the right edge.
+    // Rows are [[c, b], [a]] here.
+    QVERIFY(movePaneTo(b, 0, 0, false));           // b to the left edge of its row
+    QCOMPARE(rows().at(0).toStringList(), QStringList({b, c}));
+    QVERIFY(movePaneTo(a, 0, 2, false));           // a to the right edge of that row
+    r = rows();
+    QCOMPARE(r.size(), 1);                         // a's own row is gone
+    QCOMPARE(r.at(0).toStringList(), QStringList({b, c, a}));
+    QVERIFY(movePaneTo(a, 0, 0, false));           // and back to the left edge
+    QCOMPARE(rows().at(0).toStringList(), QStringList({a, b, c}));
+
+    // A pane's top / bottom edge makes a new row there - the only way to get a
+    // second row by dragging when the grid has just one.
+    QVERIFY(movePaneTo(c, 0, 0, true));            // c above the single row
+    r = rows();
+    QCOMPARE(r.size(), 2);
+    QCOMPARE(r.at(0).toStringList(), QStringList({c}));
+    QCOMPARE(r.at(1).toStringList(), QStringList({a, b}));
+    QVERIFY(movePaneTo(a, 2, 0, true));            // a below the last row
+    r = rows();
+    QCOMPARE(r.size(), 3);
+    QCOMPARE(r.at(0).toStringList(), QStringList({c}));
+    QCOMPARE(r.at(1).toStringList(), QStringList({b}));
+    QCOMPARE(r.at(2).toStringList(), QStringList({a}));
+    // A pane already alone in its own row can't be "moved" to either side of it.
+    QVERIFY(movePaneTo(c, 0, 0, true));
+    QVERIFY(movePaneTo(c, 1, 0, true));
+    QCOMPARE(rows().size(), 3);
+    QCOMPARE(rows().at(0).toStringList(), QStringList({c}));
+
+    // A fixed column count reshapes the grid: one pane per row.
+    QVERIFY(invoke("setColumns", 1));
+    r = rows();
+    QCOMPARE(r.size(), 3);
+    for (const QVariant &row : r)
+        QCOMPARE(row.toStringList().size(), 1);
+
+    // ...and both the shape and the column choice are stored for this config.
+    QVariantMap meta = backend.paneLayout(QStringLiteral("__layout"));
+    QCOMPARE(meta.value(QStringLiteral("columns")).toInt(), 1);
+    QVERIFY(meta.value(QStringLiteral("rows")).toString().contains(QStringLiteral("CamA")));
+
+    // Reset returns to the automatic grid.
+    QVERIFY(invoke("resetLayout"));
+    QCOMPARE(rows().size(), 2);
+    QCOMPARE(backend.paneLayout(QStringLiteral("__layout"))
+                 .value(QStringLiteral("columns")).toInt(), 0);
+
+    // A device removed from the config between runs must leave the grid, with
+    // no empty row left where it was.
+    backend.endSession();
+    drainEvents();
+    backend.removeDevice(QStringLiteral("cameras"), QStringLiteral("CamB"));
+    QVERIFY(backend.userConfigOK());
+    backend.onRunClicked();
+    QCOMPARE(backend.sessionCameraCount(), 2);
+    drainEvents(300);
+
+    r = rows();
+    flat = flatten(r);
+    QCOMPARE(flat.size(), 2);
+    QVERIFY(!flat.contains(QStringLiteral("CamB")));
+    QVERIFY(flat.contains(QStringLiteral("CamA")));
+    QVERIFY(flat.contains(QStringLiteral("CamC")));
+    for (const QVariant &row : r)
+        QVERIFY2(!row.toStringList().isEmpty(), "the removed device left an empty row");
+
     backend.endSession();
     drainEvents();
 }

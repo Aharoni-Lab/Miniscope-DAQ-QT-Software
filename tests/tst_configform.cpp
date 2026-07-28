@@ -34,6 +34,10 @@ private slots:
     void newConfigValidatesClean();
     void dirtyTracking();
     void configFormQml();
+    void codecModelOrdering();
+    void led0FineStepsHints();
+    void duplicateDeviceNamesAreRefused();
+    void runReportsProgressAndClearsIt();
     void directoryStructureArrayEdit();
 
 private:
@@ -41,9 +45,28 @@ private:
     // dialogs / drops) and loads the config itself.
     static void loadExampleConfig(backEnd &backend)
     {
+        // The annotated reference config: one V4_BNO Miniscope (fine-step
+        // capable, led0 = 10) plus one camera, traceDisplay on, tracker off -
+        // the combination the cases below assert against.
         const QString path =
-            QDir::current().absoluteFilePath("userConfigs/UserConfigExample-primary.json");
+            QDir::current().absoluteFilePath("userConfigs/Reference-AllOptions.json");
         backend.setUserConfigFileName(QUrl::fromLocalFile(path).toString());
+    }
+
+    // Items a Repeater created (every device row) are not QObject children of
+    // the form root, so findChild() can't see into them - walk the visual tree.
+    static QQuickItem *findVisualChild(QQuickItem *root, const QString &objectName)
+    {
+        if (!root)
+            return nullptr;
+        const QList<QQuickItem *> kids = root->childItems();
+        for (QQuickItem *kid : kids) {
+            if (kid->objectName() == objectName)
+                return kid;
+            if (QQuickItem *hit = findVisualChild(kid, objectName))
+                return hit;
+        }
+        return nullptr;
     }
 
     QTemporaryDir m_tempDir;
@@ -253,6 +276,208 @@ void TestConfigForm::configFormQml()
     QQuickItem *hint = form->findChild<QQuickItem *>("traceSourceHint");
     QVERIFY2(hint, "traceSourceHint missing from ConfigForm.qml");
     QVERIFY(hint->isVisible());
+}
+
+// The codec dropdown must recommend by device class, not by whatever order the
+// host's codec probe happened to produce: Miniscope imaging has to stay lossless
+// (GREY / FFV1), while behavior video is a natural scene a lossy codec handles
+// well (MJPG / XVID). Only the ORDER changes - every host-supported codec stays
+// selectable, and a codec the config names but the host lacks stays visible.
+void TestConfigForm::codecModelOrdering()
+{
+    backEnd backend;
+    loadExampleConfig(backend);
+
+    QQmlEngine engine;
+    engine.rootContext()->setContextProperty("backend", &backend);
+    QQmlComponent component(&engine, QUrl("qrc:/ConfigForm.qml"));
+    QScopedPointer<QObject> form(component.create());
+    QVERIFY2(form, "ConfigForm.qml failed to create");
+
+    const auto model = [&](const QString &js) {
+        QQmlExpression expr(engine.rootContext(), form.data(), js);
+        const QVariant v = expr.evaluate();
+        if (expr.hasError())
+            qWarning() << expr.error().toString();
+        return v.toStringList();
+    };
+
+    const QStringList host = backend.availableCodecs();
+    QVERIFY2(!host.isEmpty(), "host reported no codecs at all");
+
+    // Whichever of the recommended codecs this host actually has must come
+    // first, in the recommended order.
+    const auto assertLeads = [&](const QString &category, const QStringList &preferred) {
+        const QStringList offered = model(QStringLiteral("codecModel('', '%1')").arg(category));
+        QStringList lead;
+        for (const QString &codec : preferred)
+            if (host.contains(codec))
+                lead.append(codec);
+        // Nothing to assert about the lead on a host that has none of them
+        // (QSKIP can't be used here - this is a lambda, not the test slot).
+        if (lead.isEmpty())
+            qWarning() << "host supports none of the recommended codecs for" << category;
+        QCOMPARE(offered.mid(0, lead.size()), lead);
+
+        // Same set, reordered - nothing dropped from the dropdown.
+        QStringList sortedOffered = offered;
+        QStringList sortedHost = host;
+        sortedOffered.sort();
+        sortedHost.sort();
+        QCOMPARE(sortedOffered, sortedHost);
+    };
+
+    assertLeads(QStringLiteral("miniscopes"), {"GREY", "FFV1"});
+    assertLeads(QStringLiteral("cameras"), {"MJPG", "XVID"});
+
+    // A codec the config file names but this host can't provide is still shown
+    // (and first, since it's the row's current value) rather than silently
+    // reading as some other codec.
+    const QStringList withUnsupported = model("codecModel('NOPE', 'miniscopes')");
+    QCOMPARE(withUnsupported.size(), host.size() + 1);
+    QCOMPARE(withUnsupported.first(), QStringLiteral("NOPE"));
+}
+
+// The led0 "Fine steps" switch had no explanation in the form - the range in
+// its label was the only clue, and the userConfigProps tip for it is only ever
+// surfaced on FormRow labels, which this control isn't. Both hint lines are
+// derived from the catalog (not hardcoded), and the units caution only appears
+// while the flag is on, so pin the derived numbers and that visibility.
+void TestConfigForm::led0FineStepsHints()
+{
+    backEnd backend;
+    loadExampleConfig(backend);
+
+    QQmlEngine engine;
+    engine.rootContext()->setContextProperty("backend", &backend);
+    QQmlComponent component(&engine, QUrl("qrc:/ConfigForm.qml"));
+    QScopedPointer<QObject> form(component.create());
+    QVERIFY2(form, "ConfigForm.qml failed to create");
+
+    // The example config's Miniscope_V4_BNO is a fine-step-capable type.
+    QQuickItem *formItem = qobject_cast<QQuickItem *>(form.data());
+    QVERIFY(formItem);
+    QQuickItem *hint = findVisualChild(formItem, "led0FineStepsHint");
+    QVERIFY2(hint, "led0FineStepsHint missing from ConfigForm.qml");
+    QQuickItem *units = findVisualChild(formItem, "led0FineStepsUnitsHint");
+    QVERIFY2(units, "led0FineStepsUnitsHint missing from ConfigForm.qml");
+
+    // Both live in the device row's edit drawer, which starts collapsed.
+    QQuickItem *row = hint;
+    while (row && !row->property("editOpen").isValid())
+        row = row->parentItem();
+    QVERIFY2(row, "the hint is not inside a device row");
+    row->setProperty("editOpen", true);
+
+    QVERIFY(hint->isVisible());
+    const QString what = hint->property("text").toString();
+    QVERIFY2(what.contains("255"), qPrintable(what));  // fine range, from the catalog
+    QVERIFY2(what.contains("2.55"), qPrintable(what)); // computed 255/100, not hardcoded
+
+    // The units caution is only relevant once the flag is on: the example
+    // config leaves it off.
+    QVERIFY(!units->isVisible());
+
+    const QString scope =
+        backend.userConfigJson().value("devices").toMap()
+            .value("miniscopes").toMap().firstKey();
+    backend.setConfigValue({"devices", "miniscopes", scope, "led0FineSteps"}, true);
+    QVERIFY(units->isVisible());
+
+    // The config's led0 is 10, which on the 0-255 scale is 4% of full power -
+    // not the 10% the same number meant before.
+    const QString caution = units->property("text").toString();
+    QVERIFY2(caution.contains(QStringLiteral("led0 = 10")), qPrintable(caution));
+    QVERIFY2(caution.contains(QStringLiteral("4%")), qPrintable(caution));
+}
+
+// A device name is the folder that device records into, so a duplicate is not a
+// cosmetic problem: two devices would write their video and timeStamps.csv into
+// one directory. Add Device used to no-op silently on a name taken in the same
+// category (so it looked like the Add just didn't happen) and accept one taken
+// in the OTHER category outright.
+void TestConfigForm::duplicateDeviceNamesAreRefused()
+{
+    backEnd backend;
+    loadExampleConfig(backend);
+
+    const QVariantMap devices = backend.userConfigJson().value("devices").toMap();
+    const QString scope = devices.value("miniscopes").toMap().firstKey();
+    const QString cam = devices.value("cameras").toMap().firstKey();
+    QVERIFY(!scope.isEmpty() && !cam.isEmpty());
+
+    const QStringList names = backend.configuredDeviceNames();
+    QVERIFY2(names.contains(scope) && names.contains(cam), qPrintable(names.join(", ")));
+
+    // Same category, same name.
+    QVERIFY(!backend.deviceNameProblem(scope).isEmpty());
+    QVERIFY(!backend.addDevice("miniscopes", "Miniscope_V4_BNO", scope, 3));
+    // The other category is no better: it is the same folder either way.
+    QVERIFY(!backend.deviceNameProblem(cam).isEmpty());
+    QVERIFY(!backend.addDevice("miniscopes", "Miniscope_V4_BNO", cam, 3));
+
+    // Names that differ only by case, or by space-vs-underscore, are the same
+    // directory on Windows and macOS.
+    QVERIFY(!backend.deviceNameProblem(scope.toUpper()).isEmpty());
+    QVERIFY(!backend.deviceNameProblem(QString(cam).replace(' ', '_')).isEmpty());
+    QVERIFY(!backend.addDevice("cameras", "WebCam", scope.toLower(), 4));
+    QVERIFY(!backend.deviceNameProblem("   ").isEmpty());   // and blank is no name
+
+    // The device count never moved through any of that.
+    const QVariantMap after = backend.userConfigJson().value("devices").toMap();
+    QCOMPARE(after.value("miniscopes").toMap().size(),
+             devices.value("miniscopes").toMap().size());
+    QCOMPARE(after.value("cameras").toMap().size(), devices.value("cameras").toMap().size());
+
+    // A free name works, and the suggestion the dialog prefills is always free -
+    // "<base> 2" once <base> is taken.
+    const QString suggested = backend.uniqueDeviceName(scope);
+    QVERIFY2(suggested != scope, qPrintable(suggested));
+    QVERIFY(backend.deviceNameProblem(suggested).isEmpty());
+    QVERIFY(backend.addDevice("miniscopes", "Miniscope_V4_BNO", suggested, 5));
+    QVERIFY(backend.configuredDeviceNames().contains(suggested));
+    // ...and it keeps counting once that one is taken too.
+    QVERIFY(backend.uniqueDeviceName(scope) != suggested);
+
+    // Whitespace around a name is trimmed, not stored (it would be invisible in
+    // the form and produce a folder with a trailing space).
+    QVERIFY(backend.addDevice("cameras", "WebCam", "  Spaced Cam  ", 6));
+    QVERIFY(backend.configuredDeviceNames().contains("Spaced Cam"));
+
+    // The config still satisfies its own schema after all that.
+    QVERIFY2(backend.configCheckNotes().isEmpty(), qPrintable(backend.configCheckNotes()));
+}
+
+// Run blocks the GUI thread while it opens devices, so it publishes what it is
+// doing (startupStage) and the shell shows an overlay while `starting` is true.
+// A config that FAILS its checks is the path that matters here: it returns early,
+// and if `starting` stayed true the Run button and the overlay would lock the UI
+// out for good.
+void TestConfigForm::runReportsProgressAndClearsIt()
+{
+    backEnd backend;
+    loadExampleConfig(backend);
+
+    // A codec this host doesn't have: checkUserConfigForIssues rejects the
+    // config, and it does so BEFORE any device is opened - so this stays a unit
+    // test and never touches a camera.
+    const QString scope = backend.userConfigJson().value("devices").toMap()
+                              .value("miniscopes").toMap().firstKey();
+    QVERIFY(!backend.availableCodecs().contains("ZZZZ"));
+    backend.setConfigValue({"devices", "miniscopes", scope, "compression"}, "ZZZZ");
+
+    QStringList stages;
+    connect(&backend, &backEnd::startupStageChanged, &backend, [&] {
+        if (!backend.startupStage().isEmpty())
+            stages << backend.startupStage();
+    });
+
+    backend.onRunClicked();
+    QVERIFY2(!backend.sessionActive(), "a config with an unsupported codec must not run");
+    QVERIFY2(!backend.starting(), "the starting flag was left set after a failed Run");
+    QVERIFY(backend.startupStage().isEmpty());
+    // It said something before giving up, rather than freezing silently.
+    QVERIFY2(!stages.isEmpty(), "Run reported no progress at all");
 }
 
 // The "Folder structure" field writes a JS array of strings through

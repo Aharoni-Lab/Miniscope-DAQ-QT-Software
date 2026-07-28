@@ -89,6 +89,20 @@ Item {
         width: 460
         closePolicy: Popup.CloseOnEscape
 
+        // What to do once this dialog is actually gone. Run blocks the GUI thread
+        // for seconds, so running it straight from a button handler left the
+        // dialog painted on screen for the whole start-up - it looked like the
+        // click had done nothing. `closed` fires after the exit transition, and
+        // callLater gives the shell one more turn to paint its startup overlay.
+        property var pendingAction: null
+        onClosed: {
+            if (!pendingAction)
+                return
+            var next = pendingAction
+            pendingAction = null
+            Qt.callLater(next)
+        }
+
         contentItem: ColumnLayout {
             spacing: Theme.spacing * 2
             Text {
@@ -105,21 +119,27 @@ Item {
                 Item { Layout.fillWidth: true }
                 UiButton {
                     text: qsTr("Cancel")
-                    onClicked: unsavedDialog.close()
+                    onClicked: {
+                        unsavedDialog.pendingAction = null
+                        unsavedDialog.close()
+                    }
                 }
                 UiButton {
                     text: qsTr("%1 without saving").arg(unsavedDialog.actionLabel)
                     onClicked: {
+                        unsavedDialog.pendingAction = unsavedDialog.action
                         unsavedDialog.close()
-                        unsavedDialog.action()
                     }
                 }
                 UiButton {
                     text: qsTr("Save and %1").arg(unsavedDialog.actionLabel)
                     primary: true
                     onClicked: {
+                        var run = unsavedDialog.action
+                        unsavedDialog.pendingAction = function () {
+                            setupRoot.saveInPlace(run)
+                        }
                         unsavedDialog.close()
-                        setupRoot.saveInPlace(unsavedDialog.action)
                     }
                 }
             }
@@ -216,13 +236,6 @@ Item {
                     saveConfigDialog.open()
                 }
             }
-            UiButton {
-                text: qsTr("Scan devices")
-                onClicked: {
-                    deviceScanDialog.text = backend.scanVideoDevices()
-                    deviceScanDialog.open()
-                }
-            }
         }
 
         // Migration notes / schema warnings from the config load. Warnings only -
@@ -291,16 +304,21 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             onAddDeviceRequested: addDeviceDialog.open()
+            onScanDevicesRequested: {
+                deviceScanDialog.text = backend.scanVideoDevices()
+                deviceScanDialog.open()
+            }
         }
 
         // Run
         UiButton {
-            text: qsTr("▶ Run")
+            text: backend && backend.starting ? qsTr("Starting…") : qsTr("▶ Run")
             primary: true
             font: Theme.fontTitle
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.touchTarget + 8
-            enabled: backend ? (backend.userConfigOK && backend.hasDevices) : false
+            enabled: backend ? (backend.userConfigOK && backend.hasDevices
+                                && !backend.starting) : false
             onClicked: setupRoot.confirmIfDirty(qsTr("Run"), function() { backend.onRunClicked() })
         }
     }

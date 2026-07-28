@@ -1,0 +1,35 @@
+{
+    "$schema": "https://raw.githubusercontent.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/master/deviceConfigs/userConfigSchema.json",
+    "configVersion": 1,
+    "COMMENT": "Behavior video only - no Miniscope. Useful for habituation sessions, camera placement, and checking that recording works before an imaging day.",
+    "COMMENT2": "There is no trace display here: traces come from a Miniscope's head orientation / fluorescence ROIs or from the behavior tracker, so a webcam-only session has nothing to plot.",
+
+    "COMMENT_dataDirectory": "Where recordings are written. './Data' is relative to the software folder so this config runs as-is; for real experiments set an absolute path with forward slashes.",
+    "dataDirectory": "./Data",
+
+    "directoryStructure": [
+        "researcherName",
+        "animalName",
+        "date",
+        "time"
+    ],
+    "researcherName": "MyName",
+    "animalName": "Animal1",
+
+    "recordLengthInSeconds": 0,
+
+    "devices": {
+        "cameras": {
+            "BehaviorCam": {
+                "COMMENT_deviceType": "'WebCam' uses the camera's default resolution; WebCam-320x240 / WebCam-640x480 / WebCam-1280x720 force one.",
+                "deviceType": "WebCam",
+                "COMMENT_deviceID": "Use 'Scan devices...' in the Devices section to find the right ID.",
+                "deviceID": 0,
+                "COMMENT_compression": "Lossy compression is fine for behavior video - MJPG is the safe default, XVID gives smaller files.",
+                "compression": "MJPG",
+                "framesPerFile": 1000,
+                "showSaturation": false
+            }
+        }
+    }
+}

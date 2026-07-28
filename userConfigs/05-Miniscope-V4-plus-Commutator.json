@@ -1,0 +1,72 @@
+{
+    "$schema": "https://raw.githubusercontent.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/master/deviceConfigs/userConfigSchema.json",
+    "configVersion": 1,
+    "COMMENT": "A V4 Miniscope driving an Open Ephys commutator, so the tether unwinds itself as the animal turns. No Bonsai needed.",
+    "COMMENT2": "The commutator is driven from the Miniscope's BNO head orientation, so headOrientation.enabled MUST stay true below.",
+    "COMMENT3": "Commutator hardware and firmware: https://github.com/open-ephys/commutator-controller",
+
+    "COMMENT_dataDirectory": "Where recordings are written. './Data' is relative to the software folder so this config runs as-is; for real experiments set an absolute path with forward slashes.",
+    "dataDirectory": "./Data",
+
+    "directoryStructure": [
+        "researcherName",
+        "animalName",
+        "date",
+        "time"
+    ],
+    "researcherName": "MyName",
+    "animalName": "Animal1",
+
+    "recordLengthInSeconds": 0,
+
+    "traceDisplay": {
+        "enabled": true,
+        "type": "scrolling"
+    },
+
+    "COMMENT_commutator": "SET 'port' BEFORE RUNNING. The commutator appears as a USB serial port: COM3/COM4/... on Windows, /dev/ttyACM0 on Linux, /dev/cu.usbmodem* on macOS. The port picker in Setup -> Form -> Commutator lists what is currently attached - open the dropdown, there is usually more than one.",
+    "COMMENT_commutator2": "If the commutator winds the tether UP instead of unwinding it, negate headstageAxis: [0, 0, -1].",
+    "commutator": {
+        "enabled": true,
+        "port": "COM3",
+        "led": true,
+        "sampleRate": 10,
+        "headstageAxis": [
+            0,
+            0,
+            1
+        ],
+        "commutatorAxis": [
+            0,
+            0,
+            1
+        ]
+    },
+
+    "devices": {
+        "miniscopes": {
+            "Miniscope": {
+                "deviceType": "Miniscope_V4_BNO",
+                "COMMENT_deviceID": "Use 'Scan devices...' in the Devices section to find the right ID.",
+                "deviceID": 0,
+                "headOrientation": {
+                    "enabled": true,
+                    "filterBadData": true,
+                    "plotTrace": [
+                        "roll",
+                        "pitch",
+                        "yaw"
+                    ]
+                },
+                "compression": "FFV1",
+                "framesPerFile": 1000,
+                "showSaturation": true,
+                "lut": "None",
+                "gain": "Low",
+                "frameRate": "20FPS",
+                "led0": 10,
+                "ewl": 50
+            }
+        }
+    }
+}
