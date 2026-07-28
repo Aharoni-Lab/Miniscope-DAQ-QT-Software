@@ -19,6 +19,10 @@
 //   {enable:<bool>}   motor driver on/off
 //   {led:<bool>}      indicator LED on/off
 //
+// Each command is one LF-terminated line (see writeCommand): the controller
+// parses a command only on the LF, and several JSON objects arriving before one
+// leave all but the first unprocessed.
+//
 // Lives on its own QThread (like DataSaver); quaternions arrive from the source
 // Miniscope's display-frame handler via a queued connection, so no serial I/O
 // ever runs on the GUI/render thread. Configured from the user config's optional
@@ -33,6 +37,16 @@ public:
     // Empty means "the first Miniscope with head orientation streaming enabled",
     // resolved by the backend.
     QString sourceDeviceName() const { return m_sourceDeviceName; }
+
+    // --- Wire format (static + pure, so it is unit-testable without a port) ---
+
+    // The bytes for one command: exactly one LF-terminated line.
+    static QByteArray wireFrame(const QString &command);
+    // The {turn:x} command for a computed twist, or an empty string when there
+    // is nothing worth sending (0, sub-resolution, NaN/inf). Always fixed
+    // notation - never exponent form, which the controller is not documented to
+    // parse.
+    static QString turnCommand(double turns);
 
 public slots:
     // Thread entry point (connect to QThread::started): opens the serial port and
@@ -51,6 +65,14 @@ public slots:
     // Drops the port when the OS reports the device vanished (unplug), so the
     // reconnect path in handleNewQuaternion takes over.
     void handlePortError(QSerialPort::SerialPortError error);
+
+    // One-shot report (armed by startRunning) naming which link of the chain is
+    // live: orientation samples in, turn commands out.
+    void reportStatus();
+
+    // Logs each complete line the controller sends back (its {print:true} reply,
+    // and any unprompted firmware output).
+    void handleReadyRead();
 
 signals:
     void sendMessage(QString msg);
@@ -79,6 +101,15 @@ private:
     QElapsedTimer m_reconnectClock;
     bool m_reportedOpenError = false;
     bool m_reportedDisconnect = false;
+
+    // Liveness counters behind reportStatus().
+    qint64 m_samplesReceived = 0;
+    qint64 m_turnCommandsSent = 0;
+    qint64 m_repliesReceived = 0;   // lines the controller sent back
+    QString m_lastTurnCommand;
+
+    // Partial line assembly for the controller's replies (see handleReadyRead).
+    QByteArray m_readBuffer;
 };
 
 #endif // COMMUTATOR_H

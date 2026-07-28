@@ -184,6 +184,26 @@ published together from CI.
   an error message instead of writing mixed-size frames into the recording.
 
 ### Fixed
+- **Commutator now actually turns.** Commands were written to the serial port
+  without the LF terminator the controller's JSON protocol requires, and the
+  `{enable:true}` / `{led:true}` pair went out as one unterminated chunk. Per the
+  Open Ephys protocol a command is parsed only when a LF arrives, and when
+  several JSON objects arrive before one, *only the first* is processed — so on
+  an RP2040 (USB-C) controller nothing executed at all and every `{turn:…}` sat
+  unparsed, while the port itself opened cleanly. Each command is now its own
+  LF-terminated, immediately flushed line. Turn values are also written in fixed
+  notation (a small twist could previously serialize as `1e-05`, which the
+  controller is not documented to parse).
+- The commutator no longer fails silently. It queries the controller with
+  `{print:true}` on connect and logs the reply (firmware version, enable/LED
+  state, motor power), then reports its own liveness a few seconds in: whether
+  head-orientation samples are arriving and whether turn commands are going out,
+  naming the missing link when they are not. In particular, **a wrong serial
+  port is now called out** — opening any COM port succeeds, so "connected" alone
+  never proved the device on the other end was a commutator; if nothing answers
+  the status query, the log says so and lists the available ports. DTR is also
+  asserted explicitly, which some USB-CDC controllers require before they will
+  talk.
 - **New** config: the generated skeleton no longer violates the config schema.
   Its defaults came from field *types* alone, which know nothing about the
   schema's enums, minimums and array lengths, so a brand-new config carried
