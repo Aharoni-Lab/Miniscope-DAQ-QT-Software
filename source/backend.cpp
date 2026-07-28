@@ -1406,6 +1406,17 @@ void backEnd::parseUserConfig()
     QStringList s;
     int count = 0;
 
+    // Start both device maps empty. Every other uc* member below is ASSIGNED the
+    // matching config section, but these two are filled key-by-key, so anything
+    // left from a previous parse survived: a device deleted from the config was
+    // rebuilt on the next Run (the removed webcam reappeared in the Acquire
+    // grid), a renamed one existed twice, and opening a different config
+    // inherited the previous config's devices. Session teardown could not help -
+    // it clears the constructed device objects, and these are what they are
+    // constructed FROM.
+    ucMiniscopes = QJsonObject();
+    ucBehaviorCams = QJsonObject();
+
     // Main JSON header
     dataDirectory= m_userConfig.value("dataDirectory").toString();
 

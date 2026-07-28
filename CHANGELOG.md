@@ -184,6 +184,13 @@ published together from CI.
   an error message instead of writing mixed-size frames into the recording.
 
 ### Fixed
+- **A device removed from the config no longer comes back on the next Run.**
+  The parsed device sections were filled key-by-key into backend members that
+  were never emptied, so entries from an earlier parse survived: deleting a
+  webcam and running again rebuilt it (it reappeared in the Acquire grid),
+  renaming a device ran both names, and opening a different config inherited the
+  previous config's devices. The same stale entries also fed the pre-Run checks,
+  so Run could be blocked by the codec of a device no longer in the config.
 - **Commutator now actually turns.** Commands were written to the serial port
   without the LF terminator the controller's JSON protocol requires, and the
   `{enable:true}` / `{led:true}` pair went out as one unterminated chunk. Per the

@@ -37,6 +37,7 @@ class TestSessionLifecycle : public QObject
 private slots:
     void initTestCase();
     void runEndRunCycle();
+    void configEditsBetweenRunsAreHonored();
 
 private:
     // Let deferred deletions (endSession tears windows down via deleteLater)
@@ -48,9 +49,45 @@ private:
         QCoreApplication::processEvents();
     }
 
+    // Writes a config whose only devices are file-playback cameras with the
+    // given names, all streaming the AVI generated in initTestCase. Returns its
+    // path, or an empty string if it could not be written.
+    QString writeConfig(const QString &fileName, const QStringList &cameraNames);
+
     QTemporaryDir m_tempDir;
     QString m_configPath;
 };
+
+QString TestSessionLifecycle::writeConfig(const QString &fileName,
+                                          const QStringList &cameraNames)
+{
+    const QJsonObject playback{{"folderPath", m_tempDir.path()},
+                               {"filePrefix", "lifecycle_"},
+                               {"frameRate", 20}};
+    QJsonObject cameras;
+    for (const QString &name : cameraNames)
+        cameras[name] = QJsonObject{{"deviceType", "WebCam"},
+                                    {"videoPlayback", playback},
+                                    {"compression", "MJPG"},
+                                    {"framesPerFile", 1000},
+                                    {"windowScale", 0.5},
+                                    {"windowX", 50},
+                                    {"windowY", 50}};
+    const QJsonObject config{
+        {"dataDirectory", m_tempDir.path()},
+        {"researcherName", "lifecycleTest"},
+        {"directoryStructure", QJsonArray{"researcherName", "date", "time"}},
+        {"devices", QJsonObject{{"cameras", cameras}}},
+    };
+
+    const QString path = m_tempDir.filePath(fileName);
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly))
+        return QString();
+    f.write(QJsonDocument(config).toJson());
+    f.close();
+    return path;
+}
 
 void TestSessionLifecycle::initTestCase()
 {
@@ -78,28 +115,8 @@ void TestSessionLifecycle::initTestCase()
 
     // A minimal, valid config: one behavior camera streaming the generated
     // file. No live camera, no tracker, no trace display, no commutator.
-    QJsonObject playback{{"folderPath", m_tempDir.path()},
-                         {"filePrefix", "lifecycle_"},
-                         {"frameRate", 20}};
-    QJsonObject camera{{"deviceType", "WebCam"},
-                       {"videoPlayback", playback},
-                       {"compression", "MJPG"},
-                       {"framesPerFile", 1000},
-                       {"windowScale", 0.5},
-                       {"windowX", 50},
-                       {"windowY", 50}};
-    QJsonObject config{
-        {"dataDirectory", m_tempDir.path()},
-        {"researcherName", "lifecycleTest"},
-        {"directoryStructure", QJsonArray{"researcherName", "date", "time"}},
-        {"devices", QJsonObject{{"cameras", QJsonObject{{"PlaybackCam", camera}}}}},
-    };
-
-    m_configPath = m_tempDir.filePath("lifecycle_config.json");
-    QFile f(m_configPath);
-    QVERIFY(f.open(QIODevice::WriteOnly));
-    f.write(QJsonDocument(config).toJson());
-    f.close();
+    m_configPath = writeConfig("lifecycle_config.json", {"PlaybackCam"});
+    QVERIFY(!m_configPath.isEmpty());
 }
 
 void TestSessionLifecycle::runEndRunCycle()
@@ -183,6 +200,60 @@ void TestSessionLifecycle::runEndRunCycle()
 
     // The quit path (endSession + closeAll) must be safe after all the above.
     backend.exitClicked();
+    drainEvents();
+}
+
+// What the config says at Run time is what the session must contain - after an
+// edit between sessions, and after switching config files.
+//
+// The parsed device sections (ucMiniscopes / ucBehaviorCams) are backend members
+// filled key-by-key rather than assigned, so entries from a previous parse used
+// to survive: a device deleted from the config was rebuilt on the next Run (the
+// removed webcam reappeared in the Acquire grid), and a different config
+// inherited the previous one's devices. Session teardown cannot catch this - it
+// clears the constructed device objects, and these maps are what they are built
+// FROM.
+void TestSessionLifecycle::configEditsBetweenRunsAreHonored()
+{
+    backEnd backend;
+    if (!backend.availableCodecs().contains("MJPG"))
+        QSKIP("MJPG codec unavailable on this host");
+
+    const QString twoCams = writeConfig("two_cams.json", {"KeptCam", "RemovedCam"});
+    QVERIFY(!twoCams.isEmpty());
+    backend.setUserConfigFileName(QUrl::fromLocalFile(twoCams).toString());
+    QVERIFY2(backend.userConfigOK(), "two-camera config failed the backend's checks");
+
+    backend.onRunClicked();
+    QCOMPARE(backend.sessionCameraCount(), 2);
+    QCOMPARE(backend.sessionPanes().size(), 2);
+    backend.endSession();
+    drainEvents();
+
+    // Delete one device, exactly as the form editor's remove button does.
+    backend.removeDevice("cameras", "RemovedCam");
+    QVERIFY(backend.userConfigOK());
+
+    backend.onRunClicked();
+    QCOMPARE(backend.sessionCameraCount(), 1);
+    const QVariantList panes = backend.sessionPanes();
+    QCOMPARE(panes.size(), 1);
+    QCOMPARE(panes[0].toMap().value("name").toString(), QStringLiteral("KeptCam"));
+    backend.endSession();
+    drainEvents();
+
+    // Switching to a different config file: only ITS devices may run.
+    const QString otherCam = writeConfig("other_cam.json", {"OtherCam"});
+    QVERIFY(!otherCam.isEmpty());
+    backend.setUserConfigFileName(QUrl::fromLocalFile(otherCam).toString());
+    QVERIFY(backend.userConfigOK());
+
+    backend.onRunClicked();
+    QCOMPARE(backend.sessionCameraCount(), 1);
+    const QVariantList otherPanes = backend.sessionPanes();
+    QCOMPARE(otherPanes.size(), 1);
+    QCOMPARE(otherPanes[0].toMap().value("name").toString(), QStringLiteral("OtherCam"));
+    backend.endSession();
     drainEvents();
 }
 
