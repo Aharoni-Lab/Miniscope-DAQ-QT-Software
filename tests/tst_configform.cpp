@@ -21,6 +21,7 @@
 #include <QTemporaryDir>
 
 #include "backend.h"
+#include "configvalidator.h"
 #include "themecontroller.h"
 
 class TestConfigForm : public QObject
@@ -30,6 +31,7 @@ class TestConfigForm : public QObject
 private slots:
     void initTestCase();
     void formApiRoundTrip();
+    void newConfigValidatesClean();
     void dirtyTracking();
     void configFormQml();
     void directoryStructureArrayEdit();
@@ -125,6 +127,44 @@ void TestConfigForm::formApiRoundTrip()
     QVERIFY(backend.applyRawConfigJson("{\"researcherName\": \"raw\"}").isEmpty());
     QCOMPARE(backend.userConfigJson().value("researcherName").toString(),
              QStringLiteral("raw"));
+}
+
+// A config built by New (and then filled in with devices) must satisfy the schema
+// the app ships with. The generator derives its skeleton from the *types* in
+// userConfigProps.json, which know nothing about the schema's enums, minimums and
+// array lengths - so a bare skeleton carried configVersion 0, poseOverlay.type "",
+// commutator.sampleRate 0 with empty axis arrays, and a string led0FineSteps, and
+// the user's first edit dumped ~25 warning lines into the Config check panel.
+void TestConfigForm::newConfigValidatesClean()
+{
+    backEnd backend;
+    backend.newUserConfig();
+    QVERIFY2(backend.configCheckNotes().isEmpty(),
+             qPrintable("a brand-new config warns:\n  "
+                        + backend.configCheckNotes().replace("\n", "\n  ")));
+
+    // Every supported device type, since each one's defaults come from a
+    // different catalog entry merged into the same schema template.
+    for (const QString &category : {QStringLiteral("miniscopes"), QStringLiteral("cameras")}) {
+        const QStringList types = backend.deviceTypesForCategory(category);
+        QVERIFY2(!types.isEmpty(), qPrintable("no device types for " + category));
+        for (const QString &type : types)
+            backend.addDevice(category, type, type + QStringLiteral(" test"), 0);
+    }
+    QVERIFY2(backend.configCheckNotes().isEmpty(),
+             qPrintable("a new config with devices warns:\n  "
+                        + backend.configCheckNotes().replace("\n", "\n  ")));
+
+    // Check the generated object against the schema directly as well, so this
+    // stays a test of the defaults rather than of when the notes get refreshed.
+    QJsonObject generated =
+        QJsonDocument::fromJson(backend.rawConfigJson().toUtf8()).object();
+    const QStringList warnings = checkUserConfig(generated);
+    QVERIFY2(warnings.isEmpty(), qPrintable("generated config violates the schema:\n  "
+                                            + warnings.join("\n  ")));
+
+    // Stamped as written by this editor version (schema enum: [1]).
+    QCOMPARE(generated.value("configVersion").toInt(), 1);
 }
 
 void TestConfigForm::dirtyTracking()

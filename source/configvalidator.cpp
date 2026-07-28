@@ -65,6 +65,22 @@ QStringList validateUserConfigAgainstSchema(const QJsonObject &config,
         return warnings;   // conforms
     }
 
+    // valijson reports one error per failing subschema, so a single bad value
+    // also produces a relay message for every ancestor on the way to the root
+    // ("commutator: Failed to validate against schema associated with property
+    // name 'sampleRate'.", "(config root): Failed to validate against ...").
+    // Those add nothing - the leaf message already carries the full path - and
+    // they buried the real notes under ~4x their number of lines. Kept aside and
+    // used only if no leaf message survives, so nothing is ever silently lost.
+    QStringList relays;
+    const auto isRelay = [](const QString &description) {
+        return description.startsWith(QLatin1String("Failed to validate against schema "
+                                                    "associated with property name"))
+               || description.startsWith(QLatin1String("Failed to validate against child schema"))
+               || description.startsWith(QLatin1String("Failed to validate against additional "
+                                                       "properties schema"));
+    };
+
     valijson::ValidationResults::Error error;
     while (results.popError(error)) {
         // Context segments arrive as "<root>", "[devices]", "[cameras]",
@@ -80,10 +96,13 @@ QStringList validateUserConfigAgainstSchema(const QJsonObject &config,
         }
         const QString where = path.isEmpty() ? QStringLiteral("(config root)")
                                              : path.join(QLatin1Char('.'));
-        warnings.append(where + QStringLiteral(": ")
-                        + QString::fromStdString(error.description));
+        const QString description = QString::fromStdString(error.description);
+        const QString message = where + QStringLiteral(": ") + description;
+        QStringList &sink = isRelay(description) ? relays : warnings;
+        if (!sink.contains(message))
+            sink.append(message);
     }
-    return warnings;
+    return warnings.isEmpty() ? relays : warnings;
 }
 
 QStringList checkUserConfig(QJsonObject &config, const QString &schemaPath)

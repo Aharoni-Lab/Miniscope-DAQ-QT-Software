@@ -228,7 +228,10 @@ void backEnd::saveConfigObjectAs(const QString &filePath)
 
 QJsonValue backEnd::defaultForType(const QString &type)
 {
-    if (type == "Bool")
+    // "Boolean" is accepted alongside "Bool": userConfigProps.json is hand-edited,
+    // and a boolean spelled the other way used to fall through to "" - a string
+    // where the schema wants a bool, which then failed validation.
+    if (type == "Bool" || type == "Boolean")
         return false;
     if (type == "Integer" || type == "Number" || type == "Double")
         return 0;
@@ -266,8 +269,14 @@ void backEnd::newUserConfig()
     for (const QString &k : keys) {
         if (k.contains("COMMENT"))
             continue;
+        if (k == QStringLiteral("$schema"))
+            continue;   // editor hint, not a setting; stamped with a real URL below
         cfg[k] = defaultFromProps(m_configProps.value(k));
     }
+
+    // configVersion (enum [1]) and the $schema pointer. Type defaults would make
+    // configVersion 0, which the schema rejects.
+    stampConfigMetadata(cfg);
 
     // Seed sensible, non-empty defaults so a fresh config is immediately usable
     // instead of being full of blanks/zeros the user has to fill in.
@@ -317,10 +326,24 @@ void backEnd::newUserConfig()
         op["numBinsY"] = 100;
         bt["occupancyPlot"] = op;
         QJsonObject po = bt["poseOverlay"].toObject();
+        po["type"]           = "point";   // enum: point / line / ribbon
         po["numOfPastPoses"] = 6;
         po["markerSize"]     = 20;
         bt["poseOverlay"] = po;
         cfg["behaviorTracker"] = bt;
+    }
+
+    // Commutator stays off, but with the documented defaults rather than zeros:
+    // sampleRate must be > 0, the axes are 3-vectors, and fallbackMode is an enum.
+    if (cfg.contains("commutator")) {
+        QJsonObject cm = cfg.value("commutator").toObject();
+        cm["led"]               = true;
+        cm["sampleRate"]        = 10;
+        cm["headstageAxis"]     = QJsonArray{ 0, 0, 1 };
+        cm["commutatorAxis"]    = QJsonArray{ 0, 0, 1 };
+        cm["fallbackThreshold"] = -0.9;
+        cm["fallbackMode"]      = "global";
+        cfg["commutator"] = cm;
     }
 
     m_userConfig = cfg;
@@ -328,10 +351,10 @@ void backEnd::newUserConfig()
     emit userConfigFileNameChanged();
     m_savedConfig = QJsonObject();  // nothing on disk yet -> dirty until saved
 
-    updateHasDevices();
-    checkUserConfigForIssues();     // emits userConfigOKChanged() -> enables Save/Run
-    updateDirtyState();
-    emit userConfigJsonChanged();
+    // Same tail as any form edit: refreshes the advisory schema notes (a stale
+    // set from the previously loaded config would otherwise stay on screen) and
+    // the checks that enable Save/Run.
+    configEdited();
 }
 
 void backEnd::enrichDeviceDefaults(QJsonObject &device, const QString &category,
@@ -442,10 +465,7 @@ void backEnd::addDevice(const QString &category, const QString &deviceType,
     devices[category]       = section;
     m_userConfig["devices"] = devices;
 
-    updateHasDevices();
-    checkUserConfigForIssues();
-    updateDirtyState();
-    emit userConfigJsonChanged();
+    configEdited();   // includes the schema notes, so a new device is checked too
 }
 
 // Public entry (wired to the "Scan Devices" button): dispatch to the OS-specific

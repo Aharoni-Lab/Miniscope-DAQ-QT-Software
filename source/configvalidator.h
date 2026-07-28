@@ -25,6 +25,9 @@ QStringList migrateUserConfig(QJsonObject &config);
 // Validates config against a JSON Schema (the parsed contents of
 // userConfigSchema.json). Returns one warning line per violation, formatted
 // as "<json path>: <problem>"; empty when the config conforms. Never throws.
+// Ancestor "failed to validate against ..." relay messages (one per level up to
+// the root for every leaf violation) are suppressed as long as at least one
+// concrete violation is reported, so the notes stay readable.
 QStringList validateUserConfigAgainstSchema(const QJsonObject &config,
                                             const QJsonObject &schema);
 
