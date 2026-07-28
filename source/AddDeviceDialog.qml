@@ -30,21 +30,39 @@ Dialog {
     property string deviceName: nameField.text.trim()
     property string detectedDevices: ""
 
+    // Why the current name can't be used ("" when it can). A device name is a
+    // folder name in every recording, so the backend rejects one that is taken
+    // by ANY device in either category - or that differs only by case or
+    // spaces-vs-underscores, which would land two devices in one folder.
+    readonly property string nameProblem:
+        backend ? backend.deviceNameProblem(nameField.text) : ""
+
+    // The suggested name, so switching category replaces a suggestion the user
+    // hasn't touched but never overwrites a name they typed themselves.
+    property string suggestedName: ""
+    function suggestName() {
+        var base = catCombo.currentText === "Miniscope" ? "My Miniscope" : "My Camera";
+        // "My Miniscope 2" when "My Miniscope" is taken, and so on.
+        suggestedName = backend ? backend.uniqueDeviceName(base) : base;
+        nameField.text = suggestedName;
+    }
+
     // Reset the fields and refresh the live device info each time it opens.
     onAboutToShow: {
         catCombo.currentIndex = 0;
         typeCombo.currentIndex = 0;
-        nameField.text = catCombo.currentText === "Miniscope" ? "My Miniscope" : "My Camera";
+        suggestName();
         idCombo.model = backend.availableDeviceIDs();   // unused IDs only
         idCombo.currentIndex = 0;
         detectedDevices = backend.scanVideoDevices();
     }
 
-    // Keep OK disabled until a name is entered (backend.addDevice also guards).
+    // Keep OK disabled until the name is usable (backend.addDevice also guards,
+    // but a silently-refused Add looked like nothing happened at all).
     Component.onCompleted: {
         var ok = control.standardButton(Dialog.Ok);
         if (ok)
-            ok.enabled = Qt.binding(function () { return nameField.text.trim().length > 0; });
+            ok.enabled = Qt.binding(function () { return control.nameProblem.length === 0; });
     }
 
     GridLayout {
@@ -63,9 +81,8 @@ Dialog {
             // refresh the suggested name unless the user already typed their own.
             onActivated: {
                 typeCombo.currentIndex = 0;
-                if (nameField.text === "My Miniscope" || nameField.text === "My Camera"
-                        || nameField.text.trim() === "")
-                    nameField.text = currentText === "Miniscope" ? "My Miniscope" : "My Camera";
+                if (nameField.text === control.suggestedName || nameField.text.trim() === "")
+                    control.suggestName();
             }
         }
 
@@ -90,8 +107,21 @@ Dialog {
         Label { text: "Name"; font: Theme.fontBody; color: Theme.textPrimary }
         UiTextField {
             id: nameField
+            objectName: "deviceNameField"
             Layout.fillWidth: true
             placeholderText: "e.g. My V4 Miniscope"
+        }
+
+        // Why OK is disabled. Sits in the control column, under the field.
+        Item { }
+        Text {
+            objectName: "deviceNameProblem"
+            Layout.fillWidth: true
+            visible: control.nameProblem.length > 0
+            text: "⚠ " + control.nameProblem
+            font: Theme.fontSmall
+            color: Theme.warning
+            wrapMode: Text.WordWrap
         }
 
         // Full connected-device scan (incl. already-used IDs), spanning both columns.

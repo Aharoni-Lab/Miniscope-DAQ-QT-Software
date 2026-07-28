@@ -1,0 +1,70 @@
+{
+    "$schema": "https://raw.githubusercontent.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/master/deviceConfigs/userConfigSchema.json",
+    "configVersion": 1,
+    "COMMENT": "A V4 Miniscope plus two behavior cameras (e.g. an overhead and a side view).",
+    "COMMENT2": "Two USB cameras plus a Miniscope can exceed one USB controller's bandwidth. If frames drop, move a camera to a different USB controller (not just a different port on the same hub) or lower its resolution with a WebCam-<WxH> deviceType.",
+
+    "COMMENT_dataDirectory": "Where recordings are written. './Data' is relative to the software folder so this config runs as-is; for real experiments set an absolute path with forward slashes.",
+    "dataDirectory": "./Data",
+
+    "directoryStructure": [
+        "researcherName",
+        "experimentName",
+        "animalName",
+        "date",
+        "time"
+    ],
+    "researcherName": "MyName",
+    "experimentName": "Experiment1",
+    "animalName": "Animal1",
+
+    "recordLengthInSeconds": 0,
+
+    "traceDisplay": {
+        "enabled": true,
+        "type": "scrolling"
+    },
+
+    "COMMENT_deviceIDs": "The deviceIDs below are a guess. Use 'Scan devices...' in the Devices section to see which ID is which camera.",
+    "devices": {
+        "miniscopes": {
+            "Miniscope": {
+                "deviceType": "Miniscope_V4_BNO",
+                "deviceID": 0,
+                "headOrientation": {
+                    "enabled": true,
+                    "filterBadData": true,
+                    "plotTrace": [
+                        "roll",
+                        "pitch",
+                        "yaw"
+                    ]
+                },
+                "compression": "FFV1",
+                "framesPerFile": 1000,
+                "showSaturation": true,
+                "lut": "None",
+                "gain": "Low",
+                "frameRate": "20FPS",
+                "led0": 10,
+                "ewl": 50
+            }
+        },
+        "cameras": {
+            "BehaviorCamTop": {
+                "deviceType": "WebCam-640x480",
+                "deviceID": 1,
+                "compression": "MJPG",
+                "framesPerFile": 1000,
+                "showSaturation": false
+            },
+            "BehaviorCamSide": {
+                "deviceType": "WebCam-640x480",
+                "deviceID": 2,
+                "compression": "MJPG",
+                "framesPerFile": 1000,
+                "showSaturation": false
+            }
+        }
+    }
+}

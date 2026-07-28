@@ -47,8 +47,43 @@ published together from CI.
   actions sit in an auto-hiding, pinnable side rail. The recording-ROI
   selection now draws its rectangle over the video and stays outlined after
   committing.
-- **Dark theme** by default with a light toggle (persisted); native dialogs
-  follow the app theme.
+- **Rearrangeable, resizable pane grid**: the Acquire grid is rows of panes
+  with draggable dividers — drag a horizontal one to change a row's height, a
+  vertical one to change a pane's width. Drag a pane's header onto another pane
+  to swap them, onto a divider or a row's left/right edge to drop it at that
+  exact slot, or onto a pane's top/bottom edge to put it in a new row. A
+  `Columns` picker (Auto / 1–4) and a `Reset` button cover the coarse cases.
+  The arrangement and every divider position persist per config file alongside
+  the existing float/geometry state, and Lock Layout freezes all of it.
+- **"Data folder" button** in the session bar opens the folder the recording is
+  writing into — during the recording as well as after it — resolved to the
+  real path including the `directoryStructure` date/time folders, not just the
+  configured `dataDirectory`.
+- **Messages area** (was "Session log") shows the last four messages instead of
+  one elided line, colors each by severity, and carries a running error /
+  warning count with a matching card border, so a problem from earlier in the
+  session stays visible after it scrolls out of view.
+- **Startup feedback for Run**: a "Starting session…" overlay names each step
+  (`Opening Miniscope "…"`, `Starting the data saver…`) as it happens. Opening
+  cameras is synchronous and takes seconds; the app used to simply stop
+  responding with nothing on screen to explain why. The save-changes prompt now
+  closes *before* the run starts rather than sitting on screen through it.
+- **Advanced tab** in the config editor holds the behavior tracker and the
+  record-start/stop external programs, keeping the Form page to what a normal
+  session needs.
+- **Codec guidance per device class**: Miniscope rows offer GREY and FFV1 first
+  (the only lossless options) and explain the storage-vs-CPU trade-off, with a
+  warning when a Miniscope is set to a lossy codec; camera rows lead with MJPG
+  and XVID and say why lossy is fine for behavior video. The LED "Fine steps"
+  switch now explains what it does and that it re-reads the stored `led0` value
+  on a 0–255 scale.
+- **Duplicate device names are blocked when adding a device**, with the reason
+  shown in the dialog, and the suggested name is pre-uniquified
+  (`My Miniscope 2`). A device name is a folder name in every recording, so
+  uniqueness now spans both categories and ignores case and
+  spaces-vs-underscores.
+- `Scan devices` moved from the config action bar into the Devices section,
+  next to `+ Add Device`, where it is actually used (finding a device's ID).
 
 **Platforms & packaging**
 - **macOS support (Apple Silicon)**: full native port, bench-validated on real
@@ -124,6 +159,17 @@ published together from CI.
 - Removed `deviceConfigs/miniscopes.json` and `behaviorCams.json` — dead
   since the device catalog moved to `videoDevices.json`, but they looked
   authoritative and old wiki instructions pointed users at them.
+- **Bundled example configs replaced.** The `UserConfigExample-*` files are
+  gone, superseded by five ready-to-run configs — `01-Miniscope-V4`,
+  `02-Miniscope-V4-plus-WebCam`, `03-Miniscope-V4-plus-2-WebCams`,
+  `04-WebCam-only`, `05-Miniscope-V4-plus-Commutator` — plus
+  `Reference-AllOptions.json`, the annotated file documenting every key. The
+  numbered ones run as shipped: `dataDirectory` is `./Data` instead of
+  `C:/FILL/OUT/THIS/PATH` (which failed at record time), scopes are
+  `Miniscope_V4_BNO` with head orientation on, `recordLengthInSeconds` is 0
+  (manual stop), and the placeholder DeepLabCut block, legacy `windowX/Y/Scale`
+  keys, and default `ROI` are gone. The commutator gets an example for the
+  first time. **Links to the old filenames will no longer resolve.**
 - **Opt-in fine `led0` steps** for V4 miniscopes: set
   `"led0FineSteps": true` on the device in the user config and the
   illumination slider runs 0–255, addressing the LED driver's 255 hardware
@@ -170,7 +216,14 @@ published together from CI.
 - Closing the main window now shuts down the whole application instead of
   leaving orphaned device windows.
 - Device-type dropdowns in the config editor are filtered by category; trace
-  display window only opens when configured.
+  display window only opens when configured. They also lead with the type a new
+  device should get — `Miniscope_V4_BNO` and `WebCam` — instead of the
+  alphabetically-first catalog entry, which defaulted Add Device to
+  `Miniscope_V3` and `Minicam-Mono-XGA`.
+- Two devices may no longer share a name after case-folding and
+  spaces-to-underscores. The names became folder names, so `My Cam` and
+  `my_cam` recorded into one directory and overwrote each other; such a config
+  is now rejected before Run instead of losing data.
 - Compiler warnings are on (`-Wall -Wextra` / `/W4`) and the build is
   warning-clean; removed the stale qmake `.pro` file, the tracked
   `My User Configs/` folder, and dead libusb test code.
@@ -184,6 +237,20 @@ published together from CI.
   an error message instead of writing mixed-size frames into the recording.
 
 ### Fixed
+- **The head-orientation logo stays in its corner.** The BNO widget's rotation
+  matrix was applied to the widget itself, and a matrix transform rotates about
+  the target's top-left corner — so the logo orbited that corner instead of
+  spinning in place and swung out of the video window entirely. It now rotates
+  about its own centre, sized to stay inside its box at any orientation, and is
+  anchored bottom-right instead of bottom-left.
+- **The session bar no longer runs off the right edge of the window.** Its
+  controls needed ~1200 px in a layout that cannot shrink, so anything narrower
+  clipped whatever didn't fit — including End Session. Both rows now wrap.
+- **Adding a device with a name that already exists is refused with a reason.**
+  It previously did nothing at all when the name was taken in the same category
+  (so the Add looked like it had failed silently), and was accepted outright
+  when taken in the *other* category — leaving two devices recording into one
+  folder.
 - **A device removed from the config no longer comes back on the next Run.**
   The parsed device sections were filled key-by-key into backend members that
   were never emptied, so entries from an earlier parse survived: deleting a

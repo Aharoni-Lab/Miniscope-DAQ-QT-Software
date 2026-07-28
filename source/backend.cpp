@@ -11,6 +11,9 @@
 #include <cmath>
 #include <QFileDialog>
 #include <QApplication>
+#include <QDesktopServices>
+#include <QEventLoop>
+#include <QFileInfo>
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -74,7 +77,7 @@ backEnd::backEnd(QObject *parent) :
 {
 #ifdef DEBUG
 //    QString homePath = QDir::homePath();
-    m_userConfigFileName = "./userConfigs/UserConfigExample.json";
+    m_userConfigFileName = "./userConfigs/01-Miniscope-V4.json";
 //    loadUserConfigFile();
     handleUserConfigFileNameChanged();
 
@@ -436,21 +439,92 @@ QStringList backEnd::deviceTypesForCategory(const QString &category) const
         if (isCamera == wantCamera)
             types << k;
     }
+    // Lead with the type a new device should default to. Alphabetical catalog
+    // order put Miniscope_V3 (a decade-old scope) and Minicam-Mono-XGA first,
+    // so Add Device defaulted to hardware almost nobody is running.
+    const QString preferred = wantCamera ? QStringLiteral("WebCam")
+                                         : QStringLiteral("Miniscope_V4_BNO");
+    if (types.removeOne(preferred))
+        types.prepend(preferred);
     return types;
 }
 
-void backEnd::addDevice(const QString &category, const QString &deviceType,
+// A device name is also a folder name in every recording ("My Cam" ->
+// "My_Cam"), so two names that differ only by case or by space-vs-underscore
+// collide on disk. Compare that canonical form, not the raw string.
+static QString canonicalDeviceName(const QString &name)
+{
+    return name.trimmed().replace(QLatin1Char(' '), QLatin1Char('_')).toLower();
+}
+
+QStringList backEnd::configuredDeviceNames() const
+{
+    const QJsonObject devices = m_userConfig.value("devices").toObject();
+    QStringList names;
+    for (const QString &category : {QStringLiteral("miniscopes"), QStringLiteral("cameras")}) {
+        const QJsonValue section = devices.value(category);
+        if (section.isObject()) {
+            names += section.toObject().keys();
+        } else if (section.isArray()) {   // legacy array form
+            const QJsonArray list = section.toArray();
+            for (const QJsonValue &entry : list)
+                names += entry.toObject().value("deviceName").toString();
+        }
+    }
+    return names;
+}
+
+QString backEnd::deviceNameProblem(const QString &name) const
+{
+    const QString trimmed = name.trimmed();
+    if (trimmed.isEmpty())
+        return QStringLiteral("Enter a name for this device.");
+
+    const QString canonical = canonicalDeviceName(trimmed);
+    const QStringList existing = configuredDeviceNames();
+    for (const QString &other : existing) {
+        if (canonicalDeviceName(other) != canonical)
+            continue;
+        if (other == trimmed)
+            return QStringLiteral("\"%1\" is already used by another device.").arg(other);
+        // Different string, same folder: this is the one that silently merges
+        // two devices' recordings into one directory.
+        return QStringLiteral("Too close to \"%1\": device names become folder names, "
+                              "so these two would share one data folder.").arg(other);
+    }
+    return QString();
+}
+
+QString backEnd::uniqueDeviceName(const QString &base) const
+{
+    const QString trimmed = base.trimmed();
+    if (deviceNameProblem(trimmed).isEmpty())
+        return trimmed;
+    for (int n = 2; n < 1000; n++) {
+        const QString candidate = QStringLiteral("%1 %2").arg(trimmed).arg(n);
+        if (deviceNameProblem(candidate).isEmpty())
+            return candidate;
+    }
+    return trimmed;   // 998 devices called the same thing; give up gracefully
+}
+
+bool backEnd::addDevice(const QString &category, const QString &deviceType,
                         const QString &deviceName, int deviceID)
 {
-    if (deviceName.trimmed().isEmpty() || deviceType.isEmpty())
-        return;
+    if (deviceType.isEmpty())
+        return false;
     if (category != "miniscopes" && category != "cameras")
-        return;
+        return false;
+    // The dialog blocks these before they get here; this is the backstop, and it
+    // says why rather than looking like nothing happened.
+    const QString problem = deviceNameProblem(deviceName);
+    if (!problem.isEmpty()) {
+        qWarning().noquote() << "addDevice refused:" << problem;
+        return false;
+    }
 
     QJsonObject devices = m_userConfig.value("devices").toObject();
     QJsonObject section = devices.value(category).toObject();
-    if (section.contains(deviceName))
-        return;   // names are kept unique within a category
 
     // Build the device from its schema template, then fill catalog-derived defaults.
     const QString templateKey = (category == "miniscopes") ? "miniscopeDeviceName"
@@ -461,11 +535,12 @@ void backEnd::addDevice(const QString &category, const QString &deviceType,
     enrichDeviceDefaults(device, category, deviceType);
     device["deviceID"] = deviceID;   // user-chosen ID from the Add-Device dialog
 
-    section[deviceName]     = device;
-    devices[category]       = section;
-    m_userConfig["devices"] = devices;
+    section[deviceName.trimmed()] = device;
+    devices[category]             = section;
+    m_userConfig["devices"]       = devices;
 
     configEdited();   // includes the schema notes, so a new device is checked too
+    return true;
 }
 
 // Public entry (wired to the "Scan Devices" button): dispatch to the OS-specific
@@ -760,10 +835,31 @@ void backEnd::loadUserConfigFile()
     setUserConfigDisplay("User Config File Selected: " + m_userConfigFileName + "\n" + jsonFile);
 }
 
+// Publish a startup step and let the UI draw it. Run opens every camera on the
+// GUI thread, so without pumping here the whole app is unresponsive for seconds
+// with nothing on screen to say why.
+//
+// ExcludeUserInputEvents is the important part: a click that landed during those
+// seconds must not re-enter onRunClicked() or endSession() halfway through
+// building the session. Paints, timers and the QML animation driver still run,
+// so the overlay appears and its spinner turns.
+void backEnd::setStartupStage(const QString &stage)
+{
+    m_startupStage = stage;
+    emit startupStageChanged();
+    QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+}
+
 void backEnd::onRunClicked()
 {
     if (m_sessionActive)
         return; // a session is already running; endSession() first
+    if (m_starting)
+        return; // already building one
+
+    m_starting = true;
+    emit startingChanged();
+    setStartupStage(QStringLiteral("Checking the configuration…"));
 
     // m_userConfig is already current: the form editor writes every edit
     // straight into it (setConfigValue / applyRawConfigJson).
@@ -775,12 +871,21 @@ void backEnd::onRunClicked()
         // time axis is relative to this.
         m_softwareStartTime = monotonicTimeMs();
 
+        // Nothing recorded yet in this session; the previous session's folder
+        // must not be what "open data folder" points at.
+        if (!m_recordDirectory.isEmpty()) {
+            m_recordDirectory.clear();
+            emit recordDirectoryChanged();
+        }
+
         constructUserConfigGUI();
 
+        setStartupStage(QStringLiteral("Starting the data saver…"));
         setupDataSaver(); // must happen after devices have been made
 
         // Pane descriptors must exist before sessionActive flips the shell to
         // the Acquire view, which builds its containers from them.
+        setStartupStage(QStringLiteral("Arranging the windows…"));
         rebuildSessionPanes();
 
         m_sessionActive = true;
@@ -790,6 +895,10 @@ void backEnd::onRunClicked()
         // TODO: throw out error
     }
 
+    m_starting = false;
+    m_startupStage.clear();
+    emit startupStageChanged();
+    emit startingChanged();
 }
 
 void backEnd::onRecordClicked()
@@ -1130,6 +1239,13 @@ void backEnd::clearSessionPanes()
     emit sessionPanesChanged();
 }
 
+bool backEnd::openDirectory(const QString &path) const
+{
+    if (path.isEmpty() || !QFileInfo(path).isDir())
+        return false;
+    return QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+}
+
 QVariantMap backEnd::sessionTelemetry() const
 {
     QVariantMap out;
@@ -1235,6 +1351,16 @@ void backEnd::connectSnS()
                      [this] { setRecordingState(false); });
     QObject::connect(dataSaver, &DataSaver::recordingFailed, this,
                      [this] { setRecordingState(false); });
+
+    // Remember where the recording is writing, so the session bar can open the
+    // folder while it records and after it stops. Queued from the saver thread.
+    QObject::connect(dataSaver, &DataSaver::recordDirectoryReady, this,
+                     [this](const QString &path) {
+                         if (m_recordDirectory == path)
+                             return;
+                         m_recordDirectory = path;
+                         emit recordDirectoryChanged();
+                     });
 
     for (int i = 0; i < miniscope.length(); i++) {
         // For triggering screenshots
@@ -1500,42 +1626,31 @@ void backEnd::setupBehaviorTracker()
     behavTracker->startThread();
 }
 
+// Two devices must never share a name, across BOTH categories: the name is the
+// folder each device records into. Compared canonically (see
+// canonicalDeviceName), because "My Cam" and "my_cam" are the same directory on
+// Windows and macOS - two devices would write their video and timeStamps.csv
+// into one folder and quietly overwrite each other.
 bool backEnd::checkForUniqueDeviceNames()
 {
-    bool repeatingDeviceName = false;
-    QString tempName;
-    QVector<QString> deviceNames;
-    QStringList keys;
-
-    keys = ucMiniscopes.keys();
-    for (int i = 0; i < keys.length(); i++) {
-        tempName = ucMiniscopes[keys[i]].toObject()["deviceName"].toString();
-        if (!deviceNames.contains(tempName))
-            deviceNames.append(tempName);
-        else {
-            repeatingDeviceName = true;
-            break;
+    QStringList seen;
+    for (const QJsonObject *section : {&ucMiniscopes, &ucBehaviorCams}) {
+        const QStringList keys = section->keys();
+        for (const QString &key : keys) {
+            const QString name = section->value(key).toObject()
+                                     .value("deviceName").toString();
+            const QString canonical = canonicalDeviceName(name);
+            if (seen.contains(canonical)) {
+                qWarning().noquote()
+                    << "Repeating device name:" << name
+                    << "- device names become folder names, so this one would share"
+                       " a data folder with another device.";
+                return false;
+            }
+            seen.append(canonical);
         }
     }
-
-    keys = ucBehaviorCams.keys();
-    for (int i = 0; i < keys.length(); i++) {
-        tempName = ucBehaviorCams[keys[i]].toObject()["deviceName"].toString();
-        if (!deviceNames.contains(tempName))
-            deviceNames.append(tempName);
-        else {
-            repeatingDeviceName = true;
-            break;
-        }
-    }
-
-    if (repeatingDeviceName == true) {
-        qDebug() << "Repeating Device Names!";
-        return false;
-    }
-    else {
-        return true;
-    }
+    return true;
 }
 
 bool backEnd::checkForCompression()
@@ -1584,6 +1699,9 @@ void backEnd::constructUserConfigGUI()
     // Make Minsicope displays
     keys = ucMiniscopes.keys();
     for (idx = 0; idx < keys.length(); idx++) {
+        // Opening a device is the slow part of Run (it talks to the camera), so
+        // each one names itself on the startup overlay before it begins.
+        setStartupStage(QStringLiteral("Opening Miniscope \"%1\"…").arg(keys[idx]));
         miniscope.append(new Miniscope(this, ucMiniscopes[keys[idx]].toObject(), m_softwareStartTime));
         QObject::connect(miniscope.last(),
                          SIGNAL (onPropertyChanged(QString, QString, QVariant)),
@@ -1615,6 +1733,7 @@ void backEnd::constructUserConfigGUI()
     // Make Behav Cam displays
     keys = ucBehaviorCams.keys();
     for (idx = 0; idx < keys.length(); idx++) {
+        setStartupStage(QStringLiteral("Opening camera \"%1\"…").arg(keys[idx]));
         behavCam.append(new BehaviorCam(this, ucBehaviorCams[keys[idx]].toObject(), m_softwareStartTime));
         QObject::connect(behavCam.last(),
                          SIGNAL (onPropertyChanged(QString, QString, QVariant)),
@@ -1644,6 +1763,8 @@ void backEnd::constructUserConfigGUI()
     // Make behavior tracker interface
     if (!ucBehaviorTracker.isEmpty()) {
         if (ucBehaviorTracker["enabled"].toBool(true) && !behavCam.isEmpty()) {
+            setStartupStage(QStringLiteral("Starting the behavior tracker "
+                                          "(loading Python and the DLC model)…"));
             // Behav tracker currently is hardcoded to use first behavior camera
             QSize camRes = behavCam.first()->getResolution();
 
@@ -1659,6 +1780,8 @@ void backEnd::constructUserConfigGUI()
 
     // Optional commutator (needs a Miniscope with head orientation to drive it,
     // so create it after the Miniscopes exist).
+    if (!ucCommutator.isEmpty() && ucCommutator["enabled"].toBool(false))
+        setStartupStage(QStringLiteral("Connecting the commutator…"));
     setupCommutator();
 
     connectSnS();

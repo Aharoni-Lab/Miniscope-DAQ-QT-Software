@@ -464,6 +464,7 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
 
         // TODO: Save camera calibration file to data directory for each behavioral camera
         m_recording = true;
+        emit recordDirectoryReady(baseDirectory);
     }
     else {
         qDebug() << "Failed to record due to base directory creation failing";

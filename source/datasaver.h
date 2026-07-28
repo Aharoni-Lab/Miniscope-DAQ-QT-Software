@@ -44,6 +44,12 @@ public:
 
 signals:
     void sendMessage(QString msg);
+    // The folder this recording writes into, emitted once every file in it has
+    // been created. baseDirectory itself belongs to the saver thread, so the
+    // path travels to the GUI thread as a signal value rather than being read
+    // out from under the writer - that's what lets the UI offer "open the data
+    // folder" while a recording runs.
+    void recordDirectoryReady(QString path);
     // Emitted when a recording could not start (a save-path file failed to
     // open) or had to stop (disk full, video file creation failed), so the UI
     // can drop its "Recording" state instead of silently saving nothing.

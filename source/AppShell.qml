@@ -135,6 +135,57 @@ ApplicationWindow {
         AcquireView { }
     }
 
+    // --- Starting a session ---------------------------------------------------
+    // Run is synchronous - every device opens its camera on the GUI thread - so
+    // it can take several seconds during which nothing responds. The backend
+    // publishes each step and pumps the event loop between them (see
+    // backEnd::setStartupStage), which is what lets this overlay appear at all,
+    // name what is happening, and keep its spinner turning.
+    Rectangle {
+        objectName: "startupOverlay"
+        visible: backend ? backend.starting : false
+        anchors.fill: parent
+        color: Theme.dark ? "#cc0e0e14" : "#cceeedf4"
+        z: 100
+
+        // Swallow clicks: nothing behind this should be reachable mid-start.
+        MouseArea { anchors.fill: parent }
+
+        ColumnLayout {
+            anchors.centerIn: parent
+            spacing: Theme.spacing * 2
+
+            BusyIndicator {
+                running: true
+                implicitWidth: 64
+                implicitHeight: 64
+                Layout.alignment: Qt.AlignHCenter
+            }
+            Text {
+                text: qsTr("Starting session…")
+                font: Theme.fontTitle
+                color: Theme.textPrimary
+                Layout.alignment: Qt.AlignHCenter
+            }
+            Text {
+                objectName: "startupStageText"
+                text: backend ? backend.startupStage : ""
+                font: Theme.fontBody
+                color: Theme.textSecondary
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                Layout.maximumWidth: 460
+                Layout.alignment: Qt.AlignHCenter
+            }
+            Text {
+                text: qsTr("Cameras can take a few seconds each to open.")
+                font: Theme.fontSmall
+                color: Theme.textSecondary
+                Layout.alignment: Qt.AlignHCenter
+            }
+        }
+    }
+
     // --- Help ---------------------------------------------------------------------
     Dialog {
         id: helpDialog

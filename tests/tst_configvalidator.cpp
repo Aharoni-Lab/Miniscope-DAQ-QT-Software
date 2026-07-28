@@ -107,7 +107,7 @@ void TestConfigValidator::allShippedExampleConfigsValidate()
                  qPrintable(path + ":\n  " + warnings.join("\n  ")));
         checked++;
     }
-    QVERIFY(checked >= 6);   // all shipped examples were seen
+    QVERIFY(checked >= 8);   // the six examples plus the two Linux test configs
 }
 
 void TestConfigValidator::wrongTypeIsReportedWithPath()

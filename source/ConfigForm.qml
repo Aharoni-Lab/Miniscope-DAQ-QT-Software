@@ -18,6 +18,10 @@ Item {
 
     // Ask the host view to open its Add-Device dialog.
     signal addDeviceRequested()
+    // Ask the host view to show the connected-video-device scan. It belongs
+    // with the Devices card (it's how you find a device's ID) rather than in
+    // the config action bar, where it read as a peer of Open / New.
+    signal scanDevicesRequested()
 
     // Live view of the config. Re-evaluates whenever the backend signals a change.
     readonly property var cfg: backend ? backend.userConfigJson : ({})
@@ -77,8 +81,22 @@ Item {
     }
     // Codec dropdown model: the host-supported list, plus the configured value
     // if it isn't supported here (so the row shows what the file says).
-    function codecModel(current) {
-        var list = backend ? backend.availableCodecs : []
+    //
+    // Each category leads with the codecs that should actually be used for it,
+    // rather than offering whatever the host happened to enumerate first:
+    // Miniscope imaging stays lossless (GREY / FFV1), while behavior video is a
+    // natural scene that lossy codecs handle well (MJPG / XVID).
+    readonly property var losslessCodecs: ["GREY", "FFV1"]
+    readonly property var behaviorCodecs: ["MJPG", "XVID"]
+    function preferredCodecs(category) {
+        return category === "miniscopes" ? losslessCodecs : behaviorCodecs
+    }
+    function codecModel(current, category) {
+        var list = backend ? backend.availableCodecs.slice() : []
+        var preferred = preferredCodecs(category)
+        var lead = preferred.filter(function (c) { return list.indexOf(c) >= 0 })
+        var rest = list.filter(function (c) { return preferred.indexOf(c) < 0 })
+        list = lead.concat(rest)
         if (current && current.length > 0 && list.indexOf(current) < 0)
             return [current].concat(list)
         return list
@@ -194,9 +212,12 @@ Item {
 
         TabBar {
             id: tabs
-            Layout.preferredWidth: 220
+            Layout.preferredWidth: 330
             background: Rectangle { color: "transparent" }
             EditorTab { text: qsTr("Form") }
+            // Rarely-used settings (behavior tracking, external programs) live
+            // here so the Form page stays about running an experiment.
+            EditorTab { text: qsTr("Advanced") }
             EditorTab { text: qsTr("JSON") }
         }
 
@@ -379,6 +400,31 @@ Item {
                         subtitle: form.deviceRows.length === 0
                                   ? qsTr("Add at least one Miniscope or camera to run.") : ""
 
+                        // Actions first: scanning is how you find a device's ID,
+                        // so it has to be reachable before the device list, not
+                        // buried under it.
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacing
+                            UiButton {
+                                text: qsTr("+ Add Device")
+                                primary: true
+                                onClicked: form.addDeviceRequested()
+                            }
+                            UiButton {
+                                objectName: "scanDevicesButton"
+                                text: qsTr("Scan devices…")
+                                onClicked: form.scanDevicesRequested()
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: qsTr("…lists the cameras connected right now, and the device ID to use for each.")
+                                font: Theme.fontSmall
+                                color: Theme.textSecondary
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+
                         Repeater {
                             model: form.deviceRows
 
@@ -390,6 +436,16 @@ Item {
                                 readonly property string cat: modelData.category
                                 readonly property string name: modelData.name
                                 readonly property bool isMiniscope: cat === "miniscopes"
+                                readonly property bool codecLossless:
+                                    form.losslessCodecs.indexOf(dval("compression", "")) >= 0
+                                // Does the catalog give this device type a fine-step
+                                // led0 mapping, and is the config using it?
+                                readonly property bool hasFineSteps: {
+                                    var c = form.ctrl(devType, "led0")
+                                    return c !== undefined && c.fineSteps !== undefined
+                                }
+                                readonly property bool fineSteps: dval("led0FineSteps", false) === true
+                                readonly property int led0Max: form.led0Max(devType, fineSteps)
                                 readonly property string devType: form.val(["devices", cat, name, "deviceType"], "")
                                 function dval(key, fallback) { return form.val(["devices", cat, name, key], fallback) }
                                 function dset(key, value) { form.set(["devices", cat, name, key], value) }
@@ -457,7 +513,8 @@ Item {
                                         }
                                         UiComboBox {
                                             implicitWidth: 110
-                                            model: form.codecModel(deviceRow.dval("compression", ""))
+                                            model: form.codecModel(deviceRow.dval("compression", ""),
+                                                                   deviceRow.cat)
                                             syncValue: deviceRow.dval("compression", "")
                                             onActivated: deviceRow.dset("compression", currentText)
                                         }
@@ -475,6 +532,29 @@ Item {
                                                 removeDeviceDialog.open()
                                             }
                                         }
+                                    }
+
+                                    // Codec guidance. Miniscope imaging must stay
+                                    // lossless, and picking between the two
+                                    // lossless codecs is a storage/CPU trade-off
+                                    // that depends on the machine; behavior video
+                                    // is a natural scene, where a lossy codec is
+                                    // the right default.
+                                    Text {
+                                        objectName: "codecHint"
+                                        Layout.fillWidth: true
+                                        wrapMode: Text.WordWrap
+                                        font: Theme.fontSmall
+                                        color: deviceRow.isMiniscope && !deviceRow.codecLossless
+                                               ? Theme.warning : Theme.textSecondary
+                                        text: deviceRow.isMiniscope
+                                              ? ((deviceRow.codecLossless ? ""
+                                                    : qsTr("⚠ %1 is lossy — Miniscope data should use GREY or FFV1. ")
+                                                          .arg(deviceRow.dval("compression", "")))
+                                                 + qsTr("GREY is fully uncompressed: no CPU cost, largest files — use it when storage isn't an issue. ")
+                                                 + qsTr("FFV1 is lossless too (identical pixels, smaller files) but uses CPU, so some computers struggle and start dropping frames."))
+                                              : qsTr("Lossy compression is fine here: these codecs work well on normal video, unlike the fine spatial structure of Miniscope imaging. ")
+                                                + qsTr("MJPG is the safe default; XVID gives smaller files. GREY and FFV1 stay lossless but make far larger files than behavior video needs.")
                                     }
 
                                     // Edit drawer
@@ -535,19 +615,56 @@ Item {
                                             tip: form.devTip(deviceRow.cat, ["led0"])
                                             UiSpinBox {
                                                 from: 0
-                                                to: form.led0Max(deviceRow.devType, deviceRow.dval("led0FineSteps", false))
+                                                to: deviceRow.led0Max
                                                 syncValue: deviceRow.dval("led0", 0)
                                                 onValueModified: deviceRow.dset("led0", value)
                                             }
                                             UiSwitch {
-                                                visible: {
-                                                    var c = form.ctrl(deviceRow.devType, "led0")
-                                                    return c !== undefined && c.fineSteps !== undefined
-                                                }
-                                                text: qsTr("Fine steps (0–255)")
-                                                syncChecked: deviceRow.dval("led0FineSteps", false)
+                                                visible: deviceRow.hasFineSteps
+                                                text: qsTr("Fine steps (0–%1)")
+                                                          .arg(form.led0Max(deviceRow.devType, true))
+                                                syncChecked: deviceRow.fineSteps
                                                 onToggled: deviceRow.dset("led0FineSteps", checked)
                                             }
+                                        }
+
+                                        // What the fine-steps switch actually does. The
+                                        // switch label only has room for the range, and
+                                        // the userConfigProps tip is only surfaced on
+                                        // FormRow LABELS - this control sits in a row
+                                        // slot, so it had no explanation at all.
+                                        Text {
+                                            objectName: "led0FineStepsHint"
+                                            visible: deviceRow.hasFineSteps
+                                            Layout.fillWidth: true
+                                            Layout.leftMargin: 170 + Theme.spacing
+                                            wrapMode: Text.WordWrap
+                                            font: Theme.fontSmall
+                                            color: Theme.textSecondary
+                                            text: qsTr("Fine steps (new in v2.0) address each of the LED driver's %1 hardware steps directly instead of 0–100%, giving %2× finer control over the same brightness range — for preps that need very dim illumination.")
+                                                      .arg(form.led0Max(deviceRow.devType, true))
+                                                      .arg((form.led0Max(deviceRow.devType, true)
+                                                            / form.led0Max(deviceRow.devType, false)).toFixed(2))
+                                        }
+
+                                        // The stored led0 number is reinterpreted in the
+                                        // new units, so an LED value carried over from a
+                                        // config written before v2.0 drives a different
+                                        // brightness than it used to.
+                                        Text {
+                                            objectName: "led0FineStepsUnitsHint"
+                                            visible: deviceRow.hasFineSteps && deviceRow.fineSteps
+                                            Layout.fillWidth: true
+                                            Layout.leftMargin: 170 + Theme.spacing
+                                            wrapMode: Text.WordWrap
+                                            font: Theme.fontSmall
+                                            color: Theme.warning
+                                            text: qsTr("Units change with this switch: led0 = %1 is %2% of full LED power on the 0–%3 scale. ")
+                                                      .arg(deviceRow.dval("led0", 0))
+                                                      .arg((100 * deviceRow.dval("led0", 0)
+                                                            / form.led0Max(deviceRow.devType, true)).toFixed(0))
+                                                      .arg(form.led0Max(deviceRow.devType, true))
+                                                  + qsTr("LED values saved before v2.0 are on the 0–100 scale, where the same number is a percentage — so they run dimmer here until you scale them up.")
                                         }
 
                                         FormRow {
@@ -702,16 +819,6 @@ Item {
                             color: Theme.textSecondary
                         }
 
-                        RowLayout {
-                            Layout.fillWidth: true
-                            UiButton {
-                                text: qsTr("+ Add Device")
-                                primary: true
-                                onClicked: form.addDeviceRequested()
-                            }
-                            Item { Layout.fillWidth: true }
-                        }
-
                         Text {
                             Layout.fillWidth: true
                             text: qsTr("Codecs available on this computer: %1")
@@ -756,11 +863,84 @@ Item {
                         }
                     }
 
+                    // --- Commutator ---
+                    FormCard {
+                        title: qsTr("Commutator")
+                        subtitle: qsTr("Drives an Open Ephys commutator from the Miniscope's head orientation so the tether unwinds itself.")
+                        expanded: false
+                        showSwitch: true
+                        switchChecked: form.val(["commutator", "enabled"], false)
+                        onSwitchToggled: checked => form.set(["commutator", "enabled"], checked)
+
+                        FormRow {
+                            label: qsTr("Serial port")
+                            tip: form.tip(["commutator", "port"])
+                            UiComboBox {
+                                Layout.fillWidth: true
+                                model: form.serialPorts
+                                textRole: "label"
+                                valueRole: "name"
+                                syncValue: form.val(["commutator", "port"], "")
+                                onActivated: form.set(["commutator", "port"], currentValue)
+                            }
+                            UiButton {
+                                text: qsTr("Rescan")
+                                onClicked: form.refreshSerialPorts()
+                            }
+                        }
+                        FormRow {
+                            label: qsTr("Miniscope")
+                            tip: form.tip(["commutator", "deviceName"])
+                            UiTextField {
+                                Layout.fillWidth: true
+                                placeholderText: qsTr("blank = first Miniscope with head orientation")
+                                syncText: form.val(["commutator", "deviceName"], "")
+                                onTextEdited: form.set(["commutator", "deviceName"], text)
+                            }
+                        }
+                        FormRow {
+                            label: qsTr("Indicator LED")
+                            tip: form.tip(["commutator", "led"])
+                            UiSwitch {
+                                syncChecked: form.val(["commutator", "led"], true)
+                                onToggled: form.set(["commutator", "led"], checked)
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: qsTr("Axis and fallback tuning are in the JSON tab.")
+                            font: Theme.fontSmall
+                            color: Theme.textSecondary
+                        }
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: qsTr("Behavior tracking and record-start/stop programs are in the Advanced tab.")
+                        font: Theme.fontSmall
+                        color: Theme.textSecondary
+                        wrapMode: Text.WordWrap
+                    }
+                }
+            }
+
+            // =================== Advanced page ===================
+            // Settings almost no run needs. They stay out of the Form page so
+            // that page reads as "what this experiment records"; nothing here
+            // is required for a normal Miniscope + camera session.
+            ScrollView {
+                id: advancedScroll
+                clip: true
+                contentWidth: availableWidth
+
+                ColumnLayout {
+                    width: advancedScroll.availableWidth
+                    spacing: Theme.spacing
+
                     // --- Behavior tracker ---
                     FormCard {
                         title: qsTr("Behavior tracker")
                         subtitle: qsTr("Live pose tracking with DeepLabCut-Live. Requires a prepared Python environment.")
-                        expanded: false
                         showSwitch: true
                         switchChecked: form.val(["behaviorTracker", "enabled"], false)
                         onSwitchToggled: checked => form.set(["behaviorTracker", "enabled"], checked)
@@ -829,62 +1009,10 @@ Item {
                         }
                     }
 
-                    // --- Commutator ---
+                    // --- External programs ---
                     FormCard {
-                        title: qsTr("Commutator")
-                        subtitle: qsTr("Drives an Open Ephys commutator from the Miniscope's head orientation so the tether unwinds itself.")
-                        expanded: false
-                        showSwitch: true
-                        switchChecked: form.val(["commutator", "enabled"], false)
-                        onSwitchToggled: checked => form.set(["commutator", "enabled"], checked)
-
-                        FormRow {
-                            label: qsTr("Serial port")
-                            tip: form.tip(["commutator", "port"])
-                            UiComboBox {
-                                Layout.fillWidth: true
-                                model: form.serialPorts
-                                textRole: "label"
-                                valueRole: "name"
-                                syncValue: form.val(["commutator", "port"], "")
-                                onActivated: form.set(["commutator", "port"], currentValue)
-                            }
-                            UiButton {
-                                text: qsTr("Rescan")
-                                onClicked: form.refreshSerialPorts()
-                            }
-                        }
-                        FormRow {
-                            label: qsTr("Miniscope")
-                            tip: form.tip(["commutator", "deviceName"])
-                            UiTextField {
-                                Layout.fillWidth: true
-                                placeholderText: qsTr("blank = first Miniscope with head orientation")
-                                syncText: form.val(["commutator", "deviceName"], "")
-                                onTextEdited: form.set(["commutator", "deviceName"], text)
-                            }
-                        }
-                        FormRow {
-                            label: qsTr("Indicator LED")
-                            tip: form.tip(["commutator", "led"])
-                            UiSwitch {
-                                syncChecked: form.val(["commutator", "led"], true)
-                                onToggled: form.set(["commutator", "led"], checked)
-                            }
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: qsTr("Axis and fallback tuning are in the JSON tab.")
-                            font: Theme.fontSmall
-                            color: Theme.textSecondary
-                        }
-                    }
-
-                    // --- Advanced ---
-                    FormCard {
-                        title: qsTr("Advanced")
+                        title: qsTr("External programs")
                         subtitle: qsTr("Run an external program when recording starts or stops (e.g. to sync third-party hardware).")
-                        expanded: false
 
                         Repeater {
                             model: [
