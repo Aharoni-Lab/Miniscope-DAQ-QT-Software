@@ -184,6 +184,18 @@ published together from CI.
   an error message instead of writing mixed-size frames into the recording.
 
 ### Fixed
+- **New** config: the generated skeleton no longer violates the config schema.
+  Its defaults came from field *types* alone, which know nothing about the
+  schema's enums, minimums and array lengths, so a brand-new config carried
+  `configVersion` 0, an empty `poseOverlay.type`, a zero `commutator.sampleRate`
+  with empty axis arrays, and a string-valued `led0FineSteps` — filling in the
+  first field then dumped ~25 warning lines into the Config check panel. Those
+  keys are now seeded with their documented defaults (sample rate 10 Hz, axes
+  `[0, 0, 1]`, fallback mode `global`, …), and New / Add device refresh the
+  Config check panel instead of leaving the previous config's notes on screen.
+- Config check notes only list the actual violations: each one used to be
+  followed by a "failed to validate against …" line for every enclosing section
+  up to the config root, roughly quadrupling the panel's contents.
 - Windows on hybrid-GPU laptops (iGPU + discrete): resizing a session window
   stalled for seconds per step (lagging the whole desktop) because the app's
   OpenGL rendering defaulted to the power-saving iGPU, where the session's
