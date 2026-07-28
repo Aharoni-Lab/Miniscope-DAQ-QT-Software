@@ -86,5 +86,9 @@ void TestCommutatorProtocol::turnCommandIsLocaleIndependent()
     QLocale::setDefault(QLocale(QLocale::C));
 }
 
-QTEST_MAIN(TestCommutatorProtocol)
+// Guiless, like tst_twistcalculator: this is pure string/number logic, but the
+// target links Qt6::Gui (commutator.cpp pulls in QQuaternion), so a plain
+// QTEST_MAIN would construct a QGuiApplication and abort on headless CI with
+// "no Qt platform plugin could be initialized".
+QTEST_GUILESS_MAIN(TestCommutatorProtocol)
 #include "tst_commutatorprotocol.moc"
