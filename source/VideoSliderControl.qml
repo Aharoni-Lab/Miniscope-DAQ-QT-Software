@@ -1,10 +1,14 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 
-// Compact video-overlay hardware control: the current value stays visible as
-// a small chip (icon + value) that costs almost no screen space; hovering the
-// chip slides out a slider to its left for adjustment (pressing keeps it
-// open while dragging).
+// One hardware-control row for the left dock (LED, EWL, ...). The current value
+// is always visible (icon + number); the dock reveals the slider in-row when it
+// expands, so every control's slider comes out together - no per-control hover
+// flyout floating over the video.
+//
+// The dock drives `expanded`; when collapsed the slider is hidden and the row
+// is just icon + value, so the whole dock stays narrow.
 //
 // C++ contract (videodevice.cpp control loop, keep stable): objectName set by
 // the window shell; catalog-driven properties min/max/stepSize/startValue/
@@ -14,9 +18,9 @@ import QtQuick.Controls
 // values reach the device through this path.
 Item {
     id: root
-    implicitWidth: chip.width
-    implicitHeight: chip.height
+    implicitHeight: 30
 
+    property bool expanded: false
     property color textColor: "#d8d8e0"
     property var iconPath: ""
     property double min: 0.0
@@ -45,64 +49,27 @@ Item {
             root.valueChangedSignal(slider.value, i2cValue(slider.value), 0)
     }
 
-    readonly property bool expanded: chipHover.hovered || flyoutHover.hovered
-                                     || slider.pressed
+    RowLayout {
+        anchors.fill: parent
+        spacing: 6
 
-    Rectangle {
-        id: chip
-        anchors.right: parent.right
-        width: chipRow.implicitWidth + 12
-        height: 22
-        radius: 4
-        color: "#aa14141a"
-        border.width: root.expanded ? 1 : 0
-        border.color: "#5a5a68"
-
-        HoverHandler { id: chipHover }
-
-        Row {
-            id: chipRow
-            anchors.centerIn: parent
-            spacing: 5
-            RecoloredIcon {
-                height: 16
-                width: 16
-                anchors.verticalCenter: parent.verticalCenter
-                source: root.iconPath
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: slider.value.toFixed(root.decimalPrecision)
-                color: root.textColor
-                font.pixelSize: 13
-                font.bold: true
-            }
+        RecoloredIcon {
+            Layout.preferredWidth: 16
+            Layout.preferredHeight: 16
+            source: root.iconPath
         }
-    }
-
-    Rectangle {
-        id: flyout
-        visible: root.expanded
-        anchors.right: chip.left
-        anchors.rightMargin: 4
-        anchors.verticalCenter: chip.verticalCenter
-        width: 170
-        height: 22
-        radius: 4
-        color: "#dd14141a"
-        border.width: 1
-        border.color: "#5a5a68"
-
-        HoverHandler { id: flyoutHover }
 
         Slider {
             id: slider
-            anchors.fill: parent
-            anchors.leftMargin: 8
-            anchors.rightMargin: 8
+            visible: root.expanded
+            opacity: root.expanded ? 1 : 0
+            Layout.fillWidth: true
+            Layout.preferredHeight: root.implicitHeight
             from: root.min
             to: root.max
             stepSize: root.stepSize
+
+            Behavior on opacity { NumberAnimation { duration: 120 } }
 
             onValueChanged: root.valueChangedSignal(value, root.i2cValue(value), 0)
 
@@ -129,6 +96,15 @@ Item {
                 border.width: 1
                 border.color: "#5a5a68"
             }
+        }
+
+        Text {
+            Layout.preferredWidth: 34
+            text: slider.value.toFixed(root.decimalPrecision)
+            color: root.textColor
+            font.pixelSize: 13
+            font.bold: true
+            horizontalAlignment: Text.AlignRight
         }
     }
 }
