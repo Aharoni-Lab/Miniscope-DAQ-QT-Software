@@ -50,6 +50,10 @@ Switch {
         font: control.font
         color: control.enabled ? control.textColor : Theme.textDisabled
         verticalAlignment: Text.AlignVCenter
+        // The indicator alone is 40 px, so in a narrow container (the video
+        // windows' control rail is as little as 150 px wide) the label had well
+        // under half the width and was cut mid-word. Elide like UiButton does.
+        elide: Text.ElideRight
         leftPadding: control.indicator.width + (control.text.length > 0 ? Theme.spacing : 0)
     }
 }

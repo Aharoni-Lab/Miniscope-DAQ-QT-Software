@@ -209,6 +209,9 @@ void VideoStreamLibUVC::startStream()
     forever {
         if (m_stopStreaming)
             break;
+        // Nothing drains the ring buffer until the session's DataSaver exists.
+        if (heldForSession())
+            continue;
 
         uvc_frame_t *frame = nullptr;
         // Timeout in us; ~2 frame periods, min 100ms.

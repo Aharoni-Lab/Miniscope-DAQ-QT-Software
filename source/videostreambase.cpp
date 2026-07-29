@@ -97,6 +97,7 @@ void VideoStreamBase::resetStreamState()
     m_extTriggerLast = -1;
     m_lockedFrameSize = cv::Size();
     m_sizeMismatchWarned = false;
+    m_bufferFullWarned = false;
     // Zero quaternion with normError 1: frames committed before the first
     // successful BNO read are flagged corrupted, not passed off as valid.
     m_lastBnoQuat[0] = m_lastBnoQuat[1] = m_lastBnoQuat[2] = m_lastBnoQuat[3] = 0.0f;
@@ -140,13 +141,20 @@ void VideoStreamBase::commitFrame(const cv::Mat &frame, qint64 timestampMs)
     // frame being saved. Acquiring first also skips the per-frame control
     // reads (~6 ms each on some transports) for frames we are about to drop.
     if (!freeFrames->tryAcquire()) {
-        // No free slot: this frame is thrown away.
-        if (freeFrames->available() == 0) {
+        // No free slot: this frame is thrown away. A full buffer stays full
+        // until the consumer catches up, so report the episode once instead of
+        // once per dropped frame - dozens of identical lines bury whatever else
+        // the message log was showing, and the count in the session bar reads as
+        // dozens of separate faults.
+        if (freeFrames->available() == 0 && !m_bufferFullWarned) {
             sendMessage("Error: " + m_deviceName + " frame buffer is full. Frames will be lost!");
-            QThread::msleep(100);
+            m_bufferFullWarned = true;
         }
+        if (freeFrames->available() == 0)
+            QThread::msleep(100);
         return;
     }
+    m_bufferFullWarned = false;   // a slot was free: re-arm for the next episode
 
     const int bufIdx = m_streamIdx % frameBufferSize;
     timeStampBuffer[bufIdx] = timestampMs;
@@ -265,4 +273,19 @@ void VideoStreamBase::serviceCommandQueue()
     QCoreApplication::processEvents();
     if (!m_commandQueue.isEmpty())
         sendCommands();
+}
+
+bool VideoStreamBase::heldForSession()
+{
+    if (!m_streamHeld)
+        return false;
+    // The device's init commands and the user config's control values are
+    // queued to this thread while the hold is on, so keep servicing them: the
+    // scope is configured and its LED is at the right brightness by the time
+    // the first frame is acquired, exactly as before. The sleep is short
+    // because the hold is released from the GUI thread mid-Run and any delay
+    // here is added to Run's total time.
+    serviceCommandQueue();
+    QThread::msleep(2);
+    return true;
 }

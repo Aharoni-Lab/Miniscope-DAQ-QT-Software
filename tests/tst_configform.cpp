@@ -38,6 +38,7 @@ private slots:
     void led0FineStepsHints();
     void duplicateDeviceNamesAreRefused();
     void runReportsProgressAndClearsIt();
+    void enableSwitchSitsWithItsHeading();
     void directoryStructureArrayEdit();
 
 private:
@@ -486,6 +487,64 @@ void TestConfigForm::runReportsProgressAndClearsIt()
 // into a JSON array on its own — so the value was stored as null, the config
 // failed schema validation ("type not permitted"), and the field blanked on
 // the next edit. This drives the real QML write path to pin the fix.
+// A feature card's enable switch used to sit at the far right edge with the
+// heading at the far left, which reads as unrelated furniture: the reference
+// config is the exact failure case - a commutator with its serial port filled in
+// (COM3) and `enabled` still false. The switch now sits with the title, says its
+// state in words, and an open-but-disabled card says so in its body.
+void TestConfigForm::enableSwitchSitsWithItsHeading()
+{
+    backEnd backend;
+    loadExampleConfig(backend);
+    QCOMPARE(backend.userConfigJson().value("commutator").toMap()
+                 .value("enabled").toBool(), false);
+
+    QQmlEngine engine;
+    engine.rootContext()->setContextProperty("backend", &backend);
+    QQmlComponent component(&engine, QUrl("qrc:/ConfigForm.qml"));
+    QScopedPointer<QObject> form(component.create());
+    QVERIFY2(form, "ConfigForm.qml failed to create");
+    auto *formItem = qobject_cast<QQuickItem *>(form.data());
+    QVERIFY(formItem);
+    formItem->setWidth(900);
+    formItem->setHeight(1200);
+
+    QQuickItem *card = findVisualChild(formItem, "commutatorCard");
+    QVERIFY2(card, "commutatorCard missing from ConfigForm.qml");
+    QQuickItem *sw = findVisualChild(card, "enableSwitch");
+    QQuickItem *state = findVisualChild(card, "enableStateText");
+    QQuickItem *hint = findVisualChild(card, "disabledHint");
+    QQuickItem *title = findVisualChild(card, "cardTitle");
+    QVERIFY(sw);
+    QVERIFY(state);
+    QVERIFY(hint);
+    QVERIFY(title);
+
+    // Directly after the title - both are siblings in the same header row now,
+    // so the gap is one layout spacing. It used to be pushed past the subtitle's
+    // full width to the card's right edge, which is what made it missable. This
+    // is deliberately measured against the title rather than against the card
+    // width: the assertion has to hold at any card width.
+    const qreal gap = sw->x() - (title->x() + title->width());
+    QVERIFY2(gap >= 0 && gap < 40,
+             qPrintable(QStringLiteral("switch is %1 px from the title (switch x=%2, title ends %3)")
+                            .arg(gap).arg(sw->x())
+                            .arg(title->x() + title->width())));
+    // ...and the state word reads with the switch, on its far side.
+    QVERIFY2(state->x() > sw->x(), "the state word is not grouped with the switch");
+    QCOMPARE(state->property("text").toString(), QStringLiteral("Disabled"));
+
+    // The body hint appears once the card is open - the point at which someone
+    // is filling in the port and about to forget the switch.
+    card->setProperty("expanded", true);
+    QVERIFY2(hint->isVisible(), "an open, disabled card does not say it is off");
+
+    // Enabling from either affordance clears it and updates the word.
+    backend.setConfigValue({"commutator", "enabled"}, true);
+    QVERIFY2(!hint->isVisible(), "the hint survived enabling the feature");
+    QCOMPARE(state->property("text").toString(), QStringLiteral("Enabled"));
+}
+
 void TestConfigForm::directoryStructureArrayEdit()
 {
     backEnd backend;

@@ -18,6 +18,11 @@ import Miniscope.Theme 1.0
 // when needed); display-only controls (contrast / brightness / saturation /
 // LUT / dFF) and actions sit in an auto-hiding right rail.
 //
+// Both panels overlay the video, so both are sized as a fraction of the pane
+// (root.panelWidth) rather than in fixed pixels, only as tall as they need, and
+// never open at the same time - a pane in the Acquire grid is often ~450 px wide,
+// and these controls are adjusted while watching the live image.
+//
 // C++ contract (videodevice/miniscope/behaviorcam.cpp attach by objectName
 // and root signal - keep these stable):
 //   root signals: takeScreenShotSignal, vidPropChangedSignal, dFFSwitchChanged,
@@ -57,6 +62,15 @@ Item {
 
     focus: true
     Keys.onSpacePressed: root.takeScreenShotSignal()
+
+    // Width of the two overlay panels (hardware dock, display rail). Panes in the
+    // Acquire grid are routinely 450-630 px wide, where a fixed 250 px panel
+    // covered 40-56% of the video - and most of these controls (EWL focus, LED,
+    // gain, contrast) are adjusted *while watching* the live image. So the panels
+    // are a fraction of the pane instead of a constant, floored at the width a
+    // slider row still needs to be usable and capped at the old 250.
+    readonly property int panelWidth:
+        Math.round(Math.min(250, Math.max(150, width * 0.34)))
 
     // --- Video ---------------------------------------------------------------
     VideoDisplay {
@@ -153,12 +167,19 @@ Item {
         id: railSlider
         property alias iconPath: railSliderIcon.source
         property alias value: railSliderSlider.value
+        // These rows are icon-only to keep the rail narrow, and the icons
+        // (alpha / beta) name the shader term rather than what it does.
+        property string tip: ""
         signal moved(double value)
         spacing: 8
         RecoloredIcon {
             id: railSliderIcon
             Layout.preferredWidth: 18
             Layout.preferredHeight: 18
+            ToolTip.text: railSlider.tip
+            ToolTip.visible: railSlider.tip.length > 0 && iconHover.hovered
+            ToolTip.delay: 400
+            HoverHandler { id: iconHover }
         }
         Slider {
             id: railSliderSlider
@@ -275,14 +296,19 @@ Item {
     // short pane can't fit them all.
     Rectangle {
         id: hwDock
+        objectName: "hardwareDock"
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
         anchors.leftMargin: Theme.spacing
 
-        readonly property bool hwExpanded: hwHover.hovered || hwPinned
+        // Collapses while the display rail is out: two panels this wide left
+        // nothing of a small pane's video visible at once, and the rail is what
+        // the pointer is on. One-directional on purpose - the rail must not
+        // depend on the dock in turn, or the two bindings form a cycle.
+        readonly property bool hwExpanded: (hwHover.hovered || hwPinned) && !rail.railOpen
         property bool hwPinned: false
         readonly property int collapsedWidth: 78
-        readonly property int expandedWidth: Math.min(240, root.width - 2 * Theme.spacing)
+        readonly property int expandedWidth: root.panelWidth
 
         // Whether the catalog gave this device any hardware controls. C++ calls
         // setVisible(true) on each control AFTER the window loads. We must NOT
@@ -395,12 +421,19 @@ Item {
     // app theme.
     Rectangle {
         id: rail
-        width: 250
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
+        objectName: "displayRail"
+        width: root.panelWidth
+        // Only as tall as its contents (capped to the pane), not the full pane
+        // height: the rail's controls come to ~400 px, so a full-height panel was
+        // an opaque slab over video for no reason. Centred, like the dock.
+        height: Math.min(railContent.implicitHeight + 2 * Theme.spacing, root.height)
+        anchors.verticalCenter: parent.verticalCenter
         anchors.right: parent.right
-        anchors.rightMargin: railOpen ? 0 : -width
-        color: "#dd14141a"
+        anchors.rightMargin: railOpen ? Theme.spacing : -(width + Theme.spacing)
+        radius: Theme.radiusSmall
+        // Slightly more see-through than the old #dd: what is behind the rail is
+        // the video being adjusted.
+        color: "#cc14141a"
 
         readonly property bool railOpen: railHover.hovered || edgeHover.hovered || railPinned
         property bool railPinned: false
@@ -416,15 +449,23 @@ Item {
             clip: true
 
             ColumnLayout {
+                id: railContent
                 width: rail.width - 2 * Theme.spacing
                 spacing: Theme.spacing
 
                 RowLayout {
                     Layout.fillWidth: true
                     Text {
-                        text: qsTr("Display (not recorded)")
+                        // Everything under this heading changes the on-screen
+                        // image only. The rail is narrow, so the label is short
+                        // and the caveat lives in the tooltip.
+                        text: qsTr("Display only")
                         font: Theme.fontSmall
                         color: "#8a8a96"
+                        ToolTip.text: qsTr("Affects the live view only — never the recorded video.")
+                        ToolTip.visible: headingHover.hovered
+                        ToolTip.delay: 400
+                        HoverHandler { id: headingHover }
                     }
                     Item { Layout.fillWidth: true }
                     // Pin keeps the rail open (glove-friendly)
@@ -446,33 +487,44 @@ Item {
                 RailSlider {
                     Layout.fillWidth: true
                     iconPath: "img/icon/alpha.png"
+                    tip: qsTr("Contrast")
                     value: 1
                     onMoved: v => root.vidPropChangedSignal("alpha", v, v, 0)
                 }
                 RailSlider {
                     Layout.fillWidth: true
                     iconPath: "img/icon/beta.png"
+                    tip: qsTr("Brightness")
                     value: 0
                     onMoved: v => root.vidPropChangedSignal("beta", v, v, 0)
                 }
 
                 UiSwitch {
                     objectName: "saturationSwitch"
-                    text: qsTr("Show saturation")
+                    text: qsTr("Saturation")
                     textColor: "#d8d8e0"
+                    ToolTip.text: qsTr("Highlight saturated pixels in the live view.")
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
                     onToggled: root.saturationSwitchChanged(checked)
                 }
                 UiSwitch {
                     objectName: "lutSwitch"
                     visible: root.miniscope
-                    text: qsTr("Apply LUT colormap")
+                    text: qsTr("Colormap")
                     textColor: "#d8d8e0"
+                    ToolTip.text: qsTr("Apply the config's LUT colormap to the live view.")
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
                     onToggled: root.lutSwitchChanged(checked)
                 }
                 UiSwitch {
                     visible: root.miniscope
-                    text: qsTr("ΔF/F display")
+                    text: qsTr("ΔF/F")
                     textColor: "#d8d8e0"
+                    ToolTip.text: qsTr("Show each pixel's change from its running mean.")
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
                     onToggled: root.dFFSwitchChanged(checked)
                 }
 
@@ -486,11 +538,17 @@ Item {
                 UiButton {
                     Layout.fillWidth: true
                     text: qsTr("Screenshot")
+                    ToolTip.text: qsTr("Save a PNG of the current frame (or press Space).")
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
                     onClicked: root.takeScreenShotSignal()
                 }
                 UiButton {
                     Layout.fillWidth: true
-                    text: qsTr("Select recording ROI…")
+                    text: qsTr("Recording ROI…")
+                    ToolTip.text: qsTr("Drag a region on the video; only that region is recorded.")
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
                     onClicked: root.setRoiClicked()
                 }
                 UiButton {
@@ -498,14 +556,20 @@ Item {
                     Layout.fillWidth: true
                     visible: root.miniscope
                     enabled: false // enabled by C++ when the trace display runs
-                    text: qsTr("Add trace ROI…")
+                    text: qsTr("+ Trace ROI…")
+                    ToolTip.text: qsTr("Drag a region to plot its mean in the trace display.")
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
                     onClicked: root.addTraceRoiClicked()
                 }
                 UiButton {
                     objectName: "camProps"
                     Layout.fillWidth: true
                     visible: false // shown by C++ for cameras with a props dialog
-                    text: qsTr("Camera properties…")
+                    text: qsTr("Properties…")
+                    ToolTip.text: qsTr("Open the camera driver's own settings dialog.")
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
                     onClicked: root.camPropsClicked()
                 }
             }

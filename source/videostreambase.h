@@ -97,6 +97,25 @@ public:
     void setIsColor(bool isColor) { m_isColor = isColor; }
     void setDeviceName(QString name) { m_deviceName = name; }
 
+    // Hold the capture loop before it reads its first frame. The ring buffer's
+    // only drain is the DataSaver thread, which cannot exist until every device
+    // has been constructed - and constructing a device opens a camera, which
+    // takes seconds. Without this hold the first device streams into a buffer
+    // nobody empties for as long as the remaining devices take to open, fills
+    // all FRAME_BUFFER_SIZE slots, and spends the rest of Run reporting
+    // "frame buffer is full. Frames will be lost!".
+    //
+    // Held streams do not acquire frames at all (rather than acquire and
+    // discard): file playback would otherwise burn through the start of the
+    // recording, and there is nothing to keep warm on a live camera that the
+    // 500 ms init-command wait doesn't already cover.
+    //
+    // Thread-safe: called from the GUI thread while the capture loop runs.
+    // Default is unheld, so a stream driven directly (tests, any future caller)
+    // behaves exactly as before.
+    void setStreamHold(bool held) { m_streamHeld = held; }
+    bool streamHeld() const { return m_streamHeld; }
+
     // Estimated frames dropped between the DAQ hardware and the software this
     // run, for the live GUI readout. Rebased to the current connection epoch: a
     // reconnect restarts the DAQ frame counter (so the recorded CSV shows the
@@ -187,11 +206,19 @@ protected:
     // command queue. Call once per loop iteration.
     void serviceCommandQueue();
 
+    // True while setStreamHold(true) is in force: the capture loop must not
+    // read a frame yet. Services the command queue and sleeps briefly, so a
+    // held loop still delivers the device's init and user-config writes and
+    // still notices stopStream(). Call as the first statement of each loop
+    // iteration: `if (heldForSession()) continue;`.
+    bool heldForSession();
+
     // ---- shared state -----------------------------------------------------
     QString m_deviceName;
     int m_cameraID = -1;
 
     std::atomic<bool> m_stopStreaming{false};
+    std::atomic<bool> m_streamHeld{false};
     bool m_headOrientationStreamState = false;
     bool m_isColor = false;
     bool m_trackExtTrigger = false;
@@ -220,6 +247,7 @@ protected:
     int m_extTriggerLast = -1;         // -1 = not primed yet
     cv::Size m_lockedFrameSize;        // locked to the first committed frame
     bool m_sizeMismatchWarned = false;
+    bool m_bufferFullWarned = false;   // re-armed when a slot frees up
     float m_lastBnoQuat[5];            // last good {w,x,y,z,normError}
 };
 

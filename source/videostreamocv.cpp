@@ -139,6 +139,11 @@ void VideoStreamOCV::startStream()
     forever {
         if (m_stopStreaming)
             break;
+        // Nothing drains the ring buffer until the session's DataSaver exists.
+        // Playback devices must not advance either, or the recording would
+        // start partway in.
+        if (heldForSession())
+            continue;
 
         // Get new frame and handle disconnects
 #ifdef Q_OS_MACOS

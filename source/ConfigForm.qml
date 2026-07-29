@@ -865,6 +865,7 @@ Item {
 
                     // --- Commutator ---
                     FormCard {
+                        objectName: "commutatorCard"
                         title: qsTr("Commutator")
                         subtitle: qsTr("Drives an Open Ephys commutator from the Miniscope's head orientation so the tether unwinds itself.")
                         expanded: false

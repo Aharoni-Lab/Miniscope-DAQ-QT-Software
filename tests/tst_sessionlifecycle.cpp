@@ -16,8 +16,10 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQmlProperty>
 #include <QQuickStyle>
 #include <QQuickItem>
+#include <QQuickView>
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include <QTemporaryDir>
@@ -40,6 +42,9 @@ private slots:
     void initTestCase();
     void runEndRunCycle();
     void configEditsBetweenRunsAreHonored();
+    void producersHeldUntilConsumerReady();
+    void messageAlertExpires();
+    void videoWindowPanelsScaleToPane();
     void paneGridArrangement();
 
 private:
@@ -55,7 +60,8 @@ private:
     // Writes a config whose only devices are file-playback cameras with the
     // given names, all streaming the AVI generated in initTestCase. Returns its
     // path, or an empty string if it could not be written.
-    QString writeConfig(const QString &fileName, const QStringList &cameraNames);
+    QString writeConfig(const QString &fileName, const QStringList &cameraNames,
+                        int frameRate = 20);
 
     // Items a Repeater created (every pane of the grid) are not QObject children
     // of the window, so findChildren() can't see them - walk the visual tree.
@@ -77,11 +83,12 @@ private:
 };
 
 QString TestSessionLifecycle::writeConfig(const QString &fileName,
-                                          const QStringList &cameraNames)
+                                          const QStringList &cameraNames,
+                                          int frameRate)
 {
     const QJsonObject playback{{"folderPath", m_tempDir.path()},
                                {"filePrefix", "lifecycle_"},
-                               {"frameRate", 20}};
+                               {"frameRate", frameRate}};
     QJsonObject cameras;
     for (const QString &name : cameraNames)
         cameras[name] = QJsonObject{{"deviceType", "WebCam"},
@@ -298,6 +305,204 @@ void TestSessionLifecycle::configEditsBetweenRunsAreHonored()
     const QVariantList otherPanes = backend.sessionPanes();
     QCOMPARE(otherPanes.size(), 1);
     QCOMPARE(otherPanes[0].toMap().value("name").toString(), QStringLiteral("OtherCam"));
+    backend.endSession();
+    drainEvents();
+}
+
+// A device's ring buffer has exactly one drain: the DataSaver thread. That
+// thread cannot be created until every device is, because it is wired to their
+// buffers - and constructing a device opens a camera, which takes seconds. So a
+// device that streamed from the moment it connected filled all FRAME_BUFFER_SIZE
+// slots while the remaining devices were still opening, and Run ended with a
+// message log full of "frame buffer is full. Frames will be lost!" before the
+// operator had done anything.
+//
+// Devices are therefore constructed with their capture loop held and released
+// together once the DataSaver is up. Three playback cameras at a high frame rate
+// reproduce the original flood: each device takes ~0.5 s to construct, which is
+// far longer than the first one needs to fill 128 slots.
+void TestSessionLifecycle::producersHeldUntilConsumerReady()
+{
+    backEnd backend;
+    if (!backend.availableCodecs().contains("MJPG"))
+        QSKIP("MJPG codec unavailable on this host");
+
+    const QString path = writeConfig("held_streams.json",
+                                     {"FastCamA", "FastCamB", "FastCamC"},
+                                     /*frameRate=*/500);
+    QVERIFY(!path.isEmpty());
+    backend.setUserConfigFileName(QUrl::fromLocalFile(path).toString());
+    QVERIFY2(backend.userConfigOK(), "three-camera config failed the backend's checks");
+
+    backend.onRunClicked();
+    QVERIFY(backend.sessionActive());
+    QCOMPARE(backend.sessionCameraCount(), 3);
+
+    QObject *ctl = backend.sessionControl();
+    QVERIFY(ctl != nullptr);
+    const QStringList log = ctl->property("messageLog").toStringList();
+    for (const QString &line : log)
+        QVERIFY2(!line.contains("buffer is full"),
+                 qPrintable("a device streamed before the DataSaver existed: " + line));
+
+    // ...and the hold really was released, rather than left on forever: every
+    // device has to be acquiring frames now.
+    drainEvents(400);
+    const QVariantList devices = backend.sessionTelemetry().value("devices").toList();
+    QCOMPARE(devices.size(), 3);
+    for (const QVariant &device : devices) {
+        const QVariantMap map = device.toMap();
+        QVERIFY2(map.value("frames").toInt() > 0,
+                 qPrintable(map.value("name").toString() + " never acquired a frame"));
+    }
+
+    backend.endSession();
+    QVERIFY(!backend.sessionActive());
+    drainEvents();
+}
+
+// The message card's colored outline is an alert that expires, not a state
+// derived from the session's cumulative counts. Driven off the counts, a single
+// benign warning - a commutator reporting no rotation from its first samples,
+// with the commutator working perfectly - ringed the card amber for the rest of
+// the session, which reads as an unresolved fault. The counts in the header are
+// the persistent record; the ring is only the attention-grab.
+void TestSessionLifecycle::messageAlertExpires()
+{
+    backEnd backend;
+    if (!backend.availableCodecs().contains("MJPG"))
+        QSKIP("MJPG codec unavailable on this host");
+
+    backend.setUserConfigFileName(QUrl::fromLocalFile(m_configPath).toString());
+    QVERIFY(backend.userConfigOK());
+
+    QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty("backend", &backend);
+    engine.load(QUrl(QStringLiteral("qrc:/AppShell.qml")));
+    QVERIFY2(!engine.rootObjects().isEmpty(), "AppShell.qml failed to load");
+
+    backend.onRunClicked();
+    QVERIFY(backend.sessionActive());
+    drainEvents();
+
+    auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+    QVERIFY(window != nullptr);
+    QList<QQuickItem *> bars;
+    collectItems(window->contentItem(), QStringLiteral("sessionBar"), bars);
+    QCOMPARE(bars.size(), 1);
+    QQuickItem *bar = bars.first();
+    QList<QQuickItem *> cards;
+    collectItems(bar, QStringLiteral("sessionMessages"), cards);
+    QCOMPARE(cards.size(), 1);
+    QQuickItem *card = cards.first();
+
+    // Normalize first: Run itself logs a few (severity-0) lines, and this test is
+    // about what happens to the outline afterwards. border.color is a grouped
+    // property, so it has to be read through QQmlProperty, not QObject::property.
+    QVERIFY(QMetaObject::invokeMethod(bar, "expireAlert"));
+    drainEvents(600);
+    const QColor quiet = QQmlProperty::read(card, "border.color").value<QColor>();
+    const int errorsBefore = bar->property("errorCount").toInt();
+    const int warningsBefore = bar->property("warningCount").toInt();
+
+    QObject *ctl = backend.sessionControl();
+    QVERIFY(ctl != nullptr);
+
+    QVERIFY(QMetaObject::invokeMethod(ctl, "receiveMessage",
+                                      Q_ARG(QString, "Warning: commutator computed no rotation")));
+    drainEvents(100);
+    QCOMPARE(bar->property("alertSeverity").toInt(), 1);
+    const QColor alerted = QQmlProperty::read(card, "border.color").value<QColor>();
+    QVERIFY2(alerted != quiet, "a new warning did not raise the outline");
+    QCOMPARE(bar->property("warningCount").toInt(), warningsBefore + 1);
+
+    // An error outranks a warning that is still showing...
+    QVERIFY(QMetaObject::invokeMethod(ctl, "receiveMessage",
+                                      Q_ARG(QString, "ERROR: something real")));
+    drainEvents(100);
+    QCOMPARE(bar->property("alertSeverity").toInt(), 2);
+    // ...and a later warning must not downgrade it while it is up.
+    QVERIFY(QMetaObject::invokeMethod(ctl, "receiveMessage",
+                                      Q_ARG(QString, "Warning: and another")));
+    drainEvents(100);
+    QCOMPARE(bar->property("alertSeverity").toInt(), 2);
+
+    // When the alert expires (alertTimer fires this), the ring goes back to
+    // normal but the session's counts - the thing that must not be forgotten -
+    // are all still there.
+    QVERIFY(QMetaObject::invokeMethod(bar, "expireAlert"));
+    drainEvents(600);   // the Behavior animates the colour back (4 * animMs)
+    QCOMPARE(bar->property("alertSeverity").toInt(), 0);
+    QCOMPARE(QQmlProperty::read(card, "border.color").value<QColor>(), quiet);
+    QCOMPARE(bar->property("errorCount").toInt(), errorsBefore + 1);
+    QCOMPARE(bar->property("warningCount").toInt(), warningsBefore + 2);
+
+    backend.endSession();
+    drainEvents();
+}
+
+// The hardware dock and the display rail overlay the live video, and most of
+// what they hold (EWL focus, LED, gain, contrast) is adjusted *while watching*
+// that video. At a fixed 250 px each they covered 40-56% of a normal Acquire pane
+// individually, and effectively all of it together. So they are a fraction of the
+// pane, and only one is ever out at a time.
+void TestSessionLifecycle::videoWindowPanelsScaleToPane()
+{
+    backEnd backend;
+    if (!backend.availableCodecs().contains("MJPG"))
+        QSKIP("MJPG codec unavailable on this host");
+
+    backend.setUserConfigFileName(QUrl::fromLocalFile(m_configPath).toString());
+    QVERIFY(backend.userConfigOK());
+    backend.onRunClicked();
+    QVERIFY(backend.sessionActive());
+
+    const QVariantList panes = backend.sessionPanes();
+    QCOMPARE(panes.size(), 1);
+    auto *view = qobject_cast<QQuickView *>(
+        panes[0].toMap().value("window").value<QObject *>());
+    QVERIFY2(view != nullptr, "the device pane is not a QQuickView");
+    QQuickItem *shell = view->rootObject();
+    QVERIFY(shell != nullptr);
+    QQuickItem *rail = shell->findChild<QQuickItem *>(QStringLiteral("displayRail"));
+    QQuickItem *dock = shell->findChild<QQuickItem *>(QStringLiteral("hardwareDock"));
+    QVERIFY(rail != nullptr);
+    QVERIFY(dock != nullptr);
+
+    // Width tracks the pane: 34% of it, floored where a slider row stops being
+    // usable and capped at the old fixed width. The shell item is driven directly
+    // rather than through the view - a pane embeds this window in a container that
+    // owns its geometry, so setWidth() on the view does not stick.
+    shell->setWidth(1200);
+    drainEvents(100);
+    QCOMPARE(rail->width(), 250.0);           // capped
+    shell->setWidth(600);
+    drainEvents(100);
+    QCOMPARE(rail->width(), 204.0);           // 0.34 * 600
+    shell->setWidth(300);
+    drainEvents(100);
+    QCOMPARE(rail->width(), 150.0);           // floored
+
+    // Not full height either: the rail's controls come to well under a pane.
+    shell->setWidth(600);
+    shell->setHeight(900);
+    drainEvents(100);
+    QVERIFY2(rail->height() < 0.9 * shell->height(),
+             qPrintable(QStringLiteral("rail is %1 tall in a %2 pane")
+                            .arg(rail->height()).arg(shell->height())));
+
+    // One panel at a time: an open rail collapses the dock even when the dock is
+    // pinned, so the two can never cover the video together.
+    QQmlProperty::write(dock, "hwPinned", true);
+    drainEvents(100);
+    QCOMPARE(QQmlProperty::read(dock, "hwExpanded").toBool(), true);
+    QQmlProperty::write(rail, "railPinned", true);
+    drainEvents(100);
+    QCOMPARE(QQmlProperty::read(dock, "hwExpanded").toBool(), false);
+    QQmlProperty::write(rail, "railPinned", false);
+    drainEvents(100);
+    QCOMPARE(QQmlProperty::read(dock, "hwExpanded").toBool(), true);
+
     backend.endSession();
     drainEvents();
 }

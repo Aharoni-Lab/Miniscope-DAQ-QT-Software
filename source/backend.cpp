@@ -1465,6 +1465,20 @@ void backEnd::setupDataSaver()
     // TODO: setup start connections
 
     dataSaverThread->start();
+
+    // The consumer exists, so let the producers go. Every device was created
+    // with its capture loop held (VideoDevice's constructor): the DataSaver is
+    // the only thing that empties a device's ring buffer, and it could not be
+    // created until all the devices were, since it needs their buffers. Opening
+    // a camera takes seconds, so a device left streaming from the moment it
+    // connected would fill its buffer while the others were still opening and
+    // spend the rest of Run reporting dropped frames. Releasing here also means
+    // every device's frame 0 is the start of the session, not the moment its own
+    // camera happened to open.
+    for (Miniscope *device : miniscope)
+        device->releaseStreamHold();
+    for (BehaviorCam *device : behavCam)
+        device->releaseStreamHold();
 }
 
 void backEnd::testCodecSupport()

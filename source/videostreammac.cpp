@@ -185,6 +185,9 @@ void VideoStreamMac::startStream()
     forever {
         if (m_stopStreaming)
             break;
+        // Nothing drains the ring buffer until the session's DataSaver exists.
+        if (heldForSession())
+            continue;
 
         if (!m_grabber.read(frame)) {
             // The grabber is NOT released here: the stall diagnosis inside
