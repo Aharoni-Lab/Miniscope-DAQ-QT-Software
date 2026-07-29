@@ -27,9 +27,16 @@ cmake_minimum_required(VERSION 3.21)
 # this as an EMPTY cache entry on Apple, so `NOT DEFINED` would be false and
 # never fire. An explicit -DCMAKE_OSX_DEPLOYMENT_TARGET=... is non-empty and
 # still wins.
+# FORCE is required, and is safe BECAUSE of the guard above it: CMake seeds
+# this as an empty cache entry on Apple, and a plain `set(... CACHE ...)` will
+# not overwrite an entry that already exists - so without FORCE this silently
+# did nothing in any build tree configured earlier, and only fresh ones got the
+# fix. The guard means FORCE only ever replaces an EMPTY value; an explicit
+# -DCMAKE_OSX_DEPLOYMENT_TARGET=... is non-empty, fails the guard, and is left
+# alone.
 if(APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0"
-        CACHE STRING "Minimum macOS version the build must run on")
+        CACHE STRING "Minimum macOS version the build must run on" FORCE)
 endif()
 
 project(MiniscopeDAQ VERSION 2.0.0 LANGUAGES CXX)
