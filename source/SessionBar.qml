@@ -10,6 +10,7 @@ import Miniscope.Theme 1.0
 // controller) plus a 1 Hz poll of backend.sessionTelemetry().
 ColumnLayout {
     id: bar
+    objectName: "sessionBar"
 
     property bool layoutLocked: false
     signal lockToggled(bool locked)
@@ -289,19 +290,67 @@ ColumnLayout {
     readonly property int errorCount: messages.filter(function (m) { return severityOf(m) === 2 }).length
     readonly property int warningCount: messages.filter(function (m) { return severityOf(m) === 1 }).length
 
+    // The colored outline is an ALERT, not a state: it says "something just
+    // happened", and it expires. A border driven straight off the cumulative
+    // counts meant one benign warning at startup - a commutator reporting no
+    // rotation from its first samples, say - left the card ringed for the rest
+    // of the session, which reads as an unresolved fault. The counts in the
+    // header stay for the whole session, so nothing is forgotten; only the
+    // attention-grab is temporary. Errors hold the ring longer than warnings.
+    readonly property int warningAlertMs: 15000
+    readonly property int errorAlertMs: 60000
+    property int alertSeverity: 0
+    property int seenMessageCount: 0
+
+    function raiseAlert(severity) {
+        // A warning arriving mid-error-alert must not quietly downgrade the ring
+        // (or extend it - the error is what still matters).
+        if (severity < alertSeverity && alertTimer.running)
+            return
+        alertSeverity = severity
+        alertTimer.interval = severity === 2 ? errorAlertMs : warningAlertMs
+        alertTimer.restart()
+    }
+    // What alertTimer does when it fires; named so it can be driven directly.
+    function expireAlert() {
+        alertTimer.stop()
+        alertSeverity = 0
+    }
+
+    onMessagesChanged: {
+        // A new session installs a new controller, so the log restarts: drop the
+        // previous session's alert rather than carry its ring over.
+        if (messages.length < seenMessageCount) {
+            seenMessageCount = messages.length
+            expireAlert()
+            return
+        }
+        var worst = 0
+        for (var i = seenMessageCount; i < messages.length; i++)
+            worst = Math.max(worst, severityOf(messages[i]))
+        seenMessageCount = messages.length
+        if (worst > 0)
+            raiseAlert(worst)
+    }
+
+    Timer { id: alertTimer; onTriggered: bar.expireAlert() }
+
     Rectangle {
         id: logCard
+        objectName: "sessionMessages"
         Layout.fillWidth: true
         implicitHeight: logHeader.implicitHeight + Theme.spacing
                         + (logOpen ? 220 : messageTail.implicitHeight)
         radius: Theme.radiusSmall
         color: Theme.surface
         border.width: 1
-        // The card itself carries the worst severity on screen, so an error is
-        // visible from across the room without reading the text.
-        border.color: bar.errorCount > 0 ? Theme.danger
-                    : bar.warningCount > 0 ? Theme.warning
-                                           : Theme.border
+        // The card carries the severity of the newest message for as long as the
+        // alert lasts, so a problem is visible from across the room without
+        // reading the text - then it fades back out (see raiseAlert).
+        border.color: bar.alertSeverity === 2 ? Theme.danger
+                    : bar.alertSeverity === 1 ? Theme.warning
+                                              : Theme.border
+        Behavior on border.color { ColorAnimation { duration: Theme.animMs * 4 } }
         clip: true
 
         property bool logOpen: false

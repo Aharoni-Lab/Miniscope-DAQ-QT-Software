@@ -68,6 +68,15 @@ public:
     // Orderly shutdown: stop the capture loop and join its thread. Safe to
     // call from the GUI thread; no-op if the device never connected.
     void stopAndJoinStream();
+    // Let the capture loop start acquiring. Devices are constructed with their
+    // stream held (see the constructor) because the ring buffer has no drain
+    // until the session's DataSaver thread runs; the backend calls this on
+    // every device once that thread is up. No-op if the device never connected.
+    void releaseStreamHold()
+    {
+        if (deviceStream)
+            deviceStream->setStreamHold(false);
+    }
     void defineDeviceAddrs();
     void parseUserConfigDevice();
     void sendInitCommands();

@@ -237,6 +237,44 @@ published together from CI.
   an error message instead of writing mixed-size frames into the recording.
 
 ### Fixed
+- **Run no longer fills the message log with "frame buffer is full" before the
+  session even opens.** A device began streaming the moment its camera opened,
+  but the DataSaver thread that empties its ring buffer cannot be created until
+  *every* device has been — and opening a camera takes seconds. The first device
+  therefore filled all 128 of its buffer slots while the others were still
+  opening, and reported a lost frame for each one that followed. Capture loops
+  now start held and are released together once the DataSaver is running, so
+  every device's first frame is the start of the session. A genuinely full buffer
+  mid-session is also reported once per episode instead of once per dropped
+  frame, matching how the mid-stream frame-size warning already behaved.
+- **A feature card's enable switch sits with its heading.** The switch for the
+  commutator, trace display and behavior tracker was pinned to the card's right
+  edge with the heading at the far left, so it read as unrelated furniture — the
+  classic result being a commutator with its serial port filled in and the
+  feature never switched on. The switch is now immediately after the title, says
+  its state in words (*Enabled* / *Disabled*, itself clickable), and a card that
+  is open but disabled says so in its body with an Enable button. The fields stay
+  editable while it is off, since the port has to be entered before enabling
+  makes sense.
+- **Narrow switch labels elide instead of being cut mid-word.**
+- **The video window's control panels no longer swallow a small pane.** The
+  display rail was a fixed 250 px and the full height of the window, and the
+  hardware dock expanded to 240 — on a pane 450–630 px wide (three devices on a
+  normal monitor) either one covered 40–56% of the live video, and both together
+  covered essentially all of it. Since most of what they hold (EWL focus, LED,
+  gain, contrast) is adjusted *while watching* that video, both are now sized as a
+  fraction of the pane, the rail is only as tall as its controls instead of
+  full-height, and the dock collapses while the rail is out so the two can never
+  overlap the video at the same time. The rail's labels are shorter to match
+  (*Saturation*, *Colormap*, *ΔF/F*, *Recording ROI…*), with the full wording and
+  the meaning of the icon-only contrast/brightness sliders moved into tooltips.
+- **The message card's colored outline expires instead of staying lit.** It was
+  driven by the session's cumulative error/warning counts, so a single benign
+  warning early in a session — a commutator reporting no rotation from its first
+  samples, with the commutator working fine — left the card ringed amber for the
+  rest of the run, reading as an unresolved fault. The ring now marks the newest
+  message and fades out (15 s for a warning, 60 s for an error); the counts in
+  the header still stay for the whole session, so nothing is forgotten.
 - **The head-orientation logo stays in its corner.** The BNO widget's rotation
   matrix was applied to the widget itself, and a matrix transform rotates about
   the target's top-left corner — so the logo orbited that corner instead of

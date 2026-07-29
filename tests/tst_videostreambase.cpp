@@ -162,6 +162,31 @@ private slots:
         QVERIFY(messages.at(0).at(0).toString().contains("buffer is full"));
     }
 
+    // A full buffer stays full until the consumer catches up, so every frame in
+    // between hits the same branch. Reporting each one buried the rest of the
+    // message log under dozens of identical lines (and the session bar's error
+    // count read them as dozens of separate faults) - it is one episode, like
+    // the size-mismatch warning above.
+    void bufferFullWarningOncePerEpisode()
+    {
+        buildStream();
+        QVERIFY(freeFrames->tryAcquire(kBufSize));   // consumer owns every slot
+        QSignalSpy messages(stream, &VideoStreamBase::sendMessage);
+
+        stream->commitFrame(bgrFrame(), 1);
+        stream->commitFrame(bgrFrame(), 2);
+        stream->commitFrame(bgrFrame(), 3);
+        QCOMPARE(messages.count(), 1);
+
+        freeFrames->release(kBufSize);                // consumer caught up
+        stream->commitFrame(bgrFrame(), 4);           // commits, re-arming the warning
+        QCOMPARE(messages.count(), 1);
+
+        QVERIFY(freeFrames->tryAcquire(kBufSize - 1));// full again: a new episode
+        stream->commitFrame(bgrFrame(), 5);
+        QCOMPARE(messages.count(), 2);
+    }
+
     void ringBufferWrapsAround()
     {
         buildStream();

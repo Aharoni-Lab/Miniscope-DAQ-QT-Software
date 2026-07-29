@@ -185,6 +185,11 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
         // THIS SHOULD ONLY BE SENT TO MINISCOPE AND MINICAM DEVICES. USE TO US AN if isMiniCAM statement here
         sendInitCommands();
 
+        // Start the capture loop held: it configures the device from the queued
+        // commands below but acquires no frames until the session's DataSaver -
+        // the ring buffer's only drain - is running. See setStreamHold(); the
+        // backend releases every device together (releaseStreamHold()).
+        deviceStream->setStreamHold(true);
         videoStreamThread->start();
 
         // Short sleep to make i2c initialize commands be sent before loading in user config controls
