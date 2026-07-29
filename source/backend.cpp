@@ -383,10 +383,13 @@ void backEnd::enrichDeviceDefaults(QJsonObject &device, const QString &category,
         device["ROI"] = roi;
     }
 
-    // Control settings (gain / frameRate / led0 / ewl): use the catalog's
-    // startValue for whichever ones this device template actually has.
+    // Control settings: use the catalog's startValue for whichever ones this
+    // device template actually has. led1 covers the dual-color scopes' second
+    // excitation LED. optoPeriod/optoDuration are wired up ahead of the opto
+    // catalog entry, so they seed correctly whenever one starts declaring them.
     const QJsonObject controls = cat.value("controlSettings").toObject();
-    const QStringList controlKeys = { "gain", "frameRate", "led0", "ewl" };
+    const QStringList controlKeys = { "gain", "frameRate", "led0", "led1",
+                                      "optoPeriod", "optoDuration", "ewl" };
     for (const QString &ck : controlKeys) {
         if (device.contains(ck) && controls.contains(ck)) {
             const QJsonValue sv = controls.value(ck).toObject().value("startValue");

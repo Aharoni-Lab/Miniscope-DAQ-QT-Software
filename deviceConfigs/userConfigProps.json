@@ -299,6 +299,22 @@
                     "type": "Bool",
                     "tips": "When true, the led0 slider runs 0 to 255 and addresses every hardware step of the LED driver individually instead of 0 to 100 percent, giving 2.55x finer steps for very dim illumination. Both mappings span the same brightness range. Leave off (default) to keep the exact LED output of existing configs."
                 },
+                "led1": {
+                    "type": "Integer",
+                    "tips": "Initial intensity of the second excitation LED, on dual-color scopes only (Miniscope_V4_2C_Manual). Same 0 to 100 scale as led0. Ignored by single-LED devices."
+                },
+                "led1FineSteps": {
+                    "type": "Boolean",
+                    "tips": "The led1 equivalent of led0FineSteps: runs the second LED's slider 0 to 255 over the driver's individual hardware steps instead of 0 to 100 percent."
+                },
+                "optoPeriod": {
+                    "type": "Integer",
+                    "tips": "Optogenetic stimulation period in seconds, measured burst-start to burst-start. Only applies to scopes whose catalog entry declares it; no shipped entry does yet. 0 disables stimulation, which is the default; both optoPeriod and optoDuration must be non-zero before the scope emits any stimulation light."
+                },
+                "optoDuration": {
+                    "type": "Integer",
+                    "tips": "Length of each optogenetic burst, in camera frames. Only applies to scopes whose catalog entry declares it; no shipped entry does yet. The opto LED is lit only while the sensor is integrating, so the delivered pulse train follows the frame rate. 0 disables stimulation, which is the default."
+                },
                 "frameRate": {
                     "type": "String",
                     "tips": "This sets the initial FPS of the video device. Acceptable values usually go in increments of 5 between 10 and 30 and have the form of: \"20FPS\" for example."
