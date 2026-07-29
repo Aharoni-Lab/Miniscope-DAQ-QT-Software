@@ -341,6 +341,27 @@
                             "type": "boolean",
                             "description": "When true, the led0 slider runs 0-255 and addresses the LED driver's 255 hardware steps individually instead of 0-100%, giving 2.55x finer steps - useful for very dim illumination. Both mappings span the same brightness range. Off by default: existing configs keep their exact LED output."
                         },
+                        "led1": {
+                            "type": "number",
+                            "minimum": 0,
+                            "description": "Second excitation LED power at startup on dual-color scopes (Miniscope_V4_2C_Manual), in the led1 slider's units (0-100 by default; 0-255 with led1FineSteps). Ignored by single-LED devices."
+                        },
+                        "led1FineSteps": {
+                            "type": "boolean",
+                            "description": "The led1 equivalent of led0FineSteps: runs the second LED's slider 0-255 over the driver's individual hardware steps instead of 0-100%."
+                        },
+                        "optoPeriod": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 255,
+                            "description": "Optogenetic stimulation period in seconds, burst-start to burst-start. Only applies to scopes whose catalog entry declares it; no shipped entry does yet. 0 disables stimulation and is the default; both optoPeriod and optoDuration must be non-zero before any stimulation light is emitted."
+                        },
+                        "optoDuration": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 255,
+                            "description": "Length of each optogenetic burst in camera frames. Only applies to scopes whose catalog entry declares it; no shipped entry does yet. 0 disables stimulation and is the default."
+                        },
                         "ewl": {
                             "type": "number",
                             "description": "Electrowetting lens (focus) starting value."

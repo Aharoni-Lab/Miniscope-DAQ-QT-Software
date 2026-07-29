@@ -28,9 +28,10 @@ import Miniscope.Theme 1.0
 //   root signals: takeScreenShotSignal, vidPropChangedSignal, dFFSwitchChanged,
 //     saturationSwitchChanged, lutSwitchChanged, setRoiClicked,
 //     addTraceRoiClicked, camPropsClicked
-//   objectNames: vD (VideoDisplay), gain / frameRate / led0 / ewl (control
-//     rows; C++ makes the catalog-defined ones visible and configures their
-//     ranges), saturationSwitch, lutSwitch, addTraceRoi, camProps, bno
+//   objectNames: vD (VideoDisplay), gain / frameRate / led0 / led1 /
+//     optoPeriod / optoDuration / ewl (control rows; C++ makes the
+//     catalog-defined ones visible and configures their ranges),
+//     saturationSwitch, lutSwitch, addTraceRoi, camProps, bno
 //   root properties: recording (pushed by VideoDevice on record start/stop)
 Item {
     id: root
@@ -321,7 +322,8 @@ Item {
         // width and making it transparent instead.
         readonly property bool hasControls:
             gainCtl.visible || frameRateCtl.visible || led0Ctl.visible
-            || led1Ctl.visible || ewlCtl.visible
+            || led1Ctl.visible || optoPeriodCtl.visible || optoDurationCtl.visible
+            || ewlCtl.visible
 
         width: hasControls ? (hwExpanded ? expandedWidth : collapsedWidth) : 0
         // Never taller than the pane (minus a margin); the ScrollView handles
@@ -401,6 +403,31 @@ Item {
                     iconPath: "img/icon/led.png"
                     onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
                         root.vidPropChangedSignal("led1", displayValue, i2cValue, i2cValue2)
+                }
+                // Optogenetic burst timing. Wired up ahead of the catalog entry
+                // that will use them - no shipped device declares these yet, so
+                // both stay hidden. Raw byte values straight to the scope's MCU;
+                // 0 means stimulation off, so a catalog startValue of 0 disarms
+                // opto at connect.
+                VideoSliderControl {
+                    id: optoPeriodCtl
+                    objectName: "optoPeriod"
+                    visible: false
+                    Layout.fillWidth: true
+                    expanded: hwDock.hwExpanded
+                    iconPath: "img/icon/led.png"
+                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
+                        root.vidPropChangedSignal("optoPeriod", displayValue, i2cValue, i2cValue2)
+                }
+                VideoSliderControl {
+                    id: optoDurationCtl
+                    objectName: "optoDuration"
+                    visible: false
+                    Layout.fillWidth: true
+                    expanded: hwDock.hwExpanded
+                    iconPath: "img/icon/led.png"
+                    onValueChangedSignal: (displayValue, i2cValue, i2cValue2) =>
+                        root.vidPropChangedSignal("optoDuration", displayValue, i2cValue, i2cValue2)
                 }
                 VideoSliderControl {
                     id: ewlCtl

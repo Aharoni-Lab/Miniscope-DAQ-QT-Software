@@ -218,16 +218,31 @@ void TestConfigValidator::catalogFineStepsBlocksAreWellFormed()
         }
     }
 
-    // The shipped feature: both V4 variants carry the led0 mapping (0-255,
-    // one hardware step per tick on the inverted register).
-    for (const QString &devName : {QStringLiteral("Miniscope_V4"), QStringLiteral("Miniscope_V4_BNO")}) {
-        const QJsonObject fineSteps = catalog[devName].toObject()["controlSettings"]
-                                          .toObject()["led0"].toObject()["fineSteps"].toObject();
-        QVERIFY2(!fineSteps.isEmpty(), qPrintable(devName + " lost its led0 fineSteps block"));
+    // The shipped feature: every LED slider in the catalog carries the 0-255
+    // mapping (one hardware step per tick on the inverted register) - led0 on
+    // the single-LED V4 variants, and both LEDs on the dual-color scopes,
+    // whose second excitation LED runs the same driver through the other
+    // wiper of the same digital pot.
+    struct LedFineSteps { const char *device; const char *control; };
+    static const LedFineSteps expected[] = {
+        {"Miniscope_V4",           "led0"},
+        {"Miniscope_V4_BNO",       "led0"},
+        {"Miniscope_V4_2C_Manual", "led0"},
+        {"Miniscope_V4_2C_Manual", "led1"},
+    };
+    for (const LedFineSteps &led : expected) {
+        const QString where = QString::fromLatin1(led.device) + "/"
+                              + QString::fromLatin1(led.control);
+        const QJsonObject fineSteps =
+            catalog[QString::fromLatin1(led.device)].toObject()["controlSettings"]
+                .toObject()[QString::fromLatin1(led.control)].toObject()["fineSteps"].toObject();
+        QVERIFY2(!fineSteps.isEmpty(), qPrintable(where + " lost its fineSteps block"));
         QCOMPARE(fineSteps["max"].toDouble(), 255.0);
         QCOMPARE(fineSteps["displayValueScale"].toDouble(), -1.0);
     }
-    QCOMPARE(fineStepsBlocks, 2);
+    // Pinned against the list above rather than a literal, so adding an LED
+    // slider means adding it here too - a catalog-only edit still trips this.
+    QCOMPARE(fineStepsBlocks, int(sizeof(expected) / sizeof(expected[0])));
 }
 
 QTEST_MAIN(TestConfigValidator)
