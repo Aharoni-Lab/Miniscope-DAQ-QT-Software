@@ -15,6 +15,23 @@
 # ---------------------------------------------------------------------------
 cmake_minimum_required(VERSION 3.21)
 
+# macOS: pin the deployment target. Without it AppleClang stamps the BUILD
+# machine's OS version into the binary as its MINIMUM, so a DMG built on a new
+# macOS is refused by LaunchServices on any older one with "You can't use this
+# version of the application with this version of macOS" - even though
+# Info.plist.in declares LSMinimumSystemVersion 12.0. That made shared builds
+# silently unusable for anyone not on the builder's macOS version.
+# Must be set BEFORE project(), which is when the compiler is probed.
+# Keep in step with LSMinimumSystemVersion in packaging/macos/Info.plist.in.
+# Tested with `NOT <var>` rather than `NOT DEFINED <var>`: CMake pre-defines
+# this as an EMPTY cache entry on Apple, so `NOT DEFINED` would be false and
+# never fire. An explicit -DCMAKE_OSX_DEPLOYMENT_TARGET=... is non-empty and
+# still wins.
+if(APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0"
+        CACHE STRING "Minimum macOS version the build must run on")
+endif()
+
 project(MiniscopeDAQ VERSION 2.0.0 LANGUAGES CXX)
 
 # OFF by default: the embedded-Python DLC-Live tracker is used by very few
