@@ -35,6 +35,16 @@ Item {
     // True while a pane header is being dragged, so the drop targets light up.
     readonly property bool dragActive: paneGhost.Drag.active
 
+    // Stacking order of the overlapping drop targets. Their RELATIVE order is
+    // the contract, so they are declared together rather than as literals at
+    // each site: a divider beats the pane beneath it, a side edge beats the
+    // divider, a top/bottom edge beats a side edge (so a corner reads as "new
+    // row"), and the drag ghost floats above the lot.
+    readonly property int zHandle: 20
+    readonly property int zEdge: 30
+    readonly property int zCorner: 31
+    readonly property int zGhost: 999
+
     // Keep the drag ghost centred on the cursor. Its own hotSpot is its centre,
     // so the drop point the DropAreas see is exactly the cursor.
     function moveGhost(pointInView) {
@@ -197,33 +207,36 @@ Item {
         rows = next
         // Panes per row changed, so the stored divider positions describe a
         // different grid.
-        clearSplitState()
-        saveArrangement()
+        saveArrangement(true)
     }
 
     function setColumns(cols) {
         columnCount = cols
         rows = rowsFromOrder(paneOrder())
-        // The row shape changed, so the stored divider positions no longer
-        // describe this grid.
-        clearSplitState()
-        saveArrangement()
+        saveArrangement(true)
     }
 
+    // Auto columns (0) and an even grid is exactly what setColumns(0) produces.
     function resetLayout() {
-        columnCount = 0
-        rows = rowsFromOrder(paneOrder())
-        clearSplitState()
-        saveArrangement()
+        setColumns(0)
     }
 
     // --- Persistence ----------------------------------------------------------
-    function saveArrangement() {
+    // Pass resetSplits when the ROW SHAPE changed: the stored divider positions
+    // then describe a different grid and must go. The two are written together
+    // in one settings batch so a caller cannot save a new shape while leaving
+    // stale divider positions behind it.
+    function saveArrangement(resetSplits) {
         if (!backend || panes.length === 0)
             return
-        backend.savePaneLayout("__layout", { locked: layoutLocked,
-                                             columns: columnCount,
-                                             rows: JSON.stringify(rows) })
+        var state = { locked: layoutLocked,
+                      columns: columnCount,
+                      rows: JSON.stringify(rows) }
+        if (resetSplits === true) {
+            state.split = ""
+            state.rowSplits = ""
+        }
+        backend.savePaneLayout("__layout", state)
     }
 
     // SplitView.saveState() captures the preferred sizes its handles wrote, for
@@ -239,10 +252,6 @@ Item {
         backend.savePaneLayout("__layout", {
             split: JSON.stringify(outerSplit.saveState()),
             rowSplits: JSON.stringify(rowStates) })
-    }
-    function clearSplitState() {
-        if (backend)
-            backend.savePaneLayout("__layout", { split: "", rowSplits: "" })
     }
     function restoreSplitState() {
         if (!backend || panes.length === 0)
@@ -336,6 +345,57 @@ Item {
             : { floating: false })
     }
 
+    // --- Reusable drop targets --------------------------------------------------
+    // A pane-edge drop zone: an invisible catch area that tints itself while a
+    // dragged pane hovers it. The four edges differ only in where they sit and
+    // what they do on drop, so the highlight is defined once here.
+    //
+    // Use `available` rather than `enabled` to gate a zone: the lock check then
+    // cannot be dropped by a call site that only meant to add a condition.
+    component EdgeDropZone: DropArea {
+        id: edgeZone
+        property bool available: true
+        enabled: available && !acquireRoot.layoutLocked
+        Rectangle {
+            anchors.fill: parent
+            color: Theme.accent
+            opacity: edgeZone.containsDrag ? 0.55 : 0
+            Behavior on opacity { NumberAnimation { duration: Theme.animMs } }
+        }
+    }
+
+    // A SplitView divider that doubles as a drop target: dropping a pane on it
+    // inserts the pane at that slot rather than trading places with a
+    // neighbour. Shared by the row dividers (outer, vertical) and the pane
+    // dividers within a row, which previously carried two copies of this.
+    component GridDivider: Rectangle {
+        id: divider
+        signal paneDropped(string paneName)
+
+        // A locked layout collapses the handle to nothing, so there is nothing
+        // to grab. (Disabling the SplitView instead would disable every control
+        // inside the panes along with it.)
+        implicitWidth: acquireRoot.layoutLocked ? 0 : Theme.spacing
+        implicitHeight: acquireRoot.layoutLocked ? 0 : Theme.spacing
+        color: dividerDrop.containsDrag ? Theme.accent
+             : divider.SplitHandle.pressed ? Theme.accent
+             : divider.SplitHandle.hovered ? Theme.accentHover
+                                           : "transparent"
+        radius: Theme.radiusSmall
+        // Above the panes so this divider's drop zone wins over theirs.
+        z: acquireRoot.zHandle
+
+        // The negative margins widen the catch area past the thin visible
+        // divider, which is only a few pixels wide.
+        DropArea {
+            id: dividerDrop
+            anchors.fill: parent
+            anchors.margins: -6
+            enabled: !acquireRoot.layoutLocked
+            onDropped: drop => divider.paneDropped(drop.source.paneName)
+        }
+    }
+
     // The dragged pane's stand-in. It lives at the top of this view rather than
     // inside the pane being dragged, because a pane clips its own content (the
     // embedded video window must not bleed out of its cell) - a ghost parented
@@ -349,7 +409,7 @@ Item {
         // is why a bound version dragged fine and then dropped nowhere).
         visible: Drag.active
         opacity: 0.75
-        z: 999
+        z: acquireRoot.zGhost
         width: 150
         height: 26
         radius: Theme.radiusSmall
@@ -390,34 +450,14 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             orientation: Qt.Vertical
-            // A locked layout collapses the handles to nothing, so there is
-            // nothing to grab. (Disabling the SplitView instead would disable
-            // every control inside the panes along with it.)
-            handle: Rectangle {
+            // Dropping a pane between two rows puts it in a row of its own
+            // right here.
+            handle: GridDivider {
                 id: rowHandle
-                implicitWidth: acquireRoot.layoutLocked ? 0 : Theme.spacing
-                implicitHeight: acquireRoot.layoutLocked ? 0 : Theme.spacing
-                color: rowHandleDrop.containsDrag ? Theme.accent
-                     : SplitHandle.pressed ? Theme.accent
-                     : SplitHandle.hovered ? Theme.accentHover
-                                           : "transparent"
-                radius: Theme.radiusSmall
-                // Above the panes so this divider's drop zone wins over theirs.
-                z: 20
-
-                // Dropping a pane between two rows puts it in a row of its own
-                // right here. The margins widen the catch area past the thin
-                // visible divider.
-                DropArea {
-                    id: rowHandleDrop
-                    anchors.fill: parent
-                    anchors.margins: -6
-                    enabled: !acquireRoot.layoutLocked
-                    onDropped: drop => acquireRoot.movePaneTo(
-                                   drop.source.paneName,
+                onPaneDropped: paneName => acquireRoot.movePaneTo(
+                                   paneName,
                                    acquireRoot.gapIndexAt(outerSplit, rowHandle.y, true),
                                    0, true)
-                }
             }
             onResizingChanged: if (!resizing) acquireRoot.saveSplitState()
 
@@ -429,6 +469,7 @@ Item {
                     id: rowSplit
                     required property var modelData   // this row's pane names
                     required property int index
+                    readonly property int paneCount: modelData.length
 
                     orientation: Qt.Horizontal
                     // The last row takes the slack; the others start with an
@@ -439,29 +480,14 @@ Item {
                     SplitView.preferredHeight: outerSplit.height
                                                / Math.max(1, acquireRoot.rows.length)
                     SplitView.minimumHeight: 80
-                    handle: Rectangle {
+                    // Dropping a pane on a divider inside a row inserts it at
+                    // that spot instead of swapping with a neighbour.
+                    handle: GridDivider {
                         id: paneHandle
-                        implicitWidth: acquireRoot.layoutLocked ? 0 : Theme.spacing
-                        implicitHeight: acquireRoot.layoutLocked ? 0 : Theme.spacing
-                        color: paneHandleDrop.containsDrag ? Theme.accent
-                             : SplitHandle.pressed ? Theme.accent
-                             : SplitHandle.hovered ? Theme.accentHover
-                                                   : "transparent"
-                        radius: Theme.radiusSmall
-                        z: 20
-
-                        // Dropping a pane on a divider inside a row inserts it
-                        // at that spot instead of swapping with a neighbour.
-                        DropArea {
-                            id: paneHandleDrop
-                            anchors.fill: parent
-                            anchors.margins: -6
-                            enabled: !acquireRoot.layoutLocked
-                            onDropped: drop => acquireRoot.movePaneTo(
-                                           drop.source.paneName, rowSplit.index,
+                        onPaneDropped: paneName => acquireRoot.movePaneTo(
+                                           paneName, rowSplit.index,
                                            acquireRoot.gapIndexAt(rowSplit, paneHandle.x, false),
                                            false)
-                        }
                     }
                     onResizingChanged: if (!resizing) acquireRoot.saveSplitState()
 
@@ -492,9 +518,9 @@ Item {
                             // window that was just reparented out of a container, so
                             // any signal-based dock trigger yanks the window back the
                             // moment the user drags it.
-                            SplitView.fillWidth: index === rowSplit.modelData.length - 1
+                            SplitView.fillWidth: index === rowSplit.paneCount - 1
                             SplitView.preferredWidth: rowSplit.width
-                                                      / Math.max(1, rowSplit.modelData.length)
+                                                      / Math.max(1, rowSplit.paneCount)
                             SplitView.minimumWidth: 120
                             radius: Theme.radiusSmall
                             color: Theme.surface
@@ -533,43 +559,28 @@ Item {
                             // have no divider - without these two zones a pane
                             // could not be dropped at either END of a row. Both sit
                             // above the swap zone (z) so an edge beats the middle.
-                            DropArea {
-                                id: leftEdgeZone
+                            EdgeDropZone {
                                 width: 18
-                                z: 30
+                                z: acquireRoot.zEdge
                                 anchors.left: parent.left
                                 anchors.top: parent.top
                                 anchors.topMargin: paneFrame.headerHeight
                                 anchors.bottom: parent.bottom
-                                enabled: !acquireRoot.layoutLocked && paneFrame.index === 0
+                                available: paneFrame.index === 0
                                 onDropped: drop => acquireRoot.movePaneTo(
                                                drop.source.paneName, rowSplit.index, 0, false)
-                                Rectangle {
-                                    anchors.fill: parent
-                                    color: Theme.accent
-                                    opacity: leftEdgeZone.containsDrag ? 0.55 : 0
-                                    Behavior on opacity { NumberAnimation { duration: Theme.animMs } }
-                                }
                             }
-                            DropArea {
-                                id: rightEdgeZone
+                            EdgeDropZone {
                                 width: 18
-                                z: 30
+                                z: acquireRoot.zEdge
                                 anchors.right: parent.right
                                 anchors.top: parent.top
                                 anchors.topMargin: paneFrame.headerHeight
                                 anchors.bottom: parent.bottom
-                                enabled: !acquireRoot.layoutLocked
-                                         && paneFrame.index === rowSplit.modelData.length - 1
+                                available: paneFrame.index === rowSplit.paneCount - 1
                                 onDropped: drop => acquireRoot.movePaneTo(
                                                drop.source.paneName, rowSplit.index,
-                                               rowSplit.modelData.length, false)
-                                Rectangle {
-                                    anchors.fill: parent
-                                    color: Theme.accent
-                                    opacity: rightEdgeZone.containsDrag ? 0.55 : 0
-                                    Behavior on opacity { NumberAnimation { duration: Theme.animMs } }
-                                }
+                                               rowSplit.paneCount, false)
                             }
 
                             // Top and bottom edges make a NEW row above or below
@@ -577,40 +588,24 @@ Item {
                             // two was the Columns control, since a single-row grid
                             // has no divider between rows to drop on. Declared
                             // after the side zones so a corner reads as top/bottom.
-                            DropArea {
-                                id: topEdgeZone
+                            EdgeDropZone {
                                 height: 18
-                                z: 31
+                                z: acquireRoot.zCorner
                                 anchors.top: parent.top
                                 anchors.topMargin: paneFrame.headerHeight
                                 anchors.left: parent.left
                                 anchors.right: parent.right
-                                enabled: !acquireRoot.layoutLocked
                                 onDropped: drop => acquireRoot.movePaneTo(
                                                drop.source.paneName, rowSplit.index, 0, true)
-                                Rectangle {
-                                    anchors.fill: parent
-                                    color: Theme.accent
-                                    opacity: topEdgeZone.containsDrag ? 0.55 : 0
-                                    Behavior on opacity { NumberAnimation { duration: Theme.animMs } }
-                                }
                             }
-                            DropArea {
-                                id: bottomEdgeZone
+                            EdgeDropZone {
                                 height: 18
-                                z: 31
+                                z: acquireRoot.zCorner
                                 anchors.bottom: parent.bottom
                                 anchors.left: parent.left
                                 anchors.right: parent.right
-                                enabled: !acquireRoot.layoutLocked
                                 onDropped: drop => acquireRoot.movePaneTo(
                                                drop.source.paneName, rowSplit.index + 1, 0, true)
-                                Rectangle {
-                                    anchors.fill: parent
-                                    color: Theme.accent
-                                    opacity: bottomEdgeZone.containsDrag ? 0.55 : 0
-                                    Behavior on opacity { NumberAnimation { duration: Theme.animMs } }
-                                }
                             }
 
                             ColumnLayout {

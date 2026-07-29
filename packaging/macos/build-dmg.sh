@@ -34,8 +34,13 @@ CCACHE_ARGS=()
 if command -v ccache >/dev/null 2>&1; then
     CCACHE_ARGS=(-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache)
 fi
+# The ${arr[@]+"${arr[@]}"} form is required for macOS's stock bash 3.2, where
+# expanding an EMPTY array under `set -u` is an "unbound variable" error (bash
+# only fixed that in 4.4). Hit whenever ccache isn't installed, i.e. every fresh
+# local Mac; CI has ccache, so the array is non-empty there and it never fires.
 cmake -B "$BUILD" -S "$REPO" -G Ninja -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" -DUSE_PYTHON=OFF -DBUILD_TESTING=OFF "${CCACHE_ARGS[@]}"
+      -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" -DUSE_PYTHON=OFF -DBUILD_TESTING=OFF \
+      ${CCACHE_ARGS[@]+"${CCACHE_ARGS[@]}"}
 cmake --build "$BUILD" -j"$(sysctl -n hw.ncpu)"
 
 APP="$BUILD/MiniscopeDAQ.app"
