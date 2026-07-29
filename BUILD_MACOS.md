@@ -99,12 +99,69 @@ plugins + QML into the `.app` with `macdeployqt`, ad-hoc signs it, and wraps
 it in a DMG. The release CI runs the same script, so a tagged release ships
 Windows + Linux + macOS together.
 
-**First launch on another Mac:** the bundle is ad-hoc signed, not notarized,
-so Gatekeeper warns about an unidentified developer. Right-click the app >
-Open > Open (needed once). If macOS claims the app "is damaged", clear the
-quarantine flag instead: `xattr -cr /Applications/MiniscopeDAQ.app`.
-Proper Developer ID signing + notarization can be added to the script later
-without changing anything else.
+**Minimum macOS is pinned to 12.0, deliberately.** `CMakeLists.txt` sets
+`CMAKE_OSX_DEPLOYMENT_TARGET` before `project()`. Without it AppleClang stamps
+the *build machine's* OS version into the binary as its minimum, so a DMG built
+on a new macOS is refused on every older one with "You can't use this version
+of the application with this version of macOS" — regardless of the
+`LSMinimumSystemVersion` in `Info.plist`, because LaunchServices goes by the
+Mach-O. That silently made shared builds unusable for anyone not on the
+builder's macOS version. 12.0 is the bundle's real floor (the highest `minos`
+across everything `macdeployqt` bundles) and matches `Info.plist.in`. Check a
+build with:
+
+```bash
+vtool -show-build build-dmg/MiniscopeDAQ.app/Contents/MacOS/MiniscopeDAQ | grep minos
+```
+
+Raising it requires updating `LSMinimumSystemVersion` in
+`packaging/macos/Info.plist.in` to match, so the plist and the binary keep
+agreeing.
+
+### First launch on someone else's Mac (bench-verified on macOS 15.7.8)
+
+The bundle is **ad-hoc signed, not notarized**, so Gatekeeper blocks it on any
+machine it is copied to. Anything that transfers the DMG — Slack, email, a
+browser download, AirDrop — tags it with the `com.apple.quarantine` flag, and
+that flag is what makes macOS refuse to launch it.
+
+**On macOS 15 (Sequoia) and newer there is no click-through escape.** Apple
+removed the old right-click > Open bypass, and the only remaining GUI route
+(System Settings > Privacy & Security > "Open Anyway") authenticates as an
+**admin** — a dead end for the typical lab member, who is not one. Clearing the
+flag from the terminal is the way through, and it needs no admin rights:
+
+```bash
+# Wherever the app ended up (~/Applications, ~/Desktop, /Applications, ...):
+xattr -dr com.apple.quarantine ~/Applications/MiniscopeDAQ.app
+
+# MUST print nothing. If it still lists quarantine lines, the removal failed.
+xattr -r -l ~/Applications/MiniscopeDAQ.app | grep quarantine
+```
+
+Then open the app normally. Once the flag is gone it stays gone; moving the
+app afterwards does not re-apply it.
+
+Notes, so nothing here looks alarming:
+
+- **`spctl -a -t exec <app>` keeps reporting `rejected`, and that is expected.**
+  It reports what Gatekeeper *would* assess, and an unnotarized app always
+  fails that assessment. The launch gate is the quarantine flag, not `spctl`:
+  with the flag cleared macOS stops consulting Gatekeeper at all. Do not read
+  `rejected` as "the fix did not work" — the test is whether the app opens.
+- Moving or dragging the app does **not** clear quarantine. Only removing the
+  attribute does. A drag to another folder on its own changes nothing.
+- `xattr -dr com.apple.quarantine` is preferred over `xattr -cr`, which strips
+  *every* extended attribute rather than just the quarantine flag.
+- If macOS instead says the app "is damaged", that is the same quarantine flag
+  — the command above is still the fix.
+
+**This is the cost of ad-hoc signing, not a bug in the build**, and every person
+the DMG is shared with hits it. Proper Developer ID signing + notarization
+removes it permanently (signed builds just open: no terminal, no admin, no
+quarantine step). That needs an Apple Developer Program membership; the ad-hoc
+`codesign` step in `packaging/macos/build-dmg.sh` can be swapped for it without
+changing anything else in the pipeline.
 
 **iPhone / Continuity Camera interference (bench-verified):** a nearby iPhone
 joins the Mac's camera list via Continuity Camera and macOS actively promotes
