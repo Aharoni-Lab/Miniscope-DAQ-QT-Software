@@ -8,6 +8,7 @@
 #include <QThread>
 #include <QString>
 #include <QStringList>
+#include <QMap>
 #include <QUrl>
 
 #include "miniscope.h"
@@ -333,6 +334,12 @@ private:
     // deviceID (order == the OpenCV backend's index: DirectShow on Windows,
     // AVFoundation on macOS) and is also used by availableDeviceIDs().
     QStringList enumerateVideoDevices();
+    // Linux can't use that "index == deviceID" form: there the deviceID is the
+    // V4L2 node number itself (/dev/video2 -> deviceID 2), which is sparse once
+    // the non-capture nodes are skipped. So the Linux enumerator returns
+    // {deviceID -> name} for capture-capable nodes only, and likewise feeds both
+    // scanVideoDevicesLinux() and availableDeviceIDs().
+    QMap<int, QString> enumerateVideoDevicesLinux();
     QString scanVideoDevicesWindows();
     QString scanVideoDevicesLinux();
     QString scanVideoDevicesMac();
