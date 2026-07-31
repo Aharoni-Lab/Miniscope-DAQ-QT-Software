@@ -64,10 +64,14 @@ export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
       --icon-file "$APPDIR/usr/share/icons/hicolor/256x256/apps/miniscope-daq.png" \
       --plugin qt
 
-echo "### bundle transitive deps linuxdeploy excludes (OpenCV BLAS, libusb)"
+echo "### bundle transitive deps linuxdeploy excludes (OpenCV BLAS, libusb, fontconfig)"
 CONDA_LIB="$CONDA_PREFIX/lib"
+# NB the executable is still called MiniscopeDAQ at this point - it only becomes
+# MiniscopeDAQ.bin when the launcher wrapper is installed further down. Naming
+# the .bin here silently skipped the main binary, so this only ever scanned
+# usr/lib and never the executable's own dependencies.
 for _ in 1 2 3 4 5; do
-    missing=$(for f in "$APPDIR"/usr/lib/*.so* "$APPDIR"/usr/bin/MiniscopeDAQ.bin; do
+    missing=$(for f in "$APPDIR"/usr/lib/*.so* "$APPDIR"/usr/bin/MiniscopeDAQ; do
                 LD_LIBRARY_PATH="$APPDIR/usr/lib" ldd "$f" 2>/dev/null
               done | awk '/not found/{print $1}' | sort -u || true)
     [ -z "$missing" ] && break
@@ -77,6 +81,38 @@ for _ in 1 2 3 4 5; do
     done
 done
 cp -L "$CONDA_LIB/libusb-1.0.so.0" "$APPDIR/usr/lib/" 2>/dev/null || true
+
+# The loop above only recovers libraries ldd reports as "not found". A library
+# that IS present on the user's system but is OLDER than the one our bundled libs
+# were linked against is invisible to it, and fails at runtime instead:
+#
+#   MiniscopeDAQ.bin: symbol lookup error: .../libpangoft2-1.0.so.0:
+#       undefined symbol: FcConfigSetDefaultSubstitute
+#
+# linuxdeploy excludes libfontconfig as a "system library", but the conda-forge
+# pango we bundle (1.56.x) needs fontconfig >= 2.16 symbols, while Ubuntu 24.04
+# ships 2.15. Bundling pango without its matching fontconfig cannot work, so
+# bundle fontconfig too.
+cp -L "$CONDA_LIB/libfontconfig.so.1" "$APPDIR/usr/lib/" 2>/dev/null || true
+
+echo "### verify the bundle has no unresolved symbols"
+# Catches the version-mismatch class of bug above at build time instead of on a
+# user's machine. Resolve libraries the way the app will: bundled dir first.
+unresolved=""
+for f in "$APPDIR"/usr/lib/*.so* "$APPDIR"/usr/bin/MiniscopeDAQ; do
+    [ -f "$f" ] || continue
+    out=$(LD_LIBRARY_PATH="$APPDIR/usr/lib" ldd -r "$f" 2>&1 || true)
+    if grep -q "undefined symbol" <<<"$out"; then
+        unresolved+="  $(basename "$f")"$'\n'
+        unresolved+="$(grep 'undefined symbol' <<<"$out" | sed 's/^/    /' | head -5)"$'\n'
+    fi
+done
+if [ -n "$unresolved" ]; then
+    printf 'ERROR: unresolved symbols in the bundle. A bundled library needs a\n' >&2
+    printf '       newer system library than the host provides - bundle it too:\n' >&2
+    printf '%s' "$unresolved" >&2
+    exit 1
+fi
 
 echo "### install first-run launcher wrapper"
 mv "$APPDIR/usr/bin/MiniscopeDAQ" "$APPDIR/usr/bin/MiniscopeDAQ.bin"
