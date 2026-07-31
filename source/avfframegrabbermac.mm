@@ -1,6 +1,7 @@
 #include "avfframegrabbermac.h"
 
 #import <AVFoundation/AVFoundation.h>
+#import <CoreMedia/CoreMedia.h>
 #import <CoreVideo/CoreVideo.h>
 
 #include <condition_variable>
@@ -94,6 +95,10 @@ struct AvfFrameGrabber::Impl {
     MSFrameSink *sink = nil;
     dispatch_queue_t queue = nil;
     uint64_t consumedSequence = 0;
+    // Device whose configuration lock we still hold, or nil. Holding the lock
+    // for the session's whole lifetime is what stops AVCaptureSession from
+    // reconfiguring activeFormat out from under us (see open()).
+    AVCaptureDevice *lockedDevice = nil;
 };
 
 AvfFrameGrabber::~AvfFrameGrabber()
@@ -130,13 +135,60 @@ bool AvfFrameGrabber::open(const QString &uniqueID, int width, int height)
         }
         [session addInput:input];
 
+        // Put the DEVICE in the requested geometry, rather than taking whatever
+        // format it happens to default to. A Miniscope DAQ advertises one format
+        // per sensor mode of the family it supports (608x608 for a V4, 752x480
+        // for a V3, 1024x768 for a MiniCAM, 1296x972 / 2592x1944 for the
+        // MiniCAM's MT9P031 unbinned modes, ...) and its default activeFormat is
+        // 608x608. Selecting nothing therefore silently pinned every device to
+        // the Miniscope's geometry: a no-op for a Miniscope, and the reason a
+        // MiniCAM delivered one 608x608 frame and then stalled.
+        //
+        // macOS has no AVCaptureSessionPresetInputPriority (iOS-only) to declare
+        // that the device's own format wins, and the session WILL reconfigure
+        // the device on startRunning() - measured: a MiniCAM pinned to 1024x768
+        // came back as 1296x972. Holding the configuration lock across
+        // startRunning() is what makes the choice stick, so the lock is released
+        // in release(), not here. The read-back after startRunning() verifies it.
+        const QString deviceLabel = QString::fromNSString(device.localizedName);
+        AVCaptureDevice *lockedDevice = nil;
+        bool formatSelected = false;
+        if (width > 0 && height > 0) {
+            AVCaptureDeviceFormat *match = nil;
+            for (AVCaptureDeviceFormat *f in device.formats) {
+                const CMVideoDimensions dim =
+                    CMVideoFormatDescriptionGetDimensions(f.formatDescription);
+                if (dim.width == width && dim.height == height) {
+                    match = f;
+                    break;
+                }
+            }
+            if (match == nil) {
+                qWarning() << "AVF:" << deviceLabel << "advertises no" << width << "x" << height
+                           << "format; falling back to CoreVideo scaling of its default format";
+            } else {
+                NSError *lockError = nil;
+                if (![device lockForConfiguration:&lockError]) {
+                    qWarning() << "AVF: could not lock" << deviceLabel << "to select" << width
+                               << "x" << height << "-"
+                               << QString::fromNSString(lockError.localizedDescription);
+                } else {
+                    device.activeFormat = match;
+                    lockedDevice = device;   // stays locked until release()
+                    formatSelected = true;
+                    qInfo().nospace() << "[diag] " << deviceLabel << " activeFormat set to "
+                                      << width << "x" << height;
+                }
+            }
+        }
+
         AVCaptureVideoDataOutput *output = [[AVCaptureVideoDataOutput alloc] init];
         NSMutableDictionary *settings = [@{
             (id)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_32BGRA)
         } mutableCopy];
-        if (width > 0 && height > 0) {
-            // CoreVideo scales the output buffers; when this matches the
-            // device's native format (the Miniscope case) it is a no-op.
+        if (width > 0 && height > 0 && !formatSelected) {
+            // Only when no matching device format exists. Resampling imaging
+            // data is lossy, so it stays a fallback rather than the mechanism.
             settings[(id)kCVPixelBufferWidthKey] = @(width);
             settings[(id)kCVPixelBufferHeightKey] = @(height);
         }
@@ -149,15 +201,32 @@ bool AvfFrameGrabber::open(const QString &uniqueID, int width, int height)
         [output setSampleBufferDelegate:sink queue:queue];
         if (![session canAddOutput:output]) {
             m_lastError = QStringLiteral("capture session rejected the video output");
+            [lockedDevice unlockForConfiguration];   // no-op when nil
             return false;
         }
         [session addOutput:output];
         [session startRunning];
 
+        // Did the format survive session start? A silent revert here is the
+        // difference between imaging the sensor's real geometry and imaging a
+        // rescaled crop of someone else's, so it must be loud.
+        if (formatSelected) {
+            const CMVideoDimensions actual =
+                CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription);
+            if (actual.width != width || actual.height != height)
+                qWarning() << "AVF:" << deviceLabel << "reverted to" << actual.width << "x"
+                           << actual.height << "when the session started (asked for" << width
+                           << "x" << height << ")";
+            else
+                qInfo().nospace() << "[diag] " << deviceLabel << " activeFormat held at "
+                                  << width << "x" << height << " after session start";
+        }
+
         m_impl = new Impl;
         m_impl->session = session;
         m_impl->sink = sink;
         m_impl->queue = queue;
+        m_impl->lockedDevice = lockedDevice;
     }
     m_lastError.clear();
     return true;
@@ -177,6 +246,11 @@ void AvfFrameGrabber::release()
         for (AVCaptureOutput *out in m_impl->session.outputs)
             if ([out isKindOfClass:[AVCaptureVideoDataOutput class]])
                 [(AVCaptureVideoDataOutput *)out setSampleBufferDelegate:nil queue:nil];
+        // Held since open() to pin activeFormat; drop it only now that the
+        // session is stopped, so the device is left configurable for the next
+        // open (ours or another app's).
+        [m_impl->lockedDevice unlockForConfiguration];   // no-op when nil
+        m_impl->lockedDevice = nil;
     }
     delete m_impl;   // ARC releases the session/sink/queue with the Impl
     m_impl = nullptr;

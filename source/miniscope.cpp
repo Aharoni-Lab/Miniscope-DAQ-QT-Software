@@ -47,6 +47,11 @@ void Miniscope::setupDisplayObjectPointers()
 {
     // display object can only be accessed after backend call createView()
     rootDisplayObject = getRootDisplayObject();
+    // The video window shell is shared with the behavior cameras, so it always
+    // carries this signal; the dF/F display mode it drives is Miniscope-only,
+    // which is why the connection lives here rather than in VideoDevice.
+    QObject::connect(rootDisplayObject, SIGNAL( dFFSwitchChanged(bool) ),
+                     this, SLOT( handleDFFSwitchChange(bool) ));
     if (getHeadOrienataionStreamState())
         bnoDisplay = getRootDisplayChild("bno");
     QObject* temp = getRootDisplayChild("addTraceRoi");
