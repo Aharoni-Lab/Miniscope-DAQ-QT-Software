@@ -78,6 +78,11 @@ cmake_install.cmake
 # AppImage build output
 /dist/
 
+# Recordings. The shipped example configs use a relative "./Data" dataDirectory
+# so they run as-is out of the repo folder, which means a test acquisition drops
+# video here.
+/Data/
+
 # Binaries
 # --------
 *.dll

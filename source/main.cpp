@@ -14,6 +14,11 @@
 #include <QQuickStyle>
 #include <QStyleHints>
 
+#include <QDateTime>
+#include <QFile>
+#include <QMutex>
+#include <QTextStream>
+
 #include "backend.h"
 #include "themecontroller.h"
 #if defined(Q_OS_MACOS) || defined(Q_OS_WIN)
@@ -38,6 +43,48 @@
 // For Window's deployment
 //C:\Qt\5.12.6>C:\Qt\5.12.6\msvc2017_64\bin\windeployqt.exe --qmldir C:\Users\DBAharoni\Documents\Projects\Miniscope-DAQ-QT-Software\Miniscope-DAQ-QT-Software\ C:\Users\DBAharoni\Documents\Projects\Miniscope-DAQ-QT-Software\build-Miniscope-DAQ-QT-Software-Desktop_Qt_5_12_6_MSVC2017_64bit-Release\release\Miniscope-DAQ-QT-Software.exe
 
+// Optional file log, enabled by setting MINISCOPE_LOG_FILE to a path. The app is
+// a GUI-subsystem binary on Windows, so Qt's default handler writes to the
+// debugger rather than to stderr and a redirected stderr captures nothing -
+// which leaves a user reporting a field problem (a device that stops streaming,
+// a failed connect) with no log to send. Off unless the variable is set, and it
+// still forwards everything to the default handler.
+static QtMessageHandler g_previousMessageHandler = nullptr;
+static QFile g_logFile;
+static QMutex g_logMutex;
+
+static void fileMessageHandler(QtMsgType type, const QMessageLogContext &context,
+                               const QString &msg)
+{
+    {
+        QMutexLocker locker(&g_logMutex);
+        if (g_logFile.isOpen()) {
+            static const char *levels[] = {"debug", "warning", "critical", "fatal", "info"};
+            const int level = (type >= 0 && type <= QtInfoMsg) ? int(type) : 0;
+            QTextStream out(&g_logFile);
+            out << QDateTime::currentDateTime().toString(Qt::ISODateWithMs) << " ["
+                << levels[level] << "] "
+                << (context.category ? context.category : "default") << ": " << msg << "\n";
+            out.flush();
+        }
+    }
+    if (g_previousMessageHandler)
+        g_previousMessageHandler(type, context, msg);
+}
+
+static void installFileLogIfRequested()
+{
+    const QString path = qEnvironmentVariable("MINISCOPE_LOG_FILE");
+    if (path.isEmpty())
+        return;
+    g_logFile.setFileName(path);
+    if (!g_logFile.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+        qWarning() << "Could not open log file" << path << "-" << g_logFile.errorString();
+        return;
+    }
+    g_previousMessageHandler = qInstallMessageHandler(fileMessageHandler);
+}
+
 #ifdef Q_OS_WIN
 // Ask hybrid-GPU (laptop iGPU + discrete) drivers to run this app on the
 // discrete GPU. By default the OpenGL scene graph + raw-GL video underlays
@@ -54,6 +101,9 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 #endif
 int main(int argc, char *argv[])
 {
+    // Before anything that can log, so startup problems land in the file too.
+    installFileLogIfRequested();
+
     // Qt6: high-DPI scaling is always on, so AA_EnableHighDpiScaling is gone
     // (it was a no-op / deprecated).
 
