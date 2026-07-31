@@ -60,6 +60,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)   # compiles source/qml.qrc automatically
 
+# --- Keep the release folder shippable ---------------------------------------
+# On Windows, build/<config>/ IS the portable release (see the WIN32 block
+# below) and packaging/windows/MiniscopeDAQ.iss copies that folder VERBATIM into
+# the installer - so anything CMake leaves there ships to users. Static libs and
+# the app's import lib (.lib/.exp) default to build/<config>/, which put ~18 MB
+# of link-time-only files at the top of the release; send them to a side folder
+# instead. Must be set before any target is created, since each target captures
+# this as its ARCHIVE_OUTPUT_DIRECTORY. The unit-test exes are redirected the
+# same way in tests/CMakeLists.txt. Only the multi-config Visual Studio
+# generator was affected - under the single-config Ninja build CI uses, these
+# already land outside build/<config>/.
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+
 # --- Qt6 -------------------------------------------------------------------
 # Note the OpenGL component: in Qt6, QOpenGLShaderProgram / QOpenGLBuffer /
 # QOpenGLFramebufferObject moved out of QtGui into the separate Qt6::OpenGL

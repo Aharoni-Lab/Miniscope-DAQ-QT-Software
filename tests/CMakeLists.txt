@@ -2,6 +2,15 @@
 # the qt6-main package the build already uses.
 find_package(Qt6 REQUIRED COMPONENTS Test)
 
+# Build the test exes into build/tests/ rather than build/<config>/. On Windows
+# the latter is the portable release folder that the Inno Setup script packages
+# verbatim, so test binaries left there would ship inside the installer. Set
+# before the targets below so each one picks it up as its default. Safe to
+# relocate: every test finds its fixtures through a compile definition
+# (REPO_SOURCE_DIR / SHADER_SOURCE_DIR) or an explicit WORKING_DIRECTORY test
+# property, never through the exe's own location.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+
 # --- Protocol packing/unpacking (pure logic, runs anywhere) -------------------
 qt_add_executable(tst_miniscopeprotocol tst_miniscopeprotocol.cpp)
 target_link_libraries(tst_miniscopeprotocol PRIVATE miniscope_protocol Qt6::Test)
