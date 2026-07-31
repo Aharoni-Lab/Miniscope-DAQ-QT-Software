@@ -548,7 +548,8 @@ bool backEnd::addDevice(const QString &category, const QString &deviceType,
 
 // Public entry (wired to the "Scan Devices" button): dispatch to the OS-specific
 // scan at compile time. Each backend builds its own report because the device
-// model differs (DirectShow index on Windows vs V4L2 capture/metadata nodes).
+// model differs (DirectShow/AVFoundation list index on Windows and macOS vs
+// V4L2 node number on Linux).
 QString backEnd::scanVideoDevices()
 {
 #if defined(Q_OS_WINDOWS)
@@ -564,8 +565,8 @@ QString backEnd::scanVideoDevices()
 
 #if defined(Q_OS_WINDOWS) || defined(Q_OS_MACOS)
 // Shared Scan-Devices report for the platforms whose enumerator returns a
-// plain name list whose position == the config deviceID (Linux formats its
-// own richer capture-vs-metadata report).
+// plain name list whose position == the config deviceID (Linux keys its report
+// by V4L2 node number instead, so it formats its own).
 static QString formatDeviceScan(const QStringList &names, const QString &trailerNote)
 {
     if (names.isEmpty())
@@ -630,13 +631,15 @@ QString backEnd::scanVideoDevicesWindows()
 }
 
 #elif defined(Q_OS_LINUX)
-QString backEnd::scanVideoDevicesLinux()
+// Connected V4L2 capture nodes as {deviceID -> name}. A single physical UVC
+// camera usually exposes two /dev/videoN nodes - one for video capture and one
+// for metadata - and only the capture node can ever stream, so the metadata
+// nodes are dropped here instead of being listed as unusable. Keyed by node
+// number because that IS the deviceID on Linux, and it is sparse once the
+// metadata nodes are gone (a lone camera can well be /dev/video2).
+QMap<int, QString> backEnd::enumerateVideoDevicesLinux()
 {
-    // Enumerate /dev/videoN via V4L2. Each physical UVC camera usually exposes
-    // two nodes (a capture node and a metadata node), so we query each node's
-    // capabilities and mark which one to use as the deviceID.
-    struct Node { int id; QString name; bool capture; };
-    QVector<Node> nodes;
+    QMap<int, QString> devices;   // QMap iterates in ascending key order
 
     QDir v4lDir(QStringLiteral("/sys/class/video4linux"));
     const QStringList entries = v4lDir.entryList(QStringList() << QStringLiteral("video*"),
@@ -647,13 +650,7 @@ QString backEnd::scanVideoDevicesLinux()
         if (!ok)
             continue;
 
-        // Human-readable name from sysfs.
-        QString name;
-        QFile nameFile(QStringLiteral("/sys/class/video4linux/%1/name").arg(entry));
-        if (nameFile.open(QIODevice::ReadOnly | QIODevice::Text))
-            name = QString::fromUtf8(nameFile.readLine()).trimmed();
-
-        // Capture capability via VIDIOC_QUERYCAP.
+        // Capture capability via VIDIOC_QUERYCAP; skip metadata/other nodes.
         bool isCapture = false;
         const QString devPath = QStringLiteral("/dev/%1").arg(entry);
         const int fd = ::open(devPath.toLocal8Bit().constData(), O_RDONLY | O_NONBLOCK);
@@ -666,25 +663,31 @@ QString backEnd::scanVideoDevicesLinux()
             }
             ::close(fd);
         }
-        nodes.append({id, name.isEmpty() ? QStringLiteral("(unknown)") : name, isCapture});
+        if (!isCapture)
+            continue;
+
+        // Human-readable name from sysfs.
+        QString name;
+        QFile nameFile(QStringLiteral("/sys/class/video4linux/%1/name").arg(entry));
+        if (nameFile.open(QIODevice::ReadOnly | QIODevice::Text))
+            name = QString::fromUtf8(nameFile.readLine()).trimmed();
+
+        devices.insert(id, name.isEmpty() ? QStringLiteral("(unknown)") : name);
     }
+    return devices;
+}
 
-    if (nodes.isEmpty())
-        return QStringLiteral("No video devices detected (no /dev/video* nodes).");
-
-    std::sort(nodes.begin(), nodes.end(), [](const Node &a, const Node &b){ return a.id < b.id; });
+QString backEnd::scanVideoDevicesLinux()
+{
+    const QMap<int, QString> devices = enumerateVideoDevicesLinux();
+    if (devices.isEmpty())
+        return QStringLiteral("No video devices detected (no capture-capable /dev/video* nodes).");
 
     QStringList lines;
-    for (const Node &n : nodes)
-        lines << QString("    deviceID %1:  %2  %3")
-                     .arg(n.id)
-                     .arg(n.name)
-                     .arg(n.capture ? QStringLiteral("[capture - use this]")
-                                    : QStringLiteral("[metadata/other - not usable]"));
+    for (auto it = devices.cbegin(); it != devices.cend(); ++it)
+        lines << QString("    deviceID %1:  %2").arg(it.key()).arg(it.value());
     return QStringLiteral("Detected video devices:\n") + lines.join("\n")
-           + QStringLiteral("\n\nUse the [capture] deviceID for each device in your user "
-                            "config. A single camera often lists two nodes; only the "
-                            "[capture] one streams video.");
+           + QStringLiteral("\n\nUse these deviceID numbers in your user config.");
 }
 #elif defined(Q_OS_MACOS)
 // One line per AVFoundation camera; the list position IS the OpenCV
@@ -722,6 +725,24 @@ QStringList backEnd::availableDeviceIDs()
         for (const QString &n : devNames)
             used << section.value(n).toObject().value("deviceID").toInt();
     }
+
+#if defined(Q_OS_LINUX)
+    // The deviceID is the /dev/videoN node number here, so offer exactly the
+    // capture nodes actually present - each labelled with its name - instead of
+    // a synthetic 0..15 range that mostly maps to nothing.
+    const QMap<int, QString> detected = enumerateVideoDevicesLinux();
+    if (!detected.isEmpty()) {
+        QStringList out;
+        for (auto it = detected.cbegin(); it != detected.cend(); ++it) {
+            if (used.contains(it.key()))
+                continue;
+            out << QString("%1  (%2)").arg(it.key()).arg(it.value());
+        }
+        return out;
+    }
+    // Nothing enumerated (e.g. no read access to /dev/video*): fall through to
+    // the generic range so a device can still be added by hand.
+#endif
 
     // One entry per connected device (fall back to 0..15 if none detected), and
     // always at least one ID past the highest used so the list is never empty.

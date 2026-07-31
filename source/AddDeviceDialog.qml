@@ -57,12 +57,21 @@ Dialog {
         detectedDevices = backend.scanVideoDevices();
     }
 
-    // Keep OK disabled until the name is usable (backend.addDevice also guards,
-    // but a silently-refused Add looked like nothing happened at all).
+    // True when there is no ID left to assign, i.e. every detected device is
+    // already in the config. The dropdown offers only detected devices, so it
+    // can legitimately come up empty - and then there is no ID to add under
+    // (deviceID would silently fall back to 0, which is likely already taken).
+    readonly property bool noFreeDeviceID: idCombo.model.length === 0
+
+    // Keep OK disabled until the name is usable and an ID is actually selected
+    // (backend.addDevice also guards, but a silently-refused Add looked like
+    // nothing happened at all).
     Component.onCompleted: {
         var ok = control.standardButton(Dialog.Ok);
         if (ok)
-            ok.enabled = Qt.binding(function () { return control.nameProblem.length === 0; });
+            ok.enabled = Qt.binding(function () {
+                return control.nameProblem.length === 0 && !control.noFreeDeviceID;
+            });
     }
 
     GridLayout {
@@ -117,8 +126,13 @@ Dialog {
         Text {
             objectName: "deviceNameProblem"
             Layout.fillWidth: true
-            visible: control.nameProblem.length > 0
-            text: "⚠ " + control.nameProblem
+            visible: control.noFreeDeviceID || control.nameProblem.length > 0
+            // The missing-ID case wins: no ID means Add can't work at all, so
+            // saying that is more use than naming a fixable name clash.
+            text: "⚠ " + (control.noFreeDeviceID
+                          ? "Every detected device is already in the config. "
+                            + "Connect another camera, or use Scan Devices to check what is detected."
+                          : control.nameProblem)
             font: Theme.fontSmall
             color: Theme.warning
             wrapMode: Text.WordWrap

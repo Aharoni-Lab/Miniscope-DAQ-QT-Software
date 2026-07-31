@@ -278,9 +278,11 @@ void VideoDevice::createView()
         QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double, double) ),
                              this, SLOT( handlePropChangedSignal(QString, double, double, double) ));
 
-        // Maybe move this to miniscope class
-        QObject::connect(rootObject, SIGNAL( dFFSwitchChanged(bool) ),
-                             this, SLOT( handleDFFSwitchChange(bool) ));
+        // dFFSwitchChanged is wired in Miniscope::setupDisplayObjectPointers():
+        // dF/F is a Miniscope-only display mode and handleDFFSwitchChange() only
+        // exists there, so connecting it here failed at runtime for every
+        // behavior camera ("No such slot BehaviorCam::handleDFFSwitchChange") -
+        // once per device per session, in the log a user would send us.
 
         QObject::connect(rootObject, SIGNAL( saturationSwitchChanged(bool) ),
                              this, SLOT( handleSaturationSwitchChanged(bool) ));
