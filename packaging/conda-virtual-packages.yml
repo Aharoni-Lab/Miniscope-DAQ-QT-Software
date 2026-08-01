@@ -1,0 +1,29 @@
+# Virtual packages conda-lock should assume when solving the lock file
+# (RELEASING.md step 3). These mirror conda-lock's built-in defaults
+# (site-packages/conda_lock/default-virtual-packages.yaml) for the three
+# platforms we lock, with ONE change: __osx is raised from 11.0 to 12.0.
+#
+# Why: qt6-serialport (and possibly other Qt 6.11 packages) requires
+# __osx >= 12.0, so conda-lock's default of 11.0 makes the osx-arm64 solve
+# fail with "nothing provides __osx >= 12.0". macOS 12.0 is already the
+# app's real minimum - CMAKE_OSX_DEPLOYMENT_TARGET in CMakeLists.txt and
+# LSMinimumSystemVersion in packaging/macos/Info.plist.in - so the solver
+# should assume it too. Keep all three in step.
+subdirs:
+  linux-64:
+    packages:
+      __unix: "0"
+      __linux: "5.10"
+      __archspec: "1 x86_64"
+      __glibc: "2.28"
+      __cuda: "11.4"
+  osx-arm64:
+    packages:
+      __unix: "0"
+      __archspec: "1 arm64"
+      __osx: "12.0"
+  win-64:
+    packages:
+      __win: "0"
+      __archspec: "1 x86_64"
+      __cuda: "11.4"

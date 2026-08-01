@@ -25,8 +25,13 @@ and ship the same `USE_PYTHON=OFF` configuration (no embedded DeepLabCut-Live).
    ```sh
    pip install conda-lock
    conda-lock lock -f environment.yml -p win-64 -p linux-64 -p osx-arm64 \
+       --virtual-package-spec packaging/conda-virtual-packages.yml \
        --lockfile conda-lock.yml
    ```
+
+   The `--virtual-package-spec` file tells the solver to assume macOS 12.0
+   (the app's real minimum); without it the osx-arm64 solve fails on
+   packages that require `__osx >= 12.0` (see the file's header comment).
 
    Commit the updated `conda-lock.yml`. (Day-to-day builds and CI use
    `environment.yml`, which floats on patch releases within its major.minor
