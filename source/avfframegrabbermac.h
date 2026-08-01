@@ -16,7 +16,8 @@
 // wrong camera by construction.
 //
 // Frames are delivered as 8UC3 BGR cv::Mat (matching what the OpenCV path
-// produced), scaled by CoreVideo to the requested size when one is given.
+// produced), at the device's own format where the requested size is one of the
+// modes it advertises, and rescaled by CoreVideo only where it is not.
 class AvfFrameGrabber
 {
 public:
@@ -26,7 +27,10 @@ public:
     AvfFrameGrabber &operator=(const AvfFrameGrabber &) = delete;
 
     // uniqueID: AVCaptureDevice.uniqueID (see AvfCameraInfo). width/height > 0
-    // requests scaled output buffers; 0 keeps the device's native size.
+    // puts the DEVICE in that mode when it advertises a matching format, and
+    // falls back to CoreVideo-scaled output buffers when it does not (logged as
+    // a warning - it means the frames are resampled). 0 keeps whatever format
+    // the device defaults to.
     bool open(const QString &uniqueID, int width = 0, int height = 0);
     bool isOpened() const;
     void release();
