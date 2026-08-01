@@ -369,6 +369,9 @@ jobs:
           set -euo pipefail
           cmake_ver=$(sed -nE 's/^project\(MiniscopeDAQ[[:space:]]+VERSION[[:space:]]+([0-9.]+).*/\1/p' CMakeLists.txt | head -1)
           tag_ver="${TAG#v}"
+          # project(VERSION) only accepts numerics, so a pre-release tag
+          # (v2.0.0-rc1) is compared on its numeric part only.
+          tag_ver="${tag_ver%%-*}"
           echo "tag=$tag_ver  CMakeLists.txt=$cmake_ver"
           if [ "$cmake_ver" != "$tag_ver" ]; then
             echo "::error::Tag $TAG (version $tag_ver) != CMakeLists.txt project() version $cmake_ver. Bump CMakeLists.txt to match the tag (or retag), then push again."
