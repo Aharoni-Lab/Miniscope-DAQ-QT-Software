@@ -1,0 +1,45 @@
+# Publish this repo's wiki.yml metadata to the miniscope.org wiki on every
+# release tag, via labki-org/wiki-repo-bridge (same setup as miniscope/MiniXL).
+# Each tag writes an immutable Release page under
+# "Miniscope DAQ QT software/Release/<version>"; the top-level project page is
+# human-curated and never rewritten.
+#
+# Secrets: WIKI_REPO_BOT_USER / WIKI_REPO_BOT_PASSWORD must hold a miniscope.org
+# bot account (Special:BotPasswords) with edit rights.
+name: Sync to wiki
+
+on:
+  # Run automatically when a release tag is pushed
+  push:
+    tags: ['v*']
+
+  # Manual runs from the Actions tab: retro-sync an existing tag (e.g. the
+  # v2.0.0 that predates this workflow) or test with a dry run.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to sync (defaults to the workflow's ref).
+        required: false
+        type: string
+      dry_run:
+        description: Plan and print only, don't write to the wiki.
+        required: false
+        type: boolean
+        default: true
+      changelog:
+        description: Optional changelog text for the Release page.
+        required: false
+        type: string
+
+jobs:
+  sync:
+    uses: labki-org/wiki-repo-bridge/.github/workflows/sync.yml@main
+    with:
+      wikis: |
+        https://miniscope.org/api.php
+      tag: ${{ inputs.tag }}
+      dry_run: ${{ inputs.dry_run || false }}
+      changelog: ${{ inputs.changelog || '' }}
+    secrets:
+      WIKI_REPO_BOT_USER: ${{ secrets.WIKI_REPO_BOT_USER }}
+      WIKI_REPO_BOT_PASSWORD: ${{ secrets.WIKI_REPO_BOT_PASSWORD }}
