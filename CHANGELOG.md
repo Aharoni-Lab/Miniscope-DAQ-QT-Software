@@ -25,9 +25,12 @@ published together from CI.
   pinned to the DAQ's default 608x608, which is correct only for a Miniscope.
 - **Optional file log.** Set `MINISCOPE_LOG_FILE` to a path and the app tees its
   log there, timestamped and with the thread id and logging category. Off unless
-  the variable is set. This is the way to capture a field problem on Windows,
-  where the app is a GUI-subsystem binary whose output otherwise goes to the
-  debugger and cannot be redirected:
+  the variable is set. It includes the messages shown in the Acquire window's
+  message panel — device connect failures, reconnect warnings, "frame buffer is
+  full", recording failures — which previously existed only on screen and were
+  lost when the app closed. This is the way to capture a field problem on
+  Windows, where the app is a GUI-subsystem binary whose output otherwise goes
+  to the debugger and cannot be redirected:
   ```
   $env:MINISCOPE_LOG_FILE = "C:\path\to\miniscope.log"
   $env:QT_LOGGING_RULES  = "miniscope.diag=true"   # optional: frame/DAQ detail

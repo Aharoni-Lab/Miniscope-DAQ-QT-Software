@@ -1,5 +1,6 @@
 #include "controlpanel.h"
 
+#include <QDebug>
 #include <QJsonArray>
 #include <QJsonValue>
 #include <QProcess>
@@ -17,6 +18,19 @@ ControlPanel::ControlPanel(QObject *parent, QJsonObject userConfig) :
 
 void ControlPanel::receiveMessage(QString msg)
 {
+    // Every user-facing diagnostic in the app arrives here as a sendMessage:
+    // reconnect warnings, "frame buffer is full", "Recording NOT started", device
+    // connect failures. Without this they would live only in m_messageLog, an
+    // in-memory ring that dies with the process - absent from exactly the log a
+    // user sends us when reporting a field problem. Deliberately uncategorised:
+    // these are always relevant, unlike the msDiag bench heartbeats, so
+    // QT_LOGGING_RULES should not be able to silence them.
+    //
+    // Safe to log from here only because no installed message handler emits a
+    // signal (see fileMessageHandler in main.cpp, which writes and chains) - one
+    // that reached sendMessage would recurse.
+    qInfo().noquote() << msg;
+
     const QString stamp = QTime::currentTime().toString("HH:mm:ss");
     m_messageLog.append(stamp + "  " + msg);
     while (m_messageLog.size() > 500) // enough scrollback; never unbounded
