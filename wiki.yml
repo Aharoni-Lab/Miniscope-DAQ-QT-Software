@@ -1,0 +1,33 @@
+# Project metadata synced to the miniscope.org wiki by wiki-repo-bridge
+# (https://github.com/labki-org/wiki-repo-bridge) on every release tag - see
+# .github/workflows/sync-to-wiki.yml. Each tag writes an immutable
+# "Miniscope DAQ QT software/Release/<version>" page (with this repo's README
+# snapshotted onto it); the top-level project page already exists on the wiki
+# and is human-curated, so the bridge never rewrites it.
+#
+# `name` must stay exactly "Miniscope DAQ QT software": it anchors the whole
+# wiki page tree to https://miniscope.org/wiki/Miniscope_DAQ_QT_software.
+
+kind: project
+name: Miniscope DAQ QT software
+description: |
+  Neural and behavior control and recording software for the UCLA Miniscope
+  Project. Desktop application (Windows, Linux, macOS) for streaming,
+  viewing, and recording Miniscope and behavior-camera data, with live
+  device control, head-orientation tracking, and Open Ephys commutator
+  support. In maintenance: it will be superseded long-term by the
+  miniscope-io SDK.
+
+project_status: Maintained
+repository_url: https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software
+license: GPL-3.0
+responsible_party: Aharoni Lab
+
+features:
+  - Multi-camera acquisition — Miniscopes and behavior cameras in one session
+  - Live device control (LED, focus, gain) with per-config window layouts
+  - Lossless (GREY/FFV1) and lossy recording codecs per device
+  - DAQ hardware frame-counter logging for post-hoc frame-drop detection
+  - BNO head-orientation streaming and Open Ephys commutator control
+  - JSON user configs with schema validation and an in-app form editor
+  - Packaged releases: Windows installer/zip, Linux AppImage, macOS DMG
