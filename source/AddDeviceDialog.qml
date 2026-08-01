@@ -61,7 +61,10 @@ Dialog {
     // already in the config. The dropdown offers only detected devices, so it
     // can legitimately come up empty - and then there is no ID to add under
     // (deviceID would silently fall back to 0, which is likely already taken).
-    readonly property bool noFreeDeviceID: idCombo.model.length === 0
+    // (Guard the model too: an undefined one would throw here, and a binding
+    // that throws leaves this false - quietly re-enabling the OK button this is
+    // meant to gate.)
+    readonly property bool noFreeDeviceID: !idCombo.model || idCombo.model.length === 0
 
     // Keep OK disabled until the name is usable and an ID is actually selected
     // (backend.addDevice also guards, but a silently-refused Add looked like
@@ -110,7 +113,10 @@ Dialog {
         UiComboBox {
             id: idCombo
             Layout.fillWidth: true
-            // Populated in onAboutToShow with only the unused IDs.
+            // Replaced in onAboutToShow with only the unused IDs. Starts as an
+            // empty list rather than undefined so noFreeDeviceID can read its
+            // length before the dialog has ever been opened.
+            model: []
         }
 
         Label { text: "Name"; font: Theme.fontBody; color: Theme.textPrimary }
