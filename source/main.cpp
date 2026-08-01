@@ -14,17 +14,15 @@
 #include <QQuickStyle>
 #include <QStyleHints>
 
-#include <QDateTime>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QMutex>
-#include <QTextStream>
 
 #include "backend.h"
 #include "themecontroller.h"
 #if defined(Q_OS_MACOS) || defined(Q_OS_WIN)
 #include "bundlepaths.h"
-#include <QDir>
-#include <QFileInfo>
 #endif
 
 #include <opencv2/core/version.hpp>   // CV_VERSION (e.g. "4.13.0"); macro-only header
