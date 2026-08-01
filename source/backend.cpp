@@ -1306,7 +1306,23 @@ void backEnd::setPaneEmbedded(QObject *paneWindow, bool embedded, double aspect)
         view->setLockedAspectRatio(0);
         view->setMinimumSize(QSize(0, 0));
     } else {
+#ifdef Q_OS_LINUX
+        // Undocking used to make the pane vanish here. Releasing the window from
+        // its WindowContainer unmaps the native window, and Qt's own visibility
+        // state stays true throughout - the window WAS visible, inside the
+        // container - so the show() below saw nothing to change and never mapped
+        // anything. The pane still reported isVisible() and still rendered
+        // (grabWindow() returned live frames), so only the screen disagreed.
+        // Drop the visibility state and the platform window with it, so show()
+        // builds and maps a fresh top-level rather than trying to revive the
+        // surface the container has already torn down. Windows and macOS re-map
+        // on their own, so they keep the original path.
+        view->setVisible(false);
+        view->setParent(nullptr);
+        view->destroy();
+#else
         view->setParent(nullptr); // release from the container -> top-level again
+#endif
 #ifdef Q_OS_WINDOWS
         // Same flags createView uses: resizable + minimizable, but no maximize
         // (it would break the locked aspect ratio).
