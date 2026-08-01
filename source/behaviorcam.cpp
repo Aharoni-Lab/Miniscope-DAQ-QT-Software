@@ -16,19 +16,7 @@
 #include <QVariant>
 
 BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime) :
-    // A MiniCAM is Miniscope DAQ hardware - its MT9P031 sensor, FPD-Link SERDES
-    // pair and LED driver are all brought up over the DAQ's I2C tunnel - so it
-    // needs the direct-control backend exactly like a Miniscope does. Without
-    // this it lands on VideoStreamOCV, whose macOS path has no control channel
-    // and DISCARDS the whole command queue (VideoStreamOCV::sendCommands), so
-    // the sensor is never configured and no frame ever arrives.
-    //
-    // Same webcam/MiniCAM test as isMiniCAM below, duplicated here rather than
-    // shared because the base ctor picks the backend before this ctor's body
-    // runs and so cannot read the member.
-    VideoDevice(parent, ucDevice, softwareStartTime,
-                /*preferDirectControl=*/!ucDevice.value("deviceType").toString()
-                                             .toLower().contains("webcam")),
+    VideoDevice(parent, ucDevice, softwareStartTime),
     m_softwareStartTime(softwareStartTime)
 {
     m_ucDevice = ucDevice; // hold user config for this device

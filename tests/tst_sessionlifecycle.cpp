@@ -24,6 +24,7 @@
 #include <QSGRendererInterface>
 #include <QTemporaryDir>
 #include <QFileInfo>
+#include <QRegularExpression>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -40,6 +41,7 @@ class TestSessionLifecycle : public QObject
 
 private slots:
     void initTestCase();
+    void init();
     void runEndRunCycle();
     void configEditsBetweenRunsAreHonored();
     void producersHeldUntilConsumerReady();
@@ -112,6 +114,23 @@ QString TestSessionLifecycle::writeConfig(const QString &fileName,
     f.write(QJsonDocument(config).toJson());
     f.close();
     return path;
+}
+
+// Fail on a signal/slot connect that did not resolve. Qt reports those as a
+// warning, not an error, so a broken string-based connect() runs forever in
+// silence: the dF/F switch was connected on the shared VideoDevice base to a slot
+// that only Miniscope declares, and THIS test - which builds a behavior camera
+// and drives Run/endSession - printed "No such slot
+// BehaviorCam::handleDFFSwitchChange" on every CI run and still passed. QML
+// signals have to be connected by name, so no compile-time check is available
+// and this is the only thing that can catch the next one.
+//
+// It must live in init(), not initTestCase(): failOnWarning() only holds for the
+// duration of the test function that calls it, and initTestCase() is itself one -
+// setting it there silently protects nothing.
+void TestSessionLifecycle::init()
+{
+    QTest::failOnWarning(QRegularExpression("No such (slot|signal)"));
 }
 
 void TestSessionLifecycle::initTestCase()
