@@ -15,8 +15,11 @@
 #include <QQuickItem>
 #include <QVariant>
 #include <QString>
+#include <QStringList>
 
+#include "videostreambase.h"
 #include "videostreamocv.h"
+#include "videostreamlibuvc.h"
 #include "videodisplay.h"
 #include "newquickview.h"
 #include <opencv2/opencv.hpp>
@@ -48,31 +51,75 @@ class VideoDevice : public QObject
 {
     Q_OBJECT
 public:
-    explicit VideoDevice(QObject *parent = nullptr, QJsonObject ucDevice = QJsonObject(), qint64 softwareStartTime = 0);
+    explicit VideoDevice(QObject *parent = nullptr, QJsonObject ucDevice = QJsonObject(), qint64 softwareStartTime = 0, bool preferDirectControl = false);
+    // Session teardown: joins the (already-stopped) stream thread, frees the
+    // stream object, and closes/frees this device's window.
+    ~VideoDevice() override;
     QJsonObject getDeviceConfig(QString deviceType);
     QObject* getRootDisplayObject() { return rootObject; }
     QQuickItem* getRootDisplayChild(QString childName) { return rootObject->findChild<QQuickItem*>(childName); }
     VideoDisplay* getVideoDisplay() { return vidDisplay; }
-    VideoStreamOCV* getDeviceStream() { return deviceStream; }
+    VideoStreamBase* getDeviceStream() { return deviceStream; }
     virtual void setupDisplayObjectPointers() { }; // Child class should override this!
     bool getHeadOrienataionStreamState() { return m_headOrientationStreamState;}
     bool getHeadOrienataionFilterState() { return m_headOrientationFilterState;}
     void createView();
     void connectSnS();
+    // Orderly shutdown: stop the capture loop and join its thread. Safe to
+    // call from the GUI thread; no-op if the device never connected.
+    void stopAndJoinStream();
+    // Let the capture loop start acquiring. Devices are constructed with their
+    // stream held (see the constructor) because the ring buffer has no drain
+    // until the session's DataSaver thread runs; the backend calls this on
+    // every device once that thread is up. No-op if the device never connected.
+    void releaseStreamHold()
+    {
+        if (deviceStream)
+            deviceStream->setStreamHold(false);
+    }
     void defineDeviceAddrs();
     void parseUserConfigDevice();
     void sendInitCommands();
     QString getCompressionType();
     cv::Mat* getFrameBufferPointer(){return frameBuffer;}
     qint64* getTimeStampBufferPointer(){return timeStampBuffer;}
+    qint64* getDaqFrameNumBufferPointer(){return daqFrameNumBuffer;}
     int getBufferSize() {return FRAME_BUFFER_SIZE;}
     QSemaphore* getFreeFramesPointer(){return freeFrames;}
     QSemaphore* getUsedFramesPointer(){return usedFrames;}
     QAtomicInt* getAcqFrameNumPointer(){return m_acqFrameNum;}
     QAtomicInt* getDAQFrameNumPointer() { return m_daqFrameNum; }
     QString getDeviceName(){return m_deviceName;}
+    // The device's stream window, for embedding as a pane in the Acquire view.
+    QQuickView *deviceView() const { return view; }
+    // Native video aspect (catalog width/height); the pane letterboxes to this.
+    double displayAspectRatio() const {
+        const double w = m_cDevice.value("width").toDouble();
+        const double h = m_cDevice.value("height").toDouble();
+        return (w > 0 && h > 0) ? w / h : 0.0;
+    }
+    // REC chip on the device window. Display only - recording itself is
+    // DataSaver's; cameras must not get the startRecording signal chain
+    // because VideoStreamOCV::startRecording() writes the Miniscope DAQ's
+    // UVC side-channel (CAP_PROP_SATURATION), which changes a real webcam's
+    // image.
+    void setWindowRecordingIndicator(bool on) {
+        if (rootObject)
+            rootObject->setProperty("recording", on);
+    }
+    // Session-bar telemetry (GUI thread; the counters are atomics/semaphores
+    // shared with the capture thread).
+    int acqFrameCount() const { return m_acqFrameNum->loadRelaxed(); }
+    int droppedFrameEstimate() const { return deviceStream ? deviceStream->droppedFrameEstimate() : -1; }
+    int bufferUsedCount() const { return usedFrames ? usedFrames->available() : 0; }
     int getErrors() { return m_errors; }
     QSize getResolution() {return m_resolution;}
+
+    // Messages emitted during construction (connect2Camera failures etc.)
+    // fire before the backend has wired sendMessage to the control panel, so
+    // the constructor holds them here. The backend takes them right after
+    // wiring and relays them; from then on messages flow directly.
+    QStringList takeEarlyMessages();
 
     virtual void handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int f, VideoDisplay* vidDisp);
 
@@ -105,6 +152,7 @@ public slots:
     void handleTakeScreenShotSignal();
 
     void handleSaturationSwitchChanged(bool checked);
+    void handleLutSwitchChanged(bool checked);
     void handleSetExtTriggerTrackingState(bool state);
     void handleRecordStart(); // Currently used to toggle LED on and off
     void handleRecordStop(); // Currently used to toggle LED on and off
@@ -117,20 +165,29 @@ public slots:
     void handleNewROI(int leftEdge, int topEdge, int width, int height);
     virtual void handleAddNewTraceROI(int leftEdge, int topEdge, int width, int height);
 
+    // Re-applies the stored ROI overlay at the current display size so it tracks
+    // window resizes.
+    void handleDisplayResized();
+
 private:
 
     QSize m_resolution;
     void configureDeviceControls();
+    // Live display-pixels-per-camera-pixel (x, y). Used to map ROI selections to
+    // camera coordinates and back, correctly at any (resized) window size.
+    QSizeF displayPerCameraScale();
     QVector<QMap<QString, int>> parseSendCommand(QJsonArray sendCommand);
     int processString2Int(QString s);
     QMap<QString,quint16> deviceAddr; //only used with Miniscopes???
 
     int m_camConnected;
     NewQuickView *view;
-    VideoStreamOCV *deviceStream;
+    VideoStreamBase *deviceStream;
+    bool m_preferDirectControlBackend;
     QThread *videoStreamThread;
     cv::Mat frameBuffer[FRAME_BUFFER_SIZE];
     qint64 timeStampBuffer[FRAME_BUFFER_SIZE];
+    qint64 daqFrameNumBuffer[FRAME_BUFFER_SIZE];
     // float bnoBuffer[FRAME_BUFFER_SIZE*5]; //w,x,y,z,norm
     QSemaphore *freeFrames;
     QSemaphore *usedFrames;
@@ -173,6 +230,14 @@ private:
 
     qint64 m_softwareStartTime;
     bool m_traceDisplayStatus;
+
+    // See takeEarlyMessages().
+    QStringList m_earlyMessages;
+    bool m_holdEarlyMessages = true;
+
+    // Display LUT (colormap) selected in the user config: 1=green, 2=red,
+    // 3=inferno; the on-window switch toggles between this and 0 (grayscale).
+    int m_lutColormap;
 };
 
 #endif // VIDEODEVICE_H

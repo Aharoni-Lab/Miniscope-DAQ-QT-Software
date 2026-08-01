@@ -6,8 +6,8 @@ import QtQuick.Layouts 1.3
 Item {
     id: root
     objectName: "root"
-    width: parent.width
-    height: parent.height
+    width: parent ? parent.width : 0
+    height: parent ? parent.height : 0
     focus: true
 
     TrackerDisplay {

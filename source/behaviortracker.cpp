@@ -6,11 +6,11 @@
 #include <opencv2/opencv.hpp>
 
 #include <QtQuick/QQuickItem>
-#include <QtGui/QOpenGLShaderProgram>
+#include <QtOpenGL/QOpenGLShaderProgram>     // Qt6: moved from QtGui to Qt6::OpenGL
 #include <QtGui/QOpenGLFunctions>
-#include <QtGui/QOpenGLTexture>
-#include <QtGui/QOpenGLBuffer>
-#include <QtGui/QOpenGLFramebufferObject>
+#include <QtOpenGL/QOpenGLTexture>   // Qt6: moved from QtGui to Qt6::OpenGL
+#include <QtOpenGL/QOpenGLBuffer>            // Qt6: moved from QtGui to Qt6::OpenGL
+#include <QtOpenGL/QOpenGLFramebufferObject> // Qt6: moved from QtGui to Qt6::OpenGL
 
 #include <QJsonObject>
 #include <QDebug>
@@ -33,12 +33,15 @@
 BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64 softwareStartTime) :
     QObject(parent),
     numberOfCameras(0),
-    m_trackingRunning(false),
     m_camResolution(640,480),
+    freePoses(new QSemaphore()),
+    usedPoses(new QSemaphore()),
     m_btPoseCount(new QAtomicInt(0)),
     m_previousBtPoseFrameNum(0),
-    usedPoses(new QSemaphore()),
-    freePoses(new QSemaphore()),
+    view(nullptr),
+    rootObject(nullptr),
+    trackerDisplay(nullptr),
+    m_trackingRunning(false),
     m_pCutoffDisplay(0),
     m_softwareStartTime(softwareStartTime)
 {
@@ -54,7 +57,7 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64
     parseUserConfigTracker();
 
 
-    behavTrackWorker = new BehaviorTrackerWorker(NULL, m_userConfig["behaviorTracker"].toObject());
+    behavTrackWorker = new BehaviorTrackerWorker(NULL, m_userConfig.value("behaviorTracker").toObject());
     behavTrackWorker->setPoseBufferParameters(poseBuffer, poseFrameNumBuffer, POSE_BUFFER_SIZE, m_btPoseCount, freePoses, usedPoses);
     workerThread = new QThread();
 
@@ -62,24 +65,48 @@ BehaviorTracker::BehaviorTracker(QObject *parent, QJsonObject userConfig, qint64
 
 }
 
+BehaviorTracker::~BehaviorTracker()
+{
+    // Normally a no-op: session teardown already joined the worker thread.
+    stopAndJoinWorker();
+    // The worker was moved to the (now finished) worker thread, so it may be
+    // deleted from here.
+    delete behavTrackWorker;
+    behavTrackWorker = nullptr;
+    if (view) {
+        view->close();
+        view->deleteLater();
+        view = nullptr;
+    }
+}
+
 int BehaviorTracker::initNumpy()
 {
-    import_array1(-1);
+#ifdef USE_PYTHON
+    import_array1(-1); // expands to `return -1` on failure; fall through = success
+#endif
+    return 0;
 }
 
 void BehaviorTracker::parseUserConfigTracker()
 {
-    m_btConfig = m_userConfig["behaviorTracker"].toObject();
+    m_btConfig = m_userConfig.value("behaviorTracker").toObject();
 //    QJsonObject jTracker = m_userConfig["behaviorTracker"].toObject();
 //    m_trackerType = jTracker["type"].toString("None");
-    m_pCutoffDisplay = m_btConfig["pCutoffDisplay"].toDouble(0);
+    m_pCutoffDisplay = m_btConfig.value("pCutoffDisplay").toDouble(0);
 
     if (m_btConfig.contains("occupancyPlot")) {
-        if (m_btConfig["occupancyPlot"].toObject()["enabled"].toBool(true)) {
+        if (m_btConfig.value("occupancyPlot").toObject().value("enabled").toBool(true)) {
             m_plotOcc = true;
-            m_occNumBinsX = m_btConfig["occupancyPlot"].toObject()["numBinX"].toInt(20);
-            m_occNumBinsY = m_btConfig["occupancyPlot"].toObject()["numBinY"].toInt(20);
-            QJsonArray tempArray = m_btConfig["occupancyPlot"].toObject()["poseIdxToUse"].toArray();
+            // The documented keys are numBinsX/numBinsY; this code
+            // historically read numBinX/numBinY (so the documented spelling
+            // was silently ignored). Prefer the documented one.
+            const QJsonObject occ = m_btConfig.value("occupancyPlot").toObject();
+            m_occNumBinsX = occ.contains("numBinsX") ? occ["numBinsX"].toInt(20)
+                                                     : occ["numBinX"].toInt(20);
+            m_occNumBinsY = occ.contains("numBinsY") ? occ["numBinsY"].toInt(20)
+                                                     : occ["numBinY"].toInt(20);
+            QJsonArray tempArray = m_btConfig.value("occupancyPlot").toObject().value("poseIdxToUse").toArray();
 
             for (int i=0; i< tempArray.size(); i++) {
                 m_poseIdxUsed.append(tempArray[i].toInt());
@@ -93,12 +120,16 @@ void BehaviorTracker::parseUserConfigTracker()
 
     // For pose Overlay
     if (m_btConfig.contains("poseOverlay")) {
-        m_poseOverlayEnabled = m_btConfig["poseOverlay"].toObject()["enabled"].toBool(true);
-        m_overlayType = m_btConfig["poseOverlay"].toObject()["type"].toString("point");
-        m_overlayNumPoses = m_btConfig["poseOverlay"].toObject()["numOfPastPoses"].toInt(0) + 1;
-        m_poseMarkerSize = m_btConfig["poseOverlay"].toObject()["markerSize"].toDouble(10);
-        if (m_poseOverlayEnabled = m_btConfig["poseOverlay"].toObject().contains("skeleton")) {
-            QJsonObject tempSk = m_btConfig["poseOverlay"].toObject()["skeleton"].toObject();
+        m_poseOverlayEnabled = m_btConfig.value("poseOverlay").toObject().value("enabled").toBool(true);
+        m_overlayType = m_btConfig.value("poseOverlay").toObject().value("type").toString("point");
+        m_overlayNumPoses = m_btConfig.value("poseOverlay").toObject().value("numOfPastPoses").toInt(0) + 1;
+        m_poseMarkerSize = m_btConfig.value("poseOverlay").toObject().value("markerSize").toDouble(10);
+        // Was `if (m_poseOverlayEnabled = ...contains("skeleton"))`: the
+        // assignment overwrote the enabled flag parsed above, so a config
+        // without a skeleton section had its pose overlay silently disabled
+        // (and one with a skeleton had it force-enabled).
+        if (m_btConfig.value("poseOverlay").toObject().contains("skeleton")) {
+            QJsonObject tempSk = m_btConfig.value("poseOverlay").toObject().value("skeleton").toObject();
             m_poseOverlaySkeletonEnabled = tempSk["enabled"].toBool(true);
             QJsonArray tempArray = tempSk["connectedIndices"].toArray();
             QJsonArray connectedArray;
@@ -150,7 +181,7 @@ void BehaviorTracker::setupDisplayTraces()
     QString tempS;
     int idx;
     if (m_btConfig.contains("poseIdxForTraceDisplay")) {
-        QJsonArray tempArray = m_btConfig["poseIdxForTraceDisplay"].toArray();
+        QJsonArray tempArray = m_btConfig.value("poseIdxForTraceDisplay").toArray();
         for (int i=0; i<tempArray.size();i++) {
             tempS = tempArray[i].toString();
             if (tempS.endsWith("wh",Qt::CaseInsensitive) || tempS.endsWith("hw",Qt::CaseInsensitive)) {
@@ -200,7 +231,7 @@ void BehaviorTracker::cameraCalibration()
 void BehaviorTracker::createView(QSize resolution)
 {
     m_camResolution = resolution;
-    QJsonObject btConfig = m_userConfig["behaviorTracker"].toObject();
+    QJsonObject btConfig = m_userConfig.value("behaviorTracker").toObject();
 
     qmlRegisterType<TrackerDisplay>("TrackerDisplay", 1, 0, "TrackerDisplay");
     const QUrl url("qrc:/behaviorTracker.qml");
@@ -216,10 +247,32 @@ void BehaviorTracker::createView(QSize resolution)
     view->setX(btConfig["windowX"].toInt(1));
     view->setY(btConfig["windowY"].toInt(1));
 
+    // Let the tracker display scale with the window, locked to the camera's
+    // aspect ratio.
+    view->setResizeMode(QQuickView::SizeRootObjectToView);
+    view->setMinimumSize(QSize(view->width() / 2, view->height() / 2));
+    view->setLockedAspectRatio((qreal)view->width() / (qreal)view->height());
+
 #ifdef Q_OS_WINDOWS
-    view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
+    // Resizable (border drag) + minimizable; no maximize since that would break
+    // the locked aspect ratio.
+    view->setFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+                   | Qt::WindowMinimizeButtonHint);
 #endif
 
+
+    // A failed QML load has no root object; report it and bail out instead
+    // of dereferencing it. sendNewFrame is only connected below, so a bailed
+    // tracker never touches the null trackerDisplay again.
+    const QStringList loadErrors =
+        NewQuickView::loadFailureMessages(view, QStringLiteral("Behavior tracker window"));
+    if (!loadErrors.isEmpty()) {
+        for (const QString &msg : loadErrors)
+            sendMessage(msg);
+        view->deleteLater();
+        view = nullptr;
+        return;
+    }
 
     rootObject = view->rootObject();
     trackerDisplay = rootObject->findChild<TrackerDisplay*>("trackerDisplay");
@@ -251,8 +304,8 @@ void BehaviorTracker::setUpDLCLive()
 void BehaviorTracker::startThread()
 {
     //TODO: Stop thread and working if missing path to py env.
-    if (m_userConfig["behaviorTracker"].toObject().contains("pyEnvPath")) {
-        sendMessage("Using \"" + m_userConfig["behaviorTracker"].toObject()["pyEnvPath"].toString() + "\" as Python Environment.");
+    if (m_userConfig.value("behaviorTracker").toObject().contains("pyEnvPath")) {
+        sendMessage("Using \"" + m_userConfig.value("behaviorTracker").toObject().value("pyEnvPath").toString() + "\" as Python Environment.");
 
         behavTrackWorker->moveToThread(workerThread);
 
@@ -511,6 +564,24 @@ void BehaviorTracker::close()
     //    view->close();
 }
 
+void BehaviorTracker::stopAndJoinWorker()
+{
+    if (workerThread == nullptr)
+        return;
+    emit closeWorker();
+    workerThread->quit();
+    if (!workerThread->wait(3000)) {
+        qWarning() << "Behavior tracker worker thread did not stop within 3s; leaking it";
+        // The worker still lives on the runaway thread; deleting it from here
+        // would race. Leak it along with its thread.
+        behavTrackWorker = nullptr;
+        workerThread = nullptr;
+        return;
+    }
+    workerThread->deleteLater();
+    workerThread = nullptr;
+}
+
 void BehaviorTracker::handleAddNewTracePose(int poseIdx, QString type, bool sameOffset)
 {
 //    m_traceColors[0][0] = &colors[0];
@@ -562,9 +633,9 @@ void BehaviorTracker::handleAddNewTracePose(int poseIdx, QString type, bool same
 
 TrackerDisplayRenderer::TrackerDisplayRenderer(QObject *parent, QSize displayWindowSize):
     QObject(parent),
-    m_t(0),
     m_newImage(false),
     m_newOccupancy(false),
+    m_t(0),
     m_textureImage(nullptr),
     m_texture2DHist(nullptr),
     m_programImage(nullptr),
@@ -808,6 +879,9 @@ void TrackerDisplayRenderer::drawTrackerOverlay (QString type) {
 
 void TrackerDisplayRenderer::paint()
 {
+    // Qt6: bracket all raw OpenGL with begin/endExternalCommands (replaces resetOpenGLState).
+    m_window->beginExternalCommands();
+
     glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
     glDisable(GL_DEPTH_TEST);
 
@@ -838,9 +912,8 @@ void TrackerDisplayRenderer::paint()
         draw2DHist();
     }
 
-    // Not strictly needed for this example, but generally useful for when
-    // mixing with raw OpenGL.
-    m_window->resetOpenGLState();
+    // Qt6: replaces the removed m_window->resetOpenGLState().
+    m_window->endExternalCommands();
 }
 
 TrackerDisplay::TrackerDisplay():
@@ -926,11 +999,8 @@ void TrackerDisplay::handleWindowChanged(QQuickWindow *win)
     if (win) {
         connect(win, &QQuickWindow::beforeSynchronizing, this, &TrackerDisplay::sync, Qt::DirectConnection);
         connect(win, &QQuickWindow::sceneGraphInvalidated, this, &TrackerDisplay::cleanup, Qt::DirectConnection);
-//! [1]
-        // If we allow QML to do the clearing, they would clear what we paint
-        // and nothing would show.
-//! [3]
-        win->setClearBeforeRendering(false);
+        // Qt6: setClearBeforeRendering() was removed; set the clear color instead.
+        win->setColor(Qt::black);
     }
 }
 
@@ -940,7 +1010,8 @@ void TrackerDisplay::sync()
         m_renderer = new TrackerDisplayRenderer(nullptr, window()->size() * window()->devicePixelRatio());
 //        m_renderer->setShowSaturation(m_showSaturation);
 //        m_renderer->setDisplayFrame(QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
-        connect(window(), &QQuickWindow::beforeRendering, m_renderer, &TrackerDisplayRenderer::paint, Qt::DirectConnection);
+        // Qt6: underlay must draw during render-pass recording (see videodisplay.cpp).
+        connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &TrackerDisplayRenderer::paint, Qt::DirectConnection);
         m_renderer->m_showOcc = m_showOcc;
         m_renderer->pValCut = m_pValCut;
         m_renderer->overlayEnabled = m_overlayEnabled;

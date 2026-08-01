@@ -16,8 +16,6 @@ uniform float u_scaleTrace;
 uniform float u_time;
 uniform float u_windowSize;
 
-uniform float u_traceSelected;
-
 
 
 //const float scrollBarPos = 2.0 * mod(u_time,u_windowSize)/u_windowSize - 1.0; // From -1 to 1
@@ -49,10 +47,9 @@ void main(void)
 
     vec2 position_tr = u_scale * (u_magnify * pos * vec2(1.0, u_scaleTrace) + vec2(0.0, u_offset) + u_pan);
 
-    if (u_traceSelected == 1.0)
-        v_color.rgb = mix(v_color.rgb, vec3(1.0), 0.8);
-    else if (u_traceSelected == -1.0)
-        v_color = mix(v_color, vec4(vec3(0.0), 1), 0.8);
+    // Selection highlight/dim is applied in trace.frag, after the colormap is
+    // resolved. Blending u_color here would corrupt the colormap sentinel
+    // (g=b=-1/-2/-3) it carries and make colormap traces render as raw red.
 
     gl_Position = vec4(position_tr, 0.0, 1.0);
 //    gl_Position = vec4(pos, 0.0, 1.0);

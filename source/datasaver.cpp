@@ -19,16 +19,37 @@
 #include <QTextStream>
 #include <QVariant>
 #include <QMetaType>
+#include <QStorageInfo>
+#include <QThread>
+
+#include "monotonicclock.h"
+
+// Fail-loudly disk guards: refuse to start a recording without this much free
+// space, and stop an active one before the disk is completely full - a full
+// disk turns every subsequent frame/CSV write into silent data loss.
+static constexpr qint64 kMinFreeBytesToStart    = 500LL * 1024 * 1024;
+static constexpr qint64 kMinFreeBytesToContinue = 250LL * 1024 * 1024;
+static constexpr qint64 kLowDiskWarnBytes       = 5LL * 1024 * 1024 * 1024;
+static constexpr int    kDiskCheckFrameInterval = 100;
 
 DataSaver::DataSaver(QObject *parent) :
     QObject(parent),
     baseDirectory(""),
-    m_recording(false),
+    behavTrackerFile(nullptr),
+    behavTrackerStream(nullptr),
+    noteFile(nullptr),
+    noteStream(nullptr),
     behaviorTrackerEnabled(false),
+    m_recording(false),
     m_running(false)
 
 {
 
+}
+
+DataSaver::~DataSaver()
+{
+    releaseRecordingFiles();
 }
 
 bool DataSaver::setupFilePaths()
@@ -58,12 +79,12 @@ bool DataSaver::setupFilePaths()
     // TODO: save metadata in base directory for experiment. Maybe some thing like saveBaseMetaDataJscon();
 
     // Setup directories for each recording device
-    QJsonObject devices = m_userConfig["devices"].toObject();
+    QJsonObject devices = m_userConfig.value("devices").toObject();
 
     QStringList deviceList;
     deviceList = devices["miniscopes"].toObject().keys();
     for (int i = 0; i < deviceList.length(); i++) { // Miniscopes
-        tempString = deviceList[i]; //devices["miniscopes"].toObject()[deviceList[i]].toObject()["deviceName"].toString();
+        tempString = deviceList[i]; //devices["miniscopes"].toObject()[deviceList[i]].toObject().value("deviceName").toString();
         tempString2 = tempString;
         tempString2.replace(" ", "_");
         deviceDirectory[tempString] = baseDirectory + "/" + tempString2;
@@ -71,14 +92,14 @@ bool DataSaver::setupFilePaths()
     }
     deviceList = devices["cameras"].toObject().keys();
     for (int i = 0; i < deviceList.length(); i++) { // Cameras
-        tempString = deviceList[i]; //devices["cameras"].toArray()[i].toObject()["deviceName"].toString();
+        tempString = deviceList[i]; //devices["cameras"].toArray()[i].toObject().value("deviceName").toString();
         tempString2 = tempString;
         tempString2.replace(" ", "_");
         deviceDirectory[tempString] = baseDirectory + "/" + tempString2;
         QDir().mkdir(deviceDirectory[tempString]);
     }
 
-    if (!m_userConfig["behaviorTracker"].toObject().isEmpty()) {
+    if (!m_userConfig.value("behaviorTracker").toObject().isEmpty()) {
         QDir().mkdir(baseDirectory + "/behaviorTracker");
     }
 
@@ -91,6 +112,7 @@ void DataSaver::setFrameBufferParameters(QString name,
                                          cv::Mat *frameBuf,
                                          qint64 *tsBuffer,
                                          float *bnoBuf,
+                                         qint64 *daqFrameNumBuf,
                                          int bufSize,
                                          QSemaphore *freeFrames,
                                          QSemaphore *usedFrames,
@@ -99,6 +121,7 @@ void DataSaver::setFrameBufferParameters(QString name,
     frameBuffer[name] = frameBuf;
     timeStampBuffer[name] = tsBuffer;
     bnoBuffer[name] = bnoBuf;
+    daqFrameNumBuffer[name] = daqFrameNumBuf;
     bufferSize[name] = bufSize;
     freeCount[name] = freeFrames;
     usedCount[name] = usedFrames;
@@ -111,18 +134,21 @@ void DataSaver::setupBaseDirectory()
 {
 //    if (baseDirectory.isEmpty()) {
         QString tempString, tempString2;
-        QJsonArray directoryStructure = m_userConfig["directoryStructure"].toArray();
+        QJsonArray directoryStructure = m_userConfig.value("directoryStructure").toArray();
 
         // Construct and make base directory
-        baseDirectory = m_userConfig["dataDirectory"].toString();
+        baseDirectory = m_userConfig.value("dataDirectory").toString();
         for (int i = 0; i < directoryStructure.size(); i++) {
             tempString = directoryStructure[i].toString();
-            if (tempString == "date")
+            // "date"/"time" are reserved tokens; accept any casing ("Date",
+            // "TIME", ...) so a capitalized config doesn't silently produce
+            // literal "DateMissing" folders.
+            if (tempString.compare("date", Qt::CaseInsensitive) == 0)
                 baseDirectory += "/" + recordStartDateTime.date().toString("yyyy_MM_dd");
-            else if (tempString == "time")
+            else if (tempString.compare("time", Qt::CaseInsensitive) == 0)
                 baseDirectory += "/" + recordStartDateTime.time().toString("HH_mm_ss");
             else {
-                tempString2 = m_userConfig[tempString].toString().replace(" ", "_");
+                tempString2 = m_userConfig.value(tempString).toString().replace(" ", "_");
 
                 if (tempString2.isEmpty()) {
                     // Entry does not exist in User Config JSON file
@@ -133,14 +159,7 @@ void DataSaver::setupBaseDirectory()
                 else
                     baseDirectory += "/" + tempString2;
             }
-//            else if (tempString == "researcherName")
-//                baseDirectory += "/" + m_userConfig["researcherName"].toString().replace(" ", "_");
-//            else if (tempString == "experimentName")
-//                baseDirectory += "/" + m_userConfig["experimentName"].toString().replace(" ", "_");
-//            else if (tempString == "animalName")
-//                baseDirectory += " /" + m_userConfig["animalName"].toString().replace(" ", "_");
         }
-//    }
 }
 
 void DataSaver::startRunning()
@@ -152,19 +171,20 @@ void DataSaver::startRunning()
 
     m_running = true;
     int i, j;
-    int bufPosition;
     int poseBufPosition;
-    int fileNum;
-    bool isColor;
+    bool idle;
 
     QString poseData;
 
-    QString tempStr;
-    QStringList names;
+    // The device set is fixed for the lifetime of a run (all frame buffers are
+    // registered before this thread starts), so resolve the names once.
+    const QStringList names = frameBuffer.keys();
     while(m_running) {
+        idle = true;
         // For Behavior Tracker
         if (behaviorTrackerEnabled) {
             while (usedPoses->tryAcquire()) {
+                idle = false;
                 if (m_recording) {
                     poseBufPosition = btPoseCount % poseBufferSize;
                     poseData.clear();
@@ -172,7 +192,7 @@ void DataSaver::startRunning()
 
                     for (j = 0; j < poseBuffer[poseBufPosition].length(); j++)
                         poseData.append(QString::number(poseBuffer[poseBufPosition][j], 'g', 3) + ",");
-                    *behavTrackerStream << poseData << endl;
+                    *behavTrackerStream << poseData << Qt::endl;
                 }
                 btPoseCount++;
                 freePoses->release(1);
@@ -180,72 +200,119 @@ void DataSaver::startRunning()
         }
 
         // for video streams
-        names = frameBuffer.keys();
-        for (i = 0; i < frameBuffer.size(); i++) {
+        for (i = 0; i < names.size(); i++) {
             while (usedCount[names[i]]->tryAcquire()) {
-                // grad info from buffer in a threadsafe way
-                if (m_recording) {
-                    // save frame to file
-                    if ((savedFrameCount[names[i]] % framesPerFile[names[i]]) == 0) {
-                        // Create first as well as new video files
-                        fileNum = (int) (savedFrameCount[names[i]] / framesPerFile[names[i]]);
-                        tempStr = deviceDirectory[names[i]] + "/" + QString::number(fileNum) + ".avi";
-                        videoWriter[names[i]]->release(); // release full file
-                        if (frameBuffer[names[i]][0].channels() == 1)
-                            isColor = false;
-                        else
-                            isColor = true;
-                        // TODO: Add compression options here
-                        if (ROI[names[i]][0] >= 0 && ROI[names[i]][1] >= 0 && ROI[names[i]][2] >= 0 && ROI[names[i]][3] >= 0) {
-                            // Need to trim frame to ROI
-//                            qDebug() << ROI[names[i]][0] << ROI[names[i]][1] << ROI[names[i]][2] << ROI[names[i]][3];
-                            videoWriter[names[i]]->open(tempStr.toUtf8().constData(),
-                                    dataCompressionFourCC[names[i]], 60,
-                                    cv::Size(ROI[names[i]][2], ROI[names[i]][3]), isColor); // color should be set to false?
-                        }
-                        else {
-                            videoWriter[names[i]]->open(tempStr.toUtf8().constData(),
-                                    dataCompressionFourCC[names[i]], 60,
-                                    cv::Size(frameBuffer[names[i]][0].cols, frameBuffer[names[i]][0].rows), isColor); // color should be set to false?
-                        }
-
-                    }
-                    bufPosition = frameCount[names[i]] % bufferSize[names[i]];
-                    *csvStream[names[i]] << savedFrameCount[names[i]] << ","
-                                         << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << ","
-                                         << usedCount[names[i]]->available() << endl;
-
-                    if (headOrientationStreamState[names[i]] == true && bnoBuffer[names[i]] != nullptr) {
-                        if (headOrientationFilterState[names[i]] && bnoBuffer[names[i]][bufPosition*5 + 4] >= 0.05) { // norm is below 0.98. Should be 1 ideally
-                            // Filter bad data and current data is bad
-                        }
-                        else {
-                            *headOriStream[names[i]] << (timeStampBuffer[names[i]][bufPosition] - recordStartDateTime.toMSecsSinceEpoch()) << ","
-                                                     << bnoBuffer[names[i]][bufPosition*5 + 0] << ","
-                                                     << bnoBuffer[names[i]][bufPosition*5 + 1] << ","
-                                                     << bnoBuffer[names[i]][bufPosition*5 + 2] << ","
-                                                     << bnoBuffer[names[i]][bufPosition*5 + 3] << endl;
-                        }
-
-                    }
-
-                    // TODO: Increment video file if reach max frame number per file
-                    if (ROI[names[i]][0] >= 0 && ROI[names[i]][1] >= 0 && ROI[names[i]][2] >= 0 && ROI[names[i]][3] >= 0) {
-                        videoWriter[names[i]]->write(frameBuffer[names[i]][bufPosition](cv::Rect(ROI[names[i]][0],ROI[names[i]][1],ROI[names[i]][2],ROI[names[i]][3])));
-
-                    }
-                    else
-                        videoWriter[names[i]]->write(frameBuffer[names[i]][bufPosition]);
-
-                    savedFrameCount[names[i]]++;
+                idle = false;
+                // grab info from buffer in a threadsafe way
+                if (m_recording && !writeBufferedFrame(names[i])) {
+                    // Could not create the next video file / disk nearly full
+                    // (already reported). Stop cleanly: data so far is saved.
+                    stopRecording();
+                    emit recordingFailed();
                 }
-
                 frameCount[names[i]]++;
                 freeCount[names[i]]->release(1);
             }
         }
         QCoreApplication::processEvents(); // Is there a better way to do this. This is against best practices
+
+        // Nothing arrived this pass: sleep 1ms instead of busy-spinning a
+        // full core. The ring buffers are deep (128 slots), so this adds no
+        // meaningful save latency.
+        if (idle && m_running)
+            QThread::msleep(1);
     }
+}
+
+void DataSaver::stopRunning()
+{
+    // Delivered as a queued slot: the run loop's processEvents() call picks
+    // it up, the loop exits, and startRunning() returns so the DataSaver
+    // thread can finish and be joined.
+    m_running = false;
+}
+
+// Write the frame at this device's current ring-buffer position to disk
+// (rolling the video file every framesPerFile frames), plus its
+// timeStamps.csv row and head-orientation row. Returns false when the
+// recording cannot continue (video file creation failed, disk nearly full);
+// the cause has then already been reported via sendMessage.
+bool DataSaver::writeBufferedFrame(const QString &name)
+{
+    if ((savedFrameCount[name] % framesPerFile[name]) == 0) {
+        // Create first as well as new video files
+        int fileNum = (int) (savedFrameCount[name] / framesPerFile[name]);
+        QString fileName = deviceDirectory[name] + "/" + QString::number(fileNum) + ".avi";
+        videoWriter[name]->release(); // release full file
+        bool isColor = frameBuffer[name][0].channels() != 1;
+        // TODO: Add compression options here
+        // A device that never got setROI() must record un-trimmed, not crash
+        // on the null pointer.
+        const int *roi = ROI.value(name, nullptr);
+        bool videoFileOpened;
+        if (roi && roi[0] >= 0 && roi[1] >= 0 && roi[2] >= 0 && roi[3] >= 0) {
+            // Need to trim frame to ROI
+            videoFileOpened = videoWriter[name]->open(fileName.toUtf8().constData(),
+                    dataCompressionFourCC[name], 60,
+                    cv::Size(roi[2], roi[3]), isColor); // color should be set to false?
+        }
+        else {
+            videoFileOpened = videoWriter[name]->open(fileName.toUtf8().constData(),
+                    dataCompressionFourCC[name], 60,
+                    cv::Size(frameBuffer[name][0].cols, frameBuffer[name][0].rows), isColor); // color should be set to false?
+        }
+        if (!videoFileOpened) {
+            // Without this check every subsequent write() would silently
+            // discard frames while the UI says Recording.
+            sendMessage("Error: " + name + " could not create video file "
+                        + fileName + " (full disk? missing codec?). Recording stopped; "
+                        + "data recorded so far is saved.");
+            return false;
+        }
+    }
+
+    const int bufPosition = frameCount[name] % bufferSize[name];
+    *csvStream[name] << savedFrameCount[name] << ","
+                     << (timeStampBuffer[name][bufPosition] - recordStartTimeMs) << ","
+                     << usedCount[name]->available();
+    if (daqFrameNumBuffer.value(name, nullptr) != nullptr)
+        *csvStream[name] << "," << daqFrameNumBuffer[name][bufPosition];
+    *csvStream[name] << Qt::endl;
+
+    if (headOrientationStreamState[name] == true && bnoBuffer[name] != nullptr) {
+        if (headOrientationFilterState[name] && bnoBuffer[name][bufPosition*5 + 4] >= 0.05) { // norm is below 0.98. Should be 1 ideally
+            // Filter bad data and current data is bad
+        }
+        else {
+            *headOriStream[name] << (timeStampBuffer[name][bufPosition] - recordStartTimeMs) << ","
+                                 << bnoBuffer[name][bufPosition*5 + 0] << ","
+                                 << bnoBuffer[name][bufPosition*5 + 1] << ","
+                                 << bnoBuffer[name][bufPosition*5 + 2] << ","
+                                 << bnoBuffer[name][bufPosition*5 + 3] << Qt::endl;
+        }
+    }
+
+    const int *roi = ROI.value(name, nullptr);
+    if (roi && roi[0] >= 0 && roi[1] >= 0 && roi[2] >= 0 && roi[3] >= 0)
+        videoWriter[name]->write(frameBuffer[name][bufPosition](cv::Rect(roi[0], roi[1], roi[2], roi[3])));
+    else
+        videoWriter[name]->write(frameBuffer[name][bufPosition]);
+
+    savedFrameCount[name]++;
+
+    // Stop cleanly before the disk fills: a full disk makes every write above
+    // a silent no-op. Checked every kDiskCheckFrameInterval frames (one
+    // statfs call).
+    if ((savedFrameCount[name] % kDiskCheckFrameInterval) == 0) {
+        const qint64 bytesFree = QStorageInfo(baseDirectory).bytesAvailable();
+        if (bytesFree >= 0 && bytesFree < kMinFreeBytesToContinue) {
+            sendMessage("Error: disk holding " + baseDirectory + " is nearly full ("
+                        + QString::number(bytesFree / (1024 * 1024))
+                        + " MB free). Recording stopped; data recorded so far is saved.");
+            return false;
+        }
+    }
+    return true;
 }
 
 void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
@@ -271,8 +338,39 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
         return;
     }
     QJsonDocument jDoc;
+    releaseRecordingFiles();   // free the previous recording's (or a failed attempt's) handles
     recordStartDateTime = QDateTime::currentDateTime();
+    recordStartTimeMs = monotonicTimeMs();   // frame stamps use the same monotonic clock
     if (setupFilePaths()) {
+        // Refuse to start a recording that is about to run into a full disk.
+        const qint64 bytesFree = QStorageInfo(baseDirectory).bytesAvailable();
+        if (bytesFree >= 0 && bytesFree < kMinFreeBytesToStart) {
+            sendMessage("Error: only " + QString::number(bytesFree / (1024 * 1024))
+                        + " MB free on the drive holding " + baseDirectory
+                        + ". Recording NOT started.");
+            emit recordingFailed();
+            return;
+        }
+        if (bytesFree >= 0 && bytesFree < kLowDiskWarnBytes)
+            sendMessage("Warning: less than " + QString::number(kLowDiskWarnBytes / (1024 * 1024 * 1024))
+                        + " GB free on the drive holding " + baseDirectory
+                        + ". Recording will stop itself before the disk fills.");
+
+        // Every file in the save path must open, or the recording must not
+        // claim to be running - a silently unwritable CSV is total data loss.
+        bool openFailed = false;
+        auto openForWrite = [&](QFile *file) {
+            if (openFailed)
+                return false;
+            if (!file->open(QFile::WriteOnly | QFile::Truncate)) {
+                sendMessage("Error: could not create " + file->fileName() + " ("
+                            + file->errorString() + "). Recording NOT started.");
+                openFailed = true;
+                return false;
+            }
+            return true;
+        };
+
         // TODO: Save meta data JSONs
         jDoc = constructBaseDirectoryMetaData();
         saveJson(jDoc, baseDirectory + "/metaData.json");
@@ -280,39 +378,40 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
         QString deviceName;
         QStringList deviceList;
         // For Miniscopes
-        deviceList = m_userConfig["devices"].toObject()["miniscopes"].toObject().keys();
+        deviceList = m_userConfig.value("devices").toObject().value("miniscopes").toObject().keys();
         for (int i = 0; i < deviceList.length(); i++) {
             deviceName = deviceList[i];
             jDoc = constructDeviceMetaData("miniscopes", deviceName);
             saveJson(jDoc, deviceDirectory[deviceName] + "/metaData.json");
 
             // Get user config frames per file
-            framesPerFile[deviceName] = m_userConfig["devices"].toObject()["miniscopes"].toObject()[deviceList[i]].toObject()["framesPerFile"].toInt(1000);
+            framesPerFile[deviceName] = m_userConfig.value("devices").toObject().value("miniscopes").toObject()[deviceList[i]].toObject().value("framesPerFile").toInt(1000);
         }
         // For Cameras
-        deviceList = m_userConfig["devices"].toObject()["cameras"].toObject().keys();
+        deviceList = m_userConfig.value("devices").toObject().value("cameras").toObject().keys();
         for (int i = 0; i < deviceList.length(); i++) {
             deviceName = deviceList[i];
             jDoc = constructDeviceMetaData("cameras", deviceName);
             saveJson(jDoc, deviceDirectory[deviceName] + "/metaData.json");
 
             // Get user config frames per file
-            framesPerFile[deviceName] = m_userConfig["devices"].toObject()["cameras"].toObject()[deviceList[i]].toObject()["framesPerFile"].toInt(1000);
+            framesPerFile[deviceName] = m_userConfig.value("devices").toObject().value("cameras").toObject()[deviceList[i]].toObject().value("framesPerFile").toInt(1000);
         }
 
         // For Behavior Tracker
-        if (!m_userConfig["behaviorTracker"].toObject().isEmpty()) {
+        if (!m_userConfig.value("behaviorTracker").toObject().isEmpty()) {
             // TODO: Add behavior camera name(s) that are used in behaviorTracker
-            jDoc.setObject(m_userConfig["behaviorTracker"].toObject());
+            jDoc.setObject(m_userConfig.value("behaviorTracker").toObject());
             saveJson(jDoc, baseDirectory + "/behaviorTracker/metaData.json");
 
             // Create pose data file
             behavTrackerFile = new QFile(baseDirectory + "/behaviorTracker/pose.csv");
-            behavTrackerFile->open(QFile::WriteOnly | QFile::Truncate);
-            behavTrackerStream = new QTextStream(behavTrackerFile);
+            if (openForWrite(behavTrackerFile)) {
+                behavTrackerStream = new QTextStream(behavTrackerFile);
 
-            // TODO: Add header info for behav tracker csv file here
-            *behavTrackerStream << "DLC-Live Pose Data." << endl;
+                // TODO: Add header info for behav tracker csv file here
+                *behavTrackerStream << "DLC-Live Pose Data." << Qt::endl;
+            }
         }
 
         QString tempStr;
@@ -320,15 +419,24 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
         for (int i = 0; i < keys.length(); i++) {
             // loop through devices that make frames and setup csv file and videoWriter
             csvFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/timeStamps.csv");
-            csvFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
-            csvStream[keys[i]] = new QTextStream(csvFile[keys[i]]);
-            *csvStream[keys[i]] << "Frame Number,Time Stamp (ms),Buffer Index" << endl;
+            if (openForWrite(csvFile[keys[i]])) {
+                csvStream[keys[i]] = new QTextStream(csvFile[keys[i]]);
+                *csvStream[keys[i]] << "Frame Number,Time Stamp (ms),Buffer Index";
+                if (daqFrameNumBuffer.value(keys[i], nullptr) != nullptr) {
+                    // The DAQ hardware's own frame counter, logged per frame so
+                    // frames lost between the DAQ and the software are
+                    // detectable (counter jump) and TTL-alignable post-hoc.
+                    *csvStream[keys[i]] << ",DAQ Frame Number";
+                }
+                *csvStream[keys[i]] << Qt::endl;
+            }
 
             if (headOrientationStreamState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr) {
                 headOriFile[keys[i]] = new QFile(deviceDirectory[keys[i]] + "/headOrientation.csv");
-                headOriFile[keys[i]]->open(QFile::WriteOnly | QFile::Truncate);
-                headOriStream[keys[i]] = new QTextStream(headOriFile[keys[i]]);
-                *headOriStream[keys[i]] << "Time Stamp (ms),qw,qx,qy,qz" << endl;
+                if (openForWrite(headOriFile[keys[i]])) {
+                    headOriStream[keys[i]] = new QTextStream(headOriFile[keys[i]]);
+                    *headOriStream[keys[i]] << "Time Stamp (ms),qw,qx,qy,qz" << Qt::endl;
+                }
             }
             // TODO: Remember to close files on exit or stop recording signal
 
@@ -343,16 +451,24 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
 
         // Creates note csv file
         noteFile = new QFile(baseDirectory + "/notes.csv");
-        noteFile->open(QFile::WriteOnly | QFile::Truncate);
-        noteStream = new QTextStream(noteFile);
-        *noteStream << "Time Stamp (ms), Note" << endl;
+        if (openForWrite(noteFile)) {
+            noteStream = new QTextStream(noteFile);
+            *noteStream << "Time Stamp (ms), Note" << Qt::endl;
+        }
+
+        if (openFailed) {
+            releaseRecordingFiles();
+            emit recordingFailed();
+            return;
+        }
 
         // TODO: Save camera calibration file to data directory for each behavioral camera
         m_recording = true;
+        emit recordDirectoryReady(baseDirectory);
     }
     else {
         qDebug() << "Failed to record due to base directory creation failing";
-        // TODO: Stop counting and disable buttons since data directory needs to be corrected in user config
+        emit recordingFailed();
     }
 }
 
@@ -363,20 +479,69 @@ void DataSaver::stopRecording()
         return;
     }
     m_recording = false;
-    QStringList keys = videoWriter.keys();
-    for (int i = 0; i < keys.length(); i++) {
-        videoWriter[keys[i]]->release();
-        csvFile[keys[i]]->close();
 
-        if (headOrientationStreamState[keys[i]] == true && bnoBuffer[keys[i]] != nullptr)
-            if (headOriFile[keys[i]]->isOpen())
-                headOriFile[keys[i]]->close();
+    // Drain frames already acquired into the ring buffer so the tail of the
+    // recording is saved instead of silently dropped.
+    QStringList names = frameBuffer.keys();
+    for (int i = 0; i < names.length(); i++) {
+        bool ok = true;
+        while (usedCount[names[i]]->tryAcquire()) {
+            if (ok)
+                ok = writeBufferedFrame(names[i]);
+            frameCount[names[i]]++;
+            freeCount[names[i]]->release(1);
+        }
     }
-    if (!m_userConfig["behaviorTracker"].toObject().isEmpty()) {
-        if (behavTrackerFile->isOpen())
-            behavTrackerFile->close();
+
+    releaseRecordingFiles();
+}
+
+// Close and free everything startRecording() allocated. Called when a
+// recording stops, before a new one starts (clears leftovers from a failed
+// attempt), and on destruction - each record/stop cycle used to leak every
+// QFile/QTextStream/VideoWriter it created.
+void DataSaver::releaseRecordingFiles()
+{
+    for (cv::VideoWriter *writer : videoWriter) {
+        if (writer)
+            writer->release();
+        delete writer;
     }
-    noteFile->close();
+    videoWriter.clear();
+
+    // Streams are deleted before their files: QTextStream flushes on
+    // destruction, which must happen while the QFile is still alive.
+    qDeleteAll(csvStream);
+    csvStream.clear();
+    for (QFile *file : csvFile) {
+        if (file)
+            file->close();
+        delete file;
+    }
+    csvFile.clear();
+
+    qDeleteAll(headOriStream);
+    headOriStream.clear();
+    for (QFile *file : headOriFile) {
+        if (file)
+            file->close();
+        delete file;
+    }
+    headOriFile.clear();
+
+    delete behavTrackerStream;
+    behavTrackerStream = nullptr;
+    if (behavTrackerFile)
+        behavTrackerFile->close();
+    delete behavTrackerFile;
+    behavTrackerFile = nullptr;
+
+    delete noteStream;
+    noteStream = nullptr;
+    if (noteFile)
+        noteFile->close();
+    delete noteFile;
+    noteFile = nullptr;
 }
 
 void DataSaver::devicePropertyChanged(QString deviceName, QString propName, QVariant propValue)
@@ -421,7 +586,7 @@ void DataSaver::takeNote(QString note)
     // Writes note to file submitted through control panel
     // Only write notes when recording
     if (m_recording) {
-        *noteStream << QDateTime().currentMSecsSinceEpoch() - recordStartDateTime.toMSecsSinceEpoch() << "," << note << endl;
+        *noteStream << monotonicTimeMs() - recordStartTimeMs << "," << note << Qt::endl;
     }
 }
 
@@ -458,18 +623,19 @@ QJsonDocument DataSaver::constructBaseDirectoryMetaData()
 
     QJsonObject startTimeObject;
 
-    QJsonArray directoryStructure = m_userConfig["directoryStructure"].toArray();
+    QJsonArray directoryStructure = m_userConfig.value("directoryStructure").toArray();
     for (int i = 0; i < directoryStructure.size(); i++) {
         tempString = directoryStructure[i].toString();
-        if (tempString != "date" && tempString != "time" && !tempString.isEmpty())
-            metaData[tempString] = m_userConfig[tempString].toString();
+        if (tempString.compare("date", Qt::CaseInsensitive) != 0
+            && tempString.compare("time", Qt::CaseInsensitive) != 0 && !tempString.isEmpty())
+            metaData[tempString] = m_userConfig.value(tempString).toString();
     }
     if (!metaData.contains("researcherName"))
-        metaData["researcherName"] = m_userConfig["researcherName"].toString();
+        metaData["researcherName"] = m_userConfig.value("researcherName").toString();
     if (!metaData.contains("animalName"))
-        metaData["animalName"] = m_userConfig["animalName"].toString();
+        metaData["animalName"] = m_userConfig.value("animalName").toString();
     if (!metaData.contains("experimentName"))
-        metaData["experimentName"] = m_userConfig["experimentName"].toString();
+        metaData["experimentName"] = m_userConfig.value("experimentName").toString();
 
     metaData["baseDirectory"] = baseDirectory;
 
@@ -488,16 +654,16 @@ QJsonDocument DataSaver::constructBaseDirectoryMetaData()
     //Device info
     QStringList list;
 
-    list = m_userConfig["devices"].toObject()["miniscopes"].toObject().keys();
+    list = m_userConfig.value("devices").toObject().value("miniscopes").toObject().keys();
     metaData["miniscopes"] = QJsonArray().fromStringList(list);
 
     list.clear();
-    list = m_userConfig["devices"].toObject()["cameras"].toObject().keys();
+    list = m_userConfig.value("devices").toObject().value("cameras").toObject().keys();
     metaData["cameras"] = QJsonArray().fromStringList(list);
 
     list.clear();
-    if (!m_userConfig["behaviorTracker"].toObject().isEmpty())
-        metaData["behaviorTracker"] = m_userConfig["behaviorTracker"].toObject();
+    if (!m_userConfig.value("behaviorTracker").toObject().isEmpty())
+        metaData["behaviorTracker"] = m_userConfig.value("behaviorTracker").toObject();
 
     jDoc.setObject(metaData);
     return jDoc;
@@ -508,7 +674,7 @@ QJsonDocument DataSaver::constructDeviceMetaData(QString type, QString deviceNam
     QJsonObject metaData;
     QJsonDocument jDoc;
 
-    QJsonObject deviceObj = m_userConfig["devices"].toObject()[type].toObject()[deviceName].toObject();
+    QJsonObject deviceObj = m_userConfig.value("devices").toObject()[type].toObject()[deviceName].toObject();
 
     metaData["deviceName"] = deviceName;
     metaData["deviceType"] = deviceObj["deviceType"].toString();
@@ -517,12 +683,13 @@ QJsonDocument DataSaver::constructDeviceMetaData(QString type, QString deviceNam
     metaData["framesPerFile"] = deviceObj["framesPerFile"].toInt(1000);
     metaData["compression"] = deviceObj["compression"].toString("FFV1");
 
-    if (ROI[deviceName][0] >= 0 && ROI[deviceName][1] >= 0 && ROI[deviceName][2] >= 0 && ROI[deviceName][3] >= 0) {
+    const int *roi = ROI.value(deviceName, nullptr);
+    if (roi && roi[0] >= 0 && roi[1] >= 0 && roi[2] >= 0 && roi[3] >= 0) {
         QJsonObject jROI;
-        jROI["leftEdge"] = ROI[deviceName][0];
-        jROI["topEdge"] = ROI[deviceName][1];
-        jROI["width"] = ROI[deviceName][2];
-        jROI["height"] = ROI[deviceName][3];
+        jROI["leftEdge"] = roi[0];
+        jROI["topEdge"] = roi[1];
+        jROI["width"] = roi[2];
+        jROI["height"] = roi[3];
         metaData["ROI"] = jROI;
     }
     // loop through device properties at the start of recording
@@ -541,8 +708,10 @@ QJsonDocument DataSaver::constructDeviceMetaData(QString type, QString deviceNam
 void DataSaver::saveJson(QJsonDocument document, QString fileName)
 {
     QFile jsonFile(fileName);
-    jsonFile.open(QFile::NewOnly);
+    if (!jsonFile.open(QFile::NewOnly)) {
+        sendMessage("Warning: could not write " + fileName + " (" + jsonFile.errorString() + ").");
+        return;
+    }
     jsonFile.write(document.toJson());
-
 }
 

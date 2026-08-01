@@ -1,0 +1,58 @@
+{
+    "$schema": "https://raw.githubusercontent.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/master/deviceConfigs/userConfigSchema.json",
+    "configVersion": 1,
+    "COMMENT": "One V4 Miniscope with head orientation - the simplest config that records something. Start here.",
+    "COMMENT2": "Keys containing 'COMMENT' are ignored by the software; they are notes for you. Everything here is editable in the app (Setup -> Form), and Reference-AllOptions.json documents every available key.",
+
+    "COMMENT_dataDirectory": "Where recordings are written. './Data' is relative to the software folder so this config runs as-is; for real experiments set an absolute path with forward slashes, e.g. 'D:/MiniscopeData'.",
+    "dataDirectory": "./Data",
+
+    "COMMENT_directoryStructure": "The folder hierarchy created under dataDirectory for each recording. 'date' and 'time' are filled in when you hit Record; every other entry names a key in this file whose value becomes the folder name.",
+    "directoryStructure": [
+        "researcherName",
+        "animalName",
+        "date",
+        "time"
+    ],
+    "researcherName": "MyName",
+    "animalName": "Animal1",
+
+    "COMMENT_recordLengthInSeconds": "0 = record until you press Stop. Any positive value stops the recording automatically after that many seconds.",
+    "recordLengthInSeconds": 0,
+
+    "COMMENT_traceDisplay": "The scrolling trace window. With a BNO Miniscope it plots head orientation; fluorescence ROI traces can be added during acquisition.",
+    "traceDisplay": {
+        "enabled": true,
+        "type": "scrolling"
+    },
+
+    "devices": {
+        "miniscopes": {
+            "Miniscope": {
+                "COMMENT_deviceType": "Miniscope_V4_BNO is the V4 with the head-orientation IMU. Other types live in deviceConfigs/videoDevices.json.",
+                "deviceType": "Miniscope_V4_BNO",
+                "COMMENT_deviceID": "Which camera on this computer the Miniscope is. Use 'Scan devices...' in the Devices section to find it - it is not always 0.",
+                "deviceID": 0,
+                "headOrientation": {
+                    "enabled": true,
+                    "filterBadData": true,
+                    "plotTrace": [
+                        "roll",
+                        "pitch",
+                        "yaw"
+                    ]
+                },
+                "COMMENT_compression": "Imaging data must stay lossless: FFV1 (lossless, uses CPU) or GREY (no compression at all, largest files). Switch to GREY if the frame buffer fills up while recording.",
+                "compression": "FFV1",
+                "framesPerFile": 1000,
+                "showSaturation": true,
+                "lut": "None",
+                "COMMENT_startupValues": "gain / frameRate / led0 / ewl are the values the Miniscope boots with. All four are adjustable during acquisition.",
+                "gain": "Low",
+                "frameRate": "20FPS",
+                "led0": 10,
+                "ewl": 50
+            }
+        }
+    }
+}

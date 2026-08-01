@@ -1,11 +1,19 @@
 {
+    "$schema": {
+        "type": "String",
+        "tips": "Optional pointer to deviceConfigs/userConfigSchema.json (or its GitHub URL) so editors like VS Code validate and autocomplete this file."
+    },
+    "configVersion": {
+        "type": "Integer",
+        "tips": "Version of the config format this file was written for. Added automatically when saving from the in-app editor; current version is 1."
+    },
     "dataDirectory": {
         "type": "DirPath",
         "tips": "This is an absolute path to the base directory you want to save all data to. It should use '/' and not '\\'."
     },
     "directoryStructure": {
         "type": "Array(String)",
-        "tips": "This is an array of strings which defines the structure of the save directory. 'Time' and 'Date' will generate the exact time and data when recording starts. All other entries can be whatever you want but they also need to have their own \"key\": \"value\" pair defined within this file."
+        "tips": "An ordered list of folders created under 'dataDirectory' for each recording (shown here separated by ' / '). The reserved words 'date' and 'time' — capitalization doesn't matter — are filled in automatically from when the recording starts. Every other entry must match the name of another key in this file (such as 'researcherName'), and that key's value is used as the folder name. Example: researcherName / animalName / date / time saves to dataDirectory/Jane_Doe/Mouse01/2026_07_25/14_30_02."
     },
     "researcherName": {
         "type": "String",
@@ -19,7 +27,7 @@
         "type": "String",
         "tips": "This will be saved in the recording's meta data file as well as can be used as an entry into the 'directoryStructure' array."
     },
-    "recordLengthinSeconds": {
+    "recordLengthInSeconds": {
         "type": "Integer",
         "tips": "This is an integer value. A value of '0' does not limit recording length. An integer value above 0 will stop the recording at that amount of seconds."
     },
@@ -166,6 +174,44 @@
             "tips": "These 'window' key: value pairs define the location and size of the trace display window."
         }
     },
+    "commutator": {
+        "enabled": {
+            "type": "Bool",
+            "tips": "Enables driving an Open Ephys commutator (github.com/open-ephys/commutator-controller) so the tether unwinds as the animal turns. Requires a V4 (or newer) Miniscope with head orientation enabled. No Bonsai needed."
+        },
+        "port": {
+            "type": "String",
+            "tips": "Serial port the commutator is connected to, e.g. \"COM5\" on Windows, \"/dev/ttyACM0\" on Linux, or \"/dev/cu.usbmodemXXXX\" on macOS. If the port can't be opened, the software prints the list of available ports to the message log."
+        },
+        "deviceName": {
+            "type": "String",
+            "tips": "Which Miniscope's head orientation drives the commutator, matching its name under devices/miniscopes. Leave blank to use the first Miniscope that has head orientation enabled."
+        },
+        "led": {
+            "type": "Bool",
+            "tips": "Turns the commutator's indicator LED on or off. Defaults to on."
+        },
+        "sampleRate": {
+            "type": "Double",
+            "tips": "How many times per second the head orientation is sampled to compute a rotation command, in Hz. 10 is a good default."
+        },
+        "headstageAxis": {
+            "type": "Array(Double)",
+            "tips": "The direction the tether leaves the headstage as [x, y, z] in the Miniscope IMU's reference frame. Default is [0, 0, 1]. If the commutator winds the tether up instead of unwinding it, negate this to [0, 0, -1]."
+        },
+        "commutatorAxis": {
+            "type": "Array(Double)",
+            "tips": "The direction the tether enters the rotating part of the commutator as [x, y, z] in the global frame. Default [0, 0, 1] works for the usual upright mounting."
+        },
+        "fallbackThreshold": {
+            "type": "Double",
+            "tips": "Advanced. Cosine threshold where the twist calculation switches to a fallback near its mathematical pole. Default -0.9. Most setups never need to change this."
+        },
+        "fallbackMode": {
+            "type": "String",
+            "tips": "Advanced. Either \"global\" or \"local\" - which rotation to assume at the pole. Default \"global\"."
+        }
+    },
     "devices": {
         "miniscopes": {
             "miniscopeDeviceName": {
@@ -217,6 +263,10 @@
                     "type": "String",
                     "tips": "Imaging data is save in .avi file format. You can choose what type of video compression to apply when saving data. We suggest using a lossless compression CODEC for Miniscope data. This would be either GREY or FFV1. GREY does no compression. FFV1 losslessly compresses the data but can be CPU intensive. We generally use FFV1 is our computer can keep up with it. If you notice the frame buffer filling up completely while recording you should switch to GREY."
                 },
+                "lut": {
+                    "type": "String",
+                    "tips": "Optional display colormap (LUT) for the live Miniscope video. Choose None (grayscale), Green (GCaMP/GFP, ~530 nm), Red (red indicators such as jRGECO/RCaMP/tdTomato), or Inferno. This is DISPLAY ONLY - it does not affect the recorded data, which is always saved in grayscale. The 'Apply LUT' switch on the device window toggles it on/off at runtime."
+                },
                 "framesPerFile": {
                     "type": "Integer",
                     "tips": "We generally set this to 1000. It defines how large each .avi file will be in your recording."
@@ -243,7 +293,27 @@
                 },
                 "led0": {
                     "type": "Integer",
-                    "tips": "This sets the initial excitation LED intensity. Values can be from 0 to 100 but many Miniscope configurations have trouble with values over 70 or 80 due to current limits through certain coax cable lengths."
+                    "tips": "This sets the initial excitation LED intensity. Values can be from 0 to 100 (or 0 to 255 when led0FineSteps is true) but many Miniscope configurations have trouble with values over 70% of the range due to current limits through certain coax cable lengths."
+                },
+                "led0FineSteps": {
+                    "type": "Bool",
+                    "tips": "When true, the led0 slider runs 0 to 255 and addresses every hardware step of the LED driver individually instead of 0 to 100 percent, giving 2.55x finer steps for very dim illumination. Both mappings span the same brightness range. Leave off (default) to keep the exact LED output of existing configs."
+                },
+                "led1": {
+                    "type": "Integer",
+                    "tips": "Initial intensity of the second excitation LED, on dual-color scopes only (Miniscope_V4_2C_Manual). Same 0 to 100 scale as led0. Ignored by single-LED devices."
+                },
+                "led1FineSteps": {
+                    "type": "Boolean",
+                    "tips": "The led1 equivalent of led0FineSteps: runs the second LED's slider 0 to 255 over the driver's individual hardware steps instead of 0 to 100 percent."
+                },
+                "optoPeriod": {
+                    "type": "Integer",
+                    "tips": "Optogenetic stimulation period in seconds, measured burst-start to burst-start. Only applies to scopes whose catalog entry declares it; no shipped entry does yet. 0 disables stimulation, which is the default; both optoPeriod and optoDuration must be non-zero before the scope emits any stimulation light."
+                },
+                "optoDuration": {
+                    "type": "Integer",
+                    "tips": "Length of each optogenetic burst, in camera frames. Only applies to scopes whose catalog entry declares it; no shipped entry does yet. The opto LED is lit only while the sensor is integrating, so the delivered pulse train follows the frame rate. 0 disables stimulation, which is the default."
                 },
                 "frameRate": {
                     "type": "String",

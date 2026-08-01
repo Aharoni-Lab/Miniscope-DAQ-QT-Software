@@ -1,0 +1,419 @@
+# Build the Windows distribution, the Linux AppImage, and the macOS DMG, then
+# publish ALL THREE as a single GitHub Release.
+#
+# Triggers:
+#   * push a tag like v2.0.0 -> check the tag matches CMakeLists.txt, build all
+#                               three, then cut ONE DRAFT Release carrying the
+#                               Windows installer + portable zip, the Linux
+#                               AppImage, and the macOS DMG. The maintainer runs
+#                               the artifact sanity-check (RELEASING.md) and then
+#                               clicks Publish. A pre-release suffix (v2.0.0-rc1)
+#                               publishes as a prerelease, not "Latest".
+#   * push to master         -> build + test only (no packaging, no Release), so
+#                               a merge that breaks the build is caught before a
+#                               tag is cut rather than mid-release.
+#   * manual "Run workflow"  -> build all and upload them as run artifacts only
+#                               (no Release created).
+#   * pull request into qt6-port / master -> build + test only on all platforms
+#                               (the packaging + release steps are gated to tags
+#                               and manual runs, so PRs never publish).
+#
+# Shape: three independent build jobs (build-windows, build-linux, build-macos)
+# each upload their artifacts; a `check-version` job guards the tag, and a final
+# `release` job gathers the artifacts and cuts the Release. So a tag yields ONE
+# release carrying every platform's binaries, rather than a separate release per
+# OS. Least-privilege: build jobs run read-only; only `release` writes.
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - master      # build+test validation on direct pushes / PR merges to master
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - qt6-port
+      - master      # keeps PR validation alive after the qt6 work merges home
+
+# Least privilege by default: build/test jobs run read-only (they pull network
+# deps and run dependency code), and only the release job is granted write to
+# publish the Release. Keeps future signing secrets out of PR-triggered jobs.
+permissions:
+  contents: read
+
+concurrency:
+  # Coalesce superseded runs on the same ref, but never cancel a release build.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  # --- Windows ---------------------------------------------------------------
+  # Mirrors the local recipe (conda env from environment.yml, MSVC, then the
+  # `deploy` target which bundles every dependency into build/Release/). CI uses
+  # the Ninja generator rather than the VS generator because the conda cmake
+  # can't discover the runner's VS instance through the VS generator; CMakeLists
+  # is generator-agnostic, so the output tree is identical. deploy.py fails the
+  # job if any conda dependency is missing.
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Cache the conda package downloads (setup-miniconda's default pkgs dir) so
+      # the ~1-2 GB Qt/OpenCV stack isn't re-fetched every run. Keyed on
+      # environment.yml; restore-keys let an unrelated edit still reuse most of it.
+      - name: Cache conda packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/conda_pkgs_dir
+          key: ${{ runner.os }}-conda-${{ hashFiles('environment.yml') }}
+          restore-keys: ${{ runner.os }}-conda-
+
+      - name: Set up conda env (Miniforge + environment.yml)
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
+        with:
+          miniforge-version: latest
+          environment-file: environment.yml
+          activate-environment: miniscope-qt6
+          auto-activate: false
+
+      - name: Set up MSVC toolchain (x64)
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
+
+      # USE_PYTHON=OFF to match what all three platforms actually ship: the
+      # DeepLabCut-Live tracker is not bundled (the DMG/AppImage scripts already
+      # build OFF), so CI builds, tests, and packages the SAME configuration.
+      - name: Configure (CMake + Ninja + MSVC)
+        run: >
+          cmake -B build -S . -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_PREFIX_PATH="$env:CONDA_PREFIX/Library"
+          -DUSE_PYTHON=OFF
+
+      - name: Build (Release)
+        run: cmake --build build --config Release
+
+      # The shader-compile test skips itself here (runner software GL is 1.1,
+      # too old for GLSL); the protocol tests run everywhere.
+      - name: Run unit tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Deploy standalone bundle (into build/Release/)
+        run: cmake --build build --config Release --target deploy
+
+      # PRs and plain branch pushes stop after build+test+deploy: the
+      # zip/installer/artifacts below exist to be released (tag) or downloaded
+      # (manual run), and nothing consumes them otherwise.
+      - name: Package the release folder into a zip
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+        run: |
+          $name = if ($env:GITHUB_REF_TYPE -eq 'tag') { "MiniscopeDAQ-$env:GITHUB_REF_NAME-Windows-x64.zip" } else { "MiniscopeDAQ-Windows-x64.zip" }
+          Compress-Archive -Path build/Release/* -DestinationPath $name -Force
+          "ZIP_NAME=$name" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "Built $name"
+
+      - name: Build installer (Inno Setup)
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+        run: |
+          # The in-installer version label comes from CMakeLists.txt's
+          # project(MiniscopeDAQ VERSION x.y.z) - the single source of truth that
+          # also drives the app's displayed version (via MINISCOPE_VERSION) and
+          # the DMG/AppImage file names, so every artifact and the running app
+          # always report the same number. (build-dmg.sh / build-appimage.sh
+          # extract it the same way.)
+          $m = Select-String -Path CMakeLists.txt -Pattern 'project\(MiniscopeDAQ\s+VERSION\s+([0-9.]+)'
+          if (-not $m) { throw "project(MiniscopeDAQ VERSION ...) not found in CMakeLists.txt" }
+          $ver = $m.Matches[0].Groups[1].Value
+          "App version (from CMakeLists.txt): $ver"
+
+          # The artifact FILE name tracks the git tag (or a generic name for
+          # manual runs) so each tagged release stays identifiable.
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $base = "MiniscopeDAQ-$env:GITHUB_REF_NAME-Setup"
+          } else {
+            $base = "MiniscopeDAQ-Setup"
+          }
+
+          # ISCC ships on the windows runner image but isn't always on PATH; fall
+          # back to the default install path, then choco.
+          $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) {
+            $default = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+            if (Test-Path $default) { $iscc = $default }
+            else { choco install innosetup -y --no-progress; $iscc = $default }
+          }
+          "Using ISCC: $iscc"
+
+          $src = (Resolve-Path build/Release).Path
+          $out = (Resolve-Path .).Path
+          & $iscc "/DMyAppVersion=$ver" "/DMySourceDir=$src" "/DMyOutputDir=$out" "/DMyOutputBaseName=$base" packaging/windows/MiniscopeDAQ.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compile failed ($LASTEXITCODE)" }
+
+          "INSTALLER_NAME=$base.exe" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "Built $base.exe"
+
+      - name: Upload Windows artifacts
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: MiniscopeDAQ-Windows-x64
+          path: |
+            ${{ env.ZIP_NAME }}
+            ${{ env.INSTALLER_NAME }}
+          if-no-files-found: error
+          retention-days: 14
+
+  # --- Linux (AppImage) ------------------------------------------------------
+  # Mirrors packaging/linux/build-appimage.sh: a conda env from environment.yml
+  # plus libuvc, built USE_PYTHON=OFF (no embedded Python / DeepLabCut tracker -
+  # see BUILD_LINUX.md), then packaged with linuxdeploy + its Qt plugin.
+  build-linux:
+    runs-on: ubuntu-latest
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache   # cached below; build-appimage.sh picks up ccache
+    defaults:
+      run:
+        shell: bash -el {0}    # login shell so `conda activate` works
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # OpenGL/EGL dev libs for linking Qt6::OpenGL on the runner (conda provides
+      # Qt/OpenCV/ninja; the GL loader libs come from the system) + ccache.
+      - name: Install system build libs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev libegl1-mesa-dev libglu1-mesa-dev ccache
+
+      # See the Windows job for the conda-package cache rationale.
+      - name: Cache conda packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/conda_pkgs_dir
+          key: ${{ runner.os }}-conda-${{ hashFiles('environment.yml') }}
+          restore-keys: ${{ runner.os }}-conda-
+
+      # Reuse compiled objects across runs; restore-keys grabs the most recent
+      # cache when this commit's exact key misses.
+      - name: Cache ccache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ${{ runner.os }}-ccache-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-ccache-
+
+      - name: Set up conda env (Miniforge + environment.yml)
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
+        with:
+          miniforge-version: latest
+          environment-file: environment.yml
+          activate-environment: miniscope-qt6
+          auto-activate: false
+
+      - name: Add libuvc (Linux Miniscope capture backend)
+        run: conda install -n miniscope-qt6 -c conda-forge -y libuvc
+
+      - name: Build the AppImage
+        run: packaging/linux/build-appimage.sh
+
+      # Reuses the build tree the AppImage script just made. (The headless-GL
+      # handling lives on the test itself: tests/CMakeLists.txt sets the
+      # offscreen platform per-test, so plain ctest works here and locally.)
+      - name: Run unit tests
+        run: ctest --test-dir build-appimage --output-on-failure
+
+      # Record the exact resolved dependency set - especially libuvc, which is
+      # installed outside environment.yml and so is absent from conda-lock.yml -
+      # so a Linux release can be reconstructed after the CI logs expire. Ships
+      # alongside the AppImage on the release.
+      - name: Record dependency versions
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+        run: conda list -n miniscope-qt6 > dist/versions-linux-x86_64.txt
+
+      - name: Name the artifact
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+        run: |
+          set -o pipefail
+          f=$(ls dist/Miniscope_DAQ*-x86_64.AppImage | head -1)
+          [ -n "$f" ] || { echo "::error::No AppImage found in dist/"; exit 1; }
+          echo "APPIMAGE_PATH=$f" >> "$GITHUB_ENV"
+          echo "Built $f"
+
+      - name: Upload Linux artifact
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: MiniscopeDAQ-Linux-x86_64
+          path: |
+            ${{ env.APPIMAGE_PATH }}
+            dist/versions-linux-x86_64.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  # --- macOS (Apple Silicon) ---------------------------------------------------
+  # Build + test with USE_PYTHON=OFF (the configuration that ships), then
+  # package the distributable .app + DMG with packaging/macos/build-dmg.sh
+  # (its own USE_PYTHON=OFF build, matching the lean Linux AppImage). Runs on
+  # the arm64 runner with the same conda-forge stack as the other jobs
+  # (environment.yml resolves on osx-arm64 unchanged). The DMG is ad-hoc
+  # signed: first launch on another Mac needs right-click > Open (see
+  # BUILD_MACOS.md); Developer ID signing/notarization can slot into the
+  # script later without workflow changes.
+  build-macos:
+    runs-on: macos-latest    # arm64 (Apple Silicon)
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache   # cached below; used by both builds in this job
+    defaults:
+      run:
+        shell: bash -el {0}    # login shell so the conda env is active
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # See the Windows job for the conda-package cache rationale.
+      - name: Cache conda packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/conda_pkgs_dir
+          key: ${{ runner.os }}-conda-${{ hashFiles('environment.yml') }}
+          restore-keys: ${{ runner.os }}-conda-
+
+      # Shared by the inline test build and the DMG build (build-dmg.sh), and
+      # reused across runs via restore-keys.
+      - name: Cache ccache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ${{ runner.os }}-ccache-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-ccache-
+
+      - name: Set up conda env (Miniforge + environment.yml)
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
+        with:
+          miniforge-version: latest
+          environment-file: environment.yml
+          activate-environment: miniscope-qt6
+          auto-activate: false
+
+      - name: Install ccache
+        run: conda install -n miniscope-qt6 -c conda-forge -y ccache
+
+      # USE_PYTHON=OFF so the tested tree matches the shipped DMG (build-dmg.sh
+      # also builds OFF); DeepLabCut-Live is not bundled on any platform.
+      # The compiler launchers route this build through ccache too.
+      - name: Configure (CMake + Ninja)
+        run: >
+          cmake -B build -S . -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_PREFIX_PATH="$CONDA_PREFIX"
+          -DUSE_PYTHON=OFF
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build (Release)
+        run: cmake --build build
+
+      # Runs the full suite for real: the arm64 runner's GL stack compiles the
+      # shaders, and the IOKit smoke tests walk the (deviceless) USB registry.
+      - name: Run unit tests
+        run: ctest --test-dir build --output-on-failure
+
+      # PRs and plain branch pushes stop after build+test; only tags and manual
+      # runs package.
+      - name: Build .app + DMG
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+        run: packaging/macos/build-dmg.sh
+
+      - name: Name the artifact
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+        run: |
+          set -o pipefail
+          f=$(ls dist/Miniscope-DAQ*-macOS-*.dmg | head -1)
+          [ -n "$f" ] || { echo "::error::No DMG found in dist/"; exit 1; }
+          echo "DMG_PATH=$f" >> "$GITHUB_ENV"
+          echo "Built $f"
+
+      - name: Upload macOS artifact
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: MiniscopeDAQ-macOS-arm64
+          path: ${{ env.DMG_PATH }}
+          if-no-files-found: error
+          retention-days: 14
+
+  # --- Version guard ---------------------------------------------------------
+  # A tag MUST match project(MiniscopeDAQ VERSION x.y.z) in CMakeLists.txt (the
+  # single source that drives every artifact's file name and the in-app version).
+  # This blocks the release below, so a mistyped tag can never publish a release
+  # whose artifacts and running app disagree on the version. Skipped on non-tag
+  # runs, so it never interferes with PR / branch validation.
+  check-version:
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Assert tag matches CMakeLists.txt version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          cmake_ver=$(sed -nE 's/^project\(MiniscopeDAQ[[:space:]]+VERSION[[:space:]]+([0-9.]+).*/\1/p' CMakeLists.txt | head -1)
+          tag_ver="${TAG#v}"
+          echo "tag=$tag_ver  CMakeLists.txt=$cmake_ver"
+          if [ "$cmake_ver" != "$tag_ver" ]; then
+            echo "::error::Tag $TAG (version $tag_ver) != CMakeLists.txt project() version $cmake_ver. Bump CMakeLists.txt to match the tag (or retag), then push again."
+            exit 1
+          fi
+
+  # --- Single release --------------------------------------------------------
+  # Gather all three platforms' artifacts and publish them as ONE Release. Only
+  # runs on tag pushes (manual runs stop after the build jobs, artifacts only).
+  # Published as a DRAFT so the maintainer runs RELEASING.md's artifact
+  # sanity-check before clicking Publish; a tag with a pre-release suffix
+  # (e.g. v2.0.0-rc1) goes out as a prerelease instead of "Latest".
+  release:
+    needs: [check-version, build-windows, build-linux, build-macos]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # only this job writes the Release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: artifacts       # each artifact lands in artifacts/<name>/
+
+      # Release notes = the curated CHANGELOG section for this version (what
+      # users should read), not the raw merged-PR list. Grabs the block under
+      # the first "## [" header, which RELEASING.md step 2 renames from
+      # "[Unreleased]" to the version + date at release time.
+      - name: Extract changelog section for release notes
+        run: |
+          set -euo pipefail
+          awk '/^## \[/{n++} n==1{print} n==2{exit}' CHANGELOG.md > RELEASE_NOTES.md
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "::error::Could not extract a changelog section from CHANGELOG.md"; exit 1
+          fi
+          echo "----- release notes -----"; cat RELEASE_NOTES.md
+
+      - name: Publish Release (draft)
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        with:
+          files: artifacts/**/*
+          fail_on_unmatched_files: true
+          body_path: RELEASE_NOTES.md
+          draft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}

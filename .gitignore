@@ -66,8 +66,22 @@ Thumbs.db
 # Python byte code
 *.pyc
 
-# Builds
-build-*
+# Builds (match build dirs only, not e.g. packaging/linux/build-appimage.sh)
+/build-*/
+
+# CMake build directory + artifacts
+/build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# AppImage build output
+/dist/
+
+# Recordings. The shipped example configs use a relative "./Data" dataDirectory
+# so they run as-is out of the repo folder, which means a test acquisition drops
+# video here.
+/Data/
 
 # Binaries
 # --------

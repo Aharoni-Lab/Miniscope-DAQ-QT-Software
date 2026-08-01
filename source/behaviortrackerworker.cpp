@@ -45,13 +45,19 @@ void BehaviorTrackerWorker::initPython()
 #ifdef USE_PYTHON
 
     // Check to see if environment path goes to a likely python env with dlc
-    if (QDir(m_btConfig["pyEnvPath"].toString() + "/Lib/site-packages/dlclive").exists()) {
+    if (QDir(m_btConfig.value("pyEnvPath").toString() + "/Lib/site-packages/dlclive").exists()) {
 
         // Checks to make sure numpy .dll exists.
-        if (QDir(m_btConfig["pyEnvPath"].toString() + "/Lib/site-packages/numpy/.libs").exists()) {
+        if (QDir(m_btConfig.value("pyEnvPath").toString() + "/Lib/site-packages/numpy/.libs").exists()) {
 
             // likely a correct path
-            Py_SetPythonHome(m_btConfig["pyEnvPath"].toString().toStdWString().c_str());
+            // Py_SetPythonHome is deprecated since Python 3.11 in favor of the
+            // PyConfig API; migrating is not worth it for this rarely-built
+            // feature (USE_PYTHON=OFF by default), so just silence the warning.
+QT_WARNING_PUSH
+QT_WARNING_DISABLE_DEPRECATED
+            Py_SetPythonHome(m_btConfig.value("pyEnvPath").toString().toStdWString().c_str());
+QT_WARNING_POP
             Py_Initialize();
             m_PythonInitialized = true;
             PyObject* sysPath = PySys_GetObject((char*)"path");
@@ -78,7 +84,10 @@ void BehaviorTrackerWorker::initPython()
 
 int BehaviorTrackerWorker::initNumpy()
 {
-    import_array1(-1);
+#ifdef USE_PYTHON
+    import_array1(-1); // expands to `return -1` on failure; fall through = success
+#endif
+    return 0;
 }
 
 void BehaviorTrackerWorker::setUpDLCLive()
@@ -99,10 +108,10 @@ void BehaviorTrackerWorker::setUpDLCLive()
         pClass = PyDict_GetItemString(pDict, "MiniDLC");
 
         pArgs = PyTuple_New(2);
-        pValue = PyUnicode_FromString(m_btConfig["modelPath"].toString().toUtf8());
+        pValue = PyUnicode_FromString(m_btConfig.value("modelPath").toString().toUtf8());
         PyTuple_SetItem(pArgs, 0, pValue);
 
-        pValue = PyFloat_FromDouble(m_btConfig["resize"].toDouble(1));
+        pValue = PyFloat_FromDouble(m_btConfig.value("resize").toDouble(1));
         PyTuple_SetItem(pArgs, 1, pValue);
 
         // Should create instance of MiniDLC class
@@ -205,6 +214,7 @@ void BehaviorTrackerWorker::setPoseBufferParameters(QVector<float> *poseBuf, int
 void BehaviorTrackerWorker::getColors()
 {
     // TODO: Currently number of colors is hardcoded. Change this
+#ifdef USE_PYTHON
     pValue = PyObject_CallMethod(pInstance,"getColors", NULL);
 
     PyArrayObject *np_ret = reinterpret_cast<PyArrayObject*>(pValue);
@@ -222,6 +232,7 @@ void BehaviorTrackerWorker::getColors()
             colors[i*3+1] = (float)c_out[i*3+1]/170.0f;
             colors[i*3+2] = (float)c_out[i*3+2]/170.0f;
      }
+#endif
 }
 
 void BehaviorTrackerWorker::startRunning()

@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Launcher placed at usr/bin/MiniscopeDAQ inside the AppImage (the real binary is
+# MiniscopeDAQ.bin). linuxdeploy's AppRun sets up the Qt environment and then runs
+# this, which:
+#   - on first run, asks where to keep user-config files and recordings (zenity
+#     folder pickers; falls back to defaults under ~/Documents/Miniscope if zenity
+#     is missing or the user cancels). Re-prompt by deleting the settings file.
+#   - exports MINISCOPE_USERCONFIG_DIR / MINISCOPE_DATA_DIR so the app's config
+#     open/save dialogs and new-config data directory default to those folders.
+#   - seeds the example user configs into the chosen config folder.
+#   - runs from a private working dir holding the app-internal deviceConfigs +
+#     Scripts (which the app reads relative to the working directory).
+APPDIR="${APPDIR:-$(dirname "$(dirname "$(dirname "$(readlink -f "$0")")")")}"
+SHARE="$APPDIR/usr/share/miniscope"
+
+# Only the xcb Qt platform plugin is bundled, so force it (runs via XWayland on
+# Wayland sessions). Override by exporting QT_QPA_PLATFORM before launch.
+export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-xcb}"
+
+CFG_DIR="$HOME/.config/MiniscopeDAQ"
+SETTINGS="$CFG_DIR/paths.conf"
+mkdir -p "$CFG_DIR"
+
+if [ ! -f "$SETTINGS" ]; then
+    DEF_UCFG="$HOME/Documents/Miniscope/userConfigs"
+    DEF_DATA="$HOME/Documents/Miniscope/data"
+    USERCONFIG_DIR=""; DATA_DIR=""
+    if command -v zenity >/dev/null 2>&1; then
+        mkdir -p "$DEF_UCFG" "$DEF_DATA"
+        USERCONFIG_DIR=$(zenity --file-selection --directory \
+            --title="Miniscope DAQ — choose a folder for your USER CONFIG files" \
+            --filename="$DEF_UCFG/" 2>/dev/null) || USERCONFIG_DIR=""
+        DATA_DIR=$(zenity --file-selection --directory \
+            --title="Miniscope DAQ — choose a DEFAULT folder for recordings/data" \
+            --filename="$DEF_DATA/" 2>/dev/null) || DATA_DIR=""
+    fi
+    USERCONFIG_DIR="${USERCONFIG_DIR:-$DEF_UCFG}"
+    DATA_DIR="${DATA_DIR:-$DEF_DATA}"
+    printf 'USERCONFIG_DIR=%q\nDATA_DIR=%q\n' "$USERCONFIG_DIR" "$DATA_DIR" > "$SETTINGS"
+fi
+# shellcheck disable=SC1090
+. "$SETTINGS"
+
+export MINISCOPE_USERCONFIG_DIR="$USERCONFIG_DIR"
+export MINISCOPE_DATA_DIR="$DATA_DIR"
+mkdir -p "$USERCONFIG_DIR" "$DATA_DIR"
+
+# Seed example user configs into the chosen folder on first use (never clobber).
+if [ -d "$SHARE/userConfigs" ]; then
+    for f in "$SHARE"/userConfigs/*; do
+        [ -e "$f" ] || continue
+        dest="$USERCONFIG_DIR/$(basename "$f")"
+        [ -e "$dest" ] || cp "$f" "$dest"
+    done
+fi
+
+# Private working dir: app-internal deviceConfigs + Scripts, refreshed each launch.
+WORK="$HOME/.local/share/MiniscopeDAQ"
+mkdir -p "$WORK"
+for d in deviceConfigs Scripts; do
+    rm -rf "$WORK/$d"; cp -r "$SHARE/$d" "$WORK/$d"
+done
+cd "$WORK"
+exec "$APPDIR/usr/bin/MiniscopeDAQ.bin" "$@"

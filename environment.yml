@@ -1,0 +1,50 @@
+# Reproducible build environment for Miniscope-DAQ-QT-Software (Qt6 / Windows).
+#
+# Create it once, then build per the CMake instructions in CMakeLists.txt:
+#     conda env create -f environment.yml
+#     conda activate miniscope-qt6
+#     cmake -B build -S . -G "Visual Studio 17 2022" -A x64 ^
+#         -DCMAKE_PREFIX_PATH="%CONDA_PREFIX%/Library" -DUSE_PYTHON=OFF
+#     cmake --build build --config Release
+#
+# Packaged releases ship USE_PYTHON=OFF on every platform (the DeepLabCut-Live
+# tracker is not bundled). Build with -DUSE_PYTHON=ON only if you specifically
+# want the embedded-Python tracker for local use.
+#     cmake --build build --config Release --target deploy   # -> build/Release/
+#
+# To update an existing env after editing this file:
+#     conda env update -f environment.yml --prune
+#
+# IMPORTANT - BLAS provider MUST be OpenBLAS, not MKL.
+# OpenCV's LAPACK/BLAS under MKL pulls mkl_rt plus ~565 MB of dynamically-loaded
+# kernels that tools/deploy.py cannot see (and so cannot bundle), which makes the
+# standalone dist/ fail on a machine without MKL. The `libblas=*=*openblas` pin
+# below forces the small, bundleable OpenBLAS variant. Do not remove it.
+#
+# Versions are pinned to major.minor for a reproducible-yet-maintainable build:
+# each fresh env resolves the newest PATCH release within these pins, so day-to-day
+# builds pick up bugfixes automatically.
+#
+# For byte-for-byte reproducibility, conda-lock.yml (committed alongside this
+# file) pins the exact package set for win-64 / linux-64 / osx-arm64. Install
+# from it with:
+#     conda-lock install -n miniscope-qt6 conda-lock.yml
+# Regenerate it (do this at least at every release tag - see RELEASING.md):
+#     pip install conda-lock
+#     conda-lock lock -f environment.yml -p win-64 -p linux-64 -p osx-arm64 \
+#         --lockfile conda-lock.yml
+name: miniscope-qt6
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - qt6-main=6.11
+  - qt6-serialport=6.11   # Qt6::SerialPort (commutator control); version-locked to qt6-main
+  - libopencv=4.13
+  - numpy=2.4
+  - cmake
+  - ninja
+  - "libblas=*=*openblas"   # force OpenBLAS, never MKL (see note above)
+  - pip
+  - pip:
+      - pefile              # deploy.py walks the PE import table to find DLL deps

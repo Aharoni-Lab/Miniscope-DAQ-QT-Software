@@ -8,11 +8,11 @@
 #include <opencv2/opencv.hpp>
 
 #include <QtQuick/QQuickItem>
-#include <QtGui/QOpenGLShaderProgram>
+#include <QtOpenGL/QOpenGLShaderProgram>     // Qt6: moved from QtGui to Qt6::OpenGL
 #include <QtGui/QOpenGLFunctions>
-#include <QtGui/QOpenGLTexture>
-#include <QtGui/QOpenGLBuffer>
-#include <QtGui/QOpenGLFramebufferObject>
+#include <QtOpenGL/QOpenGLTexture>   // Qt6: moved from QtGui to Qt6::OpenGL
+#include <QtOpenGL/QOpenGLBuffer>            // Qt6: moved from QtGui to Qt6::OpenGL
+#include <QtOpenGL/QOpenGLFramebufferObject> // Qt6: moved from QtGui to Qt6::OpenGL
 
 #include <QObject>
 #include <QJsonObject>
@@ -150,6 +150,9 @@ class BehaviorTracker : public QObject
     Q_OBJECT
 public:
     explicit BehaviorTracker(QObject *parent = nullptr, QJsonObject userConfig = QJsonObject(), qint64 softwareStartTime = 0);
+    // Session teardown: joins the (already-stopped) worker thread, frees the
+    // worker, and closes/frees the tracker window.
+    ~BehaviorTracker() override;
     void parseUserConfigTracker();
     void loadCamCalibration(QString name);
     void setBehaviorCamBufferParameters(QString name, qint64* timeBuf, cv::Mat* frameBuf, int bufSize, QAtomicInt* acqFrameNum);
@@ -181,6 +184,8 @@ public slots:
     void sendNewFrame();
     void startRunning(); // Slot gets called when thread starts
     void close();
+    // Orderly shutdown: ask the worker to stop, then join its thread.
+    void stopAndJoinWorker();
     void handleAddNewTracePose(int poseIdx, QString type, bool sameOffset);
 
 private:

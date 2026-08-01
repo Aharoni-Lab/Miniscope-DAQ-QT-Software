@@ -1,0 +1,39 @@
+{
+    "$schema": "https://raw.githubusercontent.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/master/deviceConfigs/userConfigSchema.json",
+    "configVersion": 1,
+    "COMMENT": "One MiniCAM behavior camera. A MiniCAM is not a webcam - it plugs into a Miniscope DAQ over coax, so it is configured like a Miniscope (gain, frame rate, LED) even though it lives under 'cameras'.",
+    "COMMENT2": "Keys containing 'COMMENT' are ignored by the software; they are notes for you. Everything here is editable in the app (Setup -> Form), and Reference-AllOptions.json documents every available key.",
+
+    "COMMENT_dataDirectory": "Where recordings are written. './Data' is relative to the software folder so this config runs as-is; for real experiments set an absolute path with forward slashes, e.g. 'D:/MiniscopeData'.",
+    "dataDirectory": "./Data",
+
+    "directoryStructure": [
+        "researcherName",
+        "animalName",
+        "date",
+        "time"
+    ],
+    "researcherName": "MyName",
+    "animalName": "Animal1",
+
+    "recordLengthInSeconds": 0,
+
+    "devices": {
+        "cameras": {
+            "MiniCAM": {
+                "COMMENT_deviceType": "Minicam-Mono-XGA is the monochrome 1024x768 MiniCAM. Device types live in deviceConfigs/videoDevices.json.",
+                "deviceType": "Minicam-Mono-XGA",
+                "COMMENT_deviceID": "Which camera on this computer the MiniCAM's DAQ is. Use 'Scan devices...' in the Devices section to find it - a MiniCAM DAQ enumerates as 'MINISCOPE', and it is not always 0.",
+                "deviceID": 0,
+                "COMMENT_compression": "Behavior video does not need to be lossless - MJPG is the safe default, XVID gives smaller files.",
+                "compression": "MJPG",
+                "framesPerFile": 1000,
+                "showSaturation": true,
+                "COMMENT_startupValues": "gain / frameRate / led0 are the values the MiniCAM boots with; all three are adjustable during acquisition.",
+                "gain": "1X",
+                "frameRate": "30FPS",
+                "led0": 20
+            }
+        }
+    }
+}

@@ -4,11 +4,11 @@
 #include "newquickview.h"
 
 #include <QtQuick/QQuickItem>
-#include <QtGui/QOpenGLShaderProgram>
+#include <QtOpenGL/QOpenGLShaderProgram>     // Qt6: moved from QtGui to Qt6::OpenGL
 #include <QtGui/QOpenGLFunctions>
-#include <QtGui/QOpenGLTexture>
-#include <QtGui/QOpenGLBuffer>
-#include <QtGui/QOpenGLFramebufferObject>
+#include <QtOpenGL/QOpenGLTexture>   // Qt6: moved from QtGui to Qt6::OpenGL
+#include <QtOpenGL/QOpenGLBuffer>            // Qt6: moved from QtGui to Qt6::OpenGL
+#include <QtOpenGL/QOpenGLFramebufferObject> // Qt6: moved from QtGui to Qt6::OpenGL
 
 #include <QJsonObject>
 #include <QVector>
@@ -180,8 +180,6 @@ public:
     TraceDisplay();
 
     void mousePressEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void hoverMoveEvent(QHoverEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
@@ -224,11 +222,6 @@ private:
 
     QVector<trace_t> m_tempTraces;
 
-
-    QMouseEvent* lastMouseClickEvent;
-    QMouseEvent* lastMouseReleaseEvent;
-    QMouseEvent* lastMouseMoveEvent;
-
     qint64 m_softwareStartTime;
 
     // modifier keys
@@ -243,7 +236,10 @@ class TraceDisplayBackend : public QObject
     Q_OBJECT
 public:
     TraceDisplayBackend(QObject *parent = nullptr, QJsonObject ucTraceDisplay = QJsonObject(), qint64 softwareStartTime = 0);
+    ~TraceDisplayBackend() override;
     void createView();
+    // The trace window, for embedding as a pane in the Acquire view.
+    QQuickView *displayView() const { return view; }
 
 public slots:
     void addNewTrace(QString name, float color[3], float scale, QString units, bool sameOffset, QAtomicInt* displayBufNum, QAtomicInt* numDataInBuf, int bufSize, float* dataT, float* dataY);

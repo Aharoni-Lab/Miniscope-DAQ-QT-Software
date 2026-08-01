@@ -1,19 +1,29 @@
 <RCC>
     <qresource prefix="/">
-        <file>main.qml</file>
-        <file>Miniscope_V4.qml</file>
+        <file>Theme.qml</file>
+        <file>UiButton.qml</file>
+        <file>UiTextField.qml</file>
+        <file>UiComboBox.qml</file>
+        <file>UiSpinBox.qml</file>
+        <file>UiSwitch.qml</file>
+        <file>FormCard.qml</file>
+        <file>FormRow.qml</file>
+        <file>ConfigForm.qml</file>
+        <file>AppShell.qml</file>
+        <file>SetupView.qml</file>
+        <file>AcquireView.qml</file>
+        <file>VideoWindowShell.qml</file>
+        <file>SessionBar.qml</file>
         <file>behaviorCam.qml</file>
-        <file>FpsItem.qml</file>
         <file>VideoSliderControl.qml</file>
+        <file>RecoloredIcon.qml</file>
         <file>img/iconEWL.png</file>
         <file>img/icon/ewl.ico</file>
         <file>img/icon/led.ico</file>
-        <file>TopMenu.qml</file>
         <file>img/MiniscopeLogo.png</file>
         <file>shaders/imageBasic.vert</file>
         <file>shaders/imageSaturationScaling.frag</file>
         <file>VideoSpinBoxControl.qml</file>
-        <file>ControlPanel.qml</file>
         <file>img/icon/exposure.ico</file>
         <file>img/icon/gain.ico</file>
         <file>img/icon/alpha.ico</file>
@@ -28,7 +38,6 @@
         <file>img/icon/fps.png</file>
         <file>img/icon/gain.png</file>
         <file>img/icon/led.png</file>
-        <file>Miniscope_V3.qml</file>
         <file>TraceDisplayWindow.qml</file>
         <file>shaders/grid.vert</file>
         <file>shaders/grid.frag</file>
@@ -42,6 +51,6 @@
         <file>shaders/tracker.frag</file>
         <file>shaders/trackerOverlay.frag</file>
         <file>shaders/trackerOverlay.vert</file>
-        <file>TreeViewerJSON.qml</file>
+        <file>AddDeviceDialog.qml</file>
     </qresource>
 </RCC>

@@ -1,4 +1,8 @@
 #include "videodevice.h"
+
+#ifdef Q_OS_MACOS
+#include "videostreammac.h"
+#endif
 #include "newquickview.h"
 #include "videodisplay.h"
 
@@ -11,13 +15,17 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QJsonArray>
+#include <QFile>   // Qt6: no longer pulled in transitively
 #include <QQmlApplicationEngine>
 #include <QVector>
 
-VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime) :
+VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime, bool preferDirectControl) :
     QObject(parent),
     m_camConnected(false),
+    view(nullptr),
     deviceStream(nullptr),
+    m_preferDirectControlBackend(preferDirectControl),
+    videoStreamThread(nullptr),
     rootObject(nullptr),
     vidDisplay(nullptr),
     m_previousDisplayFrameNum(0),
@@ -31,15 +39,23 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     m_softwareStartTime(softwareStartTime)
 
 {
+    // Hold messages emitted before the backend wires sendMessage to the
+    // control panel - see takeEarlyMessages().
+    QObject::connect(this, &VideoDevice::sendMessage, this, [this](QString msg) {
+        if (m_holdEarlyMessages)
+            m_earlyMessages.append(msg);
+    });
+
     m_roiBoundingBox[0] = -1;
     m_roiBoundingBox[1] = -1;
     m_roiBoundingBox[2] = -1;
     m_roiBoundingBox[3] = -1;
 
     m_traceDisplayStatus = false;
+    m_lutColormap = 1; // default to the green LUT when toggled on
     m_ucDevice = ucDevice; // hold user config for this device
     parseUserConfigDevice();
-    m_cDevice = getDeviceConfig(m_ucDevice["deviceType"].toString()); // holds specific Miniscope configuration
+    m_cDevice = getDeviceConfig(m_ucDevice.value("deviceType").toString()); // holds specific Miniscope configuration
 
     // Thread safe buffer stuff
     freeFrames = new QSemaphore;
@@ -47,45 +63,74 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     freeFrames->release(FRAME_BUFFER_SIZE);
     // -------------------------
 
-    // Setup OpenCV camera stream
-    m_resolution = QSize(m_cDevice["width"].toInt(-1), m_cDevice["height"].toInt(-1));
-    deviceStream = new VideoStreamOCV(nullptr, m_cDevice["width"].toInt(-1), m_cDevice["height"].toInt(-1), m_cDevice["pixelClock"].toDouble(-1));
+    // Setup camera stream backend.
+    m_resolution = QSize(m_cDevice.value("width").toInt(-1), m_cDevice.value("height").toInt(-1));
+    const int devWidth = m_cDevice.value("width").toInt(-1);
+    const int devHeight = m_cDevice.value("height").toInt(-1);
+    const double devPixelClock = m_cDevice.value("pixelClock").toDouble(-1);
+
+    // Miniscopes need a direct-control backend where plain OpenCV can't reach
+    // the DAQ's control channel (see videostreambase.h): libuvc on Linux (the
+    // kernel uvcvideo driver caches UVC control reads), and the AVFoundation +
+    // IOKit hybrid on macOS (AVFoundation exposes no UVC controls at all). A
+    // real live camera (deviceID) is required - video-file playback always
+    // uses OpenCV.
+    deviceStream = nullptr;
+    const bool liveCamera = m_ucDevice.contains("deviceID") && !m_ucDevice.value("deviceID").isNull();
+#if defined(HAVE_LIBUVC)
+    if (m_preferDirectControlBackend && liveCamera) {
+        deviceStream = new VideoStreamLibUVC(nullptr, devWidth, devHeight, devPixelClock);
+        qDebug() << "Using libuvc capture backend for" << m_deviceName;
+    }
+#elif defined(Q_OS_MACOS)
+    if (m_preferDirectControlBackend && liveCamera) {
+        deviceStream = new VideoStreamMac(nullptr, devWidth, devHeight, devPixelClock);
+        qDebug() << "Using AVFoundation+IOKit hybrid capture backend for" << m_deviceName;
+    }
+#endif
+    Q_UNUSED(liveCamera);
+    if (deviceStream == nullptr)
+        deviceStream = new VideoStreamOCV(nullptr, devWidth, devHeight, devPixelClock);
     deviceStream->setDeviceName(m_deviceName);
+
+    // Pass send message signal through. Wired BEFORE connect2Camera/connect2Video
+    // so connect-time errors (wrong deviceID, device busy, resolve failures)
+    // actually reach the UI instead of vanishing - historically only the
+    // generic "cannot connect" message ever showed.
+    QObject::connect(deviceStream, &VideoStreamBase::sendMessage, this, &VideoDevice::sendMessage);
 
     // Checks to make sure user config and miniscope device type are supporting BNO streaming
     if (m_ucDevice.contains("headOrientation")) {
-        m_headOrientationStreamState = m_ucDevice["headOrientation"].toObject()["enabled"].toBool(false);
-        m_headOrientationFilterState = m_ucDevice["headOrientation"].toObject()["filterBadData"].toBool(false);
+        m_headOrientationStreamState = m_ucDevice.value("headOrientation").toObject().value("enabled").toBool(false);
+        m_headOrientationFilterState = m_ucDevice.value("headOrientation").toObject().value("filterBadData").toBool(false);
     }
     // DEPRICATED
     if (m_ucDevice.contains("streamHeadOrientation")) {
-        m_headOrientationStreamState = m_ucDevice["streamHeadOrientation"].toBool(false) && m_cDevice["headOrientation"].toBool(false);
+        m_headOrientationStreamState = m_ucDevice.value("streamHeadOrientation").toBool(false) && m_cDevice.value("headOrientation").toBool(false);
         // TODO: Tell user this name/value is depricated
     }
     // ==========
     deviceStream->setHeadOrientationConfig(m_headOrientationStreamState, m_headOrientationFilterState);
 
-    deviceStream->setIsColor(m_cDevice["isColor"].toBool(false));
+    deviceStream->setIsColor(m_cDevice.value("isColor").toBool(false));
 
-    qDebug() << m_ucDevice;
-    if (m_ucDevice.contains("deviceID") && !m_ucDevice["deviceID"].isNull()) {
-        qDebug() << "Camera" << m_ucDevice["deviceID"].toInt();
-        m_camConnected = deviceStream->connect2Camera(m_ucDevice["deviceID"].toInt());
+    if (m_ucDevice.contains("deviceID") && !m_ucDevice.value("deviceID").isNull()) {
+        m_camConnected = deviceStream->connect2Camera(m_ucDevice.value("deviceID").toInt());
     }
     else if (m_ucDevice.contains("videoPlayback")) {
-        qDebug() << "VIDEO!!!";
-        m_camConnected = deviceStream->connect2Video(m_ucDevice["videoPlayback"].toObject()["folderPath"].toString(),
-                m_ucDevice["videoPlayback"].toObject()["filePrefix"].toString(),
-                m_ucDevice["videoPlayback"].toObject()["frameRate"].toDouble());
+        m_camConnected = deviceStream->connect2Video(m_ucDevice.value("videoPlayback").toObject().value("folderPath").toString(),
+                m_ucDevice.value("videoPlayback").toObject().value("filePrefix").toString(),
+                m_ucDevice.value("videoPlayback").toObject().value("frameRate").toDouble());
     }
     if (m_camConnected == 0) {
-        qDebug() << "Not able to connect and open " << m_ucDevice["deviceName"].toString();
+        qDebug() << "Not able to connect and open " << m_ucDevice.value("deviceName").toString();
     }
     else {
         // TODO: bnoBuffer isn't used for behavior cams. Think about how to get rid of it
         deviceStream->setBufferParameters(frameBuffer,
                                              timeStampBuffer,
                                              bnoBuffer,
+                                             daqFrameNumBuffer,
                                              FRAME_BUFFER_SIZE,
                                              freeFrames,
                                              usedFrames,
@@ -105,19 +150,25 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     //    QObject::connect(miniscopeStream, SIGNAL (finished()), miniscopeStream, SLOT (deleteLater()));
         QObject::connect(videoStreamThread, SIGNAL (finished()), videoStreamThread, SLOT (deleteLater()));
 
-        // Pass send message signal through
-        QObject::connect(deviceStream, &VideoStreamOCV::sendMessage, this, &VideoDevice::sendMessage);
-
         // Handle request for reinitialization of commands
-        QObject::connect(deviceStream, &VideoStreamOCV::requestInitCommands, this, &VideoDevice::handleInitCommandsRequest);
+        QObject::connect(deviceStream, &VideoStreamBase::requestInitCommands, this, &VideoDevice::handleInitCommandsRequest);
+
+        // Drive a persistent "disconnected" indicator on the device window.
+        // Queued to the GUI thread (deviceStream lives on its own thread),
+        // mirroring the existing recording-indicator property push.
+        QObject::connect(deviceStream, &VideoStreamBase::connectionLost, this,
+                         [this](bool lost) {
+                             if (rootObject)
+                                 rootObject->setProperty("connected", !lost);
+                         });
 
         // --- USED ONLY FOR MINISCOPE INITIALLY -------------------------------
         // Handle external triggering passthrough
-        QObject::connect(this, &VideoDevice::setExtTriggerTrackingState, deviceStream, &VideoStreamOCV::setExtTriggerTrackingState);
-        QObject::connect(deviceStream, &VideoStreamOCV::extTriggered, this, &VideoDevice::extTriggered);
+        QObject::connect(this, &VideoDevice::setExtTriggerTrackingState, deviceStream, &VideoStreamBase::setExtTriggerTrackingState);
+        QObject::connect(deviceStream, &VideoStreamBase::extTriggered, this, &VideoDevice::extTriggered);
 
-        QObject::connect(this, &VideoDevice::startRecording, deviceStream, &VideoStreamOCV::startRecording);
-        QObject::connect(this, &VideoDevice::stopRecording, deviceStream, &VideoStreamOCV::stopRecording);
+        QObject::connect(this, &VideoDevice::startRecording, deviceStream, &VideoStreamBase::startRecording);
+        QObject::connect(this, &VideoDevice::stopRecording, deviceStream, &VideoStreamBase::stopRecording);
         // ----------------------------------------------
 
         // Signal/Slots for handling LED toggling during external trigger
@@ -134,6 +185,11 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
         // THIS SHOULD ONLY BE SENT TO MINISCOPE AND MINICAM DEVICES. USE TO US AN if isMiniCAM statement here
         sendInitCommands();
 
+        // Start the capture loop held: it configures the device from the queued
+        // commands below but acquires no frames until the session's DataSaver -
+        // the ring buffer's only drain - is running. See setStreamHold(); the
+        // backend releases every device together (releaseStreamHold()).
+        deviceStream->setStreamHold(true);
         videoStreamThread->start();
 
         // Short sleep to make i2c initialize commands be sent before loading in user config controls
@@ -141,6 +197,24 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     }
 }
 
+
+VideoDevice::~VideoDevice()
+{
+    // Normally the stream thread was already joined by the session teardown
+    // (backEnd::stopSessionThreads); this is a no-op then, and a safety net
+    // for any other deletion path.
+    stopAndJoinStream();
+    // The stream object was moved to the (now finished) stream thread, so it
+    // may be deleted from here.
+    delete deviceStream;
+    deviceStream = nullptr;
+    if (view) {
+        view->close();
+        // Deferred: we may be inside a handler of one of the view's signals.
+        view->deleteLater();
+        view = nullptr;
+    }
+}
 
 void VideoDevice::createView()
 {
@@ -156,21 +230,46 @@ void VideoDevice::createView()
 
         // Setup device window
 //        const QUrl url(m_cBehavCam["qmlFile"].toString("qrc:/behaviorCam.qml"));
-        const QUrl url(m_cDevice["qmlFile"].toString());
+        const QUrl url(m_cDevice.value("qmlFile").toString());
         view = new NewQuickView(url);
 
-        view->setWidth(m_cDevice["width"].toInt() * m_ucDevice["windowScale"].toDouble(1));
-        view->setHeight(m_cDevice["height"].toInt() * m_ucDevice["windowScale"].toDouble(1));
+        view->setWidth(m_cDevice.value("width").toInt() * m_ucDevice.value("windowScale").toDouble(1));
+        view->setHeight(m_cDevice.value("height").toInt() * m_ucDevice.value("windowScale").toDouble(1));
 
         view->setTitle(m_deviceName);
-        view->setX(m_ucDevice["windowX"].toInt(1));
-        view->setY(m_ucDevice["windowY"].toInt(1));
+        view->setX(m_ucDevice.value("windowX").toInt(1));
+        view->setY(m_ucDevice.value("windowY").toInt(1));
+
+        // Let the video display scale with the window, locked to the camera's
+        // aspect ratio (the full-screen video quad would otherwise distort).
+        view->setResizeMode(QQuickView::SizeRootObjectToView);
+        view->setMinimumSize(QSize(view->width() / 2, view->height() / 2));
+        view->setLockedAspectRatio((qreal)view->width() / (qreal)view->height());
 
 #ifdef Q_OS_WINDOWS
-        view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
+        // Resizable (border drag) + minimizable; no maximize since that would break
+        // the locked aspect ratio.
+        view->setFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+                       | Qt::WindowMinimizeButtonHint);
 #endif
-        view->show();
+        // Not shown here: the Acquire pane host either embeds the view as a
+        // pane (WindowContainer) or floats it, per the saved layout.
         // --------------------
+
+        // Every lookup below would dereference a missing root object and
+        // crash, so report a failed QML load to the message log and take
+        // this device down instead.
+        const QStringList loadErrors =
+            NewQuickView::loadFailureMessages(view, m_deviceName + " display window");
+        if (!loadErrors.isEmpty()) {
+            for (const QString &msg : loadErrors)
+                sendMessage(msg);
+            stopAndJoinStream();
+            m_camConnected = 0;
+            view->deleteLater();
+            view = nullptr;
+            return;
+        }
 
         rootObject = view->rootObject();
 
@@ -179,20 +278,25 @@ void VideoDevice::createView()
         QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double, double) ),
                              this, SLOT( handlePropChangedSignal(QString, double, double, double) ));
 
-        // Maybe move this to miniscope class
-        QObject::connect(rootObject, SIGNAL( dFFSwitchChanged(bool) ),
-                             this, SLOT( handleDFFSwitchChange(bool) ));
+        // dFFSwitchChanged is wired in Miniscope::setupDisplayObjectPointers():
+        // dF/F is a Miniscope-only display mode and handleDFFSwitchChange() only
+        // exists there, so connecting it here failed at runtime for every
+        // behavior camera ("No such slot BehaviorCam::handleDFFSwitchChange") -
+        // once per device per session, in the log a user would send us.
 
         QObject::connect(rootObject, SIGNAL( saturationSwitchChanged(bool) ),
                              this, SLOT( handleSaturationSwitchChanged(bool) ));
 
+        QObject::connect(rootObject, SIGNAL( lutSwitchChanged(bool) ),
+                             this, SLOT( handleLutSwitchChanged(bool) ));
+
         configureDeviceControls();
         vidDisplay = rootObject->findChild<VideoDisplay*>("vD");
         vidDisplay->setMaxBuffer(FRAME_BUFFER_SIZE);
-        vidDisplay->setWindowScaleValue(m_ucDevice["windowScale"].toDouble(1));
+        vidDisplay->setWindowScaleValue(m_ucDevice.value("windowScale").toDouble(1));
 
         // Turn on or off show saturation display
-        if (m_ucDevice["showSaturation"].toBool(false)) {
+        if (m_ucDevice.value("showSaturation").toBool(false)) {
             vidDisplay->setShowSaturation(1);
             rootObject->findChild<QQuickItem*>("saturationSwitch")->setProperty("checked", true);
         }
@@ -200,6 +304,21 @@ void VideoDevice::createView()
             vidDisplay->setShowSaturation(0);
             rootObject->findChild<QQuickItem*>("saturationSwitch")->setProperty("checked", false);
         }
+
+        // Display LUT (colormap) chosen in the user config. The colormap is stored
+        // in m_lutColormap (used by the on-window "Apply LUT" toggle); the switch
+        // starts on when the config selects a real LUT. "None"/absent keeps the
+        // green default available for when the user toggles it.
+        const QString lutName = m_ucDevice.value("lut").toString("None");
+        bool lutOn = true;
+        if (lutName == "Red")          m_lutColormap = 2;
+        else if (lutName == "Inferno") m_lutColormap = 3;
+        else if (lutName == "Green")   m_lutColormap = 1;
+        else { m_lutColormap = 1; lutOn = false; } // "None" / unrecognized
+        vidDisplay->setLutMode(lutOn ? m_lutColormap : 0);
+        QQuickItem *lutSwitch = rootObject->findChild<QQuickItem*>("lutSwitch");
+        if (lutSwitch) // only the Miniscope window has the switch
+            lutSwitch->setProperty("checked", lutOn);
 
         // Set ROI Stuff
         QObject::connect(rootObject, SIGNAL( setRoiClicked() ), this, SLOT( handleSetRoiClicked()));
@@ -213,16 +332,33 @@ void VideoDevice::createView()
         // Link up Add Trace ROI signal and slot
         QObject::connect(vidDisplay, &VideoDisplay::newAddTraceROISignal, this, &VideoDevice::handleAddNewTraceROI);
 
-        QObject::connect(view, &NewQuickView::closing, deviceStream, &VideoStreamOCV::stopSteam);
+        // (No stop-stream-on-close: closing a floating pane re-docks it in the
+        // Acquire view; streams only stop when the session ends.)
         QObject::connect(vidDisplay->window(), &QQuickWindow::beforeRendering, this, &VideoDevice::sendNewFrame);
+
+        // Render on frame arrival. beforeRendering only PULLS the newest frame
+        // when the scene renders; the old windows kept the scene permanently
+        // dirty with an infinite dummy animation, the shell does not - so each
+        // captured frame must request a render pass itself. Queued to the GUI
+        // thread via the vidDisplay context; window() is looked up live since
+        // embedding/floating reparents the view.
+        QObject::connect(deviceStream, &VideoStreamBase::newFrameAvailable, vidDisplay,
+                         [this] {
+                             if (vidDisplay && vidDisplay->window())
+                                 vidDisplay->window()->update();
+                         });
+
+        // Keep the ROI overlay tracking the video as the window is resized.
+        QObject::connect(vidDisplay, &QQuickItem::widthChanged, this, &VideoDevice::handleDisplayResized);
 
         sendMessage(m_deviceName + " is connected.");
 
         if (m_ucDevice.contains("ROI")) {
-            vidDisplay->setROI({(int)round(m_roiBoundingBox[0] * m_ucDevice["windowScale"].toDouble(1)),
-                                (int)round(m_roiBoundingBox[1] * m_ucDevice["windowScale"].toDouble(1)),
-                                (int)round(m_roiBoundingBox[2] * m_ucDevice["windowScale"].toDouble(1)),
-                                (int)round(m_roiBoundingBox[3] * m_ucDevice["windowScale"].toDouble(1)),
+            const QSizeF scale = displayPerCameraScale();
+            vidDisplay->setROI({(int)round(m_roiBoundingBox[0] * scale.width()),
+                                (int)round(m_roiBoundingBox[1] * scale.height()),
+                                (int)round(m_roiBoundingBox[2] * scale.width()),
+                                (int)round(m_roiBoundingBox[3] * scale.height()),
                                 0});
         }
 
@@ -262,17 +398,25 @@ void VideoDevice::defineDeviceAddrs()
 }
 
 void VideoDevice::parseUserConfigDevice() {
-    // Currently not needed. If arrays get added into JSON config then this might
-    m_deviceName = m_ucDevice["deviceName"].toString("VideoDevice " + QString::number(m_ucDevice["deviceID"].toInt()));
-    m_compressionType = m_ucDevice["compression"].toString("None");
+    // .value() everywhere: QJsonObject's non-const operator[] INSERTS a null
+    // for a missing key, and (keys being kept sorted) that insertion shifts
+    // the index under any QJsonValueRef already taken from the same object.
+    // With no "deviceID" in the config (file-playback devices), the old
+    // ["deviceName"].toString(... ["deviceID"] ...) line hit exactly that:
+    // the deviceName ref went stale and every playback device fell back to
+    // "VideoDevice 0".
+    m_deviceName = m_ucDevice.value("deviceName")
+                       .toString("VideoDevice " + QString::number(m_ucDevice.value("deviceID").toInt()));
+    m_compressionType = m_ucDevice.value("compression").toString("None");
 
     if (m_ucDevice.contains("ROI")) {
         // User Config defines ROI Bounding Box
+        const QJsonObject roi = m_ucDevice.value("ROI").toObject();
         m_roiIsDefined = true;
-        m_roiBoundingBox[0] = m_ucDevice["ROI"].toObject()["leftEdge"].toInt(-1);
-        m_roiBoundingBox[1] = m_ucDevice["ROI"].toObject()["topEdge"].toInt(-1);
-        m_roiBoundingBox[2] = m_ucDevice["ROI"].toObject()["width"].toInt(-1);
-        m_roiBoundingBox[3] = m_ucDevice["ROI"].toObject()["height"].toInt(-1);
+        m_roiBoundingBox[0] = roi.value("leftEdge").toInt(-1);
+        m_roiBoundingBox[1] = roi.value("topEdge").toInt(-1);
+        m_roiBoundingBox[2] = roi.value("width").toInt(-1);
+        m_roiBoundingBox[3] = roi.value("height").toInt(-1);
         // TODO: Throw error is values are incorrect or missing
     }
 //    else {
@@ -290,7 +434,7 @@ void VideoDevice::sendInitCommands()
     long preambleKey;
     int tempValue;
 
-    QVector<QMap<QString,int>> sendCommands = parseSendCommand(m_cDevice["initialize"].toArray());
+    QVector<QMap<QString,int>> sendCommands = parseSendCommand(m_cDevice.value("initialize").toArray());
     QMap<QString,int> command;
 
     for (int i = 0; i < sendCommands.length(); i++) {
@@ -358,10 +502,10 @@ void VideoDevice::configureDeviceControls() {
     QJsonObject values; // min, max, startingValue, and stepSize for each control used in 'j' loop
     QStringList keys;
 
-    QJsonObject controlSettings = m_cDevice["controlSettings"].toObject(); // Get controlSettings from json
+    QJsonObject controlSettings = m_cDevice.value("controlSettings").toObject(); // Get controlSettings from json
 
     if (controlSettings.isEmpty()) {
-        qDebug() << "controlSettings missing from miniscopes.json for deviceType = " << m_deviceType;
+        qDebug() << "controlSettings missing from videoDevices.json for deviceType = " << m_deviceType;
         return;
     }
     QStringList controlName =  controlSettings.keys();
@@ -370,11 +514,29 @@ void VideoDevice::configureDeviceControls() {
 //        qDebug() << controlItem;
         values = controlSettings[controlName[i]].toObject();
 
+        // Merge the catalog's optional "fineSteps" override block (issue #68:
+        // e.g. V4 led0 at one hardware step per slider tick) when the user
+        // config sets "<control>FineSteps": true. take() runs unconditionally
+        // so the block is never forwarded to the QML item as a property.
+        const QJsonObject fineSteps = values.take("fineSteps").toObject();
+        if (m_ucDevice.value(controlName[i] + "FineSteps").toBool()) {
+            if (fineSteps.isEmpty()) {
+                sendMessage("Warning: " + m_deviceName + " has " + controlName[i] + "FineSteps set, but "
+                            + m_deviceType + " defines no fine-steps mapping for " + controlName[i]
+                            + ". Using the default mapping.");
+            }
+            else {
+                for (auto it = fineSteps.constBegin(); it != fineSteps.constEnd(); ++it)
+                    values[it.key()] = it.value();
+                sendMessage(m_deviceName + " " + controlName[i] + " is using fine hardware steps.");
+            }
+        }
+
         if (m_ucDevice.contains(controlName[i])) {// sets starting value if it is defined in user config
-            if (m_ucDevice[controlName[i]].isDouble())
-                values["startValue"] = m_ucDevice[controlName[i]].toDouble();
-            if (m_ucDevice[controlName[i]].isString()) {
-                values["startValue"] = m_ucDevice[controlName[i]].toString();
+            if (m_ucDevice.value(controlName[i]).isDouble())
+                values["startValue"] = m_ucDevice.value(controlName[i]).toDouble();
+            if (m_ucDevice.value(controlName[i]).isString()) {
+                values["startValue"] = m_ucDevice.value(controlName[i]).toString();
 //                qDebug() << "START:" << values["startValue"];
             }
         }
@@ -517,8 +679,11 @@ void VideoDevice::sendNewFrame(){
 //        qDebug() << "Send frame = " << f;
         f = (f - 1)%FRAME_BUFFER_SIZE;
 
-        // TODO: figure out what to do with webcams for dropped frames
-        vidDisplay->setDroppedFrameCount(*m_daqFrameNum - *m_acqFrameNum);
+        // DAQ-counted frames minus software-grabbed frames, rebased to the
+        // current connection epoch so a reconnect (which restarts the DAQ frame
+        // counter) doesn't pin this at "N/A". -1 => "N/A" (webcams, or before
+        // the first DAQ counter read).
+        vidDisplay->setDroppedFrameCount(deviceStream ? deviceStream->droppedFrameEstimate() : -1);
 
         // This function can be overridden by child class to add additional functionality
         handleNewDisplayFrame(timeStampBuffer[f], frameBuffer[f], f, vidDisplay);
@@ -532,7 +697,7 @@ void VideoDevice::sendNewFrame(){
     }
 }
 
-void VideoDevice::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufIdx, VideoDisplay* vidDisp)
+void VideoDevice::handleNewDisplayFrame(qint64 /*timeStamp*/, cv::Mat frame, int /*bufIdx*/, VideoDisplay* vidDisp)
 {
 //    cv::Mat tempMat1, tempMat2;
     QImage tempFrame2;
@@ -646,6 +811,12 @@ void VideoDevice::handleSaturationSwitchChanged(bool checked)
     vidDisplay->setShowSaturation(checked);
 }
 
+void VideoDevice::handleLutSwitchChanged(bool checked)
+{
+    // Apply the config-selected colormap, or grayscale (0) when toggled off.
+    vidDisplay->setLutMode(checked ? m_lutColormap : 0);
+}
+
 void VideoDevice::handleSetExtTriggerTrackingState(bool state)
 {
      m_extTriggerTrackingState = state;
@@ -664,6 +835,8 @@ void VideoDevice::handleSetExtTriggerTrackingState(bool state)
 }
 void VideoDevice::handleRecordStart()
 {
+    setWindowRecordingIndicator(true);
+
     // Turns on led0 if software is in external trigger configuration
     if (m_extTriggerTrackingState) {
         QQuickItem *controlItem; // Pointer to VideoPropertyControl in qml for each objectName
@@ -674,6 +847,8 @@ void VideoDevice::handleRecordStart()
 
 void VideoDevice::handleRecordStop()
 {
+    setWindowRecordingIndicator(false);
+
     // Turns off led0 if software is in external trigger configuration
     if (m_extTriggerTrackingState) {
         QQuickItem *controlItem; // Pointer to VideoPropertyControl in qml for each objectName
@@ -686,6 +861,35 @@ void VideoDevice::handleInitCommandsRequest()
 {
     qDebug() << "Reinitializing device.";
     sendInitCommands();
+}
+
+QSizeF VideoDevice::displayPerCameraScale()
+{
+    // The video fills the display item, so display/camera gives pixels-per-camera-
+    // pixel. Computed live so it stays correct as the window is resized; falls back
+    // to the static config windowScale before the display exists.
+    const double camW = m_cDevice.value("width").toInt(-1);
+    const double camH = m_cDevice.value("height").toInt(-1);
+    if (vidDisplay && camW > 0 && camH > 0 && vidDisplay->width() > 0 && vidDisplay->height() > 0)
+        return QSizeF(vidDisplay->width() / camW, vidDisplay->height() / camH);
+
+    const double s = m_ucDevice.value("windowScale").toDouble(1);
+    return QSizeF(s, s);
+}
+
+void VideoDevice::handleDisplayResized()
+{
+    // Reposition the committed ROI overlay for the new display size. The ROI is
+    // stored in camera pixels (m_roiBoundingBox); scale it back to display pixels.
+    if (!vidDisplay || m_roiBoundingBox[0] < 0)
+        return;
+
+    const QSizeF scale = displayPerCameraScale();
+    vidDisplay->setROI({(int)round(m_roiBoundingBox[0] * scale.width()),
+                        (int)round(m_roiBoundingBox[1] * scale.height()),
+                        (int)round(m_roiBoundingBox[2] * scale.width()),
+                        (int)round(m_roiBoundingBox[3] * scale.height()),
+                        0});
 }
 
 void VideoDevice::handleSetRoiClicked()
@@ -710,21 +914,23 @@ void VideoDevice::handleAddTraceRoiClicked()
 void VideoDevice::handleNewROI(int leftEdge, int topEdge, int width, int height)
 {
     m_roiIsDefined = true;
-    // First scale the local position values to pixel values
-    m_roiBoundingBox[0] = round(leftEdge/m_ucDevice["windowScale"].toDouble(1));
-    m_roiBoundingBox[1] = round(topEdge/m_ucDevice["windowScale"].toDouble(1));
-    m_roiBoundingBox[2] = round(width/m_ucDevice["windowScale"].toDouble(1));
-    m_roiBoundingBox[3] = round(height/m_ucDevice["windowScale"].toDouble(1));
+    // Map the selection (in live display pixels) back to camera pixels using the
+    // current display scale, so the ROI is correct even after the window is resized.
+    const QSizeF scale = displayPerCameraScale();
+    m_roiBoundingBox[0] = round(leftEdge / scale.width());
+    m_roiBoundingBox[1] = round(topEdge / scale.height());
+    m_roiBoundingBox[2] = round(width / scale.width());
+    m_roiBoundingBox[3] = round(height / scale.height());
 
-    if ((m_roiBoundingBox[0] + m_roiBoundingBox[2]) > m_cDevice["width"].toInt(-1)) {
+    if ((m_roiBoundingBox[0] + m_roiBoundingBox[2]) > m_cDevice.value("width").toInt(-1)) {
         // Edge is off screen
-        m_roiBoundingBox[2] = m_cDevice["width"].toInt(-1) - m_roiBoundingBox[0];
-        sendMessage("Warning: Right edge of ROI drawn beyond right edge of video. If this is incorrect you can change the width and height values in deviceCnfigs/behaviorCams.json");
+        m_roiBoundingBox[2] = m_cDevice.value("width").toInt(-1) - m_roiBoundingBox[0];
+        sendMessage("Warning: Right edge of ROI drawn beyond right edge of video. If this is incorrect you can change the width and height values in deviceConfigs/videoDevices.json");
     }
-    if ((m_roiBoundingBox[1] + m_roiBoundingBox[3]) > m_cDevice["height"].toInt(-1)) {
+    if ((m_roiBoundingBox[1] + m_roiBoundingBox[3]) > m_cDevice.value("height").toInt(-1)) {
         // Edge is off screen
-        m_roiBoundingBox[3] = m_cDevice["height"].toInt(-1) - m_roiBoundingBox[1];
-        sendMessage("Warning: Bottm edge of ROI drawn beyond bottom edge of video. If this is incorrect you can change the width and height values in deviceCnfigs/behaviorCams.json");
+        m_roiBoundingBox[3] = m_cDevice.value("height").toInt(-1) - m_roiBoundingBox[1];
+        sendMessage("Warning: Bottm edge of ROI drawn beyond bottom edge of video. If this is incorrect you can change the width and height values in deviceConfigs/videoDevices.json");
 
     }
 
@@ -737,7 +943,7 @@ void VideoDevice::handleNewROI(int leftEdge, int topEdge, int width, int height)
 
 }
 
-void VideoDevice::handleAddNewTraceROI(int leftEdge, int topEdge, int width, int height)
+void VideoDevice::handleAddNewTraceROI(int /*leftEdge*/, int /*topEdge*/, int /*width*/, int /*height*/)
 {
 
 }
@@ -746,5 +952,32 @@ void VideoDevice::close()
 {
     if (m_camConnected)
         view->close();
+}
+
+QStringList VideoDevice::takeEarlyMessages()
+{
+    m_holdEarlyMessages = false;
+    const QStringList messages = m_earlyMessages;
+    m_earlyMessages.clear();
+    return messages;
+}
+
+void VideoDevice::stopAndJoinStream()
+{
+    if (!m_camConnected || deviceStream == nullptr || videoStreamThread == nullptr)
+        return;
+    // Direct call from the GUI thread: stopStream() only sets the (atomic)
+    // stop flag, so this is safe and does not depend on the stream thread's
+    // event processing. The stream loop then exits and the thread finishes.
+    deviceStream->stopStream();
+    videoStreamThread->quit();
+    if (!videoStreamThread->wait(3000)) {
+        qWarning() << m_deviceName << "stream thread did not stop within 3s; leaking it";
+        // The stream object still lives on the runaway thread; deleting it
+        // (see ~VideoDevice) would race. Leak it along with its thread.
+        deviceStream = nullptr;
+    }
+    // The thread deletes itself via its finished() -> deleteLater() connection.
+    videoStreamThread = nullptr;
 }
 

@@ -2,85 +2,65 @@
 #define VIDEOSTREAMOCV_H
 
 #include <QObject>
-#include <QSemaphore>
 #include <QString>
 #include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/opencv.hpp>
-#include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
-#include <QAtomicInt>
-#include <QMap>
 #include <QVector>
 
+#include "miniscopeprotocol.h"
+#include "videostreambase.h"
 
-class VideoStreamOCV : public QObject
+#ifdef Q_OS_MACOS
+#include "avfframegrabbermac.h"
+#endif
+
+
+class VideoStreamOCV : public VideoStreamBase
 {
     Q_OBJECT
 public:
     explicit VideoStreamOCV(QObject *parent = nullptr, int width = 0, int height = 0, double pixelClock = 0);
-    ~VideoStreamOCV();
-//    void setCameraID(int cameraID);
-    void setBufferParameters(cv::Mat *frameBuf, qint64 *tsBuf, float *bnoBuf,
-                             int bufferSize, QSemaphore *freeFramesS, QSemaphore *usedFramesS,
-                             QAtomicInt *acqFrameNum, QAtomicInt *daqFrameNumber);
-    int connect2Camera(int cameraID);
-    int connect2Video(QString folderPath, QString filePrefix, float playbackFPS);
-    void setHeadOrientationConfig(bool enableState, bool filterState) { m_headOrientationStreamState = enableState; m_headOrientationFilterState = filterState; }
-    void setIsColor(bool isColor) { m_isColor = isColor; }
-    void setDeviceName(QString name) { m_deviceName = name; }
-
-signals:
-    void sendMessage(QString msg);
-    void newFrameAvailable(QString name, int frameNum);
-    void extTriggered(bool triggerState);
-    void requestInitCommands();
+    ~VideoStreamOCV() override;
+    int connect2Camera(int cameraID) override;
+    int connect2Video(QString folderPath, QString filePrefix, float playbackFPS) override;
 
 public slots:
-    void startStream();
-    void stopSteam();
-    void setPropertyI2C(long preambleKey, QVector<quint8> packet);
-    void setExtTriggerTrackingState(bool state);
-    void startRecording();
-    void stopRecording();
-    void openCamPropsDialog();
+    void startStream() override;
+    void startRecording() override;
+    void stopRecording() override;
+    void openCamPropsDialog() override;
+
+protected:
+    void sendCommands() override;   // drops the queue when there is no control channel
+    bool writeControlWord(quint8 selector, quint16 word) override;   // CAP_PROP passthrough
+    bool readControl(quint8 selector, quint16 *value) override;      // CAP_PROP passthrough
+    bool attemptReconnect() override;
 
 private:
-    void sendCommands();
-    bool attemptReconnect();
-    int m_cameraID;
-    QString m_deviceName;
     cv::VideoCapture *cam;
-    bool m_isStreaming;
-    bool m_stopStreaming;
-    bool m_headOrientationStreamState;
-    bool m_headOrientationFilterState;
-    bool m_isColor;
-    cv::Mat *frameBuffer;
-    qint64 *timeStampBuffer;
-    float *bnoBuffer;
-    QSemaphore *freeFrames;
-    QSemaphore *usedFrames;
-    int frameBufferSize;
-    QAtomicInt *m_acqFrameNum;
-    QAtomicInt *daqFrameNum;
-
-    // Handles commands sent to video stream device
-    QVector<long> sendCommandQueueOrder;
-    QMap<long, QVector<quint8>> sendCommandQueue;
-
-    bool m_trackExtTrigger;
-
-    int m_expectedWidth;
-    int m_expectedHeight;
-    double m_pixelClock;
 
     QString m_connectionType;
+
+#ifdef Q_OS_MACOS
+    // Live cameras on macOS stream through AVFoundation pinned to the
+    // device's uniqueID (m_connectionType == "AVF"); cv::VideoCapture is only
+    // used for video-file playback there. See connect2Camera.
+    AvfFrameGrabber m_grabber;
+    QString m_avfUniqueID;
+    QString m_avfName;
+#endif
 
     double m_playbackFPS;
     QString m_playbackFolderPath;
     QString m_playbackFilePrefix;
     int m_playbackFileIndex;
+
+    // Transient grab/retrieve failure tolerance (see startStream): retry in
+    // place for up to limit * delay (~1 s) before treating the device as
+    // disconnected. Consecutive-failure count; any success resets it.
+    static constexpr int kTransientFailureLimit = 40;
+    static constexpr int kTransientRetryDelayMs = 25;
+    int m_transientFailures = 0;
 
 };
 

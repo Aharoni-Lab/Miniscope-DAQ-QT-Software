@@ -16,16 +16,26 @@
 #include <QVariant>
 
 BehaviorCam::BehaviorCam(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime) :
-    VideoDevice(parent, ucDevice, softwareStartTime),
-    m_camCalibWindowOpen(false),
-    m_camCalibRunning(false),
+    // A MiniCAM is Miniscope DAQ hardware - its MT9P031 sensor, FPD-Link SERDES
+    // pair and LED driver are all brought up over the DAQ's I2C tunnel - so it
+    // needs the direct-control backend exactly like a Miniscope does. Without
+    // this it lands on VideoStreamOCV, whose macOS path has no control channel
+    // and DISCARDS the whole command queue (VideoStreamOCV::sendCommands), so
+    // the sensor is never configured and no frame ever arrives.
+    //
+    // Same webcam/MiniCAM test as isMiniCAM below, duplicated here rather than
+    // shared because the base ctor picks the backend before this ctor's body
+    // runs and so cannot read the member.
+    VideoDevice(parent, ucDevice, softwareStartTime,
+                /*preferDirectControl=*/!ucDevice.value("deviceType").toString()
+                                             .toLower().contains("webcam")),
     m_softwareStartTime(softwareStartTime)
 {
     m_ucDevice = ucDevice; // hold user config for this device
-    m_cDevice = getDeviceConfig(m_ucDevice["deviceType"].toString());
+    m_cDevice = getDeviceConfig(m_ucDevice.value("deviceType").toString());
 
     // TODO: Handle cases where there is more than webcams and MiniCAMs
-    if (m_ucDevice["deviceType"].toString().toLower().contains("webcam")) {
+    if (m_ucDevice.value("deviceType").toString().toLower().contains("webcam")) {
         isMiniCAM = false;
 
         // USED BEFORE VIDEODEVICE CLASS
@@ -50,15 +60,9 @@ void BehaviorCam::setupDisplayObjectPointers()
         QObject::connect(rootDistplayObject, SIGNAL( camPropsClicked() ), this, SLOT( handleCamPropsClicked()));
         QObject::connect(this, SIGNAL( openCamPropsDialog()), deviceStream, SLOT( openCamPropsDialog()));
     }
-
-    // Handle camera calibration signals from GUI
-    QObject::connect(rootDistplayObject, SIGNAL( calibrateCameraClicked() ), this, SLOT( handleCamCalibClicked()));
-    QObject::connect(rootDistplayObject, SIGNAL( calibrateCameraStart() ), this, SLOT( handleCamCalibStart()));
-    QObject::connect(rootDistplayObject, SIGNAL( calibrateCameraQuit() ), this, SLOT( handleCamCalibQuit()));
-
 }
 
-void BehaviorCam::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufIdx, VideoDisplay *vidDisp)
+void BehaviorCam::handleNewDisplayFrame(qint64 /*timeStamp*/, cv::Mat frame, int /*bufIdx*/, VideoDisplay *vidDisp)
 {
     QImage tempFrame2;
     cv::Mat tempFrame, tempMat1, tempMat2;
@@ -75,37 +79,5 @@ void BehaviorCam::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int buf
     if (isMiniCAM == false)
         vidDisp->setDroppedFrameCount(-1); // This overwrites display value in videodevice sendNewFrame function
 
-}
-
-void BehaviorCam::handleCamCalibClicked()
-{
-    // This slot gets called when user clicks "camera calibration" in behavior cam GUI
-    qDebug() << "Entering camera calibration";
-    m_camCalibWindowOpen = true;
-    // camCalibWindow will open up. This is located in the behaviorCam.qml file
-    // This window will display directions begin/quit buttons, and progress of calibration
-
-}
-
-void BehaviorCam::handleCamCalibStart()
-{
-    qDebug() << "Beginning camera calibration";
-    m_camCalibRunning = true;
-    // Probably can use an if statement in sendNewFrame() to send frames somewhere for camera calibration
-    // Probably want to update the cam calib window that opens up with info as the cam is being calibrated
-
-    // When done, calibration should be saved in a file and the file path should be updated in the user config or
-    // Another option would be to just save all the calibration data directly into the user config file
-
-}
-
-void BehaviorCam::handleCamCalibQuit()
-{
-    qDebug() << "Quitting camera calibration";
-    if (m_camCalibRunning) {
-        // Do stuff to exit cam calibration algorithm without issue
-        m_camCalibRunning = false;
-    }
-    m_camCalibWindowOpen = false;
 }
 

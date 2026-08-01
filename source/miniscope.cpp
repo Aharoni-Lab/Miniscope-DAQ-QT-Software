@@ -19,7 +19,10 @@
 
 
 Miniscope::Miniscope(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime) :
-    VideoDevice(parent, ucDevice, softwareStartTime),
+    // Prefer the libuvc backend for Miniscopes (active on Linux only, where CMake
+    // defines HAVE_LIBUVC; ignored elsewhere). Fixes BNO + frame-counter reads
+    // that the kernel uvcvideo driver would otherwise cache.
+    VideoDevice(parent, ucDevice, softwareStartTime, /*preferDirectControl=*/true),
     baselineFrameBufWritePos(0),
     baselinePreviousTimeStamp(0),
     m_displatState("Raw"),
@@ -34,7 +37,7 @@ Miniscope::Miniscope(QObject *parent, QJsonObject ucDevice, qint64 softwareStart
     // --------------------
 
     m_ucDevice = ucDevice; // hold user config for this device
-    m_cDevice = getDeviceConfig(m_ucDevice["deviceType"].toString());
+    m_cDevice = getDeviceConfig(m_ucDevice.value("deviceType").toString());
 
 //    QObject::connect(this, &VideoDevice::displayCreated, this, &Miniscope::displayHasBeenCreated);
 //    QObject::connect(this, &Miniscope::displayCreated, this, &Miniscope::displayHasBeenCreated);
@@ -44,15 +47,20 @@ void Miniscope::setupDisplayObjectPointers()
 {
     // display object can only be accessed after backend call createView()
     rootDisplayObject = getRootDisplayObject();
+    // The video window shell is shared with the behavior cameras, so it always
+    // carries this signal; the dF/F display mode it drives is Miniscope-only,
+    // which is why the connection lives here rather than in VideoDevice.
+    QObject::connect(rootDisplayObject, SIGNAL( dFFSwitchChanged(bool) ),
+                     this, SLOT( handleDFFSwitchChange(bool) ));
     if (getHeadOrienataionStreamState())
         bnoDisplay = getRootDisplayChild("bno");
     QObject* temp = getRootDisplayChild("addTraceRoi");
-    temp->setProperty("enabled", getTraceDisplayStatus());
+    if (temp)   // only present when the trace display is in use
+        temp->setProperty("enabled", getTraceDisplayStatus());
     vidDisplay = getVideoDisplay();
 }
 void Miniscope::handleDFFSwitchChange(bool checked)
 {
-    qDebug() << "Switch" << checked;
     if (checked)
         m_displatState = "dFF";
     else
@@ -61,7 +69,7 @@ void Miniscope::handleDFFSwitchChange(bool checked)
 
 void Miniscope::handleAddNewTraceROI(int leftEdge, int topEdge, int width, int height)
 {
-    double windowScale = m_ucDevice["windowScale"].toDouble(1);
+    double windowScale = m_ucDevice.value("windowScale").toDouble(1);
     if (m_numTraces < NUM_MAX_NEURON_TRACES) {
 
 //        qDebug() << leftEdge << topEdge << width << height;
@@ -97,27 +105,27 @@ void Miniscope::handleAddNewTraceROI(int leftEdge, int topEdge, int width, int h
 
         tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceROIx"));
         tempProp.append(leftEdge);
-        varParams.setValue<QList<double>>( tempProp );
+        varParams.setValue( tempProp );  // Qt6: setValue is setValue(T&&); explicit <T> would force an rvalue-ref param
         vidDisplay->setProperty("traceROIx", varParams);
 
         tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceROIy"));
         tempProp.append(topEdge);
-        varParams.setValue<QList<double>>( tempProp );
+        varParams.setValue( tempProp );  // Qt6: setValue is setValue(T&&); explicit <T> would force an rvalue-ref param
         vidDisplay->setProperty("traceROIy", varParams);
 
         tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceROIw"));
         tempProp.append(width);
-        varParams.setValue<QList<double>>( tempProp );
+        varParams.setValue( tempProp );  // Qt6: setValue is setValue(T&&); explicit <T> would force an rvalue-ref param
         vidDisplay->setProperty("traceROIw", varParams);
 
         tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceROIh"));
         tempProp.append(height);
-        varParams.setValue<QList<double>>( tempProp );
+        varParams.setValue( tempProp );  // Qt6: setValue is setValue(T&&); explicit <T> would force an rvalue-ref param
         vidDisplay->setProperty("traceROIh", varParams);
 
         tempProp = qvariant_cast< QList<double> >(vidDisplay->property("traceColor"));
         tempProp.append(m_traceColors[m_numTraces][0]);
-        varParams.setValue<QList<double>>( tempProp );
+        varParams.setValue( tempProp );  // Qt6: setValue is setValue(T&&); explicit <T> would force an rvalue-ref param
         vidDisplay->setProperty("traceColor", varParams);
 
 
@@ -146,6 +154,19 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
     else
         tempFrame2 = QImage(frame.data, frame.cols, frame.rows, frame.step, QImage::Format_RGB888);
 
+    // A frame size change (a device reconnect can renegotiate the format, or
+    // a mis-bound camera can deliver foreign frames) must restart the baseline
+    // accumulation: mixing sizes in the += / divide below is a fatal
+    // cv::Exception (observed as an app crash on the macOS bench). This one
+    // predicate drives the reset here and the dFF fallbacks below.
+    bool baselineSizeMatches = !baselineFrame.empty()
+        && frame.cols == baselineFrame.cols && frame.rows == baselineFrame.rows;
+    if (!baselineFrame.empty() && !baselineSizeMatches) {
+        qWarning() << getDeviceName() << "frame size changed to" << frame.cols << "x" << frame.rows
+                   << "- resetting dFF baseline";
+        baselineFrameBufWritePos = 0;
+    }
+
     // Generate moving average baseline frame
     if ((timeStamp - baselinePreviousTimeStamp) > 50) {
         // update baseline frame buffer every ~500ms
@@ -154,6 +175,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         tempMat1 = tempMat1/(BASELINE_FRAME_BUFFER_SIZE);
         if (baselineFrameBufWritePos == 0) {
             baselineFrame = tempMat1;
+            baselineSizeMatches = true;   // baseline just restarted at this frame's size
         }
         else if (baselineFrameBufWritePos < BASELINE_FRAME_BUFFER_SIZE) {
             baselineFrame += tempMat1;
@@ -174,6 +196,12 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         vidDisp->setDisplayFrame(tempFrame2);
     }
     else if (m_displatState == "dFF") {
+        // While the baseline is (re)accumulating at a new size, show raw
+        // rather than dividing by a mismatched-size baseline (fatal).
+        if (!baselineSizeMatches) {
+            vidDisp->setDisplayFrame(tempFrame2);
+        }
+        else {
         // TODO: Implement this better. I am sure it can be sped up a lot. Maybe do most of it in a shader
         tempMat2 = frame.clone();
         tempMat2.convertTo(tempMat2, CV_32F);
@@ -183,6 +211,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         cv::cvtColor(tempMat2, tempFrame, cv::COLOR_GRAY2BGR);
         tempFrame2 = QImage(tempFrame.data, tempFrame.cols, tempFrame.rows, tempFrame.step, QImage::Format_RGB888);
         vidDisp->setDisplayFrame(tempFrame2); //TODO: Probably doesn't need "copy"
+        }
     }
     if (getHeadOrienataionStreamState()) {
         // TODO: Clean up this section. Consolidate
@@ -193,6 +222,10 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
             bnoDisplay->setProperty("qx", bnoBuffer[bufIdx*5+1]);
             bnoDisplay->setProperty("qy", bnoBuffer[bufIdx*5+2]);
             bnoDisplay->setProperty("qz", bnoBuffer[bufIdx*5+3]);
+
+            // Feed the optional commutator (no-op if none is connected).
+            emit newHeadQuaternion(bnoBuffer[bufIdx*5+0], bnoBuffer[bufIdx*5+1],
+                                   bnoBuffer[bufIdx*5+2], bnoBuffer[bufIdx*5+3]);
 
             // Figure out Euler Angles
             double qw = bnoBuffer[bufIdx*5+0];
@@ -247,10 +280,12 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
         int bufNum;
         int dataCount;
 
-        float meanIntensity;
+        float meanIntensity = 0.0f;
 
         float meanFrameIntensity;
-        if (m_displatState == "dFF") {
+        // tempMat2 is empty while the dFF baseline is rebuilding after a
+        // frame-size change (see above) - skip the dFF trace math then.
+        if (m_displatState == "dFF" && !tempMat2.empty()) {
             // Remove or find a fast way (maybe with resize or downsamp) if needed.
             // Use center 60% of frame for mean calculation
             cv::Rect frameMeanROIRect(tempMat2.rows * 0.2,
@@ -282,7 +317,7 @@ void Miniscope::handleNewDisplayFrame(qint64 timeStamp, cv::Mat frame, int bufId
                 if (m_displatState == "Raw") {
                     meanIntensity = cv::mean(frame(roiRect))[0];
                 }
-                else if (m_displatState == "dFF") {
+                else if (m_displatState == "dFF" && !tempMat2.empty()) {
                     meanIntensity = cv::mean(tempMat2(roiRect))[0];
                 }
                 // Used for mean window smoothing of traces
@@ -323,12 +358,14 @@ void Miniscope::setupBNOTraceDisplay()
         bnoNumDataInBuf[i][1] = 0;
 
     }
-    bnoScale[0] = 1.0f/3.141592f;
-    bnoScale[1] = 1.0f/3.141592f;
-    bnoScale[2] = 1.0f/3.141592f;
+    // BNO Euler angles span +/-pi. 1/(4*pi) maps that to a +/-0.25 half-amplitude
+    // (half of a neuron trace's +/-0.5), which reads well next to the neuron traces.
+    bnoScale[0] = 1.0f/(4.0f*3.141592f);
+    bnoScale[1] = 1.0f/(4.0f*3.141592f);
+    bnoScale[2] = 1.0f/(4.0f*3.141592f);
 
     if (getHeadOrienataionStreamState()) {
-        QJsonArray tempArray = m_ucDevice["headOrientation"].toObject()["plotTrace"].toArray();
+        QJsonArray tempArray = m_ucDevice.value("headOrientation").toObject().value("plotTrace").toArray();
         QString name;
         bool sameOffset;
         int count = 0;

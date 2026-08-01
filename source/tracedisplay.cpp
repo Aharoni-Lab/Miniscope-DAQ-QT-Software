@@ -1,7 +1,9 @@
 #include "tracedisplay.h"
+#include "monotonicclock.h"
 #include "newquickview.h"
 
 #include <QObject>
+#include <QDebug>
 #include <QGuiApplication>
 #include <QScreen>
 #include <QDateTime>
@@ -10,10 +12,10 @@
 #include <QtMath>
 
 #include <QtQuick/qquickwindow.h>
-#include <QtGui/QOpenGLShaderProgram>
+#include <QtOpenGL/QOpenGLShaderProgram>        // Qt6: moved from QtGui to Qt6::OpenGL
 #include <QtGui/QOpenGLContext>
-#include <QtGui/QOpenGLTexture>
-#include <QtGui/QOpenGLFramebufferObject>
+#include <QtOpenGL/QOpenGLTexture>   // Qt6: moved from QtGui to Qt6::OpenGL
+#include <QtOpenGL/QOpenGLFramebufferObject>    // Qt6: moved from QtGui to Qt6::OpenGL
 
 TraceDisplayBackend::TraceDisplayBackend(QObject *parent, QJsonObject ucTraceDisplay, qint64 softwareStartTime):
     QObject(parent),
@@ -47,10 +49,36 @@ void TraceDisplayBackend::createView()
     view->setX(m_ucTraceDisplay["windowX"].toInt(1));
     view->setY(m_ucTraceDisplay["windowY"].toInt(1));
 
+    // Let the QML content scale with the window, and lock resizing to the window's
+    // native aspect ratio.
+    view->setResizeMode(QQuickView::SizeRootObjectToView);
+    view->setMinimumSize(QSize(view->width() / 2, view->height() / 2));
+    view->setLockedAspectRatio((qreal)view->width() / (qreal)view->height());
+
 #ifdef Q_OS_WINDOWS
-    view->setFlags(Qt::Window | Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint);
+    // Resizable window with a system menu + close (X) button. The trace window is
+    // meant to be user-closeable; no maximize button since that would break the
+    // locked aspect ratio.
+    view->setFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+                   | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
 #endif
-    view->show();
+    // Not shown here: the Acquire pane host embeds or floats it per the saved
+    // layout, and closing a floating trace pane re-docks it instead of tearing
+    // it down (teardown happens only in close(), at session end).
+
+    // A failed QML load has no root object; bail out instead of dereferencing
+    // it. Console-only report: createView runs in the constructor, before the
+    // backend can wire up a message channel. close()/addNewTrace()/the pane
+    // host all already skip a null view / m_traceDisplay.
+    const QStringList loadErrors =
+        NewQuickView::loadFailureMessages(view, QStringLiteral("Trace display window"));
+    if (!loadErrors.isEmpty()) {
+        for (const QString &msg : loadErrors)
+            qWarning().noquote() << msg;
+        view->deleteLater();
+        view = nullptr;
+        return;
+    }
 
     m_traceDisplay = view->rootObject()->findChild<TraceDisplay*>("traceDisplay");
     m_traceDisplay->setSoftwareStartTime(m_softwareStartTime);
@@ -58,22 +86,35 @@ void TraceDisplayBackend::createView()
 
 void TraceDisplayBackend::addNewTrace(QString name, float color[3], float scale, QString units, bool sameOffset, QAtomicInt *displayBufNum, QAtomicInt *numDataInBuf, int bufSize, float *dataT, float *dataY)
 {
+    // The window may have been closed at runtime; drop trace additions once it's gone.
+    if (!m_traceDisplay)
+        return;
 
     trace_t newTrace = trace_t(name, color, scale, units, sameOffset, displayBufNum, numDataInBuf, bufSize, dataT, dataY);
     m_traceDisplay->addNewTrace(newTrace);
 }
 
+TraceDisplayBackend::~TraceDisplayBackend()
+{
+    // No-op if close() already ran (session end calls it before deleteLater).
+    close();
+}
+
 void TraceDisplayBackend::close()
 {
+    if (!view)
+        return;
+    // Null the QML item first so a late addNewTrace() can't touch a dying object,
+    // then defer the view deletion (queued signals may still reference it).
+    m_traceDisplay = nullptr;
     view->close();
+    view->deleteLater();
+    view = nullptr;
 }
 
 TraceDisplay::TraceDisplay()
     : m_t(0),
       m_renderer(nullptr),
-      lastMouseClickEvent(nullptr),
-      lastMouseReleaseEvent(nullptr),
-      lastMouseMoveEvent(nullptr),
       m_softwareStartTime(0)
 {
 
@@ -91,41 +132,9 @@ TraceDisplay::TraceDisplay()
 
 void TraceDisplay::mousePressEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton) {
-        lastMouseClickEvent = new QMouseEvent(*event);
-    }
-//    qDebug() << "Mouse Press" << event;
-}
-
-void TraceDisplay::mouseMoveEvent(QMouseEvent *event)
-{
-    // Drag event:
-//    float deltaX, deltaY;
-//    if (event->buttons() == Qt::LeftButton) {
-//        if (lastMouseMoveEvent) {
-//            deltaX = lastMouseMoveEvent->x() - event->x();
-//            deltaY = lastMouseMoveEvent->y() - event->y();
-//        }
-//        else {
-//            deltaX = lastMouseClickEvent->x() - event->x();
-//            deltaY = lastMouseClickEvent->y() - event->y();
-//        }
-//        lastMouseMoveEvent = new QMouseEvent(*event);
-
-//        m_renderer->updatePan(deltaX, deltaY);
-
-
-//    }
-//    qDebug() << "Mouse Move" << event;
-}
-
-void TraceDisplay::mouseReleaseEvent(QMouseEvent *event)
-{
-    if (event->button() == Qt::LeftButton) {
-        lastMouseReleaseEvent = new QMouseEvent(*event);
-        lastMouseMoveEvent = nullptr;
-    }
-//    qDebug() << "Mouse Release" << event;
+    // Accept the press so we keep the mouse grab - otherwise the double-click
+    // (trace select) in mouseDoubleClickEvent() never gets delivered.
+    event->accept();
 }
 
 void TraceDisplay::wheelEvent(QWheelEvent *event)
@@ -143,7 +152,7 @@ void TraceDisplay::wheelEvent(QWheelEvent *event)
     qDebug() << "Wheel" << event;
 }
 
-void TraceDisplay::hoverMoveEvent(QHoverEvent *event)
+void TraceDisplay::hoverMoveEvent(QHoverEvent * /*event*/)
 {
     //    qDebug() << "Hover" << event->pos();
 }
@@ -152,7 +161,9 @@ void TraceDisplay::mouseDoubleClickEvent(QMouseEvent *event)
 {
 
     if (event->button() == Qt::LeftButton) {
-        m_renderer->doubleClickEvent(event->x(), event->y());
+        // Qt6: QMouseEvent::x()/y() are deprecated; use position().
+        const QPoint pos = event->position().toPoint();
+        m_renderer->doubleClickEvent(pos.x(), pos.y());
     }
     if (m_renderer->m_selectedTrace.isEmpty()) {
             // This is really poorly done!!!
@@ -247,11 +258,8 @@ void TraceDisplay::handleWindowChanged(QQuickWindow *win)
     if (win) {
         connect(win, &QQuickWindow::beforeSynchronizing, this, &TraceDisplay::sync, Qt::DirectConnection);
         connect(win, &QQuickWindow::sceneGraphInvalidated, this, &TraceDisplay::cleanup, Qt::DirectConnection);
-//! [1]
-        // If we allow QML to do the clearing, they would clear what we paint
-        // and nothing would show.
-//! [3]
-        win->setClearBeforeRendering(false);
+        // Qt6: setClearBeforeRendering() was removed; set the clear color instead.
+        win->setColor(Qt::black);
     }
 }
 
@@ -261,7 +269,8 @@ void TraceDisplay::sync()
         m_renderer = new TraceDisplayRenderer(nullptr, window()->size() * window()->devicePixelRatio(), m_softwareStartTime);
 //        m_renderer->setShowSaturation(m_showSaturation);
 //        m_renderer->setDisplayFrame(QImage("C:/Users/DBAharoni/Pictures/Miniscope/Logo/1.png"));
-        connect(window(), &QQuickWindow::beforeRendering, m_renderer, &TraceDisplayRenderer::paint, Qt::DirectConnection);
+        // Qt6: underlay must draw during render-pass recording (see videodisplay.cpp).
+        connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &TraceDisplayRenderer::paint, Qt::DirectConnection);
 
         for (int i=0; i < m_tempTraces.length(); i++) {
             m_renderer->addNewTrace(m_tempTraces[i]);
@@ -307,11 +316,10 @@ TraceDisplayRenderer::TraceDisplayRenderer(QObject *parent, QSize displayWindowS
     scale[0] = 1.0f; scale[1] = 1.0f;
     magnify[0] = 1.0f; magnify[1] = 1.0f;
 
-    startTime =  QDateTime().currentMSecsSinceEpoch(); //time software started up
+    startTime = monotonicTimeMs(); //time software started up
     m_lastTimeDisplayed = startTime;
 
     initPrograms();
-    float c[] = {0.5,0.7,1.0};
     bufNum = 0;
     numData[0] = 10;
     numData[1] = 10;
@@ -459,6 +467,12 @@ void TraceDisplayRenderer::drawRenderTexture()
 {
 //    m_texture->bind(m_fbo->takeTexture());
     GLuint textUnit = m_fbo->texture();
+    // Qt6/RHI: the scene graph may leave a texture unit other than 0 active, so a
+    // bare glBindTexture() would attach our FBO color texture to the wrong unit
+    // while the shader samples unit 0 -> the traces never composite onto the
+    // screen (videodisplay avoids this because QOpenGLTexture::bind(0) selects
+    // the unit implicitly). Explicitly select unit 0 before binding.
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, textUnit);
 //    m_texture = new QOpenGLTexture(QImage(":/img/MiniscopeLogo.png").rgbSwapped());
 //    qDebug() << "Texture num" << m_fbo->texture();
@@ -907,7 +921,26 @@ void TraceDisplayRenderer::handleWheelEvent(int scrollAmount, QVector<Qt::Key> k
 
 void TraceDisplayRenderer::paint()
 {
-    currentTime =  QDateTime().currentMSecsSinceEpoch();
+    currentTime = monotonicTimeMs();
+
+    // Qt6: bracket all raw OpenGL with begin/endExternalCommands (replaces resetOpenGLState).
+    m_window->beginExternalCommands();
+
+    // Qt6: under the RHI the scene graph's render target is NOT framebuffer 0, so
+    // capture the currently bound framebuffer and restore it after our FBO pass,
+    // instead of relying on QOpenGLFramebufferObject::release() binding 0 (which
+    // would send the grid/bar drawing to the wrong target and break compositing
+    // with the QML axis labels drawn on top).
+    GLint prevFbo = 0;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
+
+    // The render-target FBO is created once at the initial size; recreate it if the
+    // window was resized so the trace texture matches the new viewport.
+    if (m_viewportSize.isValid() && (!m_fbo || m_fbo->size() != m_viewportSize)) {
+        delete m_fbo;
+        m_fbo = new QOpenGLFramebufferObject(m_viewportSize);
+        m_clearDisplayOnNextDraw = true;
+    }
 
     if (m_clearDisplayOnNextDraw)
         initGridH();
@@ -917,7 +950,6 @@ void TraceDisplayRenderer::paint()
     glDisable(GL_DEPTH_TEST);
 
     int pastScrollBarPos = m_viewportSize.width() * std::fmod((m_lastTimeDisplayed - m_softwareStartTime)/1000.0f, windowSize) / windowSize;
-    int clearWidth = ((currentTime - m_lastTimeDisplayed)/1000.0) / windowSize * m_viewportSize.width();
 
     if (m_clearDisplayOnNextDraw == true) {
         m_clearDisplayOnNextDraw = false;
@@ -948,7 +980,8 @@ void TraceDisplayRenderer::paint()
     updateTraces();
     drawTraces();
 
-    m_fbo->release();
+    // Qt6: restore the scene graph's framebuffer (was m_fbo->release(), which binds 0).
+    glBindFramebuffer(GL_FRAMEBUFFER, prevFbo);
 //    QImage fboImage(m_fbo->toImage());
 //    fboImage.save("fboImage.png");
 //    m_texture->release();
@@ -988,15 +1021,12 @@ void TraceDisplayRenderer::paint()
 
     m_lastTimeDisplayed = currentTime;
 
-
-
-//    // Not strictly needed for this example, but generally useful for when
-//    // mixing with raw OpenGL.
-    m_window->resetOpenGLState();
+    // Qt6: replaces the removed m_window->resetOpenGLState().
+    m_window->endExternalCommands();
 
 }
 
-void TraceDisplayRenderer::doubleClickEvent(int x, int y)
+void TraceDisplayRenderer::doubleClickEvent(int /*x*/, int y)
 {
     if (m_selectedTrace.isEmpty()){
         // currently no trace selected

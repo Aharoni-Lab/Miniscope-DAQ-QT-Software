@@ -8,12 +8,12 @@ vec4 colormap_parula(float x);
 
 void main() {
     gl_FragColor = texture2D(texture, v_texcoord);
-    if (u_displayType == 0.0f) {
+    if (u_displayType == 0.0) {
         float temp = gl_FragColor.r;
         gl_FragColor.r = gl_FragColor.b;
         gl_FragColor.b = temp;
     }
-    else if (u_displayType == 1.0f) {
+    else if (u_displayType == 1.0) {
         float val = gl_FragColor.r * 255.0 + gl_FragColor.g * 65536.0;
         val = log(val) / log(u_occMax);
         gl_FragColor = colormap_parula(val);

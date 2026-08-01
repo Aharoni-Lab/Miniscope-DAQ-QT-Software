@@ -1,6 +1,8 @@
 varying vec4 v_color;
 varying float v_index;
 
+uniform float u_traceSelected;   // 0 = none selected, 1 = this trace, -1 = another trace
+
 vec4 colormap_parula(float x);
 
 float colormap_f1(int formula, float x);
@@ -19,12 +21,21 @@ void main() {
     }
     else if (gl_FragColor.g == -2.0 && gl_FragColor.b == -2.0) {
         // Use parula colormap_parula
-        gl_FragColor = colormap_gnu_plot(gl_FragColor.r, 33.0, 13.0, 10.0);
+        gl_FragColor = colormap_gnu_plot(gl_FragColor.r, 33, 13, 10);
     }
     else if (gl_FragColor.g == -3.0 && gl_FragColor.b == -3.0) {
         // Use parula colormap_parula
         gl_FragColor = colormap_jet(gl_FragColor.r);
     }
+
+    // Selection highlight/dim, applied here (not in trace.vert) so the colormap
+    // sentinels above are read before the colour is blended: selected trace ->
+    // toward white, the others -> toward black.
+    if (u_traceSelected == 1.0)
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0), 0.8);
+    else if (u_traceSelected == -1.0)
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.0), 0.8);
+
     if (((fract(v_index) > .00001) && (fract(v_index) < .99999)) || v_index > 2.0)
         gl_FragColor.a = 0.0;
 
