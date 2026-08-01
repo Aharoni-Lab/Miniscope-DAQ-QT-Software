@@ -95,15 +95,22 @@ struct AvfFrameGrabber::Impl {
     MSFrameSink *sink = nil;
     dispatch_queue_t queue = nil;
     uint64_t consumedSequence = 0;
-    // Device whose configuration lock we still hold, or nil. Holding the lock
-    // for the session's whole lifetime is what stops AVCaptureSession from
-    // reconfiguring activeFormat out from under us (see open()).
-    AVCaptureDevice *lockedDevice = nil;
 };
 
 AvfFrameGrabber::~AvfFrameGrabber()
 {
     release();
+}
+
+// The device format matching the requested geometry, or nil if it advertises none.
+static AVCaptureDeviceFormat *formatMatching(AVCaptureDevice *device, int width, int height)
+{
+    for (AVCaptureDeviceFormat *f in device.formats) {
+        const CMVideoDimensions dim = CMVideoFormatDescriptionGetDimensions(f.formatDescription);
+        if (dim.width == width && dim.height == height)
+            return f;
+    }
+    return nil;
 }
 
 bool AvfFrameGrabber::open(const QString &uniqueID, int width, int height)
@@ -127,12 +134,19 @@ bool AvfFrameGrabber::open(const QString &uniqueID, int width, int height)
             return false;
         }
 
+        const QString deviceLabel = QString::fromNSString(device.localizedName);
+        const QString geometry = QStringLiteral("%1x%2").arg(width).arg(height);
+
         AVCaptureSession *session = [[AVCaptureSession alloc] init];
         if (![session canAddInput:input]) {
             m_lastError = QStringLiteral("capture session rejected %1 (in use by another app?)")
-                              .arg(QString::fromNSString(device.localizedName));
+                              .arg(deviceLabel);
             return false;
         }
+
+        // One configuration transaction for input + device format + output, so the
+        // device is reconfigured once rather than on each separate mutation.
+        [session beginConfiguration];
         [session addInput:input];
 
         // Put the DEVICE in the requested geometry, rather than taking whatever
@@ -145,40 +159,35 @@ bool AvfFrameGrabber::open(const QString &uniqueID, int width, int height)
         // MiniCAM delivered one 608x608 frame and then stalled.
         //
         // macOS has no AVCaptureSessionPresetInputPriority (iOS-only) to declare
-        // that the device's own format wins, and the session WILL reconfigure
-        // the device on startRunning() - measured: a MiniCAM pinned to 1024x768
-        // came back as 1296x972. Holding the configuration lock across
-        // startRunning() is what makes the choice stick, so the lock is released
-        // in release(), not here. The read-back after startRunning() verifies it.
-        const QString deviceLabel = QString::fromNSString(device.localizedName);
+        // that the device's own format wins, so the session reconfigures the
+        // device when it starts: measured, a MiniCAM assigned 1024x768 and then
+        // unlocked came back as 1296x972. Holding the configuration lock across
+        // startRunning() is what makes the choice stick. The lock is dropped as
+        // soon as the read-back confirms the format, so the exclusive (and
+        // cross-process) claim lasts milliseconds rather than the whole session.
+        //
+        // Verified on a MacBook Pro camera (7 formats, defaults to 1920x1080):
+        // requesting 1280x720 holds through startRunning and stays held for the
+        // rest of the session after the unlock. Whether the configuration
+        // transaction above would on its own be enough was NOT tested - the lock
+        // is what the revert was measured against, so it stays. If the read-back
+        // below ever starts firing, that is the assumption to re-measure.
         AVCaptureDevice *lockedDevice = nil;
-        bool formatSelected = false;
         if (width > 0 && height > 0) {
-            AVCaptureDeviceFormat *match = nil;
-            for (AVCaptureDeviceFormat *f in device.formats) {
-                const CMVideoDimensions dim =
-                    CMVideoFormatDescriptionGetDimensions(f.formatDescription);
-                if (dim.width == width && dim.height == height) {
-                    match = f;
-                    break;
-                }
-            }
-            if (match == nil) {
-                qWarning() << "AVF:" << deviceLabel << "advertises no" << width << "x" << height
+            AVCaptureDeviceFormat *match = formatMatching(device, width, height);
+            NSError *lockError = nil;
+            if (match == nil)
+                qWarning().noquote() << "AVF:" << deviceLabel << "advertises no" << geometry
                            << "format; falling back to CoreVideo scaling of its default format";
-            } else {
-                NSError *lockError = nil;
-                if (![device lockForConfiguration:&lockError]) {
-                    qWarning() << "AVF: could not lock" << deviceLabel << "to select" << width
-                               << "x" << height << "-"
-                               << QString::fromNSString(lockError.localizedDescription);
-                } else {
+            else if (![device lockForConfiguration:&lockError])
+                qWarning().noquote() << "AVF: could not lock" << deviceLabel << "to select" << geometry
+                           << "-" << QString::fromNSString(lockError.localizedDescription);
+            else {
+                // activeFormat is sticky across opens, so skip the redundant
+                // format re-negotiation when the device is already in this mode.
+                if (device.activeFormat != match)
                     device.activeFormat = match;
-                    lockedDevice = device;   // stays locked until release()
-                    formatSelected = true;
-                    qInfo().nospace() << "[diag] " << deviceLabel << " activeFormat set to "
-                                      << width << "x" << height;
-                }
+                lockedDevice = device;
             }
         }
 
@@ -186,9 +195,10 @@ bool AvfFrameGrabber::open(const QString &uniqueID, int width, int height)
         NSMutableDictionary *settings = [@{
             (id)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_32BGRA)
         } mutableCopy];
-        if (width > 0 && height > 0 && !formatSelected) {
-            // Only when no matching device format exists. Resampling imaging
-            // data is lossy, so it stays a fallback rather than the mechanism.
+        if (width > 0 && height > 0 && lockedDevice == nil) {
+            // Only when the device could not be put in this geometry itself.
+            // Resampling imaging data is lossy, so it stays a fallback rather
+            // than the mechanism.
             settings[(id)kCVPixelBufferWidthKey] = @(width);
             settings[(id)kCVPixelBufferHeightKey] = @(height);
         }
@@ -201,32 +211,34 @@ bool AvfFrameGrabber::open(const QString &uniqueID, int width, int height)
         [output setSampleBufferDelegate:sink queue:queue];
         if (![session canAddOutput:output]) {
             m_lastError = QStringLiteral("capture session rejected the video output");
+            [session commitConfiguration];
             [lockedDevice unlockForConfiguration];   // no-op when nil
             return false;
         }
         [session addOutput:output];
+        [session commitConfiguration];
         [session startRunning];
 
         // Did the format survive session start? A silent revert here is the
         // difference between imaging the sensor's real geometry and imaging a
-        // rescaled crop of someone else's, so it must be loud.
-        if (formatSelected) {
+        // rescaled crop of another mode's, so it must be loud.
+        if (lockedDevice != nil) {
             const CMVideoDimensions actual =
                 CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription);
             if (actual.width != width || actual.height != height)
-                qWarning() << "AVF:" << deviceLabel << "reverted to" << actual.width << "x"
-                           << actual.height << "when the session started (asked for" << width
-                           << "x" << height << ")";
+                qWarning().noquote() << "AVF:" << deviceLabel << "reverted to"
+                           << QStringLiteral("%1x%2").arg(actual.width).arg(actual.height)
+                           << "when the session started (asked for" << geometry << ")";
             else
-                qInfo().nospace() << "[diag] " << deviceLabel << " activeFormat held at "
-                                  << width << "x" << height << " after session start";
+                qInfo().nospace().noquote() << "[diag] " << deviceLabel << " activeFormat held at "
+                                  << geometry << " after session start";
+            [lockedDevice unlockForConfiguration];
         }
 
         m_impl = new Impl;
         m_impl->session = session;
         m_impl->sink = sink;
         m_impl->queue = queue;
-        m_impl->lockedDevice = lockedDevice;
     }
     m_lastError.clear();
     return true;
@@ -246,11 +258,6 @@ void AvfFrameGrabber::release()
         for (AVCaptureOutput *out in m_impl->session.outputs)
             if ([out isKindOfClass:[AVCaptureVideoDataOutput class]])
                 [(AVCaptureVideoDataOutput *)out setSampleBufferDelegate:nil queue:nil];
-        // Held since open() to pin activeFormat; drop it only now that the
-        // session is stopped, so the device is left configurable for the next
-        // open (ours or another app's).
-        [m_impl->lockedDevice unlockForConfiguration];   // no-op when nil
-        m_impl->lockedDevice = nil;
     }
     delete m_impl;   // ARC releases the session/sink/queue with the Impl
     m_impl = nullptr;

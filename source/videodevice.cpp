@@ -19,6 +19,21 @@
 #include <QQmlApplicationEngine>
 #include <QVector>
 
+// Does this device type talk to its sensor through a Miniscope DAQ's I2C tunnel?
+// Answered from what the device type DECLARES rather than from what it is called:
+// a non-empty "initialize" array is exactly the list of I2C commands that bring
+// the DAQ's SERDES pair, sensor and LED driver up, so having one is what makes a
+// device need the direct-control backend. Every DAQ-based type in
+// videoDevices.json has one (a MiniCAM has 15); every plain WebCam type has none.
+//
+// Deriving it beats testing the deviceType string: a new camera type cannot get
+// the wrong backend by being named badly, and there is no OpenCV fallback if it
+// does - connect2Camera() just fails and the device never opens.
+static bool needsDaqControlChannel(const QJsonObject &cDevice)
+{
+    return !cDevice.value("initialize").toArray().isEmpty();
+}
+
 VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareStartTime, bool preferDirectControl) :
     QObject(parent),
     m_camConnected(false),
@@ -69,26 +84,31 @@ VideoDevice::VideoDevice(QObject *parent, QJsonObject ucDevice, qint64 softwareS
     const int devHeight = m_cDevice.value("height").toInt(-1);
     const double devPixelClock = m_cDevice.value("pixelClock").toDouble(-1);
 
-    // Miniscopes need a direct-control backend where plain OpenCV can't reach
-    // the DAQ's control channel (see videostreambase.h): libuvc on Linux (the
-    // kernel uvcvideo driver caches UVC control reads), and the AVFoundation +
-    // IOKit hybrid on macOS (AVFoundation exposes no UVC controls at all). A
-    // real live camera (deviceID) is required - video-file playback always
-    // uses OpenCV.
+    // Devices on Miniscope DAQ hardware need a direct-control backend where plain
+    // OpenCV can't reach the DAQ's control channel (see videostreambase.h): libuvc
+    // on Linux (the kernel uvcvideo driver caches UVC control reads), and the
+    // AVFoundation + IOKit hybrid on macOS (AVFoundation exposes no UVC controls
+    // at all). This covers a MiniCAM as well as a Miniscope - it is the same DAQ,
+    // and without the control channel VideoStreamOCV DISCARDS the queued I2C
+    // commands, so the sensor is never configured and no frame ever arrives. A
+    // real live camera (deviceID) is required - video-file playback always uses
+    // OpenCV.
     deviceStream = nullptr;
     const bool liveCamera = m_ucDevice.contains("deviceID") && !m_ucDevice.value("deviceID").isNull();
+    const bool directControl =
+        (m_preferDirectControlBackend || needsDaqControlChannel(m_cDevice)) && liveCamera;
 #if defined(HAVE_LIBUVC)
-    if (m_preferDirectControlBackend && liveCamera) {
+    if (directControl) {
         deviceStream = new VideoStreamLibUVC(nullptr, devWidth, devHeight, devPixelClock);
         qDebug() << "Using libuvc capture backend for" << m_deviceName;
     }
 #elif defined(Q_OS_MACOS)
-    if (m_preferDirectControlBackend && liveCamera) {
+    if (directControl) {
         deviceStream = new VideoStreamMac(nullptr, devWidth, devHeight, devPixelClock);
         qDebug() << "Using AVFoundation+IOKit hybrid capture backend for" << m_deviceName;
     }
 #endif
-    Q_UNUSED(liveCamera);
+    Q_UNUSED(directControl);
     if (deviceStream == nullptr)
         deviceStream = new VideoStreamOCV(nullptr, devWidth, devHeight, devPixelClock);
     deviceStream->setDeviceName(m_deviceName);
@@ -278,11 +298,8 @@ void VideoDevice::createView()
         QObject::connect(rootObject, SIGNAL( vidPropChangedSignal(QString, double, double, double) ),
                              this, SLOT( handlePropChangedSignal(QString, double, double, double) ));
 
-        // dFFSwitchChanged is wired in Miniscope::setupDisplayObjectPointers():
-        // dF/F is a Miniscope-only display mode and handleDFFSwitchChange() only
-        // exists there, so connecting it here failed at runtime for every
-        // behavior camera ("No such slot BehaviorCam::handleDFFSwitchChange") -
-        // once per device per session, in the log a user would send us.
+        // dFFSwitchChanged is wired in Miniscope::setupDisplayObjectPointers() -
+        // dF/F is Miniscope-only, so it must not be connected on this base.
 
         QObject::connect(rootObject, SIGNAL( saturationSwitchChanged(bool) ),
                              this, SLOT( handleSaturationSwitchChanged(bool) ));
@@ -316,8 +333,10 @@ void VideoDevice::createView()
         else if (lutName == "Green")   m_lutColormap = 1;
         else { m_lutColormap = 1; lutOn = false; } // "None" / unrecognized
         vidDisplay->setLutMode(lutOn ? m_lutColormap : 0);
+        // The shared VideoWindowShell always carries lutSwitch (it is merely
+        // invisible for a behavior camera), so this guard is defensive only.
         QQuickItem *lutSwitch = rootObject->findChild<QQuickItem*>("lutSwitch");
-        if (lutSwitch) // only the Miniscope window has the switch
+        if (lutSwitch)
             lutSwitch->setProperty("checked", lutOn);
 
         // Set ROI Stuff
