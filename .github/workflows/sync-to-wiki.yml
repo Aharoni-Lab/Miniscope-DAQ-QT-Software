@@ -4,8 +4,9 @@
 # "Miniscope DAQ QT software/Release/<version>"; the top-level project page is
 # human-curated and never rewritten.
 #
-# Secrets: WIKI_REPO_BOT_USER / WIKI_REPO_BOT_PASSWORD must hold a miniscope.org
-# bot account (Special:BotPasswords) with edit rights.
+# Secrets: WIKI_REPO_MINISCOPE_BOT_USER / WIKI_REPO_MINISCOPE_BOT_PASSWORD must
+# hold a miniscope.org bot account (Special:BotPasswords) with edit rights —
+# the same secret names miniscope/MiniXL uses for its miniscope.org credentials.
 name: Sync to wiki
 
 on:
@@ -41,5 +42,5 @@ jobs:
       dry_run: ${{ inputs.dry_run || false }}
       changelog: ${{ inputs.changelog || '' }}
     secrets:
-      WIKI_REPO_BOT_USER: ${{ secrets.WIKI_REPO_BOT_USER }}
-      WIKI_REPO_BOT_PASSWORD: ${{ secrets.WIKI_REPO_BOT_PASSWORD }}
+      WIKI_REPO_BOT_USER: ${{ secrets.WIKI_REPO_MINISCOPE_BOT_USER }}
+      WIKI_REPO_BOT_PASSWORD: ${{ secrets.WIKI_REPO_MINISCOPE_BOT_PASSWORD }}
