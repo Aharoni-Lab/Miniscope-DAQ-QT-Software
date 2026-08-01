@@ -39,8 +39,54 @@ echo "### fetch linuxdeploy + qt plugin (cached in $TOOLS)"
 mkdir -p "$TOOLS"
 LD="$TOOLS/linuxdeploy-x86_64.AppImage"
 LDQT="$TOOLS/linuxdeploy-plugin-qt-x86_64.AppImage"
-[ -f "$LD" ]   || curl -sSL -o "$LD"   "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
-[ -f "$LDQT" ] || curl -sSL -o "$LDQT" "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage"
+
+# An AppImage starts with the ELF magic. Anything else (an HTML/text error page,
+# a truncated download) is not a tool we can run.
+is_elf() {
+    [ -f "$1" ] || return 1
+    [ "$(head -c4 "$1" 2>/dev/null | od -An -tx1 | tr -d ' \n')" = "7f454c46" ]
+}
+
+# Fetch a tool unless a VALID copy is already cached.
+#
+# curl needs --fail here. Without it an HTTP error response is written to the
+# output file and curl still exits 0, so a transient 404 on the "continuous"
+# rolling release got chmod +x'd and executed, failing much later and very
+# confusingly with:
+#
+#   .../linuxdeploy-x86_64.AppImage: line 1: Not: command not found
+#
+# The ELF check then covers the rest: a cache poisoned before this guard existed
+# (locally that file is reused forever, since only its existence was checked), a
+# truncated download, or an error page served with a 200.
+fetch_tool() {
+    local path="$1" url="$2" name
+    name="$(basename "$path")"
+    if is_elf "$path"; then
+        echo "    $name: cached"
+        return 0
+    fi
+    if [ -e "$path" ]; then
+        echo "    $name: cached copy is not an executable, refetching"
+    fi
+    rm -f "$path"
+    if ! curl -sSL --fail --retry 3 --retry-delay 5 -o "$path" "$url"; then
+        rm -f "$path"
+        echo "ERROR: could not download $name from $url" >&2
+        exit 1
+    fi
+    if ! is_elf "$path"; then
+        echo "ERROR: $name from $url is not an executable. It starts with:" >&2
+        head -c 200 "$path" >&2
+        echo >&2
+        rm -f "$path"
+        exit 1
+    fi
+    echo "    $name: downloaded"
+}
+
+fetch_tool "$LD"   "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
+fetch_tool "$LDQT" "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage"
 chmod +x "$LD" "$LDQT"
 
 echo "### stage AppDir"
