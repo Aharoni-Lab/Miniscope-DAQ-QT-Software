@@ -17,6 +17,22 @@ published together from CI.
 
 ### Added
 
+**Diagnostics**
+- **MiniCAM support on macOS.** A MiniCAM now streams at its native 1024x768
+  instead of connecting and delivering nothing. It is Miniscope DAQ hardware,
+  so it needed the DAQ control channel (its sensor and FPD-Link SERDES pair are
+  brought up over I2C) and its own capture format — previously every device was
+  pinned to the DAQ's default 608x608, which is correct only for a Miniscope.
+- **Optional file log.** Set `MINISCOPE_LOG_FILE` to a path and the app tees its
+  log there, timestamped and with the thread id and logging category. Off unless
+  the variable is set. This is the way to capture a field problem on Windows,
+  where the app is a GUI-subsystem binary whose output otherwise goes to the
+  debugger and cannot be redirected:
+  ```
+  $env:MINISCOPE_LOG_FILE = "C:\path\to\miniscope.log"
+  $env:QT_LOGGING_RULES  = "miniscope.diag=true"   # optional: frame/DAQ detail
+  ```
+
 **User interface (v3 rewrite)**
 - **Single-window app**: a launcher-less shell with two modes — *Setup*
   (recent configs plus a form-based config editor) and *Acquire*. Ending a
@@ -160,9 +176,9 @@ published together from CI.
   since the device catalog moved to `videoDevices.json`, but they looked
   authoritative and old wiki instructions pointed users at them.
 - **Bundled example configs replaced.** The `UserConfigExample-*` files are
-  gone, superseded by five ready-to-run configs — `01-Miniscope-V4`,
+  gone, superseded by six ready-to-run configs — `01-Miniscope-V4`,
   `02-Miniscope-V4-plus-WebCam`, `03-Miniscope-V4-plus-2-WebCams`,
-  `04-WebCam-only`, `05-Miniscope-V4-plus-Commutator` — plus
+  `04-WebCam-only`, `05-Miniscope-V4-plus-Commutator`, `06-MiniCAM` — plus
   `Reference-AllOptions.json`, the annotated file documenting every key. The
   numbered ones run as shipped: `dataDirectory` is `./Data` instead of
   `C:/FILL/OUT/THIS/PATH` (which failed at record time), scopes are

@@ -397,8 +397,19 @@
                 { "$ref": "#/definitions/videoDeviceCommon" },
                 {
                     "properties": {
-                        "gain": { "type": ["string", "number"] },
-                        "frameRate": { "type": ["string", "number"] }
+                        "gain": {
+                            "type": ["string", "number"],
+                            "description": "Sensor gain; a MiniCAM uses \"1X\"/\"8X\"/\"16X\"/\"32X\". Ignored by plain webcams."
+                        },
+                        "frameRate": {
+                            "type": ["string", "number"],
+                            "description": "Frame rate; a MiniCAM uses strings like \"30FPS\". Ignored by plain webcams."
+                        },
+                        "led0": {
+                            "type": "number",
+                            "minimum": 0,
+                            "description": "Illumination LED power at startup, 0-100. Applies to a MiniCAM (which is on Miniscope DAQ hardware); plain webcams have no LED."
+                        }
                     }
                 }
             ]

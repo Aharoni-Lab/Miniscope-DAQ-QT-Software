@@ -14,17 +14,15 @@
 #include <QQuickStyle>
 #include <QStyleHints>
 
-#include <QDateTime>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QMutex>
-#include <QTextStream>
 
 #include "backend.h"
 #include "themecontroller.h"
 #if defined(Q_OS_MACOS) || defined(Q_OS_WIN)
 #include "bundlepaths.h"
-#include <QDir>
-#include <QFileInfo>
 #endif
 
 #include <opencv2/core/version.hpp>   // CV_VERSION (e.g. "4.13.0"); macro-only header
@@ -50,22 +48,24 @@
 // a failed connect) with no log to send. Off unless the variable is set, and it
 // still forwards everything to the default handler.
 static QtMessageHandler g_previousMessageHandler = nullptr;
-static QFile g_logFile;
-static QMutex g_logMutex;
+// Heap-allocated and deliberately never freed: the handler stays installed for
+// the life of the process, so file-scope objects would be destroyed while a
+// later-destroyed translation unit could still log through them.
+static QFile *g_logFile = nullptr;
+static QMutex *g_logMutex = nullptr;
 
 static void fileMessageHandler(QtMsgType type, const QMessageLogContext &context,
                                const QString &msg)
 {
+    // qFormatLogMessage applies the pattern installed below - or the user's
+    // QT_MESSAGE_PATTERN, which still wins - so the file and stderr can never
+    // disagree about format, and file/line/function stay available to it.
+    const QByteArray line = qFormatLogMessage(type, context, msg).toUtf8() + '\n';
     {
-        QMutexLocker locker(&g_logMutex);
-        if (g_logFile.isOpen()) {
-            static const char *levels[] = {"debug", "warning", "critical", "fatal", "info"};
-            const int level = (type >= 0 && type <= QtInfoMsg) ? int(type) : 0;
-            QTextStream out(&g_logFile);
-            out << QDateTime::currentDateTime().toString(Qt::ISODateWithMs) << " ["
-                << levels[level] << "] "
-                << (context.category ? context.category : "default") << ": " << msg << "\n";
-            out.flush();
+        QMutexLocker locker(g_logMutex);
+        if (g_logFile->isOpen()) {
+            g_logFile->write(line);
+            g_logFile->flush();   // a crash is the case this exists for; never buffer
         }
     }
     if (g_previousMessageHandler)
@@ -77,9 +77,21 @@ static void installFileLogIfRequested()
     const QString path = qEnvironmentVariable("MINISCOPE_LOG_FILE");
     if (path.isEmpty())
         return;
-    g_logFile.setFileName(path);
-    if (!g_logFile.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
-        qWarning() << "Could not open log file" << path << "-" << g_logFile.errorString();
+
+    // The thread id earns its place: every device captures on its own thread, so
+    // a multi-device stall log is interleaved and otherwise unattributable.
+    qSetMessagePattern(QStringLiteral("%{time yyyy-MM-ddTHH:mm:ss.zzz} [%{type}] "
+                                      "%{threadid} %{if-category}%{category}: %{endif}"
+                                      "%{message}"));
+
+    g_logFile = new QFile(path);
+    g_logMutex = new QMutex;
+    // A path inside a folder that does not exist yet is the usual way this
+    // silently produces nothing, and the warning below is itself unreadable on
+    // the Windows GUI-subsystem binary the feature exists for.
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    if (!g_logFile->open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+        qWarning() << "Could not open log file" << path << "-" << g_logFile->errorString();
         return;
     }
     g_previousMessageHandler = qInstallMessageHandler(fileMessageHandler);
