@@ -57,3 +57,23 @@ sudo udevadm control --reload-rules && sudo udevadm trigger   # then re-plug the
 ```
 
 > **Note on the Linux build.** The Miniscope is driven directly via **libuvc** on Linux (the kernel `uvcvideo` driver caches UVC control reads, so it can't return the live frame counter or BNO head-orientation data). The DeepLabCut-Live behavior tracker is **not** included in the AppImage. To build from source (and to enable the tracker with `-DUSE_PYTHON=ON`), see [`BUILD_LINUX.md`](BUILD_LINUX.md).
+
+## Installation (macOS, Apple Silicon)
+
+A **DMG** is published on the [Releases Page](https://github.com/Aharoni-Lab/Miniscope-DAQ-QT-Software/releases): `Miniscope-DAQ-<version>-macOS-arm64.dmg`. It is fully self-contained (Qt, OpenCV, and libusb are bundled). Open the DMG and drag **MiniscopeDAQ** into Applications (or anywhere else).
+
+**First launch.** The app is ad-hoc signed, not notarized, so macOS quarantines it on download and refuses to open it ("cannot verify the developer" or "is damaged" — both are the same quarantine flag). On macOS 15 and newer there is no click-through: the right-click → Open bypass is gone and "Open Anyway" in Privacy & Security requires an admin password. Clearing the flag from Terminal works for everyone and needs no admin rights:
+
+```bash
+# Point this at wherever you put the app (/Applications, ~/Applications, ...):
+xattr -dr com.apple.quarantine /Applications/MiniscopeDAQ.app
+
+# Verify - this MUST print nothing:
+xattr -r -l /Applications/MiniscopeDAQ.app | grep quarantine
+```
+
+Then open the app normally. This is a one-time step: once the flag is gone it stays gone, and every later launch just works.
+
+**First run** asks where to keep your user-config files and your recordings (defaulting to `~/Documents/Miniscope/…`), the same as on Linux and Windows.
+
+> **Note on the macOS build.** Miniscopes stream through a native AVFoundation/IOKit backend pinned to the scope's USB identity, so hot-plugging other cameras (or iPhone Continuity Camera) can't steal a Miniscope's slot mid-session. The DeepLabCut-Live behavior tracker is **not** included in the DMG. To build from source, and for the full first-launch/quarantine details, see [`BUILD_MACOS.md`](BUILD_MACOS.md).
