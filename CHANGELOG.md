@@ -7,6 +7,31 @@ Every pull request that changes behavior should add a line to the
 **[Unreleased]** section below; the section is renamed to the version number
 when a release is tagged.
 
+## [Unreleased]
+
+### Added
+
+**Recorded-data quality**
+- Every `timeStamps.csv` row gains a **`Unix Time Stamp (ms)`** column, and
+  `notes.csv` gains one too: absolute UTC time in milliseconds since the
+  epoch, so a recording can be lined up against behavior rigs, TTL boxes, or
+  lab logs without hand-joining `metaData.json` first. The wall clock is read
+  once, when recording starts, and every row is that anchor plus its monotonic
+  offset — so absolute time is available *without* giving up the
+  monotonic-clock guarantee added in v2.0.0, that a clock step cannot
+  distort intervals. The column is appended last, after `DAQ Frame Number`,
+  so existing columns keep their positions.
+- `metaData.json` gains a **`recordingEndTime`** block holding the wall-clock
+  and monotonic readings taken at stop, plus the `driftMs` between them. Over
+  a long session the two clocks diverge by tens of milliseconds per hour;
+  recording both ends makes that drift measurable and correctable post-hoc.
+- New **`Scripts/read_timestamps.py`** turns those 13-digit epoch integers into
+  readable dates: point it at a session folder or a single CSV for a decoded
+  summary, or use `--out` to write a copy with a `Date Time` column appended.
+  Stdlib only, so it runs against a bare Python wherever the data lives, and
+  it still decodes recordings made before the column existed by falling back
+  to the `metaData.json` anchor.
+
 ## [2.0.0] — 2026-07-31 — first release of the Qt 6 generation
 
 This is one final major release of the Qt desktop software before it is

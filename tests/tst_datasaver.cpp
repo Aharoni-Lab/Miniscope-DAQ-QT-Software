@@ -11,7 +11,9 @@
 //    nothing was saved. It must fail loudly (recordingFailed) instead.
 
 #include <QtTest/QtTest>
+#include <QDateTime>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QSemaphore>
 #include <QSignalSpy>
@@ -192,10 +194,11 @@ private slots:
         const QStringList lines = QString::fromUtf8(csv.readAll())
                                       .split('\n', Qt::SkipEmptyParts);
         QCOMPARE(lines.size(), 4); // header + 3 drained frames
-        QCOMPARE(lines[0], QStringLiteral("Frame Number,Time Stamp (ms),Buffer Index,DAQ Frame Number"));
+        QCOMPARE(lines[0], QStringLiteral("Frame Number,Time Stamp (ms),Buffer Index,"
+                                         "DAQ Frame Number,Unix Time Stamp (ms)"));
         for (int i = 0; i < 3; i++) {
             const QStringList cols = lines[i + 1].split(',');
-            QCOMPARE(cols.size(), 4);
+            QCOMPARE(cols.size(), 5);
             QCOMPARE(cols[0].toInt(), i);
             QCOMPARE(cols[3].toLongLong(), daqValues[i]);
         }
@@ -206,10 +209,10 @@ private slots:
         QCOMPARE(int(readBack.get(cv::CAP_PROP_FRAME_COUNT)), 3);
     }
 
-    void devicesWithoutDaqCounterKeepThreeColumnCsv()
+    void devicesWithoutDaqCounterOmitTheDaqColumn()
     {
         // Behavior webcams have no DAQ counter (nullptr buffer): their CSV
-        // format must stay exactly as it always was.
+        // must skip that column and go straight to the UNIX stamp.
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
 
@@ -240,7 +243,102 @@ private slots:
         QFile csv(dir.path() + "/Cam/timeStamps.csv");
         QVERIFY(csv.open(QFile::ReadOnly | QFile::Text));
         const QString header = QString::fromUtf8(csv.readLine()).trimmed();
-        QCOMPARE(header, QStringLiteral("Frame Number,Time Stamp (ms),Buffer Index"));
+        QCOMPARE(header, QStringLiteral("Frame Number,Time Stamp (ms),Buffer Index,"
+                                        "Unix Time Stamp (ms)"));
+    }
+
+    void unixColumnIsAnchoredToRecordStart()
+    {
+        // Every row carries absolute UTC time as well as time-since-start.
+        // The two are tied by a single anchor taken when recording began, so
+        // (unix - relative) must be the SAME value on every row - that is what
+        // keeps an NTP step mid-recording from distorting frame intervals - and
+        // it must equal the wall clock at the moment recording started.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+
+        QJsonObject config = deviceFreeConfig(dir.path());
+        QJsonObject camera;
+        camera["deviceType"] = "WebCam";
+        QJsonObject cameras;
+        cameras["Cam"] = camera;
+        QJsonObject devices;
+        devices["cameras"] = cameras;
+        config["devices"] = devices;
+
+        DataSaver saver;
+        saver.setUserConfig(config);
+        saver.setDataCompression("Cam", "MJPG");
+
+        const int bufSize = 4;
+        cv::Mat frames[bufSize];
+        qint64 timestamps[bufSize] = {0};
+        QSemaphore freeFrames(bufSize), usedFrames;
+        QAtomicInt acqFrame;
+        saver.setFrameBufferParameters("Cam", frames, timestamps, nullptr, nullptr,
+                                       bufSize, &freeFrames, &usedFrames, &acqFrame);
+
+        // Bracket the anchor: whatever startRecording() recorded as "now" has
+        // to fall inside this window.
+        const qint64 epochBefore = QDateTime::currentMSecsSinceEpoch();
+        saver.startRecording({});
+        const qint64 epochAfter = QDateTime::currentMSecsSinceEpoch();
+        QVERIFY(saver.isRecording());
+
+        // Frames 33 ms apart on the monotonic clock, as the capture thread
+        // would deliver them.
+        for (int i = 0; i < 3; i++) {
+            QVERIFY(freeFrames.tryAcquire());
+            frames[i] = cv::Mat(48, 64, CV_8UC3, cv::Scalar(i * 40, 0, 0));
+            timestamps[i] = 1000 + i * 33;
+            usedFrames.release();
+        }
+
+        saver.stopRecording();
+
+        QFile csv(dir.path() + "/Cam/timeStamps.csv");
+        QVERIFY(csv.open(QFile::ReadOnly | QFile::Text));
+        const QStringList lines = QString::fromUtf8(csv.readAll())
+                                      .split('\n', Qt::SkipEmptyParts);
+        QCOMPARE(lines.size(), 4); // header + 3 frames
+
+        qint64 anchorMs = 0;
+        qint64 previousUnixMs = 0;
+        for (int i = 0; i < 3; i++) {
+            const QStringList cols = lines[i + 1].split(',');
+            QCOMPARE(cols.size(), 4); // no DAQ column on a webcam
+            const qint64 relativeMs = cols[1].toLongLong();
+            const qint64 unixMs = cols[3].toLongLong();
+
+            if (i == 0)
+                anchorMs = unixMs - relativeMs;
+            else
+                QCOMPARE(unixMs - relativeMs, anchorMs); // one anchor, no re-sync
+
+            // 33 ms of monotonic spacing must survive into absolute time.
+            if (i > 0)
+                QCOMPARE(unixMs - previousUnixMs, qint64(33));
+            previousUnixMs = unixMs;
+        }
+        QVERIFY(anchorMs >= epochBefore);
+        QVERIFY(anchorMs <= epochAfter);
+
+        // metaData.json must agree with the CSV about the anchor, and must
+        // carry the closing pair that makes clock drift recoverable.
+        QFile meta(dir.path() + "/metaData.json");
+        QVERIFY(meta.open(QFile::ReadOnly));
+        const QJsonObject metaObj = QJsonDocument::fromJson(meta.readAll()).object();
+
+        const QJsonObject startObj = metaObj.value("recordingStartTime").toObject();
+        QCOMPARE(startObj.value("msecSinceEpoch").toVariant().toLongLong(), anchorMs);
+
+        QVERIFY(metaObj.contains("recordingEndTime"));
+        const QJsonObject endObj = metaObj.value("recordingEndTime").toObject();
+        QVERIFY(endObj.value("msecSinceEpoch").toVariant().toLongLong() >= anchorMs);
+        QVERIFY(endObj.value("elapsedMonotonicMs").toVariant().toLongLong() >= 0);
+        // The two clocks cannot have diverged meaningfully over a test that
+        // lasts milliseconds.
+        QVERIFY(qAbs(endObj.value("driftMs").toVariant().toLongLong()) < 1000);
     }
 
     void stopRunningExitsRunLoop()

@@ -272,12 +272,13 @@ bool DataSaver::writeBufferedFrame(const QString &name)
     }
 
     const int bufPosition = frameCount[name] % bufferSize[name];
+    const qint64 frameTimeMs = timeStampBuffer[name][bufPosition] - recordStartTimeMs;
     *csvStream[name] << savedFrameCount[name] << ","
-                     << (timeStampBuffer[name][bufPosition] - recordStartTimeMs) << ","
+                     << frameTimeMs << ","
                      << usedCount[name]->available();
     if (daqFrameNumBuffer.value(name, nullptr) != nullptr)
         *csvStream[name] << "," << daqFrameNumBuffer[name][bufPosition];
-    *csvStream[name] << Qt::endl;
+    *csvStream[name] << "," << (recordStartEpochMs + frameTimeMs) << Qt::endl;
 
     if (headOrientationStreamState[name] == true && bnoBuffer[name] != nullptr) {
         if (headOrientationFilterState[name] && bnoBuffer[name][bufPosition*5 + 4] >= 0.05) { // norm is below 0.98. Should be 1 ideally
@@ -341,6 +342,9 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
     releaseRecordingFiles();   // free the previous recording's (or a failed attempt's) handles
     recordStartDateTime = QDateTime::currentDateTime();
     recordStartTimeMs = monotonicTimeMs();   // frame stamps use the same monotonic clock
+    // Read back out of recordStartDateTime rather than sampled again, so the
+    // CSVs and metaData.json can never disagree about where the clocks were tied.
+    recordStartEpochMs = recordStartDateTime.toMSecsSinceEpoch();
     if (setupFilePaths()) {
         // Refuse to start a recording that is about to run into a full disk.
         const qint64 bytesFree = QStorageInfo(baseDirectory).bytesAvailable();
@@ -428,6 +432,9 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
                     // detectable (counter jump) and TTL-alignable post-hoc.
                     *csvStream[keys[i]] << ",DAQ Frame Number";
                 }
+                // Absolute UTC time of the same frame. Appended last so every
+                // existing column keeps its index for downstream parsers.
+                *csvStream[keys[i]] << ",Unix Time Stamp (ms)";
                 *csvStream[keys[i]] << Qt::endl;
             }
 
@@ -453,7 +460,9 @@ void DataSaver::startRecording(QMap<QString,QVariant> ucInfo)
         noteFile = new QFile(baseDirectory + "/notes.csv");
         if (openForWrite(noteFile)) {
             noteStream = new QTextStream(noteFile);
-            *noteStream << "Time Stamp (ms), Note" << Qt::endl;
+            // The UNIX column sits before the note, not last: note text is
+            // free-form and may contain commas, so nothing can follow it.
+            *noteStream << "Time Stamp (ms),Unix Time Stamp (ms),Note" << Qt::endl;
         }
 
         if (openFailed) {
@@ -493,6 +502,7 @@ void DataSaver::stopRecording()
         }
     }
 
+    writeRecordingEndMetaData();
     releaseRecordingFiles();
 }
 
@@ -542,6 +552,8 @@ void DataSaver::releaseRecordingFiles()
         noteFile->close();
     delete noteFile;
     noteFile = nullptr;
+
+    baseMetaData = QJsonObject();
 }
 
 void DataSaver::devicePropertyChanged(QString deviceName, QString propName, QVariant propValue)
@@ -586,7 +598,9 @@ void DataSaver::takeNote(QString note)
     // Writes note to file submitted through control panel
     // Only write notes when recording
     if (m_recording) {
-        *noteStream << monotonicTimeMs() - recordStartTimeMs << "," << note << Qt::endl;
+        const qint64 noteTimeMs = monotonicTimeMs() - recordStartTimeMs;
+        *noteStream << noteTimeMs << "," << (recordStartEpochMs + noteTimeMs)
+                    << "," << note << Qt::endl;
     }
 }
 
@@ -665,6 +679,7 @@ QJsonDocument DataSaver::constructBaseDirectoryMetaData()
     if (!m_userConfig.value("behaviorTracker").toObject().isEmpty())
         metaData["behaviorTracker"] = m_userConfig.value("behaviorTracker").toObject();
 
+    baseMetaData = metaData;
     jDoc.setObject(metaData);
     return jDoc;
 }
@@ -705,13 +720,45 @@ QJsonDocument DataSaver::constructDeviceMetaData(QString type, QString deviceNam
     return jDoc;
 }
 
-void DataSaver::saveJson(QJsonDocument document, QString fileName)
+void DataSaver::saveJson(QJsonDocument document, QString fileName, bool overwrite)
 {
     QFile jsonFile(fileName);
-    if (!jsonFile.open(QFile::NewOnly)) {
+    const QFile::OpenMode mode = overwrite ? (QFile::WriteOnly | QFile::Truncate)
+                                           : QFile::NewOnly;
+    if (!jsonFile.open(mode)) {
         sendMessage("Warning: could not write " + fileName + " (" + jsonFile.errorString() + ").");
         return;
     }
     jsonFile.write(document.toJson());
 }
 
+// Re-write the session metaData.json with the wall-clock/monotonic pair taken
+// at stop. Every UNIX stamp in the CSVs is anchored to the clocks as they stood
+// at record start, so across a long session the monotonic clock (QPC) and the
+// NTP-disciplined system clock drift apart - order tens of ms per hour. Storing
+// the closing pair lets that drift be fit and removed post-hoc; "driftMs" is
+// the residual already worked out, so analysis code does not have to.
+void DataSaver::writeRecordingEndMetaData()
+{
+    if (baseMetaData.isEmpty())
+        return;
+
+    const QDateTime endDateTime = QDateTime::currentDateTime();
+    const qint64 endEpochMs = endDateTime.toMSecsSinceEpoch();
+    const qint64 elapsedMonotonicMs = monotonicTimeMs() - recordStartTimeMs;
+
+    QJsonObject endTimeObject;
+    endTimeObject["year"] = endDateTime.date().year();
+    endTimeObject["month"] = endDateTime.date().month();
+    endTimeObject["day"] = endDateTime.date().day();
+    endTimeObject["hour"] = endDateTime.time().hour();
+    endTimeObject["minute"] = endDateTime.time().minute();
+    endTimeObject["second"] = endDateTime.time().second();
+    endTimeObject["msec"] = endDateTime.time().msec();
+    endTimeObject["msecSinceEpoch"] = endEpochMs;
+    endTimeObject["elapsedMonotonicMs"] = elapsedMonotonicMs;
+    endTimeObject["driftMs"] = endEpochMs - (recordStartEpochMs + elapsedMonotonicMs);
+
+    baseMetaData["recordingEndTime"] = endTimeObject;
+    saveJson(QJsonDocument(baseMetaData), baseDirectory + "/metaData.json", true);
+}

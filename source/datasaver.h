@@ -70,11 +70,20 @@ private:
     void releaseRecordingFiles();
     QJsonDocument constructBaseDirectoryMetaData();
     QJsonDocument constructDeviceMetaData(QString type, QString deviceName);
-    void saveJson(QJsonDocument document, QString fileName);
+    void saveJson(QJsonDocument document, QString fileName, bool overwrite = false);
+    void writeRecordingEndMetaData();
     QJsonObject m_userConfig;
+    // Kept from startRecording() so stopRecording() can add recordingEndTime
+    // without re-reading and re-parsing the file it already wrote.
+    QJsonObject baseMetaData;
     QString baseDirectory;
     QDateTime recordStartDateTime;
     qint64 recordStartTimeMs = 0;   // monotonic clock base for all CSV times
+    // Wall-clock counterpart of recordStartTimeMs, sampled at the same instant.
+    // The pair is the clock sync: every UNIX stamp written to a CSV is
+    // recordStartEpochMs + (monotonic stamp - recordStartTimeMs), so absolute
+    // time is available without letting an NTP step distort frame intervals.
+    qint64 recordStartEpochMs = 0;
     QMap<QString,QString> deviceDirectory;
 
     QMap<QString, QMap<QString, QVariant>> deviceProperties;
